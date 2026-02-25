@@ -14,6 +14,7 @@ import { editorialRewrite } from '../lib/editorial-rewriter';
 import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
+import { updateSeriesStatus } from '../lib/series-status-tracker';
 
 const prisma = new PrismaClient();
 
