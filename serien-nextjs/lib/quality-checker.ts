@@ -45,6 +45,7 @@ const HYPE_WORDS = [
 
 export async function qualityCheck(input: QualityCheckInput): Promise<QualityCheckResult> {
   const failReasons: string[] = [];
+  let requiresFullRewrite = false;
   
   // Extract text from HTML
   const plainText = input.generatedArticleHtml
@@ -56,35 +57,11 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
   const paragraphs = input.generatedArticleHtml.match(/<p>(.*?)<\/p>/g) || [];
   const paragraphTexts = paragraphs.map(p => p.replace(/<\/?p>/g, '').trim());
 
-  // === STYLE COMPLIANCE CHECKS ===
-  
-  // Check for hype words
-  const foundHypeWords = HYPE_WORDS.filter(word => 
-    plainText.toLowerCase().includes(word.toLowerCase())
-  );
-  if (foundHypeWords.length > 0) {
-    failReasons.push(`Hype-Wörter gefunden: ${foundHypeWords.join(', ')}`);
-  }
-
-  // Check for reader address
-  const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
-  const readerMatches = plainText.match(readerAddressPatterns);
-  if (readerMatches && readerMatches.length > 0) {
-    failReasons.push(`Leser-Ansprache gefunden: ${readerMatches.slice(0, 3).join(', ')}`);
-  }
-
-  // Check platform mentions
-  if (input.platform) {
-    const platformMentions = (plainText.match(new RegExp(input.platform, 'gi')) || []).length;
-    if (platformMentions > 1) {
-      failReasons.push(`Plattform zu oft erwähnt: ${platformMentions}x`);
-    }
-  }
-
   // === STRUCTURE CHECKS ===
   
   if (paragraphTexts.length < 3) {
     failReasons.push(`Zu wenige Absätze: ${paragraphTexts.length} (min: 3)`);
+    requiresFullRewrite = true;
   }
 
   // Check paragraph lengths
@@ -92,35 +69,41 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
     const sentences = para.split(/[.!?]+/).filter(s => s.trim().length > 0);
     const words = para.split(/\s+/).length;
     
-    if (sentences.length > 3) {
-      failReasons.push(`Absatz ${i + 1}: zu viele Sätze (${sentences.length})`);
+    if (i === 0 && sentences.length > 2) {
+      failReasons.push(`Lead zu lang: ${sentences.length} Sätze (max: 2)`);
+    } else if (i > 0 && sentences.length > 3) {
+      failReasons.push(`Absatz ${i + 1}: zu viele Sätze (${sentences.length}, max: 3)`);
+      requiresFullRewrite = true;
     }
     
     if (words > 60) {
-      failReasons.push(`Absatz ${i + 1}: zu viele Wörter (${words})`);
+      failReasons.push(`Absatz ${i + 1}: zu viele Wörter (${words}, max: 60)`);
+      requiresFullRewrite = true;
     }
   });
 
-  // === LANGUAGE CHECKS ===
+  // === HEADLINE CHECKS ===
   
-  // Check headline length
-  if (input.finalHeadline.length > 90) {
-    failReasons.push(`Überschrift zu lang: ${input.finalHeadline.length} Zeichen`);
+  if (input.finalHeadline.length > 70) {
+    failReasons.push(`Headline zu lang: ${input.finalHeadline.length} Zeichen (max: 70)`);
   }
 
-  // Check for duplicate phrases (3+ words)
-  const words = plainText.split(/\s+/);
-  const phrases = new Set<string>();
-  const duplicates = new Set<string>();
-  for (let i = 0; i < words.length - 2; i++) {
-    const phrase = words.slice(i, i + 3).join(' ').toLowerCase();
-    if (phrases.has(phrase)) {
-      duplicates.add(phrase);
-    }
-    phrases.add(phrase);
+  // === CONTENT CHECKS ===
+  
+  // Check for reader address
+  const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
+  const readerMatches = plainText.match(readerAddressPatterns);
+  if (readerMatches && readerMatches.length > 0) {
+    failReasons.push(`Leser-Ansprache gefunden: ${readerMatches.slice(0, 3).join(', ')}`);
+    requiresFullRewrite = true;
   }
-  if (duplicates.size > 0) {
-    failReasons.push(`Doppelte Phrasen: ${Array.from(duplicates).slice(0, 2).join(', ')}`);
+
+  // Check platform mentions
+  if (input.platform) {
+    const platformMentions = (plainText.match(new RegExp(input.platform, 'gi')) || []).length;
+    if (platformMentions > 1) {
+      failReasons.push(`Plattform zu oft erwähnt: ${platformMentions}x (max: 1)`);
+    }
   }
 
   // === AI-POWERED QUALITY SCORING ===
@@ -129,22 +112,21 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
 
   // === PASS/FAIL DECISION ===
   
-  const minTotalScore = 32;
-  const minEachScore = 7;
+  const MIN_HEADLINE_SCORE = 70;
+  const MIN_CONTENT_SCORE = 70;
+  const MIN_STRUCTURE_SCORE = 65;
   
   const passed = 
-    scores.total >= minTotalScore &&
-    scores.style >= minEachScore &&
-    scores.clarity >= minEachScore &&
-    scores.readability >= minEachScore &&
-    scores.trustworthiness >= minEachScore &&
+    scores.headline >= MIN_HEADLINE_SCORE &&
+    scores.content >= MIN_CONTENT_SCORE &&
+    scores.structure >= MIN_STRUCTURE_SCORE &&
     failReasons.length === 0;
 
   return {
     status: passed ? 'PASS' : 'FAIL',
     scores,
     failReasons,
-    autoRewriteRecommended: !passed && scores.total >= 28, // Close, but needs tweaks
+    requiresFullRewrite,
   };
 }
 
