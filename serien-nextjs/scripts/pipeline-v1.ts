@@ -221,11 +221,12 @@ export async function runContentPipeline(source: CrawledSource) {
             generatedHeadline: articleTitle,
             extractedFacts: facts.key_statements.join('\n- '),
             seriesName: resolution.primarySeries.name,
-          platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-        });
+            platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+          });
 
-        articleTitle = editorialResult.final_headline;
-        generatedContent = editorialResult.rewritten_article_html;
+          articleTitle = editorialResult.final_headline;
+          generatedContent = editorialResult.rewritten_article_html;
+        }
       }
 
       // Re-check
