@@ -575,6 +575,18 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log(`   Primary Series: ${resolution.primarySeries.name}`);
     console.log(`   Related Series: ${resolution.relatedSeries.length}`);
 
+    // ========== STEP 9: UPDATE SERIES STATUS ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 9: UPDATE SERIES STATUS');
+    console.log('━'.repeat(70));
+
+    try {
+      await updateSeriesStatus(resolution.primarySeries.tmdbId);
+      console.log(`✅ Series status updated for ${resolution.primarySeries.name}`);
+    } catch (error: any) {
+      console.error(`⚠️  Failed to update series status: ${error.message}`);
+    }
+
     console.log('\n' + '='.repeat(70));
     console.log('🎉 PIPELINE COMPLETE');
     console.log('='.repeat(70) + '\n');
