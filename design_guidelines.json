@@ -1,0 +1,131 @@
+{
+  "project_name": "serien.de",
+  "design_identity": {
+    "persona": "E1 - The Anti-AI Designer",
+    "tone": "Cinematic, Quiet, Editorial, High-Quality",
+    "core_philosophy": "Fusion over Imitation. Dark Mode Mandatory. Content is King."
+  },
+  "typography": {
+    "font_family": {
+      "headings": "\"Barlow Condensed\", sans-serif",
+      "body": "\"Manrope\", sans-serif",
+      "mono": "\"JetBrains Mono\", monospace"
+    },
+    "scale": {
+      "h1": "text-5xl md:text-7xl font-bold tracking-tight uppercase",
+      "h2": "text-4xl md:text-5xl font-semibold tracking-tight",
+      "h3": "text-2xl md:text-3xl font-medium",
+      "body": "text-base md:text-lg leading-relaxed text-muted-foreground",
+      "caption": "text-xs tracking-widest uppercase text-muted-foreground/60"
+    },
+    "installation": "Import via Google Fonts in index.css: @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;700&family=Manrope:wght@400;500;600&display=swap');"
+  },
+  "colors": {
+    "theme": "dark",
+    "palette": {
+      "background": "#050505",
+      "foreground": "#EDEDED",
+      "card": "#121212",
+      "card_foreground": "#FFFFFF",
+      "popover": "#121212",
+      "popover_foreground": "#EDEDED",
+      "primary": "#EDEDED",
+      "primary_foreground": "#050505",
+      "secondary": "#262626",
+      "secondary_foreground": "#EDEDED",
+      "muted": "#262626",
+      "muted_foreground": "#A1A1AA",
+      "accent": "#991B1B",
+      "accent_foreground": "#FFFFFF",
+      "destructive": "#7F1D1D",
+      "destructive_foreground": "#FFFFFF",
+      "border": "#262626",
+      "input": "#262626",
+      "ring": "#525252"
+    },
+    "usage_rules": [
+      "NO GRADIENTS for backgrounds. Use solid matte colors.",
+      "Use 'accent' (#991B1B) VERY sparingly. Only for 'New' badges or critical notifications.",
+      "Primary action buttons should be White (foreground) with Black text.",
+      "Secondary actions should be subtle Ghost or Outline buttons."
+    ]
+  },
+  "layout_system": {
+    "spacing": {
+      "container_padding": "p-6 md:p-12",
+      "section_gap": "gap-12 md:gap-24",
+      "element_gap": "gap-4 md:gap-6"
+    },
+    "grid_modes": {
+      "news_feed": "flex flex-col gap-8 max-w-4xl mx-auto",
+      "series_grid": "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8",
+      "hero_section": "relative h-[70vh] w-full flex items-end justify-start p-8 md:p-16 overflow-hidden"
+    },
+    "alignment": {
+      "headings": "text-left",
+      "cards": "text-left"
+    }
+  },
+  "components": {
+    "news_card": {
+      "structure": "Horizontal Layout. Image (Left 35%) + Content (Right 65%).",
+      "style": "bg-transparent border-b border-border/40 pb-8 rounded-none hover:bg-white/5 transition-colors duration-300 group",
+      "elements": [
+        "Image: Aspect Ratio 16:9, grayscale-0 group-hover:scale-105 transition-transform duration-500",
+        "Meta: Date & Category in uppercase mono font text-xs text-muted-foreground mb-2",
+        "Title: text-2xl font-bold group-hover:text-white transition-colors",
+        "Excerpt: hidden md:block text-muted-foreground mt-2 line-clamp-2"
+      ]
+    },
+    "series_card": {
+      "structure": "Vertical Poster Layout.",
+      "style": "relative aspect-[2/3] overflow-hidden rounded-sm bg-secondary group cursor-pointer",
+      "elements": [
+        "Image: Full cover, object-cover",
+        "Overlay: Gradient from bottom-black/80 to transparent (visible on hover)",
+        "Info: Absolute bottom-4 left-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity",
+        "Follow Button: Top-right absolute, icon-only"
+      ]
+    },
+    "feed_switcher": {
+      "style": "flex gap-6 border-b border-border/40 mb-12",
+      "item": "text-lg font-medium pb-4 border-b-2 border-transparent hover:text-white transition-all data-[state=active]:border-white data-[state=active]:text-white text-muted-foreground"
+    },
+    "navigation": {
+      "style": "sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60",
+      "elements": "Logo (Left), Nav Links (Center), Search & Profile (Right)"
+    }
+  },
+  "visual_enhancers": {
+    "radius": "rounded-sm",
+    "shadows": "shadow-none",
+    "borders": "border border-white/10",
+    "motion": {
+      "hover": "transition-all duration-300 ease-out",
+      "micro_interaction": "active:scale-95"
+    }
+  },
+  "image_urls": {
+    "hero_bg": "https://images.unsplash.com/photo-1698325650945-d957745b30d1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjB0diUyMHNlcmllcyUyMHNjZW5lJTIwZGFyayUyMG1vb2R5fGVufDB8fHx8MTc3MTg4MTcyOHww&ixlib=rb-4.1.0&q=85",
+    "news_thumbnails": [
+      "https://images.unsplash.com/photo-1454494417872-f62dae271b0d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwyfHxjaW5lbWF0aWMlMjB0diUyMHNlcmllcyUyMHNjZW5lJTIwZGFyayUyMG1vb2R5fGVufDB8fHx8MTc3MTg4MTcyOHww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1705668417182-8f09a680d59b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwzfHxjaW5lbWF0aWMlMjB0diUyMHNlcmllcyUyMHNjZW5lJTIwZGFyayUyMG1vb2R5fGVufDB8fHx8MTc3MTg4MTcyOHww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1698325655357-eb816dfa8b96?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHw0fHxjaW5lbWF0aWMlMjB0diUyMHNlcmllcyUyMHNjZW5lJTIwZGFyayUyMG1vb2R5fGVufDB8fHx8MTc3MTg4MTcyOHww&ixlib=rb-4.1.0&q=85"
+    ],
+    "series_posters": [
+      "https://images.unsplash.com/photo-1733232073397-80fb13ef3212?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxtb3ZpZSUyMHBvc3RlciUyMG1pbmltYWwlMjBkZXNpZ258ZW58MHx8fHwxNzcxODgxNzI5fDA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1698325650945-d957745b30d1?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ]
+  },
+  "universal_guidelines": [
+    "Always use 'data-testid' for interactive elements.",
+    "Do NOT use bright/neon colors. Stick to the 'Quiet Editorial' palette.",
+    "Use 'Barlow Condensed' for all headings. If not available, use a strong condensed sans-serif.",
+    "Ensure high contrast for text (White on Black, or Light Grey on Dark Grey).",
+    "News Cards must be 'Horizontal' (Image Left, Text Right) to mimic editorial lists.",
+    "Series Cards should be 'Vertical' (Poster style).",
+    "Use 'sonner' for toast notifications.",
+    "Implement 'Feed Switcher' using Tabs logic but styled as a minimal underline list."
+  ],
+  "instructions_to_main_agent": "1. Install 'Barlow Condensed' and 'Manrope'. 2. Set up the tailwind.config.js with the provided colors. 3. Create the 'NewsCard' and 'SeriesCard' components first. 4. Build the 'Home' page with the 'Feed Switcher'. 5. Ensure the 'Notification Center' is a subtle bell icon in the header."
+}

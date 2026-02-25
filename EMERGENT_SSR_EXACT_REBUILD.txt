@@ -1,0 +1,478 @@
+================================================================================
+           EMERGENT SSR - EXAKTER NACHBAU: SERIEN.DE
+================================================================================
+
+Zielprojekt: serien.de - Serien News Platform mit SSR, ISR-Cache, SEO & Google News
+Tech Stack: React 19 + Express SSR + FastAPI + MongoDB + Redis Cache
+
+================================================================================
+ANWEISUNGEN FUER AGENT
+================================================================================
+
+Kopiere diese Anweisungen komplett und folge jedem Schritt genau.
+
+================================================================================
+PHASE 1: BACKEND SETUP (FastAPI + MongoDB) - 60 min
+================================================================================
+
+1.1 Backend Struktur erstellen
+-------------------------------
+
+Erstelle folgende Verzeichnisstruktur:
+
+/app/backend/
+├── routes/
+│   ├── articles.py
+│   ├── series.py
+│   ├── sitemaps.py
+│   └── admin.py
+├── models/
+│   ├── article.py
+│   ├── series.py
+│   └── user.py
+├── services/
+│   ├── tmdb_service.py
+│   ├── cache_service.py
+│   └── image_service.py
+├── utils/
+│   ├── slug.py
+│   └── seo.py
+├── server.py
+└── requirements.txt
+
+1.2 Dependencies (requirements.txt)
+-----------------------------------
+
+fastapi==0.115.0
+uvicorn==0.32.0
+motor==3.6.0
+pydantic==2.10.0
+python-dotenv==1.0.0
+httpx==0.27.0
+redis==5.0.0
+pymongo==4.6.0
+
+1.3 Backend server.py
+---------------------
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = FastAPI()
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# MongoDB
+mongo_client = AsyncIOMotorClient(os.getenv("MONGO_URL"))
+db = mongo_client[os.getenv("DB_NAME", "serien")]
+
+# Routes
+from routes import articles, series, sitemaps
+
+app.include_router(articles.router, prefix="/api")
+app.include_router(series.router, prefix="/api")
+app.include_router(sitemaps.router, prefix="/api")
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
+1.4 Articles API (routes/articles.py)
+--------------------------------------
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List, Optional
+
+router = APIRouter()
+
+class Article(BaseModel):
+    slug: str
+    title: str
+    content_html: str
+    author_name: str
+    published_at: datetime
+    category: str
+    tags: List[str]
+    tmdb_series_id: Optional[int]
+    meta_title: str
+    meta_description: str
+
+@router.post("/articles")
+async def create_article(article: Article):
+    from server import db
+    article_dict = article.dict()
+    article_dict["created_at"] = datetime.utcnow()
+    result = await db.articles.insert_one(article_dict)
+    return {"id": str(result.inserted_id)}
+
+@router.get("/articles")
+async def get_articles(skip: int = 0, limit: int = 20):
+    from server import db
+    articles = await db.articles.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    return articles
+
+@router.get("/articles/{slug}")
+async def get_article(slug: str):
+    from server import db
+    article = await db.articles.find_one({"slug": slug}, {"_id": 0})
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return article
+
+1.5 TMDB Service (services/tmdb_service.py)
+--------------------------------------------
+
+import httpx
+import os
+
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+async def get_series(tmdb_id: int):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TMDB_BASE_URL}/tv/{tmdb_id}",
+            params={"api_key": TMDB_API_KEY, "language": "de-DE"}
+        )
+        return response.json()
+
+1.6 Series API (routes/series.py)
+----------------------------------
+
+from fastapi import APIRouter, HTTPException
+from services.tmdb_service import get_series
+
+router = APIRouter()
+
+@router.get("/series/{tmdb_id}")
+async def get_series_route(tmdb_id: int):
+    from server import db
+    
+    # Cache Check
+    cached = await db.series.find_one({"tmdb_id": tmdb_id}, {"_id": 0})
+    if cached:
+        return cached
+    
+    # TMDB Fetch
+    data = await get_series(tmdb_id)
+    
+    # Cache Save
+    series_data = {
+        "tmdb_id": tmdb_id,
+        "title": data.get("name"),
+        "slug": data.get("name", "").lower().replace(" ", "-"),
+        "overview": data.get("overview"),
+        "poster_path": data.get("poster_path"),
+        "cached_at": datetime.utcnow()
+    }
+    await db.series.insert_one(series_data)
+    
+    return series_data
+
+1.7 Sitemap API (routes/sitemaps.py)
+-------------------------------------
+
+from fastapi import APIRouter
+from datetime import datetime, timedelta
+
+router = APIRouter()
+
+@router.get("/sitemap")
+async def get_sitemap():
+    from server import db
+    articles = await db.articles.find({}, {"slug": 1, "updated_at": 1, "_id": 0}).to_list(1000)
+    return {"articles": articles}
+
+@router.get("/news-sitemap")
+async def get_news_sitemap():
+    from server import db
+    cutoff = datetime.utcnow() - timedelta(hours=48)
+    articles = await db.articles.find(
+        {"published_at": {"$gte": cutoff}},
+        {"slug": 1, "title": 1, "published_at": 1, "_id": 0}
+    ).to_list(100)
+    return {"articles": articles}
+
+================================================================================
+PHASE 2: FRONTEND SSR (React + Express) - 90 min
+================================================================================
+
+2.1 Dependencies (package.json)
+--------------------------------
+
+Installiere in /app/frontend/:
+
+yarn add express react-dom@latest react@latest react-router-dom
+yarn add @babel/core @babel/preset-react @babel/register compression
+
+2.2 Express SSR Server (server/ssr.js)
+---------------------------------------
+
+WICHTIG: Dies ist der KERN des SSR-Systems!
+
+import express from 'express';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
+import { StaticRouter } from 'react-router-dom/server';
+import App from '../src/App';
+import compression from 'compression';
+import path from 'path';
+
+const app = express();
+const PORT = 3000;
+
+// Compression
+app.use(compression());
+
+// Static Files
+app.use(express.static(path.join(__dirname, '../build')));
+
+// Redis Cache Setup (optional but recommended)
+const redis = require('redis');
+const redisClient = redis.createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+redisClient.connect();
+
+// SSR Handler
+app.get('*', async (req, res) => {
+  const url = req.url;
+  
+  // Cache Check
+  const cacheKey = `page:${url}`;
+  const cached = await redisClient.get(cacheKey);
+  if (cached) {
+    return res.send(cached);
+  }
+  
+  // Fetch Data
+  let pageData = {};
+  if (url.startsWith('/') && url !== '/') {
+    const slug = url.substring(1);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/articles/${slug}`);
+      if (response.ok) {
+        pageData = await response.json();
+      }
+    } catch (error) {
+      console.error('Data fetch error:', error);
+    }
+  }
+  
+  // Render React to HTML
+  const context = { data: pageData };
+  const appHtml = renderToString(
+    <StaticRouter location={url} context={context}>
+      <App />
+    </StaticRouter>
+  );
+  
+  // Build Full HTML
+  const html = `
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${pageData.title || 'serien.de'}</title>
+      <meta name="description" content="${pageData.meta_description || 'Serien News'}">
+      ${pageData.title ? `
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": "${pageData.title}",
+        "datePublished": "${pageData.published_at}",
+        "author": {
+          "@type": "Person",
+          "name": "${pageData.author_name}"
+        }
+      }
+      </script>
+      ` : ''}
+    </head>
+    <body>
+      <div id="root">${appHtml}</div>
+      <script>window.__INITIAL_DATA__ = ${JSON.stringify(pageData)};</script>
+      <script src="/static/js/bundle.js"></script>
+    </body>
+    </html>
+  `;
+  
+  // Cache for 5 minutes
+  await redisClient.setEx(cacheKey, 300, html);
+  
+  res.send(html);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`SSR Server running on port ${PORT}`);
+});
+
+2.3 React App.jsx
+-----------------
+
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import ArticlePage from './pages/ArticlePage';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/:slug" element={<ArticlePage />} />
+    </Routes>
+  );
+}
+
+export default App;
+
+2.4 ArticlePage Component (src/pages/ArticlePage.jsx)
+------------------------------------------------------
+
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+
+function ArticlePage() {
+  const { slug } = useParams();
+  const [article, setArticle] = useState(window.__INITIAL_DATA__ || null);
+  
+  useEffect(() => {
+    // Client-side fetch if no SSR data
+    if (!article) {
+      fetch(`${process.env.REACT_APP_BACKEND_URL}/api/articles/${slug}`)
+        .then(res => res.json())
+        .then(data => setArticle(data));
+    }
+  }, [slug, article]);
+  
+  if (!article) return <div>Loading...</div>;
+  
+  return (
+    <article>
+      <h1>{article.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: article.content_html }} />
+    </article>
+  );
+}
+
+export default ArticlePage;
+
+2.5 Client Entry (src/index.js)
+--------------------------------
+
+import React from 'react';
+import { hydrateRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+
+const container = document.getElementById('root');
+
+hydrateRoot(
+  container,
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
+
+================================================================================
+PHASE 3: DEPLOYMENT (Emergent) - 30 min
+================================================================================
+
+3.1 Install Redis
+-----------------
+
+apt-get update && apt-get install -y redis-server
+redis-server --daemonize yes
+
+3.2 Supervisor Config
+----------------------
+
+Erstelle /etc/supervisor/conf.d/ssr.conf:
+
+[program:ssr]
+command=node /app/frontend/server/ssr.js
+directory=/app/frontend
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/supervisor/ssr.out.log
+stderr_logfile=/var/log/supervisor/ssr.err.log
+
+3.3 Environment Variables
+--------------------------
+
+/app/backend/.env:
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=serien
+TMDB_API_KEY=your_key_here
+REDIS_URL=redis://localhost:6379
+
+/app/frontend/.env:
+REACT_APP_BACKEND_URL=https://your-app.emergent.ai
+
+3.4 Start Services
+------------------
+
+supervisorctl reread
+supervisorctl update
+supervisorctl start ssr
+supervisorctl start backend
+
+================================================================================
+PHASE 4: TESTING - 20 min
+================================================================================
+
+4.1 SSR Test
+------------
+
+curl http://localhost:3000/test-artikel
+
+Erwarte:
+- HTML Response mit vollstaendigem Content
+- <title> Tag
+- JSON-LD Schema
+
+4.2 Cache Test
+--------------
+
+time curl http://localhost:3000/test-artikel  # ~200ms
+time curl http://localhost:3000/test-artikel  # ~20ms (cached)
+
+redis-cli KEYS "page:*"
+
+4.3 Sitemap Test
+----------------
+
+curl http://localhost:3000/sitemap.xml
+curl http://localhost:3000/news-sitemap.xml
+
+================================================================================
+FERTIG!
+================================================================================
+
+Du hast jetzt eine vollstaendige SSR-Anwendung mit:
+- Server-Side Rendering
+- Redis Caching (ISR-Style)
+- SEO-optimiert
+- Google News-ready
+
+Naechste Schritte:
+1. Admin Panel erstellen
+2. Image Storage (S3)
+3. Authentication
+4. Community Features
+
+================================================================================

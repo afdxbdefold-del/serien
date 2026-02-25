@@ -1,0 +1,296 @@
+================================================================================
+                          AGENT TASK: SERIENDE
+                     Serien-News Platform mit SSR & SEO
+================================================================================
+
+TASK-ID: seriende
+PRIORITAET: HIGH
+GESCHAETZTE ZEIT: 3.5 Stunden
+TECH STACK: React 19 + Express SSR + FastAPI + MongoDB + Redis
+
+================================================================================
+AUFGABE
+================================================================================
+
+Baue eine vollstaendige Serien-News Platform "serien.de" mit:
+- Server-Side Rendering (SSR) fuer SEO
+- ISR-aehnliches Caching (5 Min TTL)
+- Google News-konforme Sitemaps
+- TMDB-Integration fuer Series-Daten
+- Admin-Panel (spaeter)
+
+================================================================================
+HAUPTZIELE
+================================================================================
+
+1. Backend API (FastAPI + MongoDB)
+   - Articles API (CRUD, Pagination, Filters)
+   - TMDB Service Integration
+   - Redis Cache Layer
+   - Sitemap Generation API
+
+2. Frontend SSR (React + Express)
+   - Express SSR Server mit Caching
+   - React Router v6
+   - SEO Meta Tags + JSON-LD Schema
+   - Client-Side Hydration
+
+3. SEO & Google News
+   - /sitemap.xml (alle Seiten)
+   - /news-sitemap.xml (letzte 48h)
+   - robots.txt
+   - JSON-LD NewsArticle Schema
+
+4. Deployment
+   - Supervisor Config (Backend + SSR)
+   - Redis Setup
+   - MongoDB Integration
+   - Emergent Native Deployment
+
+================================================================================
+DETAILLIERTE ANLEITUNG
+================================================================================
+
+Die vollstaendige Schritt-fuer-Schritt Anleitung mit komplettem Code findest du in:
+
+/app/EMERGENT_SSR_EXACT_REBUILD.txt
+
+Diese Datei enthaelt:
+- Phase 1: Backend Setup (60 min)
+- Phase 2: Frontend SSR (90 min)
+- Phase 3: Deployment (30 min)
+- Phase 4: Testing (20 min)
+
+================================================================================
+ARCHITEKTUR
+================================================================================
+
+/app/
+├── backend/                    # FastAPI Backend
+│   ├── routes/
+│   │   ├── articles.py        # Articles API (+ Cache)
+│   │   ├── series.py          # Series API (TMDB)
+│   │   └── sitemaps.py        # Sitemap Generation
+│   ├── models/
+│   │   ├── article.py         # Pydantic Models
+│   │   └── series.py
+│   ├── services/
+│   │   ├── tmdb_service.py    # TMDB Integration
+│   │   ├── cache_service.py   # Redis Cache
+│   │   └── image_service.py   # Image Handling
+│   └── server.py              # FastAPI Main
+│
+└── frontend/                   # React + Express SSR
+    ├── server/
+    │   └── ssr.js             # Express SSR Server (KERN!)
+    ├── src/
+    │   ├── pages/
+    │   │   ├── HomePage.jsx
+    │   │   ├── ArticlePage.jsx   # SSR + Hydration
+    │   │   └── NewsPage.jsx
+    │   ├── components/
+    │   └── App.jsx            # React Router
+    └── public/
+
+================================================================================
+WICHTIGE KONZEPTE
+================================================================================
+
+1. SSR fuer Artikel-Seiten
+   ----------------------
+   Express SSR Server rendert React-Komponenten server-side:
+   
+   GET /:slug
+   -> Backend holt Artikel aus MongoDB
+   -> Express rendert <ArticlePage article={data} /> zu HTML
+   -> Server-side rendering mit vollstaendigem HTML
+   -> Client hydrated React App
+   
+   Ergebnis:
+   - Google sieht vollstaendigen Content (nicht nur <div id="root">)
+   - Schnelles First Contentful Paint
+   - SEO-optimiert
+
+2. ISR-aehnliches Caching
+   ----------------------
+   Redis cached gerenderte HTML-Seiten:
+   
+   Cache-Key: page:/artikel-slug
+   TTL: 300 Sekunden (5 Minuten)
+   
+   Flow:
+   1. Request kommt: GET /artikel-slug
+   2. Pruefe Redis: Gibt es page:/artikel-slug?
+   3. JA -> Return cached HTML (schnell!)
+   4. NEIN -> Render SSR -> Cache in Redis -> Return HTML
+   
+   Bei Artikel-Update:
+   - DELETE page:/artikel-slug aus Redis
+   - Naechster Request generiert neuen Cache
+
+3. Google News Sitemap
+   -------------------
+   /news-sitemap.xml zeigt nur Artikel der letzten 48 Stunden:
+   
+   MongoDB Query:
+   db.articles.find({
+     published_at: { $gte: new Date(Date.now() - 48*60*60*1000) }
+   })
+   
+   XML Format:
+   <url>
+     <loc>https://serien.de/artikel-slug</loc>
+     <news:news>
+       <news:publication_date>2024-01-15T10:00:00Z</news:publication_date>
+       <news:title>Artikel Titel</news:title>
+     </news:news>
+   </url>
+
+================================================================================
+API ENDPOINTS (Backend)
+================================================================================
+
+POST   /api/articles              # Artikel erstellen
+GET    /api/articles              # Alle Artikel (paginated)
+GET    /api/articles/:id          # Einzelner Artikel
+PUT    /api/articles/:id          # Artikel updaten
+DELETE /api/articles/:id          # Artikel loeschen
+
+GET    /api/series/:tmdb_id       # Series Daten von TMDB
+GET    /api/sitemap               # Sitemap Daten
+GET    /api/news-sitemap          # News Sitemap Daten (48h)
+
+================================================================================
+FRONTEND ROUTES (SSR)
+================================================================================
+
+GET /                        # Homepage (SSR)
+GET /:slug                   # Artikel Detail (SSR + Cache)
+GET /news                    # News Uebersicht (SSR)
+GET /serie/:id-:slug         # Series Detail (SSR + TMDB)
+
+GET /sitemap.xml             # Sitemap (generiert)
+GET /news-sitemap.xml        # News Sitemap (generiert)
+GET /robots.txt              # Robots.txt
+
+================================================================================
+DATENBANK-SCHEMA (MongoDB)
+================================================================================
+
+Collection: articles
+{
+  "_id": ObjectId,
+  "slug": "stranger-things-staffel-5-news",
+  "title": "Stranger Things Staffel 5: Startdatum bekannt",
+  "content_html": "<p>Vollstaendiger HTML Content...</p>",
+  "author_id": "user123",
+  "author_name": "Max Mustermann",
+  "published_at": ISODate("2024-01-15T10:00:00Z"),
+  "updated_at": ISODate("2024-01-15T11:00:00Z"),
+  "category": "news",
+  "tags": ["stranger-things", "netflix", "staffel-5"],
+  "tmdb_series_id": 66732,
+  "meta_title": "Stranger Things Staffel 5 News | serien.de",
+  "meta_description": "Die neuesten Infos zur 5. Staffel..."
+}
+
+Collection: series
+{
+  "tmdb_id": 66732,
+  "title": "Stranger Things",
+  "slug": "stranger-things",
+  "overview": "Ein spannender Thriller ueber...",
+  "poster_path": "/path/to/poster.jpg",
+  "backdrop_path": "/path/to/backdrop.jpg",
+  "first_air_date": "2016-07-15",
+  "cached_at": ISODate("2024-01-15T10:00:00Z")
+}
+
+================================================================================
+TESTING CHECKLISTE
+================================================================================
+
+1. SSR funktioniert:
+   -----------------
+   curl http://localhost:3000/test-artikel
+   
+   Erwarte:
+   - Status 200
+   - HTML Response (nicht JSON)
+   - Vollstaendiger HTML Content sichtbar (nicht nur <div id="root">)
+   - <title>-Tag mit Artikel-Titel
+   - JSON-LD Schema im <head>
+
+2. Cache funktioniert:
+   -------------------
+   # Erster Request (Cache Miss)
+   time curl http://localhost:3000/test-artikel
+   # Erwarte: ~200ms
+   
+   # Zweiter Request (Cache Hit)
+   time curl http://localhost:3000/test-artikel
+   # Erwarte: ~20ms (10x schneller!)
+   
+   # Pruefe Redis:
+   redis-cli KEYS "page:*"
+   # Erwarte: page:/test-artikel
+
+3. Sitemaps gueltig:
+   -----------------
+   curl http://localhost:3000/sitemap.xml
+   # Erwarte: Valid XML mit allen Artikeln
+   
+   curl http://localhost:3000/news-sitemap.xml
+   # Erwarte: Valid XML, nur Artikel < 48h
+   
+   # Validiere:
+   # https://www.xml-sitemaps.com/validate-xml-sitemap.html
+
+4. TMDB Integration:
+   -----------------
+   curl http://localhost:8001/api/series/66732
+   # Erwarte: Stranger Things Daten
+
+================================================================================
+PHASEN-UEBERSICHT
+================================================================================
+
+Phase 1: Backend (60 min)
+  - FastAPI Setup
+  - MongoDB Connection
+  - Articles API
+  - TMDB Service
+  - Redis Cache Service
+  - Sitemap API
+
+Phase 2: Frontend SSR (90 min)
+  - Express SSR Server
+  - React Router
+  - ArticlePage Component
+  - SEO Meta Tags
+  - JSON-LD Schema
+  - Client Hydration
+
+Phase 3: Deployment (30 min)
+  - Supervisor Config
+  - Redis Installation
+  - Environment Variables
+  - Service Start
+
+Phase 4: Testing (20 min)
+  - SSR Test
+  - Cache Test
+  - Sitemap Validation
+  - End-to-End Test
+
+================================================================================
+NAECHSTE SCHRITTE
+================================================================================
+
+1. Starte mit /app/EMERGENT_SSR_EXACT_REBUILD.txt
+2. Folge Phase 1 (Backend Setup)
+3. Teste jede Phase einzeln
+4. Dokumentiere Probleme
+5. Deploy auf Emergent
+
+================================================================================
