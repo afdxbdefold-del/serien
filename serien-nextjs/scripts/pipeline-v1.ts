@@ -8,6 +8,10 @@ import { classifyContent, shouldSkipArticle, type ContentType } from '../lib/con
 import { resolveTmdbSeries, type TmdbResolutionResult } from '../lib/tmdb-resolver';
 import { extractFacts } from '../lib/fact-extractor';
 import { generateGermanArticle } from '../lib/content-generator';
+import { optimizeHeadline } from '../lib/headline-optimizer';
+import { rewriteArticleStyle } from '../lib/article-style-rewriter';
+import { qualityCheck } from '../lib/quality-checker';
+import { discoverGate } from '../lib/discover-gate';
 
 const prisma = new PrismaClient();
 
