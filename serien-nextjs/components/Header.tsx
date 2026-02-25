@@ -155,17 +155,17 @@ export default function Header() {
                   <div className="relative user-menu-container">
                     <button 
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                      className="p-1 hover:bg-white/10 rounded-lg transition-colors"
                     >
                       {user.image ? (
                         <img
                           src={user.image}
                           alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-white/20 shadow-lg"
+                          className="w-8 h-8 rounded-full object-cover border-2 border-white/20 shadow-lg"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/50 to-cyan-500/50 flex items-center justify-center border-2 border-white/15 shadow-lg backdrop-blur-sm">
-                          <User className="h-5 w-5 text-white/90" />
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/50 to-cyan-500/50 flex items-center justify-center border-2 border-white/15 shadow-lg backdrop-blur-sm">
+                          <User className="h-4 w-4 text-white/90" />
                         </div>
                       )}
                     </button>
