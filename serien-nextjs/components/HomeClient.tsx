@@ -1,0 +1,448 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { Search, Loader2, SlidersHorizontal, X, Check } from 'lucide-react';
+import FeedSwitcher from './FeedSwitcher';
+import NewsCard from './NewsCard';
+import SeriesCard from './SeriesCard';
+import AuthModal from './AuthModal';
+
+// All available streamers
+const ALL_STREAMERS = [
+  { id: 'Netflix', label: 'Netflix', color: 'bg-red-600' },
+  { id: 'HBO Max', label: 'HBO Max', color: 'bg-purple-700' },
+  { id: 'Amazon Prime', label: 'Prime Video', color: 'bg-brand' },
+  { id: 'Disney+', label: 'Disney+', color: 'bg-blue-900' },
+  { id: 'Apple TV+', label: 'Apple TV+', color: 'bg-gray-900' },
+  { id: 'Paramount+', label: 'Paramount+', color: 'bg-brand' },
+  { id: 'Sky', label: 'Sky', color: 'bg-slate-800' },
+  { id: 'WOW', label: 'WOW', color: 'bg-purple-600' },
+  { id: 'RTL+', label: 'RTL+', color: 'bg-red-500' },
+  { id: 'Joyn', label: 'Joyn', color: 'bg-pink-500' },
+  { id: 'MagentaTV', label: 'MagentaTV', color: 'bg-pink-600' },
+];
+
+interface HomeClientProps {
+  initialNews: any[];
+  initialSeries: any[];
+  stats: { series_total: number; news_total: number; series_german: number };
+  isAuthenticated: boolean;
+}
+
+export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated }: HomeClientProps) {
+  const [activeTab, setActiveTab] = useState('all-news');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
+  
+  // Hero background images - random selection on page load
+  const heroBackgrounds = [
+    'https://customer-assets.emergentagent.com/job_serien-next/artifacts/u0qp8011_47372.jpg',
+    'https://customer-assets.emergentagent.com/job_serien-next/artifacts/4os8uxy9_47373.jpg'
+  ];
+  const [currentBg] = useState(() => heroBackgrounds[Math.floor(Math.random() * heroBackgrounds.length)]);
+  
+  // Data states
+  const [news, setNews] = useState(initialNews);
+  const [myNews, setMyNews] = useState<any[]>([]);
+  const [series, setSeries] = useState(initialSeries);
+  
+  // Pagination states
+  const [newsPage, setNewsPage] = useState(0);
+  const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
+  const [seriesPage, setSeriesPage] = useState(0);
+  const [hasMoreSeries, setHasMoreSeries] = useState(true);
+  const [loadingMoreSeries, setLoadingMoreSeries] = useState(false);
+
+  const NEWS_PER_PAGE = 20;
+  const SERIES_PER_PAGE = 20;
+
+  // Google Login
+  const loginWithGoogle = () => {
+    const redirectUrl = window.location.origin + '/';
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
+  // Filter series by search
+  const filteredSeries = searchQuery
+    ? series.filter(show => 
+        show.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : series;
+
+  // Filter by selected streamers
+  const filterByStreamers = (items: any[], isNews = false) => {
+    if (selectedStreamers.length === 0) return items;
+    return items.filter(item => {
+      const itemStreamers = isNews 
+        ? [item.streamer, ...(item.providers || [])]
+        : (item.providers || []);
+      return itemStreamers.some((s: string) => selectedStreamers.includes(s));
+    });
+  };
+
+  const filteredNews = filterByStreamers(news, true);
+  const filteredMyNews = filterByStreamers(myNews, true);
+  const filteredSeriesByStreamer = filterByStreamers(filteredSeries, false);
+
+  const toggleStreamer = (streamerId: string) => {
+    setSelectedStreamers(prev => 
+      prev.includes(streamerId)
+        ? prev.filter(s => s !== streamerId)
+        : [...prev, streamerId]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedStreamers([]);
+  };
+
+  // Load more functions would need API implementation
+  const loadMoreNews = async () => {
+    // TODO: Implement pagination API call
+  };
+
+  const loadMoreSeries = async () => {
+    // TODO: Implement pagination API call
+  };
+
+  const handleFollowToggle = async (seriesId: string, isCurrentlyFollowing: boolean) => {
+    // TODO: Implement follow/unfollow API call
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Hero Section - nur für nicht-eingeloggte User */}
+      {!isAuthenticated && (
+        <div className="relative overflow-hidden">
+          {/* Background Image - Random on reload */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `url('${currentBg}')`
+            }}
+          />
+          
+          {/* Gradient Overlay - like TMDB */}
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/95 via-blue-500/90 to-blue-600/85" />
+          
+          {/* Pattern Overlay */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0" style={{
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+            }} />
+          </div>
+
+          <div className="container mx-auto px-6 md:px-12 py-16 md:py-24 relative z-10">
+            <div className="max-w-4xl mx-auto text-center">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
+                Folge deinen Lieblingsserien
+              </h1>
+              <p className="text-xl md:text-2xl text-white/95 mb-8">
+                oder entdecke{' '}
+                <Link 
+                  href="/trending" 
+                  className="underline hover:text-white transition-colors font-semibold"
+                >
+                  neue Serien
+                </Link>
+                {' '}zum Anschauen.
+              </p>
+
+              {/* Login Section */}
+              <div className="space-y-3 max-w-md mx-auto">
+                {/* Primary: Google Login */}
+                <button
+                  onClick={loginWithGoogle}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white text-gray-900 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  <span>Mit Google fortfahren</span>
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-white/30"></div>
+                  <span className="text-white/70 text-sm">oder</span>
+                  <div className="flex-1 h-px bg-white/30"></div>
+                </div>
+
+                {/* Email Login - Active */}
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="w-full px-6 py-3.5 bg-white/10 backdrop-blur-sm text-white rounded-lg font-semibold border-2 border-white/30 hover:bg-white/20 hover:border-white/40 transition-all"
+                >
+                  Anmelden per E-Mail
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="container mx-auto px-6 md:px-12 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Feed Switcher */}
+          <FeedSwitcher 
+            activeTab={activeTab} 
+            onTabChange={setActiveTab}
+            isAuthenticated={isAuthenticated}
+          />
+
+          {/* Filter & Search Bar */}
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            {/* Search */}
+            {activeTab === 'follow-shows' && (
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Serien durchsuchen..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Content based on active tab */}
+          {activeTab === 'all-news' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredNews.map((item) => (
+                  <NewsCard key={item.id} news={item} />
+                ))}
+              </div>
+              
+              {/* Load More Button */}
+              {hasMoreNews && filteredNews.length > 0 && (
+                <div className="mt-12 flex justify-center">
+                  <button
+                    onClick={loadMoreNews}
+                    disabled={loadingMore}
+                    className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Wird geladen...</span>
+                      </>
+                    ) : (
+                      <span>Mehr News anzeigen</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'my-news' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMyNews.length > 0 ? (
+                filteredMyNews.map((item) => (
+                  <NewsCard key={item.id} news={item} />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-500 mb-4">
+                    Keine personalisierten News verfügbar.
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Folge Serien, um personalisierte News zu erhalten.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'follow-shows' && (
+            <>
+              {filteredSeriesByStreamer.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {filteredSeriesByStreamer.map((show) => (
+                      <SeriesCard 
+                        key={show.tmdbId} 
+                        show={show}
+                        onFollowToggle={handleFollowToggle}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Load More Button */}
+                  {hasMoreSeries && filteredSeriesByStreamer.length > 0 && (
+                    <div className="mt-12 flex justify-center">
+                      <button
+                        onClick={loadMoreSeries}
+                        disabled={loadingMoreSeries}
+                        className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {loadingMoreSeries ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Wird geladen...</span>
+                          </>
+                        ) : (
+                          <span>Mehr Serien anzeigen</span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 mb-2">Keine Serien gefunden.</p>
+                  {selectedStreamers.length > 0 && (
+                    <p className="text-sm text-gray-400">
+                      Versuchen Sie, die Filter zurückzusetzen.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+
+      {/* Floating Filter Button - Bottom Right */}
+      <button
+        onClick={() => setShowFilterModal(true)}
+        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:from-cyan-600 hover:to-blue-600 transition-all z-40"
+      >
+        <SlidersHorizontal className="h-5 w-5" />
+        <span className="font-semibold">Filter</span>
+        {selectedStreamers.length > 0 && (
+          <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full">
+            {selectedStreamers.length}
+          </span>
+        )}
+      </button>
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold">Filter nach Streamer</h2>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {ALL_STREAMERS.map((streamer) => {
+                  const isSelected = selectedStreamers.includes(streamer.id);
+                  return (
+                    <button
+                      key={streamer.id}
+                      onClick={() => toggleStreamer(streamer.id)}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        isSelected
+                          ? 'border-brand bg-brand/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 ${streamer.color} rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0`}
+                        >
+                          {streamer.label.substring(0, 1)}
+                        </div>
+                        <span className="font-medium text-left">{streamer.label}</span>
+                        {isSelected && (
+                          <Check className="h-5 w-5 text-brand ml-auto" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={clearFilters}
+                  className="flex-1 px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Zurücksetzen
+                </button>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="flex-1 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-hover transition-colors"
+                >
+                  Anwenden
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+      {/* Footer */}
+      <footer className="border-t bg-white mt-20">
+        <div className="container mx-auto px-6 md:px-12 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div>
+              <h3 className="text-xl font-bold mb-4">
+                serien.de
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Deine Quelle für TV-Serien News
+              </p>
+              {/* Statistics */}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="font-semibold">📺 {stats.series_total > 0 ? stats.series_total.toLocaleString('de-DE') : '...'}</span>
+                  <span className="text-gray-500">Serien</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="font-semibold">📰 {stats.news_total > 0 ? stats.news_total.toLocaleString('de-DE') : '...'}</span>
+                  <span className="text-gray-500">News-Artikel</span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Navigation</h4>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li><Link href="/" className="hover:text-gray-900 transition-colors">News</Link></li>
+                <li><Link href="/trending" className="hover:text-gray-900 transition-colors">Trending</Link></li>
+                <li><Link href="/redaktion" className="hover:text-gray-900 transition-colors">Redaktion</Link></li>
+                <li><Link href="/about" className="hover:text-gray-900 transition-colors">Über uns</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Rechtliches</h4>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li><Link href="/impressum" className="hover:text-gray-900 transition-colors">Impressum</Link></li>
+                <li><a href="/" className="hover:text-gray-900 transition-colors">Datenschutz</a></li>
+                <li><a href="mailto:mail@serien.de" className="hover:text-gray-900 transition-colors">Kontakt</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t text-center text-sm text-gray-600">
+            <p>© 2024 serien.de. Alle Rechte vorbehalten.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
