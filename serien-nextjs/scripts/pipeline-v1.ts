@@ -87,9 +87,9 @@ export async function runContentPipeline(source: CrawledSource) {
 
     const facts = await extractFacts(source.title, source.text);
 
-    // ========== STEP 4: AI GENERATE DE ==========
+    // ========== STEP 4: AI GENERATE ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4: AI CONTENT GENERATION (German)');
+    console.log('STEP 4: AI CONTENT GENERATION');
     console.log('━'.repeat(70));
 
     let generatedContent = await generateGermanArticle(
@@ -99,40 +99,30 @@ export async function runContentPipeline(source: CrawledSource) {
     );
 
     let articleTitle = source.title;
+    console.log(`✅ Generated article (${generatedContent.length} chars)`);
 
-    // ========== STEP 4.1: HEADLINE OPTIMIZATION ==========
+    // ========== STEP 5: EDITORIAL REWRITE ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.1: EMERGENT HEADLINE OPTIMIZATION');
+    console.log('STEP 5: EDITORIAL REWRITE (Headline + First 2 Paragraphs)');
     console.log('━'.repeat(70));
 
-    const headlineResult = await optimizeHeadline({
-      rawContent: facts.key_statements.join(' '),
-      originalHeadline: articleTitle,
-      seriesName: resolution.primarySeries.name,
-      platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-    });
-
-    articleTitle = headlineResult.final_headline;
-    console.log(`✅ Original: "${source.title}"`);
-    console.log(`✅ Optimized: "${articleTitle}"`);
-
-    // ========== STEP 4.2: ARTICLE STYLE REWRITE ==========
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.2: EMERGENT ARTICLE STYLE REWRITE');
-    console.log('━'.repeat(70));
-
-    generatedContent = await rewriteArticleStyle({
+    let editorialResult = await editorialRewrite({
+      generatedArticleHtml: generatedContent,
+      generatedHeadline: articleTitle,
       extractedFacts: facts.key_statements.join('\n- '),
       seriesName: resolution.primarySeries.name,
       platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-      eventType: 'other', // Could be determined from classification
     });
 
-    console.log(`✅ Article rewritten to serienjunkies.de style`);
+    articleTitle = editorialResult.final_headline;
+    generatedContent = editorialResult.rewritten_article_html;
 
-    // ========== STEP 4.3: QUALITY CHECK ==========
+    console.log(`✅ Headline: "${articleTitle}" (${articleTitle.length} chars)`);
+    console.log(`✅ Content rewritten (first 2 paragraphs + lead)`);
+
+    // ========== STEP 6: QUALITY CHECK ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.3: EMERGENT QUALITY CHECK');
+    console.log('STEP 6: QUALITY CHECK');
     console.log('━'.repeat(70));
 
     let qualityResult = await qualityCheck({
@@ -143,30 +133,55 @@ export async function runContentPipeline(source: CrawledSource) {
       extractedFacts: facts.key_statements.join('\n'),
     });
 
-    console.log(`📊 Quality Scores: ${qualityResult.scores.total}/40`);
-    console.log(`   Style: ${qualityResult.scores.style}/10, Clarity: ${qualityResult.scores.clarity}/10`);
-    console.log(`   Readability: ${qualityResult.scores.readability}/10, Trust: ${qualityResult.scores.trustworthiness}/10`);
+    console.log(`📊 Quality Scores:`);
+    console.log(`   Headline:  ${qualityResult.scores.headline}/100 (min: 70)`);
+    console.log(`   Content:   ${qualityResult.scores.content}/100 (min: 70)`);
+    console.log(`   Structure: ${qualityResult.scores.structure}/100 (min: 65)`);
 
-    // AUTO-REWRITE on FAIL (once)
-    if (qualityResult.status === 'FAIL' && qualityResult.autoRewriteRecommended) {
-      console.log('\n🔄 Quality Check FAILED - Auto-Rewrite attempt...');
-      
-      // Re-optimize headline
-      const reHeadlineResult = await optimizeHeadline({
-        rawContent: facts.key_statements.join(' '),
-        originalHeadline: articleTitle,
-        seriesName: resolution.primarySeries.name,
-        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-      });
-      articleTitle = reHeadlineResult.final_headline;
+    // REWRITE COUNTER (MAX 1 TOTAL)
+    let hasRewritten = false;
 
-      // Re-rewrite content
-      generatedContent = await rewriteArticleStyle({
-        extractedFacts: facts.key_statements.join('\n- '),
-        seriesName: resolution.primarySeries.name,
-        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-        eventType: 'other',
-      });
+    // AUTO-REWRITE on FAIL (ONCE)
+    if (qualityResult.status === 'FAIL' && !hasRewritten) {
+      console.log('\n🔄 Quality Check FAILED - Attempting rewrite (1/1)...');
+      hasRewritten = true;
+
+      if (qualityResult.requiresFullRewrite) {
+        console.log('   → FULL Rewrite (body issues detected)');
+        
+        // Regenerate complete article
+        generatedContent = await generateGermanArticle(
+          facts,
+          resolution.primarySeries.name,
+          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+        );
+
+        // Rewrite again
+        editorialResult = await editorialRewrite({
+          generatedArticleHtml: generatedContent,
+          generatedHeadline: articleTitle,
+          extractedFacts: facts.key_statements.join('\n- '),
+          seriesName: resolution.primarySeries.name,
+          platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+        });
+
+        articleTitle = editorialResult.final_headline;
+        generatedContent = editorialResult.rewritten_article_html;
+      } else {
+        console.log('   → Headline + First 2 Paragraphs only');
+        
+        // Just rewrite editorial (headline + first 2 paragraphs)
+        editorialResult = await editorialRewrite({
+          generatedArticleHtml: generatedContent,
+          generatedHeadline: articleTitle,
+          extractedFacts: facts.key_statements.join('\n- '),
+          seriesName: resolution.primarySeries.name,
+          platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+        });
+
+        articleTitle = editorialResult.final_headline;
+        generatedContent = editorialResult.rewritten_article_html;
+      }
 
       // Re-check
       qualityResult = await qualityCheck({
@@ -177,31 +192,61 @@ export async function runContentPipeline(source: CrawledSource) {
         extractedFacts: facts.key_statements.join('\n'),
       });
 
-      console.log(`📊 Re-check Scores: ${qualityResult.scores.total}/40 - ${qualityResult.status}`);
+      console.log(`📊 Re-check: Headline ${qualityResult.scores.headline}, Content ${qualityResult.scores.content}, Structure ${qualityResult.scores.structure}`);
+      console.log(`   Status: ${qualityResult.status}`);
     }
 
+    // If STILL FAIL after rewrite → SKIP_PUBLISH (save as DRAFT)
     if (qualityResult.status === 'FAIL') {
-      console.log('⚠️  Quality Check FAILED after rewrite - proceeding anyway');
+      console.log('❌ Quality Check FAILED after rewrite → SKIP_PUBLISH');
       qualityResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
-    } else {
-      console.log('✅ Quality Check PASSED');
+      
+      // Save as DRAFT
+      const slug = generateSlug(articleTitle);
+      const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+      const now = new Date();
+      
+      const draftArticle = await prisma.article.create({
+        data: {
+          id: `draft-${Date.now()}`,
+          slug: `${slug}-draft`,
+          title: articleTitle,
+          excerpt: articleExcerpt,
+          contentHtml: generatedContent,
+          contentType: classification.content_type,
+          authorId: 'system', // Placeholder
+          status: 'draft',
+          publishMode: 'DRAFT',
+          publishedAt: null,
+          sourcePublishedAt: now,
+          sourceUrl: source.url,
+          readingTime: Math.ceil(generatedContent.split(' ').length / 200),
+          confidence: classification.confidence,
+          primarySeriesId: resolution.primarySeries.tmdbId,
+        },
+      });
+
+      console.log(`📝 Saved as DRAFT: ${draftArticle.id}`);
+      
+      return { skipped: true, reason: 'quality_check_failed', draft: draftArticle };
     }
 
-    // ========== STEP 4.4: DISCOVER GATE ==========
+    console.log('✅ Quality Check PASSED');
+
+    // ========== STEP 7: DISCOVER GATE ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.4: EMERGENT DISCOVER GATE');
+    console.log('STEP 7: DISCOVER GATE');
     console.log('━'.repeat(70));
 
-    // Get TMDB image metadata for Discover check
     const primaryTmdbId = resolution.primarySeries.tmdbId;
     const heroImageMeta = {
       url: `/img/hero/tv/${primaryTmdbId}`,
-      width: 1920, // TMDB Backdrop default
+      width: 1920,
       height: 1080,
       source: 'TMDB_BACKDROP' as const,
     };
 
-    let discoverResult = await discoverGate({
+    const discoverResult = await discoverGate({
       final_headline: articleTitle,
       article_html: generatedContent,
       hero_image_metadata: heroImageMeta,
@@ -209,44 +254,47 @@ export async function runContentPipeline(source: CrawledSource) {
       primary_series: resolution.primarySeries.name,
     });
 
-    console.log(`📊 Discover Scores: ${discoverResult.scores.total}/40`);
-    console.log(`   Headline: ${discoverResult.scores.headline_quality}/10, Image: ${discoverResult.scores.image_quality}/10`);
-    console.log(`   Content: ${discoverResult.scores.content_trust}/10, Freshness: ${discoverResult.scores.freshness}/10`);
+    console.log(`📊 Discover Scores:`);
+    console.log(`   Discover Probability: ${(discoverResult.scores.discover_probability * 100).toFixed(1)}% (min: 65%)`);
+    console.log(`   Freshness Score:      ${discoverResult.scores.freshness_score}/100 (min: 80)`);
+    console.log(`   Headline Quality:     ${discoverResult.scores.headline_quality}/100`);
+    console.log(`   Image Quality:        ${discoverResult.scores.image_quality}/100`);
 
-    // AUTO-REWRITE on FAIL (once)
-    if (!discoverResult.discover_eligible && discoverResult.auto_rewrite_recommended) {
-      console.log('\n🔄 Discover Gate FAILED - Auto-Rewrite attempt...');
-      
-      // Re-optimize headline (more aggressive)
-      const reHeadlineResult = await optimizeHeadline({
-        rawContent: facts.key_statements.join(' '),
-        originalHeadline: articleTitle,
-        seriesName: resolution.primarySeries.name,
-        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-      });
-      articleTitle = reHeadlineResult.final_headline;
-
-      // Re-rewrite content
-      generatedContent = await rewriteArticleStyle({
-        extractedFacts: facts.key_statements.join('\n- '),
-        seriesName: resolution.primarySeries.name,
-        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-        eventType: 'other',
-      });
-
-      // Re-check Discover
-      discoverResult = await discoverGate({
-        final_headline: articleTitle,
-        article_html: generatedContent,
-        hero_image_metadata: heroImageMeta,
-        publishedAt: new Date(),
-        primary_series: resolution.primarySeries.name,
-      });
-
-      console.log(`📊 Re-check Discover: ${discoverResult.scores.total}/40 - ${discoverResult.discover_eligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'}`);
+    // NO REWRITE in Discover Gate (already used rewrite quota)
+    let publishMode = 'DISCOVER';
+    
+    if (discoverResult.discover_eligible) {
+      console.log('✅ Discover Gate PASSED → PUBLISH_MODE: DISCOVER');
+      publishMode = 'DISCOVER';
+    } else {
+      console.log('⚠️  Discover Gate FAILED → PUBLISH_MODE: SEARCH_ONLY');
+      if (discoverResult.fail_reasons.length > 0) {
+        discoverResult.fail_reasons.forEach(reason => console.log(`   - ${reason}`));
+      }
+      publishMode = 'SEARCH_ONLY';
     }
 
-    const discoverEligible = discoverResult.discover_eligible;
+    // ========== STEP 8: PUBLISH ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 8: PUBLISH');
+    console.log('━'.repeat(70));
+
+    // Check for duplicate
+    const existingArticle = await prisma.article.findUnique({
+      where: { sourceUrl: source.url }
+    });
+
+    if (existingArticle) {
+      console.log('⚠️  Article already exists - SKIPPING');
+      return { skipped: true, reason: 'duplicate' };
+    }
+
+    // Generate slug and excerpt
+    const slug = generateSlug(articleTitle);
+    const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+
+    const now = new Date();
+    const sourceDate = new Date();
     if (discoverEligible) {
       console.log('✅ Discover Gate PASSED - Article is Discover-eligible');
     } else {
