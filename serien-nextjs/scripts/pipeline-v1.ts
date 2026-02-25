@@ -225,11 +225,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - TEST MIT ZUFÄLLIGEM AUTOR
+  // Example: Single Series News - TEST OHNE QUELLE
   const testArticle: CrawledSource = {
-    title: "The Mandalorian Staffel 4: Disney+ bestätigt Fortsetzung",
-    url: "https://example.com/mandalorian-season-4-confirmed",
-    text: `Disney+ hat offiziell die vierte Staffel von The Mandalorian bestätigt. Jon Favreau kehrt als Showrunner zurück und wird erneut die Drehbücher schreiben. Pedro Pascal wird in seiner Rolle als Din Djarin zurückkehren. Die neue Staffel wird voraussichtlich Ende 2026 erscheinen. Grogu wird ebenfalls eine größere Rolle spielen. Die Dreharbeiten sollen im Frühjahr 2026 in den kalifornischen Studios beginnen. Dave Filoni wird bei mehreren Episoden Regie führen.`
+    title: "House of the Dragon Staffel 3: HBO gibt grünes Licht",
+    url: "https://example.com/house-of-the-dragon-season-3",
+    text: `HBO hat offiziell die dritte Staffel von House of the Dragon bestätigt. Die Fantasy-Serie wird ihre Geschichte um die Targaryen-Familie fortsetzen. Matt Smith und Emma D'Arcy kehren in ihren Hauptrollen zurück. Ryan Condal bleibt als Showrunner an Bord. Die Dreharbeiten sollen im Sommer 2026 in England beginnen. Die neue Staffel wird voraussichtlich 2027 erscheinen und den Bürgerkrieg weiter vertiefen.`
   };
 
   await runContentPipeline(testArticle);
