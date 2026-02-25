@@ -94,6 +94,31 @@ export default async function SeriesPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'TVSeries',
+            name: series.title,
+            description: series.overview,
+            image: series.posterLocalUrl || series.backdropLocalUrl,
+            datePublished: series.firstAirDate?.toISOString(),
+            numberOfSeasons: series.numberOfSeasons,
+            numberOfEpisodes: series.numberOfEpisodes,
+            aggregateRating: series.voteAverage
+              ? {
+                  '@type': 'AggregateRating',
+                  ratingValue: series.voteAverage,
+                  bestRating: 10,
+                }
+              : undefined,
+            genre: series.genres,
+          }),
+        }}
+      />
+
       {/* Hero Section */}
       <div className="relative h-[280px] overflow-hidden">
         {/* Backdrop Image */}
