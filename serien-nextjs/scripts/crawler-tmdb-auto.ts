@@ -156,21 +156,23 @@ async function crawlAndImport() {
 
   // Example news article
   const article: NewsArticle = {
-    title: "The Last of Us Staffel 2: Starttermin für 2025 bestätigt",
-    url: "https://example.com/last-of-us-season-2",
-    seriesName: "The Last of Us",  // CRITICAL for TMDB matching
-    excerpt: "HBO bestätigt offiziell den Starttermin für die zweite Staffel der erfolgreichen Post-Apokalypse-Serie The Last of Us.",
+    title: "Stranger Things Staffel 5: Dreharbeiten offiziell abgeschlossen",
+    url: "https://thecinemaholic.com/stranger-things-season-5-wrap",
+    seriesName: "Stranger Things",  // CRITICAL for TMDB matching
+    excerpt: "Die Duffer Brothers verkünden das Ende der Dreharbeiten zur finalen Staffel der Netflix-Hit-Serie Stranger Things.",
     content: `
-      <p>HBO hat endlich den lang erwarteten Starttermin für die zweite Staffel von "The Last of Us" bekanntgegeben. Die Serie, basierend auf dem gleichnamigen Videospiel, wird im Frühjahr 2025 zurückkehren.</p>
+      <p>Nach monatelangen Dreharbeiten ist es nun offiziell: Die fünfte und finale Staffel von "Stranger Things" ist im Kasten! Die Duffer Brothers, Schöpfer der erfolgreichen Netflix-Serie, teilten die freudige Nachricht über soziale Medien mit emotionalen Worten.</p>
       
-      <p>Nach dem enormen Erfolg der ersten Staffel, die sowohl Kritiker als auch Fans begeisterte, waren die Erwartungen hoch. Die zweite Staffel wird die Geschichte von Joel und Ellie fortsetzen und tiefere Einblicke in die post-apokalyptische Welt geben.</p>
+      <p>"Es war eine unglaubliche Reise", schrieben sie in ihrem Statement. "Von der ersten Folge bis zu diesem finalen Moment haben wir alles gegeben, um Hawkins und seinen Bewohnern ein würdiges Ende zu bereiten."</p>
       
-      <p>Die Produktion begann im vergangenen Jahr in Kanada, und erste Bilder vom Set zeigen eine noch düsterere und intensivere Atmosphäre als in der ersten Staffel.</p>
+      <p>Die finale Staffel verspricht ein episches Finale mit längeren Episoden und intensiveren Action-Sequenzen. Fans weltweit warten gespannt auf die Ausstrahlung, die für Mitte 2025 geplant ist.</p>
       
-      <p><strong>Quelle:</strong> HBO Press Release</p>
+      <p>Die Serie, die 2016 startete, wurde zu einem globalen Phänomen und machte die jungen Hauptdarsteller zu internationalen Stars.</p>
+      
+      <p><strong>Quelle:</strong> Netflix Press Release</p>
     `,
     publishDate: new Date('2026-02-25'),
-    category: 'HBO',
+    category: 'Netflix',
   };
 
   try {
