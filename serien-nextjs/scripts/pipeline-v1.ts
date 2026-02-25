@@ -223,11 +223,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News
+  // Example: Single Series News - NEUER ARTIKEL
   const testArticle: CrawledSource = {
-    title: "The Last of Us Staffel 2: Dreharbeiten abgeschlossen",
-    url: "https://example.com/last-of-us-season-2",
-    text: `HBO hat bekannt gegeben, dass die Dreharbeiten zur zweiten Staffel von The Last of Us offiziell abgeschlossen sind. Die neue Staffel wird voraussichtlich 2026 erscheinen. Craig Mazin und Neil Druckmann kehren als Showrunner zurück. Pedro Pascal und Bella Ramsey werden ebenfalls in ihren Rollen als Joel und Ellie zu sehen sein. Die zweite Staffel wird die Ereignisse des zweiten Videospiels adaptieren.`
+    title: "Stranger Things Staffel 5: Finale Staffel startet 2026",
+    url: "https://example.com/stranger-things-season-5-finale",
+    text: `Netflix hat den offiziellen Starttermin für die finale fünfte Staffel von Stranger Things bekannt gegeben. Die Serie wird im Sommer 2026 erscheinen. Die Duffer Brothers kehren als Showrunner zurück und haben bestätigt, dass dies die letzte Staffel sein wird. Millie Bobby Brown, Finn Wolfhard, Noah Schnapp und das gesamte Hauptcast kehren zurück. Die Dreharbeiten wurden im Dezember 2025 abgeschlossen. Die finale Staffel wird 8 Episoden umfassen und die Geschichte der Hawkins-Gruppe zu einem epischen Ende bringen.`
   };
 
   await runContentPipeline(testArticle);
