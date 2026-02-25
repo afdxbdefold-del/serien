@@ -59,6 +59,7 @@ export async function extractFacts(
   
   const client = new OpenAI({
     apiKey,
+    baseURL: 'http://localhost:8002/v1',
   });
 
   const userPrompt = `
