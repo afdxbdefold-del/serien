@@ -244,25 +244,25 @@ export default async function ArticlePage({ params }: PageProps) {
         />
 
         {/* Related Series */}
-        {article.series && (
+        {article.primarySeries && (
           <div className="mb-12 p-6 bg-gray-50 rounded-2xl">
             <h3 className="text-xl font-bold mb-4">Zur Serie</h3>
             <Link 
-              href={`/serie/${article.series.tmdbId}-${article.series.slug}`}
+              href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
               className="flex items-center gap-4 hover:opacity-80 transition-opacity"
             >
-              {article.series.posterLocalUrl && (
+              {article.primarySeries.posterLocalUrl && (
                 <div className="relative w-20 h-28 rounded-lg overflow-hidden flex-shrink-0">
                   <Image
-                    src={article.series.posterLocalUrl}
-                    alt={article.series.title}
+                    src={article.primarySeries.posterLocalUrl}
+                    alt={article.primarySeries.title}
                     fill
                     className="object-cover"
                   />
                 </div>
               )}
               <div>
-                <h4 className="font-bold text-lg text-gray-900">{article.series.title}</h4>
+                <h4 className="font-bold text-lg text-gray-900">{article.primarySeries.title}</h4>
                 <p className="text-sm text-gray-600">Zur Serienseite →</p>
               </div>
             </Link>
