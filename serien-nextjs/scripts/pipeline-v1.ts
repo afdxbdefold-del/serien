@@ -442,12 +442,25 @@ export async function runContentPipeline(source: CrawledSource) {
       // Skip Discover Gate for SHORT_NEWS
       var discoverResult = {
         discover_eligible: false,
-        scores: { headline_quality: 0, freshness: 0, content_opening: 0, image_visual: 0, trust_clarity: 0, total: 0 },
+        scores: { 
+          headline_quality: 0, 
+          freshness: 0, 
+          content_opening: 0, 
+          image_visual: 0, 
+          trust_clarity: 0, 
+          total: 0 
+        },
         fail_reasons: ['SHORT_NEWS policy: always SEARCH_ONLY'],
         dashboard: {
+          headline: { score: 0, issues: [], strengths: [] },
+          content_opening: { score: 0, issues: [], strengths: [] },
+          freshness: { score: 0, issues: [], strengths: [] },
+          image_visual: { score: 0, issues: [], strengths: [] },
+          trust_clarity: { score: 0, issues: [], strengths: [] },
           aggregation: {
-            primary_blockers: [],
-            improvement_hints: ['Für DISCOVER: Artikel auf 320+ Wörter erweitern']
+            primary_blockers: ['Article zu kurz für DISCOVER (${qualityResult.wordCount} Wörter, min: 320)'],
+            improvement_hints: ['Für DISCOVER: Artikel auf 320+ Wörter erweitern'],
+            final_verdict: 'SHORT_NEWS: Automatisch SEARCH_ONLY'
           }
         }
       };
