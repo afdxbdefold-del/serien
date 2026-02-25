@@ -142,6 +142,7 @@ model Article {
   
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
+  discoverDashboards DiscoverScoreDashboard[]
   
   @@index([slug])
   @@index([publishedAt])
