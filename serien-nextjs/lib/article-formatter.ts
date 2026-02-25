@@ -147,9 +147,6 @@ export function generateNaturalArticleHTML(
     });
   }
 
-  // Add source attribution
-  html += `<p><strong>Quelle:</strong> The CinemaHolic</p>`;
-
   return html.trim();
 }
 
