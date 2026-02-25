@@ -42,8 +42,15 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // Clear the hash from URL and redirect to home
-        window.location.href = '/';
+        // Get user data from response
+        const userData = await response.json();
+
+        // Redirect to onboarding if new user, otherwise to home
+        if (userData.isNewUser) {
+          window.location.href = '/onboarding';
+        } else {
+          window.location.href = '/';
+        }
       } catch (error) {
         console.error('Auth processing error:', error);
         router.push('/');
