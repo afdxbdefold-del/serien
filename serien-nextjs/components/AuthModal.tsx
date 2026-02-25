@@ -78,12 +78,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       // Close modal first (this triggers checkAuth in Header via onClose callback)
-      // Small delay to ensure cookie is committed before checkAuth runs
-      await new Promise(resolve => setTimeout(resolve, 100));
-      onClose();
-      // Use Next.js router for client-side navigation (preserves cookies)
-      router.replace('/');
-      router.refresh(); // Force refetch of server state
+      // Use full page reload to ensure Header re-mounts and checks auth
+      window.location.href = '/';
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
     } finally {
