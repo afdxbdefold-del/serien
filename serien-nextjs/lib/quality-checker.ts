@@ -229,36 +229,3 @@ Bewerte die Qualität (0-100 Punkte pro Kategorie).`;
     };
   }
 }
-
-// CLI usage
-if (require.main === module) {
-  const testArticle = `<p>Amazon hat eine zweite Staffel der Serie „Fallout" bestätigt. Die Videospiel-Adaption erhält damit eine Fortsetzung nach dem Start der ersten Staffel im Jahr 2024.</p>
-<p>Die erste Staffel basierte auf der gleichnamigen Spiele-Reihe und verlegte deren postapokalyptische Welt ins Serienformat. Sie erschien 2024 und markierte den Einstieg des Franchise in die Realserie.</p>
-<p>Showrunner Jonathan Nolan bleibt der Produktion erhalten. Die Dreharbeiten zur zweiten Staffel sollen noch in diesem Jahr beginnen.</p>
-<p>Ein konkreter Starttermin für Staffel zwei liegt noch nicht vor. Weitere Angaben zu Besetzung und Umfang der neuen Episoden stehen ebenfalls aus.</p>`;
-
-  qualityCheck({
-    generatedArticleHtml: testArticle,
-    finalHeadline: 'Fallout erhält zweite Staffel bei Prime Video',
-    primarySeriesName: 'Fallout',
-    platform: 'Prime Video',
-  }).then(result => {
-    console.log('✅ QUALITY CHECK RESULT:\n');
-    console.log(`Status: ${result.status}`);
-    console.log(`\nScores:`);
-    console.log(`  Style: ${result.scores.style}/10`);
-    console.log(`  Clarity: ${result.scores.clarity}/10`);
-    console.log(`  Readability: ${result.scores.readability}/10`);
-    console.log(`  Trustworthiness: ${result.scores.trustworthiness}/10`);
-    console.log(`  Total: ${result.scores.total}/40`);
-    
-    if (result.failReasons.length > 0) {
-      console.log(`\n❌ Fail Reasons:`);
-      result.failReasons.forEach(reason => console.log(`  - ${reason}`));
-    }
-    
-    if (result.autoRewriteRecommended) {
-      console.log(`\n🔄 Auto-Rewrite empfohlen`);
-    }
-  });
-}
