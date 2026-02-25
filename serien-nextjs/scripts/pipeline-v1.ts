@@ -1,6 +1,8 @@
 /**
  * EMERGENT TV-SERIES CONTENT PIPELINE v1
- * Full 7-step automated pipeline for TV series news
+ * SPEC_VERSION: serien_pipeline_v1
+ * 
+ * Full automated pipeline with strict quality gates
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -8,8 +10,7 @@ import { classifyContent, shouldSkipArticle, type ContentType } from '../lib/con
 import { resolveTmdbSeries, type TmdbResolutionResult } from '../lib/tmdb-resolver';
 import { extractFacts } from '../lib/fact-extractor';
 import { generateGermanArticle } from '../lib/content-generator';
-import { optimizeHeadline } from '../lib/headline-optimizer';
-import { rewriteArticleStyle } from '../lib/article-style-rewriter';
+import { editorialRewrite } from '../lib/editorial-rewriter';
 import { qualityCheck } from '../lib/quality-checker';
 import { discoverGate } from '../lib/discover-gate';
 
