@@ -48,6 +48,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const [news, setNews] = useState(initialNews);
   const [myNews, setMyNews] = useState<any[]>([]);
   const [series, setSeries] = useState(initialSeries);
+  const [loadingMyFeed, setLoadingMyFeed] = useState(false);
   
   // Pagination states
   const [newsPage, setNewsPage] = useState(0);
@@ -60,6 +61,29 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
   const NEWS_PER_PAGE = 20;
   const SERIES_PER_PAGE = 20;
+
+  // Load My Feed when user switches to "my-news" tab
+  React.useEffect(() => {
+    const loadMyFeed = async () => {
+      if (activeTab === 'my-news' && isAuthenticated && myNews.length === 0) {
+        setLoadingMyFeed(true);
+        try {
+          const response = await fetch('/api/user/my-feed', {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setMyNews(data);
+          }
+        } catch (error) {
+          console.error('Failed to load my feed:', error);
+        } finally {
+          setLoadingMyFeed(false);
+        }
+      }
+    };
+    loadMyFeed();
+  }, [activeTab, isAuthenticated, myNews.length]);
 
   // Google Login
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
