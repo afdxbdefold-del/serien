@@ -1,146 +1,147 @@
-import prisma from '@/lib/prisma';
-import Link from 'next/link';
-import { Metadata } from 'next';
-import { BookOpen, Mail } from 'lucide-react';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Redaktion | serien.de',
-  description: 'Lerne das Team hinter serien.de kennen - unsere Autoren und Redakteure.',
+import { useState, useEffect } from 'react';
+import { Mail, BookOpen, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+
+interface Author {
+  user_id: string;
+  name: string;
+  email: string;
+  article_count: number;
+  avatar_color: string;
+}
+
+const gradientColors: Record<string, string> = {
+  'from-rose-500 to-pink-600': 'linear-gradient(135deg, #f43f5e, #db2777)',
+  'from-purple-500 to-indigo-600': 'linear-gradient(135deg, #a855f7, #4f46e5)',
+  'from-blue-500 to-cyan-600': 'linear-gradient(135deg, #3b82f6, #0891b2)',
+  'from-amber-500 to-orange-600': 'linear-gradient(135deg, #f59e0b, #ea580c)',
+  'from-teal-500 to-emerald-600': 'linear-gradient(135deg, #14b8a6, #059669)',
+  'from-red-500 to-rose-600': 'linear-gradient(135deg, #ef4444, #e11d48)',
+  'from-violet-500 to-purple-600': 'linear-gradient(135deg, #8b5cf6, #9333ea)',
+  'from-pink-500 to-fuchsia-600': 'linear-gradient(135deg, #ec4899, #c026d3)',
+  'from-emerald-500 to-green-600': 'linear-gradient(135deg, #10b981, #16a34a)',
+  'from-sky-500 to-blue-600': 'linear-gradient(135deg, #0ea5e9, #2563eb)',
 };
 
-export default async function AuthorsPage() {
-  // Fetch authors (users with articles)
-  const authors = await prisma.user.findMany({
-    where: {
-      articles: {
-        some: {
-          status: 'published'
-        }
-      }
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      _count: {
-        select: {
-          articles: {
-            where: {
-              status: 'published'
-            }
-          }
-        }
-      }
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  });
+export default function RedaktionPage() {
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const gradients = [
-    'from-rose-500 to-pink-600',
-    'from-purple-500 to-indigo-600',
-    'from-blue-500 to-cyan-600',
-    'from-amber-500 to-orange-600',
-    'from-teal-500 to-emerald-600',
-    'from-red-500 to-rose-600',
-  ];
+  useEffect(() => {
+    const fetchAuthors = async () => {
+      try {
+        const response = await fetch('/api/authors');
+        const data = await response.json();
+        setAuthors(data);
+      } catch (err) {
+        console.error('Failed to fetch authors:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAuthors();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-6 py-20 flex justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto px-4 md:px-6 py-8 max-w-6xl">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-          Unsere Redaktion
-        </h1>
-        <p className="text-gray-600 mb-10">
-          Das Team hinter serien.de – Experten für alles rund um TV-Serien und Streaming.
-        </p>
+      <main className="container mx-auto px-4 md:px-6 py-12 max-w-6xl">
+        {/* Back Link */}
+        <Link 
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-8 transition-colors"
+        >
+          ← Zurück zur Startseite
+        </Link>
 
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Unsere Redaktion
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl">
+            Das Team hinter serien.de – Expertinnen für alles rund um TV-Serien und Streaming.
+          </p>
+        </div>
+
+        {/* Authors Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {authors.map((author, index) => {
-            const gradient = gradients[index % gradients.length];
+          {authors.map((author) => {
+            const gradient = gradientColors[author.avatar_color] || gradientColors['from-blue-500 to-cyan-600'];
+            const initials = author.name.split(' ').map(n => n[0]).join('');
             
             return (
               <article 
-                key={author.id}
-                className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden"
+                key={author.user_id}
+                className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
-                {/* Avatar with Gradient */}
-                <div className={`h-32 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-                  {author.image ? (
-                    <img
-                      src={author.image}
-                      alt={author.name}
-                      className="w-20 h-20 rounded-full border-4 border-white shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-3xl font-bold text-gray-900 border-4 border-white shadow-lg">
-                      {author.name.charAt(0).toUpperCase()}
+                {/* Avatar Header */}
+                <div className="h-24" style={{ background: gradient }}>
+                  <div className="flex items-end justify-center h-full translate-y-12">
+                    <div 
+                      className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg"
+                      style={{ background: gradient }}
+                    >
+                      {initials}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    {author.name}
-                  </h2>
-                  
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                    <BookOpen className="h-4 w-4" />
-                    <span>{author._count.articles} Artikel</span>
+                <div className="pt-16 pb-6 px-6">
+                  <div className="text-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      {author.name}
+                    </h2>
                   </div>
 
-                  <a
-                    href={`mailto:${author.email}`}
-                    className="inline-flex items-center gap-2 text-cyan-500 hover:text-cyan-600 text-sm font-medium transition-colors"
-                  >
-                    <Mail className="h-4 w-4" />
-                    Kontakt
-                  </a>
+                  {/* Stats */}
+                  <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <BookOpen className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        {author.article_count} {author.article_count === 1 ? 'Artikel' : 'Artikel'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contact */}
+                  <div className="mt-6 pt-4 border-t border-gray-100">
+                    <a 
+                      href={`mailto:${author.email}`}
+                      className="flex items-center justify-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Kontakt aufnehmen
+                    </a>
+                  </div>
                 </div>
               </article>
             );
           })}
         </div>
 
-        {authors.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">Noch keine Autoren vorhanden.</p>
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t bg-white mt-20">
-        <div className="container mx-auto px-6 md:px-12 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">serien.de</h3>
-              <p className="text-sm text-gray-600">Deine Quelle für TV-Serien News</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Navigation</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/" className="hover:text-gray-900 transition-colors">News</Link></li>
-                <li><Link href="/trending" className="hover:text-gray-900 transition-colors">Trending</Link></li>
-                <li><Link href="/about" className="hover:text-gray-900 transition-colors">Über uns</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Rechtliches</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/impressum" className="hover:text-gray-900 transition-colors">Impressum</Link></li>
-                <li><a href="/" className="hover:text-gray-900 transition-colors">Datenschutz</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 border-t text-center text-sm text-gray-600">
-            <p>© 2024 serien.de. Alle Rechte vorbehalten.</p>
-          </div>
+        {/* Footer Text */}
+        <div className="mt-16 text-center">
+          <p className="text-gray-600 text-sm">
+            Möchtest du Teil unseres Teams werden? Schreib uns an{' '}
+            <a href="mailto:redaktion@serien.de" className="text-blue-600 hover:underline">
+              redaktion@serien.de
+            </a>
+          </p>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }
