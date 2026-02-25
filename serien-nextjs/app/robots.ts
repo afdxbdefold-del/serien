@@ -14,6 +14,9 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://serien.de/sitemap.xml',
+    sitemap: [
+      'https://serien.de/sitemap.xml',
+      'https://serien.de/news-sitemap.xml'
+    ],
   };
 }
