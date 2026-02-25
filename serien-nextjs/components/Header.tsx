@@ -25,12 +25,15 @@ export default function Header() {
   }, []);
 
   const checkAuth = async () => {
+    console.log('🔍 checkAuth called');
     try {
       const response = await fetch('/api/auth/me', {
         credentials: 'include', // Important: Send cookies with request
       });
+      console.log('🔍 checkAuth response:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 checkAuth user data:', data.email);
         setUser(data);
       }
     } catch (err) {
