@@ -294,17 +294,6 @@ export default async function ArticlePage({ params }: PageProps) {
           <CommentsSection articleSlug={article.slug} />
         </div>
 
-        {/* Share Button */}
-        <div className="flex justify-center mb-12">
-          <button
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
-            disabled
-          >
-            <Share2 className="h-5 w-5" />
-            <span>Artikel teilen</span>
-          </button>
-        </div>
-
         {/* Related News */}
         {relatedNews.length > 0 && (
           <div className="mt-16">
