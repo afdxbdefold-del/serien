@@ -225,11 +225,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - NEUER ARTIKEL
+  // Example: Single Series News - TEST MIT ZUFÄLLIGEM AUTOR
   const testArticle: CrawledSource = {
-    title: "Stranger Things Staffel 5: Finale Staffel startet 2026",
-    url: "https://example.com/stranger-things-season-5-finale",
-    text: `Netflix hat den offiziellen Starttermin für die finale fünfte Staffel von Stranger Things bekannt gegeben. Die Serie wird im Sommer 2026 erscheinen. Die Duffer Brothers kehren als Showrunner zurück und haben bestätigt, dass dies die letzte Staffel sein wird. Millie Bobby Brown, Finn Wolfhard, Noah Schnapp und das gesamte Hauptcast kehren zurück. Die Dreharbeiten wurden im Dezember 2025 abgeschlossen. Die finale Staffel wird 8 Episoden umfassen und die Geschichte der Hawkins-Gruppe zu einem epischen Ende bringen.`
+    title: "Breaking Bad Prequel-Serie in Planung bei AMC",
+    url: "https://example.com/breaking-bad-prequel-2026",
+    text: `AMC hat offiziell eine neue Prequel-Serie zum Breaking Bad-Universum angekündigt. Die Serie wird sich auf die Frühgeschichte von Gustavo Fring konzentrieren. Giancarlo Esposito kehrt in seiner ikonischen Rolle zurück. Vince Gilligan wird als ausführender Produzent fungieren, aber nicht als Showrunner. Die Serie wird voraussichtlich 2027 erscheinen und die Ereignisse vor der ersten Staffel von Breaking Bad beleuchten. Die Dreharbeiten sollen im Herbst 2026 in New Mexico beginnen.`
   };
 
   await runContentPipeline(testArticle);
