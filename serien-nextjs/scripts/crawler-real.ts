@@ -29,6 +29,21 @@ async function processArticleWithTMDB(article: CrawledArticle) {
   console.log('✍️  Author:', article.author);
 
   return await prisma.$transaction(async (tx) => {
+    // Step 0: Check if article already exists (Idempotency)
+    console.log('\n🔍 Step 0: Checking for existing article...');
+    const existingArticle = await tx.article.findUnique({
+      where: { sourceUrl: article.url }
+    });
+    
+    if (existingArticle) {
+      console.log('⚠️  Article already exists - SKIPPING');
+      console.log('   Slug:', existingArticle.slug);
+      console.log('   Published:', existingArticle.publishedAt);
+      throw new Error('Article already imported');
+    }
+    
+    console.log('✅ Article is new - proceeding with import');
+
     // Step A: TMDB Search
     console.log('\n🔍 Step A: Searching TMDB...');
     const searchResult = await searchTv(article.seriesName, 'de-DE');
