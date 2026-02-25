@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
+
+// Temporary mock user until auth is properly configured
+const MOCK_USER_ID = 'author_001'; // Sophie Hartmann
 
 // GET /api/articles/[slug]/comments - Get all comments for an article
 export async function GET(
@@ -22,6 +24,7 @@ export async function GET(
     const comments = await prisma.comment.findMany({
       where: {
         articleId: article.id,
+        parentId: null, // Only top-level comments
         status: 'approved'
       },
       include: {
@@ -44,11 +47,6 @@ export async function GET(
           orderBy: { createdAt: 'asc' }
         }
       },
-      where: {
-        articleId: article.id,
-        parentId: null, // Only top-level comments
-        status: 'approved'
-      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -65,20 +63,10 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession();
     const { slug } = await params;
     
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    // Use mock user for now
+    const userId = MOCK_USER_ID;
 
     const article = await prisma.article.findUnique({
       where: { slug },
@@ -98,10 +86,10 @@ export async function POST(
     const comment = await prisma.comment.create({
       data: {
         articleId: article.id,
-        userId: user.id,
+        userId,
         content: content.trim(),
         parentId: parentId || null,
-        status: 'approved' // Auto-approve for now, can add moderation later
+        status: 'approved' // Auto-approve for now
       },
       include: {
         user: {
