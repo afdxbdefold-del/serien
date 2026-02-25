@@ -321,6 +321,10 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log(`✅ Images: TMDB ID ${primaryTmdbId}`);
 
+    // Prepare dates
+    const now = new Date();
+    const sourceDate = new Date();
+
     // Create article with transaction
     const result = await prisma.$transaction(async (tx) => {
       // Get random author from database
