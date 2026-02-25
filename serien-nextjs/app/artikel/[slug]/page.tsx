@@ -59,20 +59,8 @@ export default async function ArticlePage({ params }: PageProps) {
   const article = await prisma.article.findUnique({
     where: { slug: params.slug },
     include: {
-      author: {
-        select: {
-          name: true,
-          image: true,
-        },
-      },
-      series: {
-        select: {
-          tmdbId: true,
-          title: true,
-          slug: true,
-          posterLocalUrl: true,
-        },
-      },
+      author: true,
+      series: true,
     },
   });
 
