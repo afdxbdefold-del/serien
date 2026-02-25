@@ -122,6 +122,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                   </div>
                 )}
               </div>
+              
+              {/* Follow Button */}
+              <div className="mt-6">
+                <FollowButton tmdbId={series.tmdbId} seriesName={series.name || ''} />
+              </div>
             </div>
           </div>
         </div>
