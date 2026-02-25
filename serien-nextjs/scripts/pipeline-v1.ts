@@ -201,6 +201,14 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log('❌ Quality Check FAILED after rewrite → SKIP_PUBLISH');
       qualityResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
       
+      // Get author for draft
+      const authors = await prisma.user.findMany({
+        where: { role: 'author' },
+        select: { id: true }
+      });
+      
+      const authorId = authors.length > 0 ? authors[0].id : 'system';
+      
       // Save as DRAFT
       const slug = generateSlug(articleTitle);
       const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
@@ -214,7 +222,7 @@ export async function runContentPipeline(source: CrawledSource) {
           excerpt: articleExcerpt,
           contentHtml: generatedContent,
           contentType: classification.content_type,
-          authorId: 'system', // Placeholder
+          authorId,
           status: 'draft',
           publishMode: 'DRAFT',
           publishedAt: null,
