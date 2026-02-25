@@ -136,37 +136,34 @@ async function getAIQualityScores(
 ): Promise<QualityScores> {
   const systemPrompt = `Du bist ein Qualitätsprüfer für deutsche TV-News-Artikel im Stil von serienjunkies.de.
 
-AUFGABE: Bewerte den Artikel auf 4 Dimensionen (0-10 Punkte):
+AUFGABE: Bewerte den Artikel auf 3 Dimensionen (0-100 Punkte):
 
-1. STYLE (0-10): 
-   - Neutral und sachlich?
-   - Kein Marketing-Ton?
-   - Kein Hype?
+1. HEADLINE (0-100):
+   - Max 70 Zeichen?
+   - Klar und informativ?
+   - Serienname enthalten?
+   - Kein Clickbait?
    
-2. CLARITY (0-10):
-   - Klare Aussagen?
-   - Keine Verwirrung?
-   - Logischer Aufbau?
+2. CONTENT (0-100):
+   - Faktisch und neutral?
+   - Keine Marketing-Sprache?
+   - Keine Leser-Ansprache?
+   - Professionell geschrieben?
    
-3. READABILITY (0-10):
-   - Kurze Sätze?
-   - Gute Absätze?
-   - Flüssiger Lesefluss?
-   
-4. TRUSTWORTHINESS (0-10):
-   - Faktisch?
-   - Keine Spekulation?
-   - Seriös?
+3. STRUCTURE (0-100):
+   - Lead max 2 Sätze?
+   - Absätze max 3 Sätze?
+   - Gute Lesbarkeit?
+   - Min 3 Absätze?
 
 Antworte NUR mit JSON:
 {
-  "style": 8,
-  "clarity": 9,
-  "readability": 8,
-  "trustworthiness": 9
+  "headline": 85,
+  "content": 90,
+  "structure": 80
 }`;
 
-  const userPrompt = `ÜBERSCHRIFT:
+  const userPrompt = `HEADLINE:
 ${input.finalHeadline}
 
 ARTIKEL:
@@ -175,7 +172,7 @@ ${plainText}
 SERIE:
 ${input.primarySeriesName}
 
-Bewerte jetzt die Qualität.`;
+Bewerte die Qualität (0-100 Punkte pro Kategorie).`;
 
   try {
     const response = await fetch(LLM_PROXY_URL, {
@@ -201,22 +198,18 @@ Bewerte jetzt die Qualität.`;
     const parsed = JSON.parse(content);
 
     return {
-      style: parsed.style,
-      clarity: parsed.clarity,
-      readability: parsed.readability,
-      trustworthiness: parsed.trustworthiness,
-      total: parsed.style + parsed.clarity + parsed.readability + parsed.trustworthiness,
+      headline: parsed.headline,
+      content: parsed.content,
+      structure: parsed.structure,
     };
 
   } catch (error) {
     console.error('AI scoring failed:', error);
     // Return conservative scores on error
     return {
-      style: 7,
-      clarity: 7,
-      readability: 7,
-      trustworthiness: 7,
-      total: 28,
+      headline: 65,
+      content: 65,
+      structure: 60,
     };
   }
 }
