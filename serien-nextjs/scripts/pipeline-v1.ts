@@ -370,6 +370,42 @@ export async function runContentPipeline(source: CrawledSource) {
         });
       }
 
+      // === STORE DISCOVER DASHBOARD ===
+      // Auto-cleanup: Keep only last 1000 results
+      const dashboardCount = await tx.discoverScoreDashboard.count();
+      if (dashboardCount >= 1000) {
+        // Delete oldest entries
+        const toDelete = dashboardCount - 999;
+        const oldestEntries = await tx.discoverScoreDashboard.findMany({
+          orderBy: { timestamp: 'asc' },
+          take: toDelete,
+          select: { id: true },
+        });
+        
+        await tx.discoverScoreDashboard.deleteMany({
+          where: {
+            id: { in: oldestEntries.map(e => e.id) },
+          },
+        });
+      }
+
+      // Store dashboard metrics
+      await tx.discoverScoreDashboard.create({
+        data: {
+          articleId: article.id,
+          pipelineVersion: 'serien_pipeline_v1',
+          headlineMetrics: discoverResult.dashboard.headline,
+          contentMetrics: discoverResult.dashboard.content,
+          freshnessMetrics: discoverResult.dashboard.freshness,
+          imageMetrics: discoverResult.dashboard.images,
+          trustMetrics: discoverResult.dashboard.trust,
+          discoverScore: discoverResult.dashboard.aggregation.discover_score,
+          finalVerdict: discoverResult.dashboard.aggregation.final_verdict,
+          primaryBlockers: discoverResult.dashboard.aggregation.primary_blockers,
+          improvementHints: discoverResult.dashboard.aggregation.improvement_hints,
+        },
+      });
+
       return article;
     });
 
