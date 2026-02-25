@@ -496,8 +496,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log(`✅ Images: TMDB ID ${primaryTmdbId}`);
 
-    // Prepare dates
-    const now = new Date();
+    // Prepare dates (now already declared earlier for internal linking)
     const sourceDate = new Date();
 
     // Create article with transaction
