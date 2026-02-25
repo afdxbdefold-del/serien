@@ -73,12 +73,20 @@ export default async function RedaktionPage() {
                 {/* Avatar Header */}
                 <div className="h-24" style={{ background: gradient }}>
                   <div className="flex items-end justify-center h-full translate-y-12">
-                    <div 
-                      className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg"
-                      style={{ background: gradient }}
-                    >
-                      {initials}
-                    </div>
+                    {author.image ? (
+                      <img 
+                        src={author.image}
+                        alt={author.name}
+                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                      />
+                    ) : (
+                      <div 
+                        className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg"
+                        style={{ background: gradient }}
+                      >
+                        {initials}
+                      </div>
+                    )}
                   </div>
                 </div>
 
