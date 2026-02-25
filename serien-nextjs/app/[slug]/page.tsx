@@ -19,6 +19,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: true,
       excerpt: true,
       heroLocalUrl: true,
+      ogImageUrl: true,
+      tmdbId: true,
+      tmdbType: true,
     },
   });
 
@@ -27,6 +30,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: 'Artikel nicht gefunden | serien.de',
     };
   }
+
+  // Use TMDB image pipeline if available, fallback to local URL
+  const ogImage = article.ogImageUrl || 
+    (article.tmdbId && article.tmdbType ? `https://serien.de/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
 
   return {
     title: `${article.title} | serien.de`,
@@ -39,9 +46,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
       type: 'article',
       url: `https://serien.de/${params.slug}`,
-      images: article.heroLocalUrl ? [
+      images: ogImage ? [
         {
-          url: article.heroLocalUrl,
+          url: ogImage,
           width: 1200,
           height: 630,
           alt: article.title,
@@ -125,7 +132,7 @@ export default async function ArticlePage({ params }: PageProps) {
             '@type': 'NewsArticle',
             headline: article.title,
             description: article.excerpt || '',
-            image: article.heroLocalUrl || 'https://serien.de/og-image.png',
+            image: article.ogImageUrl || (article.tmdbId && article.tmdbType ? `https://serien.de/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || 'https://serien.de/og-image.png',
             datePublished: (article.publishedAt || article.createdAt).toISOString(),
             dateModified: article.updatedAt.toISOString(),
             author: {
@@ -159,18 +166,18 @@ export default async function ArticlePage({ params }: PageProps) {
         </Link>
 
         {/* Hero Image */}
-        {article.heroLocalUrl && (
+        {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
           <div className="mb-8">
             <div className="relative aspect-video rounded-2xl overflow-hidden">
               <Image
-                src={article.heroLocalUrl}
+                src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
                 alt={article.title}
                 fill
                 className="object-cover"
                 priority
               />
             </div>
-            <p className="text-xs text-gray-500 mt-2">Bildquelle: TMDB</p>
+            <p className="text-xs text-gray-500 mt-2">{article.imageAttribution || 'Bildquelle: TMDB'}</p>
           </div>
         )}
 
