@@ -167,7 +167,7 @@ export async function runContentPipeline(source: CrawledSource) {
           excerpt: articleExcerpt,
           contentHtml: generatedContent,
           contentType: classification.content_type,
-          authorId: author.id,
+          authorId: randomAuthor.id,
           status: 'published',
           publishedAt: now,
           sourcePublishedAt: sourceDate,
