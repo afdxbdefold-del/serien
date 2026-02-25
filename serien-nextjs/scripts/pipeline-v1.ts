@@ -2,7 +2,7 @@
  * EMERGENT TV-SERIES CONTENT PIPELINE v1
  * SPEC_VERSION: serien_pipeline_v1
  * 
- * Full automated pipeline with strict quality gates
+ * Full automated pipeline with strict quality gates + FACT SAFETY LAYER
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -17,6 +17,8 @@ import { discoverGate } from '../lib/discover-gate';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
+import { factSafetyCheck } from '../lib/fact-safety-layer';
+
 
 const prisma = new PrismaClient();
 
