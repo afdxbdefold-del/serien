@@ -262,31 +262,37 @@ export async function runContentPipeline(source: CrawledSource) {
       primary_series: resolution.primarySeries.name,
     });
 
-    console.log(`📊 Discover Scores:`);
-    console.log(`   Discover Probability: ${(discoverResult.scores.discover_probability * 100).toFixed(1)}% (min: 65%)`);
-    console.log(`   Freshness Score:      ${discoverResult.scores.freshness_score}/100 (min: 80)`);
-    console.log(`   Headline Quality:     ${discoverResult.scores.headline_quality}/100`);
-    console.log(`   Image Quality:        ${discoverResult.scores.image_quality}/100`);
+    console.log(`📊 Discover Scores (100-Punkte-System):`);
+    console.log(`   A) Headline Quality:  ${discoverResult.scores.headline_quality}/30`);
+    console.log(`   B) Freshness:         ${discoverResult.scores.freshness}/20`);
+    console.log(`   C) Content Opening:   ${discoverResult.scores.content_opening}/20`);
+    console.log(`   D) Image/Visual:      ${discoverResult.scores.image_visual}/15`);
+    console.log(`   E) Trust/Clarity:     ${discoverResult.scores.trust_clarity}/15`);
+    console.log(`   ─────────────────────────────`);
+    console.log(`   TOTAL:                ${discoverResult.scores.total}/100`);
 
     // NO REWRITE in Discover Gate (already used rewrite quota)
     let publishMode = 'DISCOVER';
     
     if (discoverResult.discover_eligible) {
-      console.log('✅ Discover Gate PASSED → PUBLISH_MODE: DISCOVER');
+      console.log(`✅ Discover Gate PASSED (≥65) → PUBLISH_MODE: DISCOVER`);
       publishMode = 'DISCOVER';
     } else {
-      console.log('⚠️  Discover Gate FAILED → PUBLISH_MODE: SEARCH_ONLY');
+      console.log(`⚠️  Discover Gate FAILED (<65) → PUBLISH_MODE: SEARCH_ONLY`);
       if (discoverResult.fail_reasons.length > 0) {
         discoverResult.fail_reasons.forEach(reason => console.log(`   - ${reason}`));
       }
       publishMode = 'SEARCH_ONLY';
     }
 
-    console.log(`\n📊 Dashboard Metrics:`);
-    console.log(`   Discover Score: ${(discoverResult.dashboard.aggregation.discover_score * 100).toFixed(1)}%`);
-    console.log(`   Verdicts: H=${discoverResult.dashboard.headline.verdict} C=${discoverResult.dashboard.content.verdict} F=${discoverResult.dashboard.freshness.verdict} I=${discoverResult.dashboard.images.verdict} T=${discoverResult.dashboard.trust.verdict}`);
     if (discoverResult.dashboard.aggregation.primary_blockers.length > 0) {
-      console.log(`   Blockers: ${discoverResult.dashboard.aggregation.primary_blockers.join('; ')}`);
+      console.log(`\n🚫 Primary Blockers:`);
+      discoverResult.dashboard.aggregation.primary_blockers.forEach(b => console.log(`   - ${b}`));
+    }
+    
+    if (discoverResult.dashboard.aggregation.improvement_hints.length > 0) {
+      console.log(`\n💡 Improvement Hints:`);
+      discoverResult.dashboard.aggregation.improvement_hints.forEach(h => console.log(`   - ${h}`));
     }
 
     // ========== STEP 8: PUBLISH ==========
