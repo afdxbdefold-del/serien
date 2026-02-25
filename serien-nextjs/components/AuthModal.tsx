@@ -152,12 +152,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       console.log('🔐 Login response status:', loginResponse.status);
 
       if (loginResponse.ok) {
-        console.log('✅ Auto-login successful, redirecting...');
+        console.log('✅ Auto-login successful, reloading...');
         onClose(); // Close modal
-        // Small delay to ensure cookie is set before redirect
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
+        // Force a hard reload to ensure cookies are properly loaded
+        window.location.replace('/');
       } else {
         const loginError = await loginResponse.json();
         console.error('🔐 Auto-login failed:', loginError);
