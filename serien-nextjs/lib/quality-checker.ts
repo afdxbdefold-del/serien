@@ -31,27 +31,6 @@ interface QualityCheckResult {
 export async function qualityCheck(input: QualityCheckInput): Promise<QualityCheckResult> {
   const failReasons: string[] = [];
   let requiresFullRewrite = false;
-  }).then(result => {
-    console.log('✅ QUALITY CHECK RESULT:\n');
-    console.log(`Status: ${result.status}`);
-    console.log(`\nScores:`);
-    console.log(`  Headline:  ${result.scores.headline}/100`);
-    console.log(`  Content:   ${result.scores.content}/100`);
-    console.log(`  Structure: ${result.scores.structure}/100`);
-    
-    if (result.failReasons.length > 0) {
-      console.log(`\n❌ Fail Reasons:`);
-      result.failReasons.forEach(reason => console.log(`  - ${reason}`));
-    }
-    
-    if (result.requiresFullRewrite) {
-      console.log(`\n🔄 Requires FULL Rewrite (body issues detected)`);
-    }
-  });
-}
-
-  const failReasons: string[] = [];
-  let requiresFullRewrite = false;
   
   // Extract text from HTML
   const plainText = input.generatedArticleHtml
