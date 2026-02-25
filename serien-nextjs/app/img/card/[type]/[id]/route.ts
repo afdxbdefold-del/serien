@@ -64,24 +64,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get TMDB paths
     const { backdrop, poster } = await getImagePaths(type, id);
     
-    // Choose source (prefer backdrop for hero)
-    const sourcePath = backdrop || poster;
+    // Choose source (prefer poster for card, 2:3 aspect ratio)
+    const sourcePath = poster || backdrop;
     
     if (!sourcePath) {
       // Return placeholder
-      return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      return NextResponse.redirect(new URL('/placeholders/card.webp', request.url));
     }
 
     // Fetch image from TMDB
     const imageBuffer = await fetchTMDBImage(sourcePath, 'original');
     
     if (!imageBuffer) {
-      return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      return NextResponse.redirect(new URL('/placeholders/card.webp', request.url));
     }
 
-    // Transform to Hero format (1280x720, 16:9)
+    // Transform to Card format (500x750, 2:3 aspect ratio for vertical cards)
     const processedImage = await sharp(imageBuffer)
-      .resize(1280, 720, {
+      .resize(500, 750, {
         fit: 'cover',
         position: 'center',
       })
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Image processing error:', error);
-    return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+    return NextResponse.redirect(new URL('/placeholders/card.webp', request.url));
   }
 }
 

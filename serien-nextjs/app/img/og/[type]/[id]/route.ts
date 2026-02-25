@@ -64,24 +64,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get TMDB paths
     const { backdrop, poster } = await getImagePaths(type, id);
     
-    // Choose source (prefer backdrop for hero)
+    // Choose source (prefer backdrop for OG image)
     const sourcePath = backdrop || poster;
     
     if (!sourcePath) {
       // Return placeholder
-      return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      return NextResponse.redirect(new URL('/placeholders/og.webp', request.url));
     }
 
     // Fetch image from TMDB
     const imageBuffer = await fetchTMDBImage(sourcePath, 'original');
     
     if (!imageBuffer) {
-      return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      return NextResponse.redirect(new URL('/placeholders/og.webp', request.url));
     }
 
-    // Transform to Hero format (1280x720, 16:9)
+    // Transform to OG format (1200x630, OpenGraph standard)
     const processedImage = await sharp(imageBuffer)
-      .resize(1280, 720, {
+      .resize(1200, 630, {
         fit: 'cover',
         position: 'center',
       })
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Image processing error:', error);
-    return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+    return NextResponse.redirect(new URL('/placeholders/og.webp', request.url));
   }
 }
 
