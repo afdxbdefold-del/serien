@@ -176,6 +176,25 @@ model DiscoverScoreDashboard {
   @@map("discover_score_dashboards")
 }
 
+model HeadlineComparison {
+  id                     String   @id @default(cuid())
+  articleId              String   @unique
+  headline_original      String
+  headline_rewritten     String?
+  antiAiScore_original   Int?
+  antiAiScore_rewritten  Int?
+  headline_delta         Int?
+  status                 String   @default("NO_REWRITE") // "IMPROVED" | "NEUTRAL" | "WORSE" | "NO_REWRITE"
+  createdAt              DateTime @default(now())
+  
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  @@index([articleId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("headline_comparisons")
+}
+
 model ArticleSeries {
   articleId String
   seriesId  Int
