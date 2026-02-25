@@ -163,9 +163,6 @@ async function main() {
         imageAttribution: 'Bildquelle: TMDB'
       }
     }),
-        heroLocalUrl: 'https://images.unsplash.com/photo-1618945524163-32451704c499?w=1200'
-      }
-    }),
     prisma.article.create({
       data: {
         id: uuidv4(),
