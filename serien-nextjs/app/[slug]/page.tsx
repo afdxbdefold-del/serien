@@ -6,15 +6,16 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
   const article = await prisma.article.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: {
       title: true,
       excerpt: true,
@@ -42,13 +43,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
     metadataBase: new URL(baseUrl),
     alternates: {
-      canonical: `/${params.slug}`,
+      canonical: `/${slug}`,
     },
     openGraph: {
       title: `${article.title} | serien.de`,
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
       type: 'article',
-      url: `/${params.slug}`,
+      url: `/${slug}`,
       images: ogImage ? [
         {
           url: ogImage,
@@ -67,9 +68,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ArticlePage({ params }: PageProps) {
+  const { slug } = await params;
+  
   // Fetch article with related data
   const article = await prisma.article.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: {
       author: true,
       series: true,
@@ -152,7 +155,7 @@ export default async function ArticlePage({ params }: PageProps) {
             },
             mainEntityOfPage: {
               '@type': 'WebPage',
-              '@id': `/${params.slug}`,
+              '@id': `/${slug}`,
             },
           }),
         }}
