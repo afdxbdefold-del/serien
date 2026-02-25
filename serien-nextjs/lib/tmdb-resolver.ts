@@ -69,32 +69,79 @@ export async function resolveSingleSeries(
     };
   }
 
-  // Create new series
-  console.log('📚 Creating new series record...');
-  const details = await getTvDetails(tmdbId, 'de-DE');
-  const slug = generateSlug(searchResult.name || seriesName);
+  // Create new series with COMPLETE details
+  console.log('📚 Creating new series record with FULL TMDB data...');
+  const completeDetails = await getTvDetailsComplete(tmdbId, 'de-DE');
+  
+  if (!completeDetails) {
+    throw new Error('Failed to fetch complete TMDB details');
+  }
+
+  const slug = generateSlug(completeDetails.name || seriesName);
 
   await prisma.series.create({
     data: {
       tmdbId,
       tmdbType: 'tv',
-      title: searchResult.name || seriesName,
+      title: completeDetails.name,
       slug,
-      name: details?.name || searchResult.name,
-      originalName: details?.original_name || searchResult.originalName,
-      overview: details?.overview || searchResult.overview,
-      posterPath: details?.poster_path || searchResult.posterPath,
-      backdropPath: details?.backdrop_path || searchResult.backdropPath,
-      status: details?.status,
-      firstAirDate: details?.first_air_date ? new Date(details.first_air_date) : null,
-      genres: details?.genres?.map(g => g.name) || [],
-      genresJson: details?.genres || null,
-      networks: details?.networks?.map(n => n.name) || [],
-      networksJson: details?.networks || null,
+      name: completeDetails.name,
+      originalName: completeDetails.originalName,
+      overview: completeDetails.overview,
+      tagline: completeDetails.tagline,
+      
+      // Images
+      posterPath: completeDetails.posterPath,
+      backdropPath: completeDetails.backdropPath,
+      
+      // Metadata
+      status: completeDetails.status,
+      type: completeDetails.type,
+      firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+      lastAirDate: completeDetails.lastAirDate ? new Date(completeDetails.lastAirDate) : null,
+      numberOfSeasons: completeDetails.numberOfSeasons,
+      numberOfEpisodes: completeDetails.numberOfEpisodes,
+      episodeRunTime: completeDetails.episodeRunTime,
+      inProduction: completeDetails.inProduction,
+      
+      // Ratings
+      voteAverage: completeDetails.voteAverage,
+      voteCount: completeDetails.voteCount,
+      popularity: completeDetails.popularity,
+      
+      // Genres & Networks
+      genres: completeDetails.genres.map((g: any) => g.name),
+      genresJson: completeDetails.genres,
+      networks: completeDetails.networks.map((n: any) => n.name),
+      networksJson: completeDetails.networks,
+      
+      // Production
+      productionCompanies: completeDetails.productionCompanies.map((c: any) => c.name),
+      productionCountries: completeDetails.productionCountries.map((c: any) => c.name),
+      spokenLanguages: completeDetails.spokenLanguages.map((l: any) => l.name),
+      originalLanguage: completeDetails.originalLanguage,
+      
+      // Cast, Crew, Seasons, Trailers
+      cast: completeDetails.cast,
+      crew: completeDetails.crew,
+      seasons: completeDetails.seasons,
+      trailers: completeDetails.trailers,
+      
+      // Keywords
+      keywords: completeDetails.keywords,
+      
+      // Full backup
+      tmdbData: completeDetails.tmdbData,
     }
   });
 
-  console.log('✅ Series created');
+  console.log('✅ Series created with COMPLETE data:');
+  console.log(`   Cast: ${completeDetails.cast.length} members`);
+  console.log(`   Crew: ${completeDetails.crew.length} members`);
+  console.log(`   Seasons: ${completeDetails.numberOfSeasons}`);
+  console.log(`   Episodes: ${completeDetails.numberOfEpisodes}`);
+  console.log(`   Trailers: ${completeDetails.trailers.length}`);
+  console.log(`   Keywords: ${completeDetails.keywords.length}`);
 
   return {
     tmdbId,
