@@ -143,6 +143,7 @@ model Article {
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
   discoverDashboards DiscoverScoreDashboard[]
+  headlineComparison HeadlineComparison?
   
   @@index([slug])
   @@index([publishedAt])
