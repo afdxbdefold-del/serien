@@ -16,9 +16,16 @@ export async function GET(
   { params }: { params: { tmdbId: string } }
 ) {
   try {
-    const seriesId = params.tmdbId;
+    const seriesId = parseInt(params.tmdbId);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '7', 10);
+
+    if (isNaN(seriesId)) {
+      return NextResponse.json(
+        { error: 'Invalid series ID' },
+        { status: 400 }
+      );
+    }
 
     if (limit > 20) {
       return NextResponse.json(
