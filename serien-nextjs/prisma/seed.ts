@@ -100,7 +100,13 @@ async function main() {
         publishedAt: new Date('2024-02-20T10:00:00Z'),
         category: 'Netflix',
         readingTime: 3,
-        heroLocalUrl: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027?w=1200'
+        // TMDB Image Pipeline Integration
+        tmdbId: 66732,
+        tmdbType: 'tv',
+        heroImageUrl: '/img/hero/tv/66732',
+        ogImageUrl: '/img/og/tv/66732',
+        cardImageUrl: '/img/card/tv/66732',
+        imageAttribution: 'Bildquelle: TMDB'
       }
     }),
     prisma.article.create({
@@ -148,6 +154,15 @@ async function main() {
         publishedAt: new Date('2024-02-17T16:45:00Z'),
         category: 'AMC',
         readingTime: 5,
+        // TMDB Image Pipeline Integration
+        tmdbId: 1396,
+        tmdbType: 'tv',
+        heroImageUrl: '/img/hero/tv/1396',
+        ogImageUrl: '/img/og/tv/1396',
+        cardImageUrl: '/img/card/tv/1396',
+        imageAttribution: 'Bildquelle: TMDB'
+      }
+    }),
         heroLocalUrl: 'https://images.unsplash.com/photo-1618945524163-32451704c499?w=1200'
       }
     }),
