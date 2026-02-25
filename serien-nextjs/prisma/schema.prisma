@@ -43,7 +43,11 @@ model Series {
   tmdbData        Json?
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
-  articles        Article[]
+  
+  // Many-to-Many Relations
+  articleSeries   ArticleSeries[]
+  primaryArticles Article[]         @relation("PrimarySeries")
+  
   follows         Follow[]
   @@map("series")
 }
