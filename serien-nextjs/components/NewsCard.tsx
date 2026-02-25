@@ -20,6 +20,9 @@ interface NewsCardProps {
   title: string;
   excerpt?: string;
   heroLocalUrl?: string;
+  cardImageUrl?: string;
+  tmdbId?: number;
+  tmdbType?: string;
   publishedAt: Date;
   category?: string;
   authorName?: string;
@@ -30,6 +33,9 @@ export default function NewsCard({
   title,
   excerpt,
   heroLocalUrl,
+  cardImageUrl,
+  tmdbId,
+  tmdbType,
   publishedAt,
   category,
   authorName
@@ -52,9 +58,9 @@ export default function NewsCard({
       <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
         {/* Image */}
         <div className="relative aspect-video overflow-hidden">
-          {heroLocalUrl ? (
+          {(cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
             <Image
-              src={heroLocalUrl}
+              src={cardImageUrl || (tmdbId && tmdbType ? `/img/card/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
               alt={title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
