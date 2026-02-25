@@ -24,10 +24,26 @@ interface TMDBTvResult {
 
 interface TMDBTvDetails extends TMDBTvResult {
   status: string;
+  tagline: string;
+  type: string;
   genres: Array<{ id: number; name: string }>;
   networks: Array<{ id: number; name: string; logo_path: string | null }>;
   number_of_seasons: number;
   number_of_episodes: number;
+  episode_run_time: number[];
+  in_production: boolean;
+  last_air_date: string | null;
+  production_companies: Array<{ id: number; name: string }>;
+  production_countries: Array<{ iso_3166_1: string; name: string }>;
+  spoken_languages: Array<{ iso_639_1: string; name: string }>;
+  original_language: string;
+  seasons: Array<{
+    season_number: number;
+    episode_count: number;
+    air_date: string | null;
+    poster_path: string | null;
+    name: string;
+  }>;
 }
 
 interface SearchResult {
