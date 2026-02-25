@@ -12,6 +12,7 @@ import { extractFacts } from '../lib/fact-extractor';
 import { generateGermanArticle } from '../lib/content-generator';
 import { editorialRewrite } from '../lib/editorial-rewriter';
 import { qualityCheck } from '../lib/quality-checker';
+import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
 
 const prisma = new PrismaClient();
