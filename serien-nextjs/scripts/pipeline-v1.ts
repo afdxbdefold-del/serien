@@ -440,7 +440,6 @@ export async function runContentPipeline(source: CrawledSource) {
 
     // We need slug first for this step, so generate it here
     const slug = generateSlug(articleTitle);
-    const now = new Date(); // Declare here for use in internal linking
 
     const internalLinksResult = await generateInternalLinks({
       articleId: `pipeline-${Date.now()}`, // Temporary, will be replaced
