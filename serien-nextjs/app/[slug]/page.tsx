@@ -31,21 +31,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
   // Use TMDB image pipeline if available, fallback to local URL
   const ogImage = article.ogImageUrl || 
-    (article.tmdbId && article.tmdbType ? `https://serien.de/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
+    (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
 
   return {
     title: `${article.title} | serien.de`,
     description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
+    metadataBase: new URL(baseUrl),
     alternates: {
-      canonical: `https://serien.de/${params.slug}`,
+      canonical: `/${params.slug}`,
     },
     openGraph: {
       title: `${article.title} | serien.de`,
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
       type: 'article',
-      url: `https://serien.de/${params.slug}`,
+      url: `/${params.slug}`,
       images: ogImage ? [
         {
           url: ogImage,
@@ -132,7 +135,7 @@ export default async function ArticlePage({ params }: PageProps) {
             '@type': 'NewsArticle',
             headline: article.title,
             description: article.excerpt || '',
-            image: article.ogImageUrl || (article.tmdbId && article.tmdbType ? `https://serien.de/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || 'https://serien.de/og-image.png',
+            image: article.ogImageUrl || (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || '/og-image.png',
             datePublished: (article.publishedAt || article.createdAt).toISOString(),
             dateModified: article.updatedAt.toISOString(),
             author: {
@@ -149,7 +152,7 @@ export default async function ArticlePage({ params }: PageProps) {
             },
             mainEntityOfPage: {
               '@type': 'WebPage',
-              '@id': `https://serien.de/${params.slug}`,
+              '@id': `/${params.slug}`,
             },
           }),
         }}
