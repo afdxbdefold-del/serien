@@ -195,18 +195,35 @@ async function rewriteFirstTwoParagraphs(
   
   const systemPrompt = `Du bist ein Editor für serienjunkies.de.
 
-AUFGABE: Schreibe die ersten 2 Absätze eines TV-Artikel im serienjunkies.de Stil neu.
+AUFGABE: Schreibe die ersten 2 Absätze im exakten Stil von serienjunkies.de neu.
 
-REGELN:
-- LEAD (Absatz 1): Max 2 Sätze, präzise, sachlich
-- ABSATZ 2: Max 3 Sätze, max 60 Wörter
-- Keine Marketing-Sprache, kein Hype
-- Keine Leser-Ansprache (kein "du", "wir", "ihr")
-- Keine Spekulation
-- Nur Fakten verwenden
+SCHREIBREGELN:
+- Sachlich, nüchtern, journalistisch
+- Keine Emojis, kein Marketing-Ton
+- Kurze, klare Sätze (max. 22 Wörter)
+- Fakten zuerst, Einordnung danach
+
+LEAD (Absatz 1):
+- Was ist passiert?
+- Welche Serie?
+- Bei welchem Sender/Streamer?
+- 2-3 Sätze, präzise, bestätigt
+
+ABSATZ 2:
+- Kontext (Staffelstatus, Produktion, Einordnung)
+- 2-4 Sätze, max 60 Wörter
+
+ABSOLUT VERBOTEN:
+- "Fans dürfen sich freuen"
+- "Wie jetzt bekannt wurde"
+- Leser-Ansprache (du, wir, ihr)
+- Spekulation ohne Kennzeichnung
+- Hohlphrasen
+
+WICHTIG:
+- KEINE neuen Fakten hinzufügen
+- Nur gegebene Fakten verwenden
 - NUR <p> Tags
-
-KEINE neuen Fakten hinzufügen!
 
 Antworte NUR mit HTML (2 Paragraphs):
 <p>Lead...</p>
