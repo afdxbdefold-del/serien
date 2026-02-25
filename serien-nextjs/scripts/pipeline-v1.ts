@@ -530,34 +530,36 @@ export async function runContentPipeline(source: CrawledSource) {
       });
 
       // === STORE HEADLINE COMPARISON ===
-      const headlineWasRewritten = articleTitle !== originalHeadline;
-      const antiAiScoreOriginal = headlineWasRewritten ? null : antiAiResult.antiAiScore;
-      const antiAiScoreRewritten = headlineWasRewritten ? antiAiResult.antiAiScore : null;
+      const headlineChanged = articleTitle !== originalHeadline;
+      let headlineDelta: number | null = null;
+      let comparisonStatus = 'NO_REWRITE';
       
-      let headlineDelta = null;
-      let status = 'NO_REWRITE';
-      
-      if (headlineWasRewritten && antiAiScoreOriginal !== null && antiAiScoreRewritten !== null) {
-        headlineDelta = antiAiScoreRewritten - antiAiScoreOriginal;
+      if (headlineWasRewrittenByAntiAi && headlineChanged) {
+        // We have before/after scores
+        const antiAiScoreAfterRewrite = antiAiResult.antiAiScore;
+        headlineDelta = antiAiScoreAfterRewrite - antiAiScoreBeforeRewrite;
         
         if (headlineDelta >= 5) {
-          status = 'IMPROVED';
+          comparisonStatus = 'IMPROVED';
         } else if (headlineDelta <= -5) {
-          status = 'WORSE';
+          comparisonStatus = 'WORSE';
         } else {
-          status = 'NEUTRAL';
+          comparisonStatus = 'NEUTRAL';
         }
+      } else if (headlineChanged) {
+        // Headline was rewritten (by Editorial), but not by Anti-AI
+        comparisonStatus = 'NEUTRAL';
       }
 
       await tx.headlineComparison.create({
         data: {
           articleId: article.id,
           headline_original: originalHeadline,
-          headline_rewritten: headlineWasRewritten ? articleTitle : null,
-          antiAiScore_original: antiAiScoreOriginal,
-          antiAiScore_rewritten: antiAiScoreRewritten,
+          headline_rewritten: headlineChanged ? articleTitle : null,
+          antiAiScore_original: headlineWasRewrittenByAntiAi ? antiAiScoreBeforeRewrite : antiAiResult.antiAiScore,
+          antiAiScore_rewritten: headlineWasRewrittenByAntiAi ? antiAiResult.antiAiScore : null,
           headline_delta: headlineDelta,
-          status,
+          status: comparisonStatus,
         },
       });
 
