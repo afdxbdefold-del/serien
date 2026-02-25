@@ -248,27 +248,46 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Related Series */}
         {article.primarySeries && (
-          <div className="mb-12 p-6 bg-gray-50 rounded-2xl">
-            <h3 className="text-xl font-bold mb-4">Zur Serie</h3>
-            <Link 
-              href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
-              className="flex items-center gap-4 hover:opacity-80 transition-opacity"
-            >
-              {article.primarySeries.posterLocalUrl && (
-                <div className="relative w-20 h-28 rounded-lg overflow-hidden flex-shrink-0">
-                  <Image
-                    src={article.primarySeries.posterLocalUrl}
-                    alt={article.primarySeries.title}
-                    fill
-                    className="object-cover"
-                  />
+          <div className="mb-12 relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50 border border-blue-100">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LCAxMzAsIDI0NiwgMC4wNSkiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
+            
+            <div className="relative p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
                 </div>
-              )}
-              <div>
-                <h4 className="font-bold text-lg text-gray-900">{article.primarySeries.title}</h4>
-                <p className="text-sm text-gray-600">Zur Serienseite →</p>
+                <h3 className="text-2xl font-bold text-gray-900">Zur Serie</h3>
               </div>
-            </Link>
+              
+              <Link 
+                href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
+                className="flex items-center gap-6 p-4 bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group"
+              >
+                {article.primarySeries.posterLocalUrl && (
+                  <div className="relative w-24 h-36 rounded-lg overflow-hidden flex-shrink-0 shadow-lg ring-2 ring-blue-100 group-hover:ring-blue-300 transition-all">
+                    <Image
+                      src={article.primarySeries.posterLocalUrl}
+                      alt={article.primarySeries.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h4 className="font-bold text-xl text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                    {article.primarySeries.title}
+                  </h4>
+                  <div className="flex items-center gap-2 text-blue-600 font-semibold group-hover:gap-3 transition-all">
+                    <span>Zur Serienseite</span>
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            </div>
           </div>
         )}
 
