@@ -225,11 +225,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - TEST MIT VOLLSTÄNDIGEN SERIES DETAILS
+  // Example: Single Series News - LIVE TEST MIT NEUER SERIE
   const testArticle: CrawledSource = {
-    title: "The Boys Staffel 5: Amazon bestätigt finale Staffel",
-    url: "https://example.com/the-boys-season-5-final",
-    text: `Amazon Prime Video hat die finale fünfte Staffel von The Boys offiziell bestätigt. Die Superhelden-Satire wird damit zu einem Abschluss gebracht. Eric Kripke kehrt als Showrunner zurück. Karl Urban, Jack Quaid und Antony Starr werden in ihren Hauptrollen zurückkehren. Die Dreharbeiten zur finalen Staffel beginnen im Frühjahr 2026.`
+    title: "Fallout Staffel 2: Amazon bestätigt Fortsetzung der Videospiel-Adaption",
+    url: "https://example.com/fallout-season-2-amazon-2026",
+    text: `Amazon Prime Video hat offiziell die zweite Staffel der erfolgreichen Fallout-Serie bestätigt. Die Videospiel-Adaption war einer der größten Hits des Jahres 2024. Ella Purnell und Walton Goggins kehren in ihren Hauptrollen zurück. Die Dreharbeiten zur zweiten Staffel beginnen im Sommer 2026. Jonathan Nolan und Lisa Joy bleiben als ausführende Produzenten an Bord.`
   };
 
   await runContentPipeline(testArticle);
