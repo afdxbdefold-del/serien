@@ -6,23 +6,32 @@ export async function GET(request: NextRequest) {
     const user = await getCurrentUser(request);
     
     if (!user) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { detail: 'Nicht authentifiziert' },
         { status: 401 }
       );
+      response.headers.set('Cache-Control', 'no-store, must-revalidate');
+      return response;
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       image: user.image,
     });
+    
+    // Prevent caching of auth state
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    
+    return response;
   } catch (error) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       { detail: 'Fehler beim Abrufen der Benutzerdaten' },
       { status: 500 }
     );
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+    return response;
   }
 }
