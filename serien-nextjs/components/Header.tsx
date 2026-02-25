@@ -41,11 +41,13 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include' // Important: Send cookies
+      });
       setUser(null);
       setShowUserMenu(false);
-      router.push('/');
-      router.refresh();
+      window.location.href = '/'; // Force full reload to clear all state
     } catch (err) {
       console.error('Logout failed:', err);
     }
