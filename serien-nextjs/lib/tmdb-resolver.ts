@@ -145,7 +145,7 @@ export async function resolveSingleSeries(
 
   return {
     tmdbId,
-    name: details?.name || searchResult.name,
+    name: completeDetails.name || searchResult.name,
     confidence: searchResult.confidence,
     alreadyInDb: false
   };
