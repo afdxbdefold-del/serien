@@ -50,10 +50,18 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_username');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_username');
+    }
     router.push('/admin/login');
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setAdminUsername(localStorage.getItem('admin_username') || 'Admin');
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,7 +71,7 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">serien.de Admin</h1>
             <p className="text-sm text-gray-500">
-              Willkommen, {localStorage.getItem('admin_username')}
+              Willkommen, {adminUsername}
             </p>
           </div>
           <button
