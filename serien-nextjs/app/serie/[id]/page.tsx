@@ -53,7 +53,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function SeriesPage({ params }: PageProps) {
-  const tmdbId = parseInt(params.id.split('-')[0]);
+  const { id } = await params;
+  const tmdbId = parseInt(id.split('-')[0]);
 
   // Fetch series with related data
   const series = await prisma.series.findUnique({
