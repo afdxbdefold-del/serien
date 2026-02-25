@@ -16,6 +16,7 @@ import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 
 const prisma = new PrismaClient();
 
