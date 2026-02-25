@@ -6,14 +6,15 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string; // Format: "tmdbId-slug"
-  };
+  }>;
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const tmdbId = parseInt(params.id.split('-')[0]);
+  const { id } = await params;
+  const tmdbId = parseInt(id.split('-')[0]);
   
   const series = await prisma.series.findUnique({
     where: { tmdbId },
