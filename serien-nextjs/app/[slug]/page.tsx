@@ -272,6 +272,11 @@ export default async function ArticlePage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Comments Section */}
+        <div className="mb-12">
+          <CommentsSection articleSlug={article.slug} />
+        </div>
+
         {/* Share Button */}
         <div className="flex justify-center mb-12">
           <button
