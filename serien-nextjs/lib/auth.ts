@@ -19,7 +19,7 @@ export async function getCurrentUser(request: NextRequest) {
     }
 
     // Verify token
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJWTSecret());
     
     if (!payload.userId) {
       return null;
