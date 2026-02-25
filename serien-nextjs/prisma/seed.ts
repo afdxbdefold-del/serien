@@ -11,8 +11,7 @@ async function main() {
     data: {
       id: uuidv4(),
       email: 'redaktion@serien.de',
-      name: 'Redaktion',
-      role: 'admin'
+      name: 'Redaktion'
     }
   });
 
