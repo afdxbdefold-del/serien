@@ -113,6 +113,38 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'NewsArticle',
+            headline: article.title,
+            description: article.excerpt || '',
+            image: article.heroLocalUrl || 'https://serien.de/og-image.png',
+            datePublished: (article.publishedAt || article.createdAt).toISOString(),
+            dateModified: article.updatedAt.toISOString(),
+            author: {
+              '@type': 'Person',
+              name: article.author?.name || 'Redaktion',
+            },
+            publisher: {
+              '@type': 'Organization',
+              name: 'serien.de',
+              logo: {
+                '@type': 'ImageObject',
+                url: 'https://serien.de/logo.png',
+              },
+            },
+            mainEntityOfPage: {
+              '@type': 'WebPage',
+              '@id': `https://serien.de/artikel/${params.slug}`,
+            },
+          }),
+        }}
+      />
+
       <article className="container mx-auto px-6 md:px-12 py-8 max-w-4xl">
         {/* Back Button */}
         <Link 
