@@ -1,133 +1,123 @@
 'use client';
 
 import { useState } from 'react';
-import FeedSwitcher from '@/components/FeedSwitcher';
-import NewsCard from '@/components/NewsCard';
-import SeriesCard from '@/components/SeriesCard';
+import { Newspaper, Sparkles, Tv, SlidersHorizontal } from 'lucide-react';
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState('all-news');
-
-  // Mock data - will be replaced with real API calls
-  const mockNews = [
-    {
-      slug: 'stranger-things-staffel-5',
-      title: 'Stranger Things Staffel 5: Neue Details zum Finale',
-      excerpt: 'Die Duffer Brothers verraten erste Details zur finalen Staffel der Hit-Serie.',
-      heroLocalUrl: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027',
-      publishedAt: new Date('2024-02-20'),
-      category: 'Netflix',
-      authorName: 'Anna Schmidt'
-    },
-    {
-      slug: 'the-last-of-us-staffel-2',
-      title: 'The Last of Us: Staffel 2 startet im April',
-      excerpt: 'HBO bestätigt den Starttermin für die zweite Staffel der erfolgreichen Videospiel-Adaption.',
-      heroLocalUrl: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5',
-      publishedAt: new Date('2024-02-19'),
-      category: 'HBO Max',
-      authorName: 'Max Müller'
-    }
-  ];
-
-  const mockSeries = [
-    {
-      tmdbId: 66732,
-      slug: 'stranger-things',
-      title: 'Stranger Things',
-      posterPath: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8',
-      overview: 'Eine Gruppe von Freunden in den 1980er Jahren'
-    },
-    {
-      tmdbId: 100088,
-      slug: 'the-last-of-us',
-      title: 'The Last of Us',
-      posterPath: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb',
-      overview: 'Post-apokalyptische Drama-Serie'
-    }
-  ];
+  const [activeTab, setActiveTab] = useState('news');
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative h-[50vh] md:h-[60vh] bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-        
-        <div className="relative z-10 text-center px-4 max-w-4xl">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">
+      <section className="relative bg-gradient-to-br from-cyan-400 via-blue-500 to-blue-700 text-white pt-20 pb-32 px-4">
+        <div className="max-w-2xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">
             Folge deinen Lieblingsserien
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8">
+          
+          <p className="text-xl mb-12">
             oder entdecke{' '}
-            <a href="/trending" className="text-primary underline font-semibold">
+            <a href="/trending" className="underline font-medium">
               neue Serien
             </a>{' '}
             zum Anschauen.
           </p>
-          
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
-              Mit Google anmelden
-            </button>
-            <button className="bg-secondary text-secondary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-secondary/80 transition">
-              Als Gast weitermachen
-            </button>
+
+          {/* Google Button */}
+          <button className="w-full max-w-md mx-auto bg-white text-gray-800 py-3.5 px-6 rounded-xl font-medium flex items-center justify-center gap-3 shadow-lg hover:bg-gray-50 transition mb-6">
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Mit Google fortfahren
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 mb-6 max-w-md mx-auto">
+            <div className="flex-1 h-px bg-white/30"></div>
+            <span className="text-white/80 text-sm">oder</span>
+            <div className="flex-1 h-px bg-white/30"></div>
           </div>
+
+          {/* Email Button */}
+          <button className="w-full max-w-md mx-auto bg-transparent text-white py-3.5 px-6 rounded-xl font-medium border-2 border-white/40 hover:bg-white/10 transition">
+            Anmelden per E-Mail
+          </button>
         </div>
       </section>
 
-      {/* Main Content */}
-      <div className="max-w-[1400px] mx-auto px-4 py-12">
-        {/* Feed Switcher */}
-        <FeedSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Tab Buttons */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-center gap-8">
+            <button
+              onClick={() => setActiveTab('news')}
+              className={`flex items-center gap-2 py-2 px-4 rounded-lg transition ${
+                activeTab === 'news'
+                  ? 'bg-gray-100'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <Newspaper className="w-5 h-5" />
+              <span className="font-medium">News</span>
+            </button>
 
-        {/* News Feed */}
-        {activeTab === 'all-news' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold mb-6">Aktuelle News</h2>
-            {mockNews.map((article) => (
-              <NewsCard key={article.slug} {...article} />
-            ))}
-            
-            <div className="text-center py-8">
-              <button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
-                Mehr laden
-              </button>
-            </div>
-          </div>
-        )}
+            <button
+              onClick={() => setActiveTab('feed')}
+              className={`flex items-center gap-2 py-2 px-4 rounded-lg transition ${
+                activeTab === 'feed'
+                  ? 'bg-gray-100'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <Sparkles className="w-5 h-5" />
+              <span className="font-medium">Mein Feed</span>
+            </button>
 
-        {/* My Feed */}
-        {activeTab === 'my-feed' && (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground text-lg mb-4">
-              Melde dich an, um deinen personalisierten Feed zu sehen
-            </p>
-            <button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
-              Jetzt anmelden
+            <button
+              onClick={() => setActiveTab('serien')}
+              className={`flex items-center gap-2 py-2 px-4 rounded-lg transition ${
+                activeTab === 'serien'
+                  ? 'bg-gray-100'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <Tv className="w-5 h-5" />
+              <span className="font-medium">Serien</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {activeTab === 'news' && (
+          <div className="text-center text-gray-500">
+            <p>Keine News gefunden.</p>
+            <p className="text-sm mt-2">Melde dich an, um personalisierte Inhalte zu sehen.</p>
+          </div>
         )}
 
-        {/* Series Grid */}
-        {activeTab === 'series' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Beliebte Serien</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-              {mockSeries.map((series) => (
-                <SeriesCard key={series.tmdbId} {...series} />
-              ))}
-            </div>
+        {activeTab === 'feed' && (
+          <div className="text-center text-gray-500">
+            <p>Dein Feed ist leer.</p>
+            <p className="text-sm mt-2">Folge Serien, um Updates zu erhalten.</p>
+          </div>
+        )}
+
+        {activeTab === 'serien' && (
+          <div className="text-center text-gray-500">
+            <p>Keine Serien gefunden.</p>
           </div>
         )}
       </div>
 
       {/* Filter FAB */}
-      <button className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition flex items-center justify-center z-40">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-        </svg>
+      <button className="fixed bottom-6 right-6 bg-[#00b4d8] text-white py-3 px-6 rounded-full shadow-xl hover:bg-[#0096b8] transition flex items-center gap-2 z-50">
+        <SlidersHorizontal className="w-5 h-5" />
+        <span className="font-medium">Filter</span>
       </button>
     </div>
   );
