@@ -1,12 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Temporary mock user until auth is properly configured
-const MOCK_USER_ID = 'author_001'; // Sophie Hartmann
+import { getCurrentUser } from '@/lib/auth';
 
 // GET /api/articles/[slug]/comments - Get all comments for an article
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -59,14 +57,20 @@ export async function GET(
 
 // POST /api/articles/[slug]/comments - Add a new comment
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await params;
     
-    // Use mock user for now
-    const userId = MOCK_USER_ID;
+    // Get authenticated user
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Bitte melden Sie sich an, um zu kommentieren' },
+        { status: 401 }
+      );
+    }
 
     const article = await prisma.article.findUnique({
       where: { slug },
@@ -86,7 +90,7 @@ export async function POST(
     const comment = await prisma.comment.create({
       data: {
         articleId: article.id,
-        userId,
+        userId: user.id,
         content: content.trim(),
         parentId: parentId || null,
         status: 'approved' // Auto-approve for now
