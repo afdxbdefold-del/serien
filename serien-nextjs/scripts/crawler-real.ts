@@ -134,6 +134,9 @@ async function processArticleWithTMDB(article: CrawledArticle) {
       },
     });
 
+    // CRITICAL: Use current time for publishedAt (Google News compliance)
+    const now = new Date();
+    
     const articleData = await tx.article.create({
       data: {
         id: `crawler-${Date.now()}`,
@@ -143,7 +146,8 @@ async function processArticleWithTMDB(article: CrawledArticle) {
         contentHtml: article.content,
         authorId: author.id,
         status: 'published',
-        publishedAt: article.publishDate,
+        publishedAt: now,  // ALWAYS use current time
+        sourcePublishedAt: article.publishDate,  // Store original date for reference only
         category: article.category,
         readingTime: Math.ceil(article.content.split(' ').length / 200),
         sourceUrl: article.url,
@@ -154,6 +158,8 @@ async function processArticleWithTMDB(article: CrawledArticle) {
     });
 
     console.log('✅ Article created:', articleData.slug);
+    console.log('   Published (SEO):', now.toISOString());
+    console.log('   Source Date (internal):', article.publishDate.toISOString());
     
     return {
       article: articleData,
