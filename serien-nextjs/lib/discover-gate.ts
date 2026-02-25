@@ -21,18 +21,16 @@ interface DiscoverGateInput {
 }
 
 interface DiscoverScores {
-  headline_quality: number; // 0-10
-  image_quality: number; // 0-10
-  content_trust: number; // 0-10
-  freshness: number; // 0-10
-  total: number;
+  discover_probability: number; // 0.0-1.0
+  freshness_score: number; // 0-100
+  headline_quality: number; // 0-100
+  image_quality: number; // 0-100
 }
 
 interface DiscoverGateResult {
   discover_eligible: boolean;
   scores: DiscoverScores;
   fail_reasons: string[];
-  auto_rewrite_recommended: boolean;
 }
 
 // Clickbait patterns forbidden by Discover
