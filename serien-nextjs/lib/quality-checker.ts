@@ -29,15 +29,8 @@ interface QualityCheckResult {
 }
 
 export async function qualityCheck(input: QualityCheckInput): Promise<QualityCheckResult> {
-  const testArticle = `<p>Amazon hat eine zweite Staffel der Serie „Fallout" bestätigt. Die Videospiel-Adaption erhält damit eine Fortsetzung.</p>
-<p>Die erste Staffel basierte auf der gleichnamigen Spiele-Reihe. Sie erschien 2024 und markierte den Einstieg ins Serienformat.</p>
-<p>Showrunner Jonathan Nolan bleibt der Produktion erhalten. Die Dreharbeiten zur zweiten Staffel sollen noch in diesem Jahr beginnen.</p>`;
-
-  qualityCheck({
-    generatedArticleHtml: testArticle,
-    finalHeadline: 'Fallout: Zweite Staffel bestätigt',
-    primarySeriesName: 'Fallout',
-    platform: 'Prime Video',
+  const failReasons: string[] = [];
+  let requiresFullRewrite = false;
   }).then(result => {
     console.log('✅ QUALITY CHECK RESULT:\n');
     console.log(`Status: ${result.status}`);
