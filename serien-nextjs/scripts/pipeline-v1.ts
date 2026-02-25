@@ -299,9 +299,8 @@ export async function runContentPipeline(source: CrawledSource) {
       return { skipped: true, reason: 'duplicate' };
     }
 
-    // Generate title and excerpt
-    const articleTitle = source.title;
-    const articleExcerpt = facts.key_statements[0] || source.text.substring(0, 200);
+    // Generate excerpt from optimized content
+    const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
     const slug = generateSlug(articleTitle);
 
     // Create article with transaction
