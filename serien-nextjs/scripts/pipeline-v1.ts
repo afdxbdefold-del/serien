@@ -254,6 +254,8 @@ export async function runContentPipeline(source: CrawledSource) {
       seriesName: resolution.primarySeries.name,
     });
 
+    const antiAiScoreBeforeRewrite = antiAiResult.antiAiScore; // Store for comparison
+
     console.log(`📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100 (min: 80)`);
     console.log(`   Status: ${antiAiResult.status}`);
     
@@ -266,9 +268,12 @@ export async function runContentPipeline(source: CrawledSource) {
     }
 
     // AUTO-REWRITE if needed and quota available
+    let headlineWasRewrittenByAntiAi = false;
+    
     if (antiAiResult.status === 'FAIL' && !hasRewritten) {
       console.log('\n🔄 Anti-AI Filter FAILED - Attempting rewrite (1/1)...');
       hasRewritten = true;
+      headlineWasRewrittenByAntiAi = true;
 
       // Full regeneration to avoid AI patterns
       generatedContent = await generateGermanArticle(
