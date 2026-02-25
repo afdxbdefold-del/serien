@@ -164,7 +164,7 @@ export function validateArticleHTML(html: string): { valid: boolean; errors: str
   // Count paragraphs
   const paragraphCount = (html.match(/<p>/g) || []).length;
   if (paragraphCount < 4) {
-    errors.push(`Only ${paragraphCount} paragraphs (minimum 4 required)`);
+    errors.push(`Only ${paragraphCount} paragraphs (minimum 3 required)`);
   }
 
   // Check for forbidden tags
