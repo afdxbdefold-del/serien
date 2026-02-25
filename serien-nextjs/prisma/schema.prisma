@@ -149,6 +149,32 @@ model Article {
   @@map("articles")
 }
 
+model DiscoverScoreDashboard {
+  id              String   @id @default(cuid())
+  articleId       String
+  timestamp       DateTime @default(now())
+  pipelineVersion String   @default("serien_pipeline_v1")
+  
+  // Metrics (stored as JSON)
+  headlineMetrics  Json
+  contentMetrics   Json
+  freshnessMetrics Json
+  imageMetrics     Json
+  trustMetrics     Json
+  
+  // Aggregation
+  discoverScore    Float
+  finalVerdict     String // "DISCOVER_OK" | "SEARCH_ONLY" | "SKIPPED"
+  primaryBlockers  String[]
+  improvementHints String[]
+  
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  @@index([articleId])
+  @@index([timestamp])
+  @@map("discover_score_dashboards")
+}
+
 model ArticleSeries {
   articleId String
   seriesId  Int
