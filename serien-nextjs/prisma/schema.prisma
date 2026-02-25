@@ -138,7 +138,7 @@ model Article {
   readingTime   Int?
   confidence    Float?
   sourceUrl     String?   @unique  // Track source URL
-  discoverEligible Boolean @default(false) // Google Discover eligibility
+  publishMode   String    @default("DISCOVER") // "DISCOVER" | "SEARCH_ONLY" | "DRAFT"
   
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
