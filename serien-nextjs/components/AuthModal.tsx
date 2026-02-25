@@ -140,13 +140,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
       console.log('✅ Registration successful with auto-login, redirecting...');
       // Registration now returns a token and sets cookie automatically
-      // Small delay to ensure cookie is committed before checkAuth runs
-      await new Promise(resolve => setTimeout(resolve, 100));
-      // Close modal (this triggers checkAuth in Header via onClose callback)
-      onClose();
-      // Use Next.js router for client-side navigation (preserves cookies)
-      router.replace('/');
-      router.refresh(); // Force refetch of server state
+      // Use full page reload to ensure Header re-mounts and checks auth
+      window.location.href = '/';
     } catch (err: any) {
       console.error('❌ Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
