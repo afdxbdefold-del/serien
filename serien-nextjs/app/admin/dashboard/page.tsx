@@ -17,8 +17,10 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [adminUsername, setAdminUsername] = useState('');
 
   const getAuthHeaders = () => {
+    if (typeof window === 'undefined') return {};
     const token = localStorage.getItem('admin_token');
     return { 'Authorization': `Bearer ${token}` };
   };
