@@ -19,6 +19,8 @@ SCHREIBREGELN:
 
 STRUKTUR:
 
+Schreibe mindestens 4 Absätze!
+
 LEAD (Absatz 1):
 - Was ist passiert?
 - Welche Serie?
@@ -30,8 +32,12 @@ ABSATZ 2:
 - Kontext (z. B. Staffelstatus, Produktion, Einordnung)
 - 2-4 Sätze
 
-ABSATZ 3+:
-- Weitere Details
+ABSATZ 3:
+- Weitere Details zur Produktion oder Besetzung
+- 2-4 Sätze
+
+ABSATZ 4+:
+- Zusätzliche Informationen
 - ggf. Vergleich zu früheren Staffeln
 - KEINE Wiederholung des Leads
 
