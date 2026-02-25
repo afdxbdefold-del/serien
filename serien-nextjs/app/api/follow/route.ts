@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
     // Check if already following
     const existing = await prisma.follow.findUnique({
       where: {
-        userId_seriesTmdbId: {
+        userId_tmdbSeriesId: {
           userId: user.id,
-          seriesTmdbId: seriesId
+          tmdbSeriesId: seriesId
         }
       }
     });
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     await prisma.follow.create({
       data: {
         userId: user.id,
-        seriesTmdbId: seriesId
+        tmdbSeriesId: seriesId
       }
     });
 
@@ -79,9 +79,9 @@ export async function DELETE(request: NextRequest) {
     // Delete follow
     await prisma.follow.delete({
       where: {
-        userId_seriesTmdbId: {
+        userId_tmdbSeriesId: {
           userId: user.id,
-          seriesTmdbId: seriesId
+          tmdbSeriesId: seriesId
         }
       }
     });
