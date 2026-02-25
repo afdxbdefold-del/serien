@@ -1,37 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { Newspaper, Tv, Sparkles } from 'lucide-react';
 
 interface FeedSwitcherProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  isLoggedIn?: boolean;
 }
 
-export default function FeedSwitcher({ activeTab, onTabChange }: FeedSwitcherProps) {
-  const tabs = [
-    { id: 'all-news', label: 'News', icon: '📰' },
-    { id: 'my-feed', label: 'Mein Feed', icon: '⭐' },
-    { id: 'series', label: 'Serien', icon: '📺' },
-  ];
+export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: FeedSwitcherProps) {
+  const tabs = ['all-news', 'my-news', 'follow-shows'];
+
+  const tabConfig: Record<string, { label: string; icon: any; gradient: string }> = {
+    'my-news': {
+      label: 'Mein Feed',
+      icon: Sparkles,
+      gradient: 'from-violet-600 via-purple-600 to-pink-600'
+    },
+    'all-news': {
+      label: 'News',
+      icon: Newspaper,
+      gradient: 'from-cyan-500 via-cyan-600 to-teal-600'
+    },
+    'follow-shows': {
+      label: 'Serien',
+      icon: Tv,
+      gradient: 'from-orange-600 via-red-600 to-pink-600'
+    }
+  };
 
   return (
-    <div className="flex gap-4 border-b border-border mb-8">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          className={`
-            flex items-center gap-2 py-3 px-4 border-b-2 transition-all font-medium
-            ${activeTab === tab.id 
-              ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-            }
-          `}
-        >
-          <span>{tab.icon}</span>
-          <span>{tab.label}</span>
-        </button>
-      ))}
+    <div className="mb-8 flex justify-center">
+      <div className="inline-flex items-center gap-2 p-1.5 bg-gray-50 rounded-full">
+        {tabs.map((tab) => {
+          const config = tabConfig[tab];
+          const Icon = config.icon;
+          const isActive = activeTab === tab;
+          
+          return (
+            <button
+              key={tab}
+              onClick={() => onTabChange(tab)}
+              className={`
+                relative px-5 py-3 rounded-full font-medium text-sm
+                transition-all duration-300 ease-out
+                flex items-center gap-2
+                ${isActive 
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                }
+              `}
+            >
+              <Icon className="h-4 w-4" strokeWidth={2} />
+              <span>{config.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
