@@ -48,29 +48,29 @@ export default function HomePage() {
   ];
 
   return (
-    <div className=\"min-h-screen bg-background\">
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className=\"relative h-[50vh] md:h-[60vh] bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden\">
-        <div className=\"absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent\"></div>
+      <section className="relative h-[50vh] md:h-[60vh] bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
         
-        <div className=\"relative z-10 text-center px-4 max-w-4xl\">
-          <h1 className=\"text-4xl md:text-6xl font-bold mb-4\">
+        <div className="relative z-10 text-center px-4 max-w-4xl">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">
             Folge deinen Lieblingsserien
           </h1>
-          <p className=\"text-xl md:text-2xl text-muted-foreground mb-8\">
+          <p className="text-xl md:text-2xl text-muted-foreground mb-8">
             oder entdecke{' '}
-            <a href=\"/trending\" className=\"text-primary underline font-semibold\">
+            <a href="/trending" className="text-primary underline font-semibold">
               neue Serien
             </a>{' '}
             zum Anschauen.
           </p>
           
           {/* CTA Buttons */}
-          <div className=\"flex flex-col sm:flex-row gap-4 justify-center\">
-            <button className=\"bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition\">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
               Mit Google anmelden
             </button>
-            <button className=\"bg-secondary text-secondary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-secondary/80 transition\">
+            <button className="bg-secondary text-secondary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-secondary/80 transition">
               Als Gast weitermachen
             </button>
           </div>
@@ -78,20 +78,20 @@ export default function HomePage() {
       </section>
 
       {/* Main Content */}
-      <div className=\"max-w-[1400px] mx-auto px-4 py-12\">
+      <div className="max-w-[1400px] mx-auto px-4 py-12">
         {/* Feed Switcher */}
         <FeedSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
 
         {/* News Feed */}
         {activeTab === 'all-news' && (
-          <div className=\"space-y-6\">
-            <h2 className=\"text-2xl font-bold mb-6\">Aktuelle News</h2>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold mb-6">Aktuelle News</h2>
             {mockNews.map((article) => (
               <NewsCard key={article.slug} {...article} />
             ))}
             
-            <div className=\"text-center py-8\">
-              <button className=\"bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition\">
+            <div className="text-center py-8">
+              <button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
                 Mehr laden
               </button>
             </div>
@@ -100,11 +100,11 @@ export default function HomePage() {
 
         {/* My Feed */}
         {activeTab === 'my-feed' && (
-          <div className=\"text-center py-16\">
-            <p className=\"text-muted-foreground text-lg mb-4\">
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-lg mb-4">
               Melde dich an, um deinen personalisierten Feed zu sehen
             </p>
-            <button className=\"bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition\">
+            <button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition">
               Jetzt anmelden
             </button>
           </div>
@@ -113,8 +113,8 @@ export default function HomePage() {
         {/* Series Grid */}
         {activeTab === 'series' && (
           <div>
-            <h2 className=\"text-2xl font-bold mb-6\">Beliebte Serien</h2>
-            <div className=\"grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6\">
+            <h2 className="text-2xl font-bold mb-6">Beliebte Serien</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
               {mockSeries.map((series) => (
                 <SeriesCard key={series.tmdbId} {...series} />
               ))}
@@ -124,9 +124,9 @@ export default function HomePage() {
       </div>
 
       {/* Filter FAB */}
-      <button className=\"fixed bottom-6 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition flex items-center justify-center z-40\">
-        <svg className=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
-          <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4\" />
+      <button className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition flex items-center justify-center z-40">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
       </button>
     </div>
