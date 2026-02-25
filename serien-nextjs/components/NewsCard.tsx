@@ -1,6 +1,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
 
+// Streamer brand colors
+const streamerStyles: Record<string, { bg: string; text: string; label: string }> = {
+  'Netflix': { bg: 'bg-red-600', text: 'text-white', label: 'Netflix' },
+  'HBO Max': { bg: 'bg-purple-700', text: 'text-white', label: 'HBO Max' },
+  'HBO': { bg: 'bg-black', text: 'text-white', label: 'HBO' },
+  'Amazon Prime': { bg: 'bg-blue-500', text: 'text-white', label: 'Prime' },
+  'Prime Video': { bg: 'bg-blue-500', text: 'text-white', label: 'Prime' },
+  'Disney+': { bg: 'bg-blue-900', text: 'text-white', label: 'Disney+' },
+  'Apple TV+': { bg: 'bg-gray-900', text: 'text-white', label: 'Apple TV+' },
+  'Paramount+': { bg: 'bg-blue-600', text: 'text-white', label: 'Paramount+' },
+  'Sky': { bg: 'bg-slate-800', text: 'text-white', label: 'Sky' },
+  'RTL+': { bg: 'bg-red-500', text: 'text-white', label: 'RTL+' },
+};
+
 interface NewsCardProps {
   slug: string;
   title: string;
@@ -20,51 +34,63 @@ export default function NewsCard({
   category,
   authorName
 }: NewsCardProps) {
+  const getRelativeTime = () => {
+    const now = new Date();
+    const date = new Date(publishedAt);
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Gerade eben';
+    if (diffHours < 24) return `Vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
+    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const streamerStyle = category ? streamerStyles[category] : null;
+
   return (
-    <Link href={`/${slug}`} className="group block">
-      <article className="flex gap-4 md:gap-6 pb-6 border-b border-border hover:bg-muted/50 transition-colors rounded-lg p-4">
+    <Link href={`/${slug}`}>
+      <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
         {/* Image */}
-        {heroLocalUrl && (
-          <div className="w-32 md:w-48 flex-shrink-0">
-            <div className="aspect-video relative overflow-hidden rounded-lg">
-              <Image
-                src={heroLocalUrl}
-                alt={title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+        <div className="relative aspect-video overflow-hidden">
+          {heroLocalUrl ? (
+            <Image
+              src={heroLocalUrl}
+              alt={title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+              <span className="text-gray-400">Kein Bild</span>
             </div>
-          </div>
-        )}
+          )}
+          
+          {/* Streamer Badge */}
+          {category && streamerStyle && (
+            <div className="absolute top-3 right-3">
+              <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg ${streamerStyle.bg} ${streamerStyle.text}`}>
+                {streamerStyle.label}
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Meta */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-            {category && (
-              <span className="uppercase font-medium">{category}</span>
-            )}
-            <span>•</span>
-            <time dateTime={publishedAt.toISOString()}>
-              {new Date(publishedAt).toLocaleDateString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-              })}
-            </time>
-          </div>
-
-          {/* Title */}
-          <h3 className="text-lg md:text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2">
+        <div className="p-5">
+          <h3 className="text-lg font-bold text-gray-900 leading-snug mb-3 group-hover:text-purple-600 transition-colors">
             {title}
           </h3>
 
-          {/* Excerpt */}
           {excerpt && (
-            <p className="text-sm text-muted-foreground line-clamp-2 hidden md:block">
+            <p className="text-sm text-gray-600 line-clamp-2 mb-4">
               {excerpt}
             </p>
           )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <span>{getRelativeTime()}</span>
+          </div>
         </div>
       </article>
     </Link>
