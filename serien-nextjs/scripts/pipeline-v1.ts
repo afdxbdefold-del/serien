@@ -225,11 +225,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - TEST MIT ECHTEN AUTOREN
+  // Example: Single Series News - TEST MIT VOLLSTÄNDIGEN SERIES DETAILS
   const testArticle: CrawledSource = {
-    title: "Succession Spin-off in Entwicklung bei HBO",
-    url: "https://example.com/succession-spinoff-hbo",
-    text: `HBO entwickelt ein Spin-off zur preisgekrönten Serie Succession. Die neue Serie wird sich auf einen Nebencharakter der Originalserie konzentrieren. Jesse Armstrong, Schöpfer von Succession, ist als ausführender Produzent beteiligt. Die Dreharbeiten sollen Ende 2026 beginnen. Weitere Details zur Handlung werden in den kommenden Monaten erwartet.`
+    title: "Game of Thrones Spin-off: House of the Dragon wird um 2 weitere Staffeln verlängert",
+    url: "https://example.com/house-of-dragon-renewal-2026",
+    text: `HBO hat die Erfolgsserie House of the Dragon um zwei weitere Staffeln verlängert. Die Fantasy-Serie wird damit insgesamt vier Staffeln umfassen. Ryan Condal bleibt als Showrunner an Bord. Matt Smith und Emma D'Arcy werden in ihren Rollen zurückkehren. Die dritte Staffel soll 2027 erscheinen und die vierte Staffel wird voraussichtlich 2028 ausgestrahlt. George R.R. Martin ist weiterhin als ausführender Produzent beteiligt.`
   };
 
   await runContentPipeline(testArticle);
