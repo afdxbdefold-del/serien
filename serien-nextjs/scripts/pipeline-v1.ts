@@ -326,16 +326,19 @@ export async function runContentPipeline(source: CrawledSource) {
         allSeriesNames
       );
 
-      editorialResult = await editorialRewrite({
-        generatedArticleHtml: generatedContent,
-        generatedHeadline: articleTitle,
-        extractedFacts: facts.key_statements.join('\n- '),
-        seriesName: resolution.primarySeries.name,
-        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-      });
+      // Rewrite editorial (skip for MULTI_SERIES_EDITORIAL)
+      if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+        editorialResult = await editorialRewrite({
+          generatedArticleHtml: generatedContent,
+          generatedHeadline: articleTitle,
+          extractedFacts: facts.key_statements.join('\n- '),
+          seriesName: resolution.primarySeries.name,
+          platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+        });
 
-      articleTitle = editorialResult.final_headline;
-      generatedContent = editorialResult.rewritten_article_html;
+        articleTitle = editorialResult.final_headline;
+        generatedContent = editorialResult.rewritten_article_html;
+      }
 
       // Re-check both Quality + Anti-AI
       qualityResult = await qualityCheck({
