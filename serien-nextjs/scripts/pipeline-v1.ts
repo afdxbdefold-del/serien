@@ -100,6 +100,7 @@ export async function runContentPipeline(source: CrawledSource) {
     );
 
     let articleTitle = source.title;
+    const originalHeadline = source.title; // Store for comparison
     console.log(`✅ Generated article (${generatedContent.length} chars)`);
 
     // ========== STEP 5: EDITORIAL REWRITE ==========
