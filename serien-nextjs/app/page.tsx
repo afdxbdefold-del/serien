@@ -5,14 +5,17 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien. Folge Serien, entdecke neue Highlights und verpasse keine wichtigen Updates mehr.',
+  keywords: ['Serien', 'TV-Serien', 'Streaming', 'Netflix', 'Amazon Prime', 'Disney+', 'HBO Max', 'Serien News', 'Trailer', 'neue Serien'],
   openGraph: {
     title: 'Serien-News, Trailer & Updates | serien.de',
     description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien. Folge Serien, entdecke neue Highlights und verpasse keine wichtigen Updates mehr.',
     type: 'website',
     url: 'https://serien.de/',
+    siteName: 'serien.de',
+    locale: 'de_DE',
     images: [
       {
-        url: 'https://serien.de/static/branding/og-default-1200x630.png',
+        url: 'https://serien.de/og-image.png',
         width: 1200,
         height: 630,
         alt: 'serien.de',
@@ -23,6 +26,11 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Serien-News, Trailer & Updates | serien.de',
     description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien.',
+    creator: '@serien_de',
+    images: ['https://serien.de/og-image.png'],
+  },
+  alternates: {
+    canonical: 'https://serien.de/',
   },
 };
 
