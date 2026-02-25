@@ -45,7 +45,6 @@ export async function generateGermanArticle(
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'https://llmapi.emergentagent.com/v1',
   });
 
   const factsPrompt = `
