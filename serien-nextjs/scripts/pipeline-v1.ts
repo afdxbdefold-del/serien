@@ -361,6 +361,8 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('\n✅ Article published successfully!');
     console.log(`   ID: ${result.id}`);
     console.log(`   Slug: ${result.slug}`);
+    console.log(`   Title: ${result.title}`);
+    console.log(`   Publish Mode: ${result.publishMode}`);
     console.log(`   Primary Series: ${resolution.primarySeries.name}`);
     console.log(`   Related Series: ${resolution.relatedSeries.length}`);
 
