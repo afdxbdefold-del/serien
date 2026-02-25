@@ -30,17 +30,57 @@ model Series {
   name            String?  // Localized name (de-DE)
   originalName    String?  // Original name from TMDB
   overview        String?  @db.Text
+  tagline         String?
+  
+  // Images
   posterLocalUrl  String?
   backdropLocalUrl String?
   posterPath      String?  // TMDB path
   backdropPath    String?  // TMDB path
+  
+  // Metadata
   status          String?
+  type            String?   // Scripted, Documentary, etc.
   firstAirDate    DateTime?
+  lastAirDate     DateTime?
+  numberOfSeasons Int?
+  numberOfEpisodes Int?
+  episodeRunTime  Int[]
+  inProduction    Boolean?
+  
+  // Ratings & Popularity
+  voteAverage     Float?
+  voteCount       Int?
+  popularity      Float?
+  
+  // Genres & Networks
   genres          String[]
   genresJson      Json?    // Full genre objects
   networks        String[]
   networksJson    Json?    // Full network objects
+  
+  // Production
+  productionCompanies String[]
+  productionCountries String[]
+  spokenLanguages     String[]
+  originalLanguage    String?
+  
+  // Cast & Crew (Top 20 each)
+  cast            Json?     // [{name, character, profile_path}]
+  crew            Json?     // [{name, job, department, profile_path}]
+  
+  // Seasons
+  seasons         Json?     // [{season_number, episode_count, air_date, poster_path}]
+  
+  // Videos (Trailers)
+  trailers        Json?     // [{key (YouTube ID), name, site, type}]
+  
+  // Keywords
+  keywords        String[]
+  
+  // Full TMDB Data (backup)
   tmdbData        Json?
+  
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
   
