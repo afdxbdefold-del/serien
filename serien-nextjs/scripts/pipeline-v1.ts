@@ -524,6 +524,38 @@ export async function runContentPipeline(source: CrawledSource) {
         },
       });
 
+      // === STORE HEADLINE COMPARISON ===
+      const headlineWasRewritten = articleTitle !== originalHeadline;
+      const antiAiScoreOriginal = headlineWasRewritten ? null : antiAiResult.antiAiScore;
+      const antiAiScoreRewritten = headlineWasRewritten ? antiAiResult.antiAiScore : null;
+      
+      let headlineDelta = null;
+      let status = 'NO_REWRITE';
+      
+      if (headlineWasRewritten && antiAiScoreOriginal !== null && antiAiScoreRewritten !== null) {
+        headlineDelta = antiAiScoreRewritten - antiAiScoreOriginal;
+        
+        if (headlineDelta >= 5) {
+          status = 'IMPROVED';
+        } else if (headlineDelta <= -5) {
+          status = 'WORSE';
+        } else {
+          status = 'NEUTRAL';
+        }
+      }
+
+      await tx.headlineComparison.create({
+        data: {
+          articleId: article.id,
+          headline_original: originalHeadline,
+          headline_rewritten: headlineWasRewritten ? articleTitle : null,
+          antiAiScore_original: antiAiScoreOriginal,
+          antiAiScore_rewritten: antiAiScoreRewritten,
+          headline_delta: headlineDelta,
+          status,
+        },
+      });
+
       return article;
     });
 
