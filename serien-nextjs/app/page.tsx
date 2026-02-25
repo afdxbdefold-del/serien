@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma';
 import HomeClient from '@/components/HomeClient';
 import { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 
 export const metadata: Metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
@@ -73,8 +75,21 @@ export default async function Page() {
     series_german: seriesCount // Placeholder
   };
 
-  // Check if user is authenticated (placeholder for now)
-  const isAuthenticated = false;
+  // Check if user is authenticated by verifying JWT cookie
+  let isAuthenticated = false;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token');
+    
+    if (token && process.env.JWT_SECRET) {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      await jwtVerify(token.value, secret);
+      isAuthenticated = true;
+    }
+  } catch (error) {
+    // Token invalid or expired
+    isAuthenticated = false;
+  }
 
   return (
     <>
