@@ -99,10 +99,16 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 4: AI CONTENT GENERATION');
     console.log('━'.repeat(70));
 
+    // Prepare series names for content generation
+    const allSeriesNames = classification.content_type === 'MULTI_SERIES_EDITORIAL'
+      ? [resolution.primarySeries.name, ...resolution.relatedSeries.map(s => s.name)]
+      : [resolution.primarySeries.name];
+
     let generatedContent = await generateGermanArticle(
       facts,
       resolution.primarySeries.name,
-      classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+      classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+      allSeriesNames
     );
 
     let articleTitle = source.title;
