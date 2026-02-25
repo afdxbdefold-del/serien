@@ -78,6 +78,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       // Close modal first (this triggers checkAuth in Header via onClose callback)
+      // Small delay to ensure cookie is committed before checkAuth runs
+      await new Promise(resolve => setTimeout(resolve, 100));
       onClose();
       // Use Next.js router for client-side navigation (preserves cookies)
       router.replace('/');
