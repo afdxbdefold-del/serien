@@ -293,22 +293,8 @@ export async function runContentPipeline(source: CrawledSource) {
     const slug = generateSlug(articleTitle);
     const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
 
-    const now = new Date();
-    const sourceDate = new Date();
-    if (discoverEligible) {
-      console.log('✅ Discover Gate PASSED - Article is Discover-eligible');
-    } else {
-      console.log('⚠️  Discover Gate FAILED - Publishing without Discover tag');
-      if (discoverResult.fail_reasons.length > 0) {
-        discoverResult.fail_reasons.forEach(reason => console.log(`   - ${reason}`));
-      }
-    }
 
-    // ========== STEP 5: IMAGES (TMDB) ==========
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 5: IMAGE PIPELINE (TMDB)');
-    console.log('━'.repeat(70));
-    
+    // Generate image data
     const imageData = {
       tmdbId: primaryTmdbId,
       tmdbType: 'tv' as const,
@@ -318,37 +304,7 @@ export async function runContentPipeline(source: CrawledSource) {
       imageAttribution: 'TMDB',
     };
 
-    console.log(`✅ Image URLs generated from primary series (TMDB ID: ${primaryTmdbId})`);
-
-    // ========== STEP 6: DATES ==========
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 6: DATE HANDLING');
-    console.log('━'.repeat(70));
-
-    const now = new Date();
-    const sourceDate = new Date(); // Could extract from source, but we'll use NOW for now
-
-    console.log(`✅ publishedAt: ${now.toISOString()} (NOW)`);
-    console.log(`✅ sourcePublishedAt: ${sourceDate.toISOString()} (internal only)`);
-
-    // ========== STEP 7: PUBLISH ==========
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 7: PUBLISH TO DATABASE');
-    console.log('━'.repeat(70));
-
-    // Check for duplicate
-    const existingArticle = await prisma.article.findUnique({
-      where: { sourceUrl: source.url }
-    });
-
-    if (existingArticle) {
-      console.log('⚠️  Article already exists - SKIPPING');
-      return { skipped: true, reason: 'duplicate' };
-    }
-
-    // Generate excerpt from optimized content
-    const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
-    const slug = generateSlug(articleTitle);
+    console.log(`✅ Images: TMDB ID ${primaryTmdbId}`);
 
     // Create article with transaction
     const result = await prisma.$transaction(async (tx) => {
