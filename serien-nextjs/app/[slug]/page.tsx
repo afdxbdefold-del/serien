@@ -6,6 +6,8 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import CommentsSection from '@/components/CommentsSection';
 import ShareButton from '@/components/ShareButton';
+import { SeriesStatusBox } from '@/components/SeriesStatusBox';
+import { WasBedeutetDasBox } from '@/components/WasBedeutetDasBox';
 
 interface PageProps {
   params: Promise<{
@@ -239,11 +241,24 @@ export default async function ArticlePage({ params }: PageProps) {
           <ShareButton title={article.title} />
         </div>
 
+        {/* Series Status Box (if primary series exists) */}
+        {article.primarySeriesId && (
+          <SeriesStatusBox 
+            seriesId={article.primarySeriesId} 
+            seriesName={article.primarySeries?.title || ''} 
+          />
+        )}
+
         {/* Excerpt/Lead */}
         {article.excerpt && (
           <p className="text-xl text-gray-700 mb-8 leading-relaxed font-medium">
             {article.excerpt}
           </p>
+        )}
+
+        {/* Was bedeutet das? Box */}
+        {article.wasBedeutetDasText && (
+          <WasBedeutetDasBox text={article.wasBedeutetDasText} />
         )}
 
         {/* Content */}
