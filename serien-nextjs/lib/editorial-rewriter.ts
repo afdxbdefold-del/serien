@@ -55,15 +55,29 @@ export async function editorialRewrite(input: EditorialRewriteInput): Promise<Ed
 async function generateHeadlineVariants(input: EditorialRewriteInput): Promise<string[]> {
   const systemPrompt = `Du bist ein Headline-Editor für serienjunkies.de.
 
-AUFGABE: Generiere 5 verschiedene Headlines für einen TV-Serien-Artikel.
+AUFGABE: Generiere 5 verschiedene Headlines im Stil von serienjunkies.de.
 
-REGELN:
-- MAX 70 Zeichen
-- Serienname MUSS enthalten sein: "${input.seriesName}"
-- Plattform max 1x erwähnen (wenn relevant)
-- Klar, sachlich, journalistisch
-- KEINE Marketing-Sprache
-- VERBOTEN: ${FORBIDDEN_HEADLINE_PHRASES.join(', ')}
+HEADLINE-REGELN:
+- Präzise, nicht emotional
+- Serienname + konkretes Ereignis
+- Max. 70 Zeichen
+- Sachlich, nüchtern, journalistisch
+- KEIN Clickbait, keine Fragen
+
+STRUKTUR:
+"[Serienname]: [Konkretes Ereignis]"
+
+Beispiele:
+✅ "Fallout: Staffel 2 startet Dreharbeiten 2026"
+✅ "Stranger Things endet mit Staffel 5"
+❌ "Fallout Staffel 2: Das musst du wissen!"
+❌ "Wird Stranger Things verlängert?"
+
+ABSOLUT VERBOTEN:
+- ${FORBIDDEN_HEADLINE_PHRASES.join('\n- ')}
+- Fragezeichen
+- Ausrufezeichen
+- "offiziell bestätigt"
 
 Antworte NUR mit JSON:
 {
