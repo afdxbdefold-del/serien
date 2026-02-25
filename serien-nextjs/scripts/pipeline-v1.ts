@@ -227,9 +227,9 @@ export async function runContentPipeline(source: CrawledSource) {
 async function main() {
   // Example: Single Series News - TEST MIT ZUFÄLLIGEM AUTOR
   const testArticle: CrawledSource = {
-    title: "Breaking Bad Prequel-Serie in Planung bei AMC",
-    url: "https://example.com/breaking-bad-prequel-2026",
-    text: `AMC hat offiziell eine neue Prequel-Serie zum Breaking Bad-Universum angekündigt. Die Serie wird sich auf die Frühgeschichte von Gustavo Fring konzentrieren. Giancarlo Esposito kehrt in seiner ikonischen Rolle zurück. Vince Gilligan wird als ausführender Produzent fungieren, aber nicht als Showrunner. Die Serie wird voraussichtlich 2027 erscheinen und die Ereignisse vor der ersten Staffel von Breaking Bad beleuchten. Die Dreharbeiten sollen im Herbst 2026 in New Mexico beginnen.`
+    title: "The Mandalorian Staffel 4: Disney+ bestätigt Fortsetzung",
+    url: "https://example.com/mandalorian-season-4-confirmed",
+    text: `Disney+ hat offiziell die vierte Staffel von The Mandalorian bestätigt. Jon Favreau kehrt als Showrunner zurück und wird erneut die Drehbücher schreiben. Pedro Pascal wird in seiner Rolle als Din Djarin zurückkehren. Die neue Staffel wird voraussichtlich Ende 2026 erscheinen. Grogu wird ebenfalls eine größere Rolle spielen. Die Dreharbeiten sollen im Frühjahr 2026 in den kalifornischen Studios beginnen. Dave Filoni wird bei mehreren Episoden Regie führen.`
   };
 
   await runContentPipeline(testArticle);
