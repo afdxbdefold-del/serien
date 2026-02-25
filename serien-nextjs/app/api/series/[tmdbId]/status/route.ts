@@ -16,7 +16,14 @@ export async function GET(
   { params }: { params: { tmdbId: string } }
 ) {
   try {
-    const seriesId = params.tmdbId;
+    const seriesId = parseInt(params.tmdbId);
+
+    if (isNaN(seriesId)) {
+      return NextResponse.json(
+        { error: 'Invalid series ID' },
+        { status: 400 }
+      );
+    }
 
     const series = await prisma.series.findUnique({
       where: { tmdbId: seriesId },
