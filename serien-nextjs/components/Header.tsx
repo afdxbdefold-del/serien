@@ -20,11 +20,8 @@ export default function Header() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Small delay to ensure cookies are processed after full page load
-    const timer = setTimeout(() => {
-      checkAuth();
-    }, 100);
-    return () => clearTimeout(timer);
+    // Check auth immediately (no delay needed with router.replace)
+    checkAuth();
   }, []);
 
   const checkAuth = async () => {

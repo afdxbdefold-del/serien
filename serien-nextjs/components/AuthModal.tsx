@@ -77,8 +77,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Anmeldung fehlgeschlagen');
       }
 
-      // Don't call onClose() - just redirect and let page reload handle state
-      window.location.replace('/');
+      // Don't call onClose() - just redirect using Next.js router (client-side navigation)
+      router.replace('/');
+      router.refresh(); // Force refetch of server state
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
     } finally {
@@ -133,10 +134,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Registrierung fehlgeschlagen');
       }
 
-      console.log('✅ Registration successful with auto-login, reloading...');
+      console.log('✅ Registration successful with auto-login, redirecting...');
       // Registration now returns a token and sets cookie automatically
-      // Just redirect to refresh the page and show logged-in state
-      window.location.replace('/');
+      // Use Next.js router for client-side navigation (preserves cookies)
+      router.replace('/');
+      router.refresh(); // Force refetch of server state
     } catch (err: any) {
       console.error('❌ Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
