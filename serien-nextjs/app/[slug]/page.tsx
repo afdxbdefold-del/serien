@@ -260,10 +260,10 @@ export default async function ArticlePage({ params }: PageProps) {
                 href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
                 className="flex items-stretch gap-0 group"
               >
-                {article.primarySeries.posterLocalUrl && (
+                {(article.primarySeries.posterLocalUrl || article.primarySeries.posterPath) && (
                   <div className="relative w-32 flex-shrink-0">
                     <Image
-                      src={article.primarySeries.posterLocalUrl}
+                      src={article.primarySeries.posterLocalUrl || `https://image.tmdb.org/t/p/w300${article.primarySeries.posterPath}`}
                       alt={article.primarySeries.title}
                       fill
                       className="object-cover"
