@@ -1,24 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Temporary mock user until auth is properly configured
-const MOCK_USER_ID = 'author_001'; // Sophie Hartmann
+import { getCurrentUser } from '@/lib/auth';
 
 // GET /api/series/[tmdbId]/follow - Check if user follows series
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tmdbId: string }> }
 ) {
   try {
     const { tmdbId } = await params;
     
-    // Use mock user for now
-    const userId = MOCK_USER_ID;
+    // Get authenticated user
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ following: false, requiresAuth: true });
+    }
 
     const follow = await prisma.follow.findUnique({
       where: {
         userId_tmdbSeriesId: {
-          userId,
+          userId: user.id,
           tmdbSeriesId: parseInt(tmdbId)
         }
       }
@@ -33,21 +34,28 @@ export async function GET(
 
 // POST /api/series/[tmdbId]/follow - Toggle follow
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tmdbId: string }> }
 ) {
   try {
     const { tmdbId } = await params;
     
-    // Use mock user for now
-    const userId = MOCK_USER_ID;
+    // Get authenticated user
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Bitte melden Sie sich an' },
+        { status: 401 }
+      );
+    }
+
     const seriesId = parseInt(tmdbId);
 
     // Check if already following
     const existing = await prisma.follow.findUnique({
       where: {
         userId_tmdbSeriesId: {
-          userId,
+          userId: user.id,
           tmdbSeriesId: seriesId
         }
       }
@@ -58,7 +66,7 @@ export async function POST(
       await prisma.follow.delete({
         where: {
           userId_tmdbSeriesId: {
-            userId,
+            userId: user.id,
             tmdbSeriesId: seriesId
           }
         }
@@ -68,7 +76,7 @@ export async function POST(
       // Follow
       await prisma.follow.create({
         data: {
-          userId,
+          userId: user.id,
           tmdbSeriesId: seriesId
         }
       });
