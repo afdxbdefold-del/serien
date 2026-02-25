@@ -257,6 +257,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     publishedAt={item.publishedAt}
                     category={item.category}
                     authorName={item.author?.name}
+                    networks={item.primarySeries?.networks || []}
                   />
                 ))}
               </div>
