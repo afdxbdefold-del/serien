@@ -17,7 +17,6 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   
   // Auth state
   const [user, setUser] = useState<any>(null);
