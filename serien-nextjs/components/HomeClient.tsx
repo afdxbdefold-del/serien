@@ -284,34 +284,56 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           )}
 
           {activeTab === 'my-news' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredMyNews.length > 0 ? (
-                filteredMyNews.map((item: any) => (
-                  <NewsCard 
-                    key={item.id}
-                    slug={item.slug}
-                    title={item.title}
-                    excerpt={item.excerpt}
-                    heroLocalUrl={item.heroLocalUrl}
-                    cardImageUrl={item.cardImageUrl}
-                    tmdbId={item.tmdbId}
-                    tmdbType={item.tmdbType}
-                    publishedAt={item.publishedAt}
-                    category={item.category}
-                    authorName={item.author?.name}
-                  />
-                ))
+            <>
+              {loadingMyFeed ? (
+                <div className="flex justify-center py-24">
+                  <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600">Lade deine personalisierten News...</p>
+                  </div>
+                </div>
               ) : (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-gray-500 mb-4">
-                    Keine personalisierten News verfügbar.
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Folge Serien, um personalisierte News zu erhalten.
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredMyNews.length > 0 ? (
+                    filteredMyNews.map((item: any) => (
+                      <NewsCard 
+                        key={item.id}
+                        slug={item.slug}
+                        title={item.title}
+                        excerpt={item.excerpt}
+                        heroLocalUrl={item.heroLocalUrl}
+                        cardImageUrl={item.cardImageUrl}
+                        tmdbId={item.tmdbId}
+                        tmdbType={item.tmdbType}
+                        publishedAt={item.publishedAt}
+                        category={item.category}
+                        authorName={item.author?.name}
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-16">
+                      <div className="max-w-md mx-auto">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <Sparkles className="h-10 w-10 text-blue-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-3">
+                          Noch keine personalisierten News
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          Folge deinen Lieblingsserien, um personalisierte News und Updates zu erhalten.
+                        </p>
+                        <button
+                          onClick={() => setActiveTab('follow-shows')}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg"
+                        >
+                          Serien entdecken
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {activeTab === 'follow-shows' && (
