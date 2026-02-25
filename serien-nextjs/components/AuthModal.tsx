@@ -150,8 +150,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
       if (loginResponse.ok) {
         console.log('✅ Auto-login successful, reloading...');
-        onClose(); // Close modal
-        // Force a hard reload to ensure cookies are properly loaded
+        // Don't call onClose() - just redirect and let page reload handle state
         window.location.replace('/');
       } else {
         const loginError = await loginResponse.json();
