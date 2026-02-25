@@ -58,11 +58,6 @@ export default function CommentsSection({ articleSlug }: CommentsProps) {
         }),
       });
 
-      if (res.status === 401) {
-        alert('Bitte melde dich an, um zu kommentieren');
-        return;
-      }
-
       if (res.ok) {
         setNewComment('');
         setReplyTo(null);
