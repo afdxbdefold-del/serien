@@ -70,10 +70,15 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error);
+    
+    // Return specific error message
+    const errorMessage = error.message || 'Registrierung fehlgeschlagen';
+    const errorDetail = error.code ? ` (${error.code})` : '';
+    
     return NextResponse.json(
-      { detail: 'Registrierung fehlgeschlagen' },
+      { detail: errorMessage + errorDetail },
       { status: 500 }
     );
   }
