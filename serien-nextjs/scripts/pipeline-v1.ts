@@ -225,11 +225,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - TEST OHNE QUELLE
+  // Example: Single Series News - TEST MIT ECHTEN AUTOREN
   const testArticle: CrawledSource = {
-    title: "House of the Dragon Staffel 3: HBO gibt grünes Licht",
-    url: "https://example.com/house-of-the-dragon-season-3",
-    text: `HBO hat offiziell die dritte Staffel von House of the Dragon bestätigt. Die Fantasy-Serie wird ihre Geschichte um die Targaryen-Familie fortsetzen. Matt Smith und Emma D'Arcy kehren in ihren Hauptrollen zurück. Ryan Condal bleibt als Showrunner an Bord. Die Dreharbeiten sollen im Sommer 2026 in England beginnen. Die neue Staffel wird voraussichtlich 2027 erscheinen und den Bürgerkrieg weiter vertiefen.`
+    title: "Succession Spin-off in Entwicklung bei HBO",
+    url: "https://example.com/succession-spinoff-hbo",
+    text: `HBO entwickelt ein Spin-off zur preisgekrönten Serie Succession. Die neue Serie wird sich auf einen Nebencharakter der Originalserie konzentrieren. Jesse Armstrong, Schöpfer von Succession, ist als ausführender Produzent beteiligt. Die Dreharbeiten sollen Ende 2026 beginnen. Weitere Details zur Handlung werden in den kommenden Monaten erwartet.`
   };
 
   await runContentPipeline(testArticle);
