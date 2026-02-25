@@ -46,8 +46,8 @@ async function getImagePaths(type: string, id: string): Promise<{ backdrop: stri
   }
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { type, id } = params;
+export async function GET(request: NextRequest, context: RouteParams) {
+  const { type, id } = await context.params;
   
   // Validate type
   if (!['tv', 'movie'].includes(type)) {
