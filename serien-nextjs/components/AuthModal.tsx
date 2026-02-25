@@ -133,29 +133,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Registrierung fehlgeschlagen');
       }
 
-      console.log('✅ Registration successful, attempting auto-login...');
-
-      // Auto-login after registration
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: registerData.email,
-          password: registerData.password
-        }),
-        credentials: 'include',
-      });
-
-      if (loginResponse.ok) {
-        console.log('✅ Auto-login successful, reloading...');
-        // Don't call onClose() - just redirect and let page reload handle state
-        window.location.replace('/');
-      } else {
-        // Read response body only once
-        const loginError = await loginResponse.json();
-        console.error('🔐 Auto-login failed:', loginError);
-        setError('Registrierung erfolgreich, aber automatischer Login fehlgeschlagen. Bitte melden Sie sich manuell an.');
-      }
+      console.log('✅ Registration successful with auto-login, reloading...');
+      // Registration now returns a token and sets cookie automatically
+      // Just redirect to refresh the page and show logged-in state
+      window.location.replace('/');
     } catch (err: any) {
       console.error('❌ Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
