@@ -26,6 +26,7 @@ interface NewsCardProps {
   publishedAt: Date;
   category?: string;
   authorName?: string;
+  networks?: string[]; // Add networks from series
 }
 
 export default function NewsCard({
@@ -38,7 +39,8 @@ export default function NewsCard({
   tmdbType,
   publishedAt,
   category,
-  authorName
+  authorName,
+  networks = [],
 }: NewsCardProps) {
   const getRelativeTime = () => {
     const now = new Date();
@@ -51,7 +53,9 @@ export default function NewsCard({
     return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const streamerStyle = category ? streamerStyles[category] : null;
+  // Use category first, fallback to first network
+  const streamerName = category || (networks.length > 0 ? networks[0] : null);
+  const streamerStyle = streamerName ? streamerStyles[streamerName] : null;
 
   return (
     <Link href={`/${slug}`}>
@@ -72,7 +76,7 @@ export default function NewsCard({
           )}
           
           {/* Streamer Badge */}
-          {category && streamerStyle && (
+          {streamerName && streamerStyle && (
             <div className="absolute top-3 right-3">
               <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg ${streamerStyle.bg} ${streamerStyle.text}`}>
                 {streamerStyle.label}
