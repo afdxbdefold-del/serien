@@ -77,7 +77,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Anmeldung fehlgeschlagen');
       }
 
-      // Don't call onClose() - just redirect using Next.js router (client-side navigation)
+      // Close modal first (this triggers checkAuth in Header via onClose callback)
+      onClose();
+      // Use Next.js router for client-side navigation (preserves cookies)
       router.replace('/');
       router.refresh(); // Force refetch of server state
     } catch (err: any) {
