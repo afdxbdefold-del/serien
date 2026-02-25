@@ -432,6 +432,39 @@ export async function runContentPipeline(source: CrawledSource) {
       discoverResult.dashboard.aggregation.improvement_hints.forEach(h => console.log(`   - ${h}`));
     }
 
+    // ========== STEP 7.5: INTERNAL LINKING ENGINE ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.5: INTERNAL LINKING ENGINE');
+    console.log('━'.repeat(70));
+
+    // We need slug first for this step, so generate it here
+    const slug = generateSlug(articleTitle);
+    const now = new Date();
+
+    const internalLinksResult = await generateInternalLinks({
+      articleId: `pipeline-${Date.now()}`, // Temporary, will be replaced
+      contentHtml: generatedContent,
+      primarySeriesId: resolution.primarySeries.tmdbId,
+      primarySeriesName: resolution.primarySeries.name,
+      primarySeriesSlug: resolution.primarySeries.slug || resolution.primarySeries.tmdbId,
+      publishedAt: now,
+    });
+
+    // Update content with internal links
+    generatedContent = internalLinksResult.updatedContentHtml;
+
+    console.log(`✅ Internal Links injected:`);
+    console.log(`   Hub Link: ${internalLinksResult.hubLink}`);
+    console.log(`   Related Articles: ${internalLinksResult.relatedArticles.length}`);
+    console.log(`   Total Links: ${internalLinksResult.totalInternalLinks}`);
+
+    // Validate
+    const linkValidation = validateInternalLinks(generatedContent, resolution.primarySeries.name);
+    if (!linkValidation.valid) {
+      console.log(`\n⚠️  Link Validation Warnings:`);
+      linkValidation.errors.forEach(err => console.log(`   - ${err}`));
+    }
+
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 8: PUBLISH');
