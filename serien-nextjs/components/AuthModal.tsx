@@ -41,6 +41,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     return password.length >= 8;
   };
 
+  // Handle Google Login
+  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+  const handleGoogleLogin = () => {
+    const redirectUrl = window.location.origin + '/auth/callback';
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  };
+
   // Handle Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +69,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginData),
+        credentials: 'include', // Important for cookies
       });
 
       if (!response.ok) {
@@ -70,7 +78,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       onClose(); // Close modal on success
-      router.refresh(); // Refresh to update session
+      window.location.reload(); // Force reload to update auth state
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
     } finally {
