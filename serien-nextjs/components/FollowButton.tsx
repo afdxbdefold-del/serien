@@ -37,12 +37,6 @@ export default function FollowButton({ tmdbId, seriesName }: FollowButtonProps) 
         method: 'POST',
       });
       
-      if (res.status === 401) {
-        // User not logged in - redirect to login
-        alert('Bitte melde dich an, um Serien zu folgen');
-        return;
-      }
-
       const data = await res.json();
       setIsFollowing(data.following);
     } catch (error) {
