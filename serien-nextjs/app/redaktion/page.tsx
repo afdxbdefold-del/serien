@@ -9,13 +9,14 @@ export const metadata: Metadata = {
 };
 
 export default async function AuthorsPage() {
-  // Fetch authors (users with role 'author' or 'admin')
+  // Fetch authors (users with articles)
   const authors = await prisma.user.findMany({
     where: {
-      OR: [
-        { role: 'author' },
-        { role: 'admin' }
-      ]
+      articles: {
+        some: {
+          status: 'published'
+        }
+      }
     },
     select: {
       id: true,
@@ -24,9 +25,16 @@ export default async function AuthorsPage() {
       image: true,
       _count: {
         select: {
-          articles: true
+          articles: {
+            where: {
+              status: 'published'
+            }
+          }
         }
       }
+    },
+    orderBy: {
+      name: 'asc'
     }
   });
 
