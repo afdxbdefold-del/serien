@@ -139,13 +139,11 @@ export default function Header() {
                         <img
                           src={user.image}
                           alt={user.name}
-                          className="w-8 h-8 rounded-full border-2 border-white/20"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-white/30 shadow-lg"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center border-2 border-white/20">
-                          <span className="text-white text-sm font-bold">
-                            {user.name?.charAt(0).toUpperCase() || 'U'}
-                          </span>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center border-2 border-white/30 shadow-lg">
+                          <User className="h-5 w-5 text-white" />
                         </div>
                       )}
                     </button>
