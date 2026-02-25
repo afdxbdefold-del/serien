@@ -183,7 +183,9 @@ export default async function ArticlePage({ params }: PageProps) {
                 priority
               />
             </div>
-            <p className="text-xs text-gray-500 mt-2">{article.imageAttribution || 'Bildquelle: TMDB'}</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Bild: {article.imageAttribution || 'TMDB'}
+            </p>
           </div>
         )}
 
