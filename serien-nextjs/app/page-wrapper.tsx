@@ -1,8 +1,6 @@
 import prisma from '@/lib/prisma';
 import HomePage from './HomePage';
 
-export const revalidate = 60; // Revalidate every 60 seconds
-
 export default async function Page() {
   // Fetch news and series from database
   const [articles, series] = await Promise.all([
