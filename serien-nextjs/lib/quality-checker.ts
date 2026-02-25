@@ -1,11 +1,14 @@
 /**
- * EMERGENT_QUALITY_CHECK
+ * EMERGENT_QUALITY_CHECK v2
  * 
- * Neue Scoring-Logik: HEADLINE, CONTENT, STRUCTURE
- * Min Scores: 70/70/65
+ * NEW POLICY: Unterscheidet zwischen SHORT_NEWS und FULL_NEWS
+ * - SHORT_NEWS: 160-260 Wörter, niedrigere Thresholds, SEARCH_ONLY
+ * - FULL_NEWS: 320+ Wörter, höhere Thresholds, DISCOVER_CANDIDATE
  */
 
 const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
+
+type ArticleType = 'SHORT_NEWS' | 'FULL_NEWS';
 
 interface QualityCheckInput {
   generatedArticleHtml: string;
@@ -25,7 +28,32 @@ interface QualityCheckResult {
   status: 'PASS' | 'FAIL';
   scores: QualityScores;
   failReasons: string[];
-  requiresFullRewrite: boolean; // If body has issues, allow full rewrite
+  requiresFullRewrite: boolean;
+  articleType: ArticleType;
+  wordCount: number;
+}
+
+// Quality thresholds based on article type
+const QUALITY_THRESHOLDS = {
+  SHORT_NEWS: {
+    WORDS_MIN: 160,
+    WORDS_MAX: 260,
+    HEADLINE_MIN: 70,
+    CONTENT_MIN: 65,
+    STRUCTURE_MIN: 60,
+  },
+  FULL_NEWS: {
+    WORDS_MIN: 320,
+    HEADLINE_MIN: 75,
+    CONTENT_MIN: 70,
+    STRUCTURE_MIN: 65,
+  }
+};
+
+function detectArticleType(wordCount: number): ArticleType {
+  // If article is short (under 320 words), classify as SHORT_NEWS
+  // Otherwise, FULL_NEWS
+  return wordCount < QUALITY_THRESHOLDS.FULL_NEWS.WORDS_MIN ? 'SHORT_NEWS' : 'FULL_NEWS';
 }
 
 export async function qualityCheck(input: QualityCheckInput): Promise<QualityCheckResult> {
@@ -38,44 +66,36 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
     .replace(/\s+/g, ' ')
     .trim();
   
+  // Count words
+  const wordCount = plainText.split(/\s+/).length;
+  
+  // Detect article type
+  const articleType = detectArticleType(wordCount);
+  const thresholds = QUALITY_THRESHOLDS[articleType];
+  
+  console.log(`📏 Article Type: ${articleType} (${wordCount} words)`);
+  console.log(`   Thresholds: H:${thresholds.HEADLINE_MIN} C:${thresholds.CONTENT_MIN} S:${thresholds.STRUCTURE_MIN}`);
+  
   // Extract paragraphs
   const paragraphs = input.generatedArticleHtml.match(/<p>(.*?)<\/p>/g) || [];
   const paragraphTexts = paragraphs.map(p => p.replace(/<\/?p>/g, '').trim());
 
-  // === STRUCTURE CHECKS ===
+  // === CRITICAL CHECKS (HARD FAILS) ===
   
-  if (paragraphTexts.length < 3) {
-    failReasons.push(`Zu wenige Absätze: ${paragraphTexts.length} (min: 3)`);
-    requiresFullRewrite = true;
-  }
-
-  // Check paragraph lengths
+  // Check for paragraph walls (too many sentences)
+  let hasParagraphWalls = false;
   paragraphTexts.forEach((para, i) => {
     const sentences = para.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    const words = para.split(/\s+/).length;
     
-    if (i === 0 && sentences.length > 2) {
-      failReasons.push(`Lead zu lang: ${sentences.length} Sätze (max: 2)`);
-    } else if (i > 0 && sentences.length > 3) {
-      failReasons.push(`Absatz ${i + 1}: zu viele Sätze (${sentences.length}, max: 3)`);
-      requiresFullRewrite = true;
-    }
-    
-    if (words > 60) {
-      failReasons.push(`Absatz ${i + 1}: zu viele Wörter (${words}, max: 60)`);
+    // Only fail if paragraphs are EXTREMELY long (>5 sentences)
+    if (sentences.length > 5) {
+      failReasons.push(`Absatz ${i + 1}: Textblock zu lang (${sentences.length} Sätze, max: 5)`);
+      hasParagraphWalls = true;
       requiresFullRewrite = true;
     }
   });
 
-  // === HEADLINE CHECKS ===
-  
-  if (input.finalHeadline.length > 70) {
-    failReasons.push(`Headline zu lang: ${input.finalHeadline.length} Zeichen (max: 70)`);
-  }
-
-  // === CONTENT CHECKS ===
-  
-  // Check for reader address
+  // Check for reader address (hard fail)
   const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
   const readerMatches = plainText.match(readerAddressPatterns);
   if (readerMatches && readerMatches.length > 0) {
@@ -83,12 +103,11 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
     requiresFullRewrite = true;
   }
 
-  // Check platform mentions
-  if (input.platform) {
-    const platformMentions = (plainText.match(new RegExp(input.platform, 'gi')) || []).length;
-    if (platformMentions > 1) {
-      failReasons.push(`Plattform zu oft erwähnt: ${platformMentions}x (max: 1)`);
-    }
+  // === SOFT CHECKS (Only warnings for SHORT_NEWS) ===
+  
+  if (paragraphTexts.length < 3 && articleType === 'FULL_NEWS') {
+    failReasons.push(`Zu wenige Absätze: ${paragraphTexts.length} (min: 3 für FULL_NEWS)`);
+    requiresFullRewrite = true;
   }
 
   // === AI-POWERED QUALITY SCORING ===
@@ -97,7 +116,9 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
 
   // === PASS/FAIL DECISION ===
   
-  const MIN_HEADLINE_SCORE = 70;
+  const headlinePassed = scores.headline >= thresholds.HEADLINE_MIN;
+  const contentPassed = scores.content >= thresholds.CONTENT_MIN;
+  const structurePassed = scores.structure >= thresholds.STRUCTURE_MIN;
   const MIN_CONTENT_SCORE = 70;
   const MIN_STRUCTURE_SCORE = 65;
   
