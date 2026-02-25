@@ -339,7 +339,7 @@ export async function runContentPipeline(source: CrawledSource) {
           readingTime: Math.ceil(generatedContent.split(' ').length / 200),
           confidence: classification.confidence,
           primarySeriesId: resolution.primarySeries.tmdbId,
-          discoverEligible,
+          publishMode,
           ...imageData,
         },
       });
