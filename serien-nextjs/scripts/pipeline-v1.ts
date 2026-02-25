@@ -15,6 +15,7 @@ import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
+import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 
 const prisma = new PrismaClient();
 
