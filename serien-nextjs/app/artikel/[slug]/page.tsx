@@ -224,16 +224,8 @@ export default async function ArticlePage({ params }: PageProps) {
         {/* Share Button */}
         <div className="flex justify-center mb-12">
           <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: article.title,
-                  text: article.excerpt || '',
-                  url: window.location.href,
-                });
-              }
-            }}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
+            disabled
           >
             <Share2 className="h-5 w-5" />
             <span>Artikel teilen</span>
