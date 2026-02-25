@@ -501,6 +501,7 @@ export async function runContentPipeline(source: CrawledSource) {
           confidence: classification.confidence,
           primarySeriesId: resolution.primarySeries.tmdbId,
           publishMode,
+          wasBedeutetDasText,
           ...imageData,
         },
       });
