@@ -78,7 +78,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       onClose(); // Close modal on success
-      window.location.reload(); // Force reload to update auth state
+      window.location.href = '/'; // Use href for proper navigation
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
     } finally {
