@@ -24,20 +24,28 @@ model User {
 
 model Series {
   tmdbId          Int      @id @unique
+  tmdbType        String   @default("tv")
   title           String
   slug            String   @unique
+  name            String?  // Localized name (de-DE)
+  originalName    String?  // Original name from TMDB
   overview        String?  @db.Text
   posterLocalUrl  String?
   backdropLocalUrl String?
+  posterPath      String?  // TMDB path
+  backdropPath    String?  // TMDB path
   status          String?
   firstAirDate    DateTime?
   genres          String[]
+  genresJson      Json?    // Full genre objects
   networks        String[]
+  networksJson    Json?    // Full network objects
   tmdbData        Json?
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
-  articles Article[]
-  follows  Follow[]
+  articles        Article[]
+  articlesNew     Article[] @relation("ArticleToSeries")
+  follows         Follow[]
   @@map("series")
 }
 
