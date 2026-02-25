@@ -209,18 +209,18 @@ export default async function ArticlePage({ params }: PageProps) {
                 <div className="relative w-12 h-12 rounded-full overflow-hidden">
                   <Image
                     src={article.author.image}
-                    alt={article.author.name}
+                    alt={article.author.name || 'Author'}
                     fill
                     className="object-cover"
                   />
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                  {article.author.name.charAt(0).toUpperCase()}
+                  {(article.author.name || 'A').charAt(0).toUpperCase()}
                 </div>
               )}
               <div>
-                <p className="font-semibold text-gray-900">{article.author.name}</p>
+                <p className="font-semibold text-gray-900">{article.author.name || 'Anonymous'}</p>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Clock className="h-4 w-4" />
                   <span>{getRelativeTime()}</span>
