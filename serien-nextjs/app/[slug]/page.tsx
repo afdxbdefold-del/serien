@@ -2,14 +2,16 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 
 interface ArticlePageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export const revalidate = 300; // ISR: 5 Minuten
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { slug } = await params;
+  
   const article = await prisma.article.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: {
       author: {
         select: { name: true, email: true }
@@ -79,8 +81,10 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 }
 
 export async function generateMetadata({ params }: ArticlePageProps) {
+  const { slug } = await params;
+  
   const article = await prisma.article.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: {
       title: true,
       excerpt: true,
