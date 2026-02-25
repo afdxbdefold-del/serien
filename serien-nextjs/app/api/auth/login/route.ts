@@ -57,12 +57,13 @@ export async function POST(request: NextRequest) {
       image: user.image,
     });
 
-    // Set cookie
+    // Set cookie with explicit path
     response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/', // Explicit path
     });
 
     return response;
