@@ -144,17 +144,19 @@ export async function runContentPipeline(source: CrawledSource) {
 
     // Create article with transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Upsert author
-      const author = await tx.user.upsert({
-        where: { email: 'ai-pipeline@serien.de' },
-        update: {},
-        create: {
-          id: 'ai-pipeline-bot',
-          email: 'ai-pipeline@serien.de',
-          name: 'AI News Pipeline',
-          role: 'author',
-        },
+      // Get random author from database
+      const authors = await tx.user.findMany({
+        where: { role: 'author' },
+        select: { id: true, name: true }
       });
+
+      if (authors.length === 0) {
+        throw new Error('No authors found in database');
+      }
+
+      // Select random author
+      const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
+      console.log(`✍️  Selected random author: ${randomAuthor.name}`);
 
       // Create article
       const article = await tx.article.create({
