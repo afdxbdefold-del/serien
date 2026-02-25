@@ -242,6 +242,112 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log('✅ Quality Check PASSED');
 
+    // ========== STEP 6.5: ANTI-AI SMELL FILTER ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 6.5: ANTI-AI SMELL FILTER');
+    console.log('━'.repeat(70));
+
+    let antiAiResult = await antiAiFilter({
+      articleHtml: generatedContent,
+      headline: articleTitle,
+      seriesName: resolution.primarySeries.name,
+    });
+
+    console.log(`📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100 (min: 80)`);
+    console.log(`   Status: ${antiAiResult.status}`);
+    
+    if (antiAiResult.details.hardBlocklist.found.length > 0) {
+      console.log(`   ⚠️  Hard Blocklist: ${antiAiResult.details.hardBlocklist.found.join(', ')}`);
+    }
+    
+    if (antiAiResult.details.aiDetectionCheck.verdict) {
+      console.log(`   🤖 AI Detection: ${antiAiResult.details.aiDetectionCheck.verdict}`);
+    }
+
+    // AUTO-REWRITE if needed and quota available
+    if (antiAiResult.status === 'FAIL' && !hasRewritten) {
+      console.log('\n🔄 Anti-AI Filter FAILED - Attempting rewrite (1/1)...');
+      hasRewritten = true;
+
+      // Full regeneration to avoid AI patterns
+      generatedContent = await generateGermanArticle(
+        facts,
+        resolution.primarySeries.name,
+        classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+      );
+
+      editorialResult = await editorialRewrite({
+        generatedArticleHtml: generatedContent,
+        generatedHeadline: articleTitle,
+        extractedFacts: facts.key_statements.join('\n- '),
+        seriesName: resolution.primarySeries.name,
+        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+      });
+
+      articleTitle = editorialResult.final_headline;
+      generatedContent = editorialResult.rewritten_article_html;
+
+      // Re-check both Quality + Anti-AI
+      qualityResult = await qualityCheck({
+        generatedArticleHtml: generatedContent,
+        finalHeadline: articleTitle,
+        primarySeriesName: resolution.primarySeries.name,
+        platform: resolution.primarySeries.networks?.[0],
+        extractedFacts: facts.key_statements.join('\n'),
+      });
+
+      antiAiResult = await antiAiFilter({
+        articleHtml: generatedContent,
+        headline: articleTitle,
+        seriesName: resolution.primarySeries.name,
+      });
+
+      console.log(`📊 Re-check: Quality ${qualityResult.status}, Anti-AI ${antiAiResult.antiAiScore}/100`);
+    }
+
+    // If STILL FAIL after rewrite → SKIP_PUBLISH (save as DRAFT)
+    if (antiAiResult.status === 'FAIL') {
+      console.log('❌ Anti-AI Filter FAILED after rewrite → SKIP_PUBLISH');
+      antiAiResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
+      
+      // Save as DRAFT (same logic as quality fail)
+      const authors = await prisma.user.findMany({
+        where: { role: 'author' },
+        select: { id: true }
+      });
+      
+      const authorId = authors.length > 0 ? authors[0].id : 'system';
+      const slug = generateSlug(articleTitle);
+      const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+      const now = new Date();
+      
+      const draftArticle = await prisma.article.create({
+        data: {
+          id: `draft-ai-${Date.now()}`,
+          slug: `${slug}-draft-ai`,
+          title: articleTitle,
+          excerpt: articleExcerpt,
+          contentHtml: generatedContent,
+          contentType: classification.content_type,
+          authorId,
+          status: 'draft',
+          publishMode: 'DRAFT',
+          publishedAt: null,
+          sourcePublishedAt: now,
+          sourceUrl: source.url + '-draft-ai',
+          readingTime: Math.ceil(generatedContent.split(' ').length / 200),
+          confidence: classification.confidence,
+          primarySeriesId: resolution.primarySeries.tmdbId,
+        },
+      });
+
+      console.log(`📝 Saved as DRAFT (AI-Smell): ${draftArticle.id}`);
+      
+      return { skipped: true, reason: 'anti_ai_filter_failed', draft: draftArticle };
+    }
+
+    console.log('✅ Anti-AI Filter PASSED');
+
     // ========== STEP 7: DISCOVER GATE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7: DISCOVER GATE');
