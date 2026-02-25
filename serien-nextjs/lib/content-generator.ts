@@ -7,7 +7,7 @@ import OpenAI from 'openai';
 import { ExtractedFacts } from './fact-extractor';
 import { generateNaturalArticleHTML, validateArticleHTML } from './article-formatter';
 
-const CONTENT_GENERATION_PROMPT = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
+const CONTENT_GENERATION_PROMPT_NEWS = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
 
 SCHREIBREGELN:
 - Sachlich, nüchtern, journalistisch
@@ -61,6 +61,62 @@ WICHTIG:
 - Erfinde NICHTS
 - Behalte Namen, Daten exakt bei
 - Keine Markdown-Formatierung
+
+Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeilen getrennt).`;
+
+const CONTENT_GENERATION_PROMPT_EDITORIAL = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
+
+SCHREIBREGELN:
+- Sachlich, nüchtern, journalistisch
+- Keine Emojis, kein Marketing-Ton
+- Keine Clickbait-Fragen
+- Kurze, klare Sätze (max. 22 Wörter pro Satz)
+- Absätze mit 2–4 Sätzen
+- Fakten zuerst, Wertungen sparsam
+
+STRUKTUR FÜR EDITORIAL/LISTICLE:
+
+Schreibe mindestens 5-7 Absätze!
+
+LEAD (Absatz 1):
+- Einführung: Was ist das Thema?
+- Welche Serien werden behandelt?
+- Kurzer Überblick (2-3 Sätze)
+
+ABSATZ 2-6 (Pro Serie ein Absatz):
+- Serie 1: Name, Sender/Streamer, Genre, was sie auszeichnet
+- Serie 2: Name, Sender/Streamer, Genre, Besonderheiten
+- Serie 3: Name, Sender/Streamer, Genre, Highlights
+- usw. (ein Absatz pro Serie)
+- Jeder Absatz: 3-4 Sätze
+- Faktenbasiert, keine übertriebenen Lobpreisungen
+
+LETZTER ABSATZ:
+- Kurzes Fazit oder Ausblick
+- KEINE Wiederholung des Leads
+
+ABSOLUT VERBOTEN:
+- "Fans dürfen sich freuen"
+- "Ein absolutes Highlight"
+- "Ein Muss für jeden Fan"
+- "Die beste Serie aller Zeiten"
+- "Endlich ist es soweit"
+- "Wie jetzt bekannt wurde"
+- Übertriebene Superlative
+- Hohlphrasen
+
+TONALITÄT:
+- Neutral bis leicht wertend
+- Informierend
+- Glaubwürdig
+- Wie ein echter Redakteur, nicht wie KI
+
+WICHTIG:
+- Nutze ALLE genannten Serien
+- Gehe auf JEDE Serie einzeln ein
+- Erfinde NICHTS
+- Behalte Namen, Plattformen exakt bei
+- Keine Markdown-Formatierung oder Nummern
 
 Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeilen getrennt).`;
 
