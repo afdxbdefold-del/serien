@@ -139,11 +139,11 @@ export default function Header() {
                         <img
                           src={user.image}
                           alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-white/30 shadow-lg"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-white/20 shadow-lg"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center border-2 border-white/30 shadow-lg">
-                          <User className="h-5 w-5 text-white" />
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/50 to-cyan-500/50 flex items-center justify-center border-2 border-white/15 shadow-lg backdrop-blur-sm">
+                          <User className="h-5 w-5 text-white/90" />
                         </div>
                       )}
                     </button>
