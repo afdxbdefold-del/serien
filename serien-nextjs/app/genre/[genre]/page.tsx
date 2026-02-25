@@ -4,13 +4,14 @@ import { Metadata } from 'next';
 import { Library } from 'lucide-react';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     genre: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const genreName = params.genre.charAt(0).toUpperCase() + params.genre.slice(1);
+  const { genre } = await params;
+  const genreName = genre.charAt(0).toUpperCase() + genre.slice(1);
   
   return {
     title: `${genreName} Serien – News & Empfehlungen | serien.de`,
@@ -19,7 +20,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function GenrePage({ params }: PageProps) {
-  const genreName = params.genre.charAt(0).toUpperCase() + params.genre.slice(1);
+  const { genre } = await params;
+  const genreName = genre.charAt(0).toUpperCase() + genre.slice(1);
   
   // Fetch series by genre (simplified - in production you'd have genre filtering)
   const series = await prisma.series.findMany({

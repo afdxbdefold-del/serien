@@ -4,13 +4,14 @@ import { Metadata } from 'next';
 import { Tv } from 'lucide-react';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     streamer: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const streamerName = params.streamer.replace(/-/g, ' ');
+  const { streamer } = await params;
+  const streamerName = streamer.replace(/-/g, ' ');
   
   return {
     title: `${streamerName} Serien – Alle News & Neuerscheinungen | serien.de`,
@@ -19,7 +20,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function StreamerPage({ params }: PageProps) {
-  const streamerName = params.streamer.replace(/-/g, ' ');
+  const { streamer } = await params;
+  const streamerName = streamer.replace(/-/g, ' ');
   
   // Fetch series (in production, filter by streaming provider)
   const series = await prisma.series.findMany({
