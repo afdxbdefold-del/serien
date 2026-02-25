@@ -226,6 +226,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     title={item.title}
                     excerpt={item.excerpt}
                     heroLocalUrl={item.heroLocalUrl}
+                    cardImageUrl={item.cardImageUrl}
+                    tmdbId={item.tmdbId}
+                    tmdbType={item.tmdbType}
                     publishedAt={item.publishedAt}
                     category={item.category}
                     authorName={item.author?.name}
@@ -265,6 +268,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     title={item.title}
                     excerpt={item.excerpt}
                     heroLocalUrl={item.heroLocalUrl}
+                    cardImageUrl={item.cardImageUrl}
+                    tmdbId={item.tmdbId}
+                    tmdbType={item.tmdbType}
                     publishedAt={item.publishedAt}
                     category={item.category}
                     authorName={item.author?.name}
