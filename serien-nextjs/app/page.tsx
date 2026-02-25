@@ -54,7 +54,8 @@ export default async function Page() {
         primarySeries: {
           select: {
             title: true,
-            slug: true
+            slug: true,
+            networks: true,
           }
         }
       },
