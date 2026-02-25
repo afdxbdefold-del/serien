@@ -65,9 +65,9 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
 
   // === HEADLINE CHECKS ===
   
-  // Max length: 90 characters
-  if (input.final_headline.length > 90) {
-    fail_reasons.push(`Headline zu lang: ${input.final_headline.length} Zeichen (max: 90)`);
+  // Max length: 70 characters
+  if (input.final_headline.length > 70) {
+    fail_reasons.push(`Headline zu lang: ${input.final_headline.length} Zeichen (max: 70)`);
   }
 
   // No clickbait patterns
@@ -95,66 +95,55 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
     );
   }
 
-  // TMDB Backdrops are preferred (they're usually 1920x1080)
-  if (input.hero_image_metadata.source === 'TMDB_POSTER') {
-    fail_reasons.push('Hero Image ist TMDB Poster statt Backdrop (Discover bevorzugt Landscape)');
-  }
-
   // === FRESHNESS CHECK ===
   
   // Rolling window: publishedAt >= NOW() - 12h
   const now = new Date();
   const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
   
-  if (input.publishedAt < twelveHoursAgo) {
-    const hoursDiff = Math.floor((now.getTime() - input.publishedAt.getTime()) / (60 * 60 * 1000));
-    fail_reasons.push(`Artikel zu alt: ${hoursDiff}h (max: 12h)`);
-  }
-
-  // === CONTENT CHECKS ===
+  const freshness_score = calculateFreshnessScore(input.publishedAt, now);
   
-  // Extract paragraphs
-  const paragraphs = input.article_html.match(/<p>(.*?)<\/p>/g) || [];
-  const paragraphTexts = paragraphs.map(p => p.replace(/<\/?p>/g, '').trim());
-
-  // Check paragraph sentence count (max 3)
-  paragraphTexts.forEach((para, i) => {
-    const sentences = para.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    if (sentences.length > 3) {
-      fail_reasons.push(`Absatz ${i + 1}: zu viele Sätze (${sentences.length}, max: 3)`);
-    }
-  });
-
-  // No reader address
-  const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
-  const readerMatches = plainText.match(readerAddressPatterns);
-  if (readerMatches && readerMatches.length > 0) {
-    fail_reasons.push(`Leser-Ansprache gefunden: ${readerMatches.slice(0, 3).join(', ')}`);
+  if (freshness_score < 80) {
+    const hoursDiff = Math.floor((now.getTime() - input.publishedAt.getTime()) / (60 * 60 * 1000));
+    fail_reasons.push(`Artikel nicht frisch genug: ${hoursDiff}h alt (Freshness Score: ${freshness_score}/100)`);
   }
 
   // === AI-POWERED SCORING ===
   
-  const scores = await getDiscoverScores(input, plainText);
+  const aiScores = await getDiscoverScores(input, plainText);
 
   // === PASS/FAIL DECISION ===
   
-  const MIN_TOTAL_SCORE = 32;
-  const MIN_EACH_SCORE = 7;
+  const MIN_DISCOVER_PROBABILITY = 0.65;
+  const MIN_FRESHNESS_SCORE = 80;
   
   const passed = 
-    scores.total >= MIN_TOTAL_SCORE &&
-    scores.headline_quality >= MIN_EACH_SCORE &&
-    scores.image_quality >= MIN_EACH_SCORE &&
-    scores.content_trust >= MIN_EACH_SCORE &&
-    scores.freshness >= MIN_EACH_SCORE &&
+    aiScores.discover_probability >= MIN_DISCOVER_PROBABILITY &&
+    freshness_score >= MIN_FRESHNESS_SCORE &&
+    input.hero_image_metadata.width >= 1200 &&
     fail_reasons.length === 0;
 
   return {
     discover_eligible: passed,
-    scores,
+    scores: {
+      discover_probability: aiScores.discover_probability,
+      freshness_score,
+      headline_quality: aiScores.headline_quality,
+      image_quality: aiScores.image_quality,
+    },
     fail_reasons,
-    auto_rewrite_recommended: !passed && scores.total >= 28, // Close to passing
   };
+}
+
+function calculateFreshnessScore(publishedAt: Date, now: Date): number {
+  const hoursDiff = (now.getTime() - publishedAt.getTime()) / (60 * 60 * 1000);
+  
+  if (hoursDiff <= 2) return 100;
+  if (hoursDiff <= 6) return 95;
+  if (hoursDiff <= 12) return 85;
+  if (hoursDiff <= 24) return 70;
+  if (hoursDiff <= 48) return 50;
+  return 30;
 }
 
 async function getDiscoverScores(
