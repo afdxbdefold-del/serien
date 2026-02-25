@@ -56,9 +56,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Article pages
+  // Article pages - using /<slug> instead of /artikel/<slug>
   const articlePages = articles.map((article) => ({
-    url: `${baseUrl}/artikel/${article.slug}`,
+    url: `${baseUrl}/${article.slug}`,
     lastModified: article.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.7,
