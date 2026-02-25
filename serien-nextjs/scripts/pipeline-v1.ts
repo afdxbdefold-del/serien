@@ -120,19 +120,25 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 5: EDITORIAL REWRITE (Headline + First 2 Paragraphs)');
     console.log('━'.repeat(70));
 
-    let editorialResult = await editorialRewrite({
-      generatedArticleHtml: generatedContent,
-      generatedHeadline: articleTitle,
-      extractedFacts: facts.key_statements.join('\n- '),
-      seriesName: resolution.primarySeries.name,
-      platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-    });
+    // Skip Editorial Rewrite for MULTI_SERIES_EDITORIAL (already optimized)
+    if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
+      console.log('⊘  Skipped for MULTI_SERIES_EDITORIAL (content already formatted)');
+      // Keep original AI-generated headline and content
+    } else {
+      let editorialResult = await editorialRewrite({
+        generatedArticleHtml: generatedContent,
+        generatedHeadline: articleTitle,
+        extractedFacts: facts.key_statements.join('\n- '),
+        seriesName: resolution.primarySeries.name,
+        platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+      });
 
-    articleTitle = editorialResult.final_headline;
-    generatedContent = editorialResult.rewritten_article_html;
+      articleTitle = editorialResult.final_headline;
+      generatedContent = editorialResult.rewritten_article_html;
 
-    console.log(`✅ Headline: "${articleTitle}" (${articleTitle.length} chars)`);
-    console.log(`✅ Content rewritten (first 2 paragraphs + lead)`);
+      console.log(`✅ Headline: "${articleTitle}" (${articleTitle.length} chars)`);
+      console.log(`✅ Content rewritten (first 2 paragraphs + lead)`);
+    }
 
     // ========== STEP 5.5: WAS BEDEUTET DAS? ==========
     console.log('\n' + '━'.repeat(70));
