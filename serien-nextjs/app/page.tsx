@@ -49,7 +49,7 @@ export default async function Page() {
             id: true
           } 
         },
-        series: {
+        primarySeries: {
           select: {
             title: true,
             slug: true
