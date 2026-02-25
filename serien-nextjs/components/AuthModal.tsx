@@ -134,8 +134,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       console.log('✅ Registration successful, attempting auto-login...');
-      console.log('🔍 Email for auto-login:', registerData.email);
-      console.log('🔍 Password length:', registerData.password?.length);
 
       // Auto-login after registration
       const loginResponse = await fetch('/api/auth/login', {
@@ -148,18 +146,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         credentials: 'include',
       });
 
-      console.log('🔐 Login response status:', loginResponse.status);
-      
-      if (!loginResponse.ok) {
-        const errorData = await loginResponse.json();
-        console.error('🔐 Login error details:', errorData);
-      }
-
       if (loginResponse.ok) {
         console.log('✅ Auto-login successful, reloading...');
         // Don't call onClose() - just redirect and let page reload handle state
         window.location.replace('/');
       } else {
+        // Read response body only once
         const loginError = await loginResponse.json();
         console.error('🔐 Auto-login failed:', loginError);
         setError('Registrierung erfolgreich, aber automatischer Login fehlgeschlagen. Bitte melden Sie sich manuell an.');
