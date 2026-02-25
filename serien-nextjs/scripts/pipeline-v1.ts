@@ -303,6 +303,151 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log('✅ Quality Check PASSED');
 
+    // ========== STEP 6.3: FACT SAFETY LAYER ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 6.3: FACT SAFETY LAYER (Critical Facts Verification)');
+    console.log('━'.repeat(70));
+
+    // Get TMDB series data for verification
+    const tmdbSeriesData = await prisma.series.findUnique({
+      where: { tmdbId: resolution.primarySeries.tmdbId },
+      select: {
+        status: true,
+        lastAirDate: true,
+        numberOfSeasons: true,
+      }
+    });
+
+    const factSafetyResult = await factSafetyCheck({
+      articleHtml: generatedContent,
+      headline: articleTitle,
+      extractedFacts: facts.key_statements.join('\n'),
+      tmdbSeriesData: tmdbSeriesData ? {
+        status: tmdbSeriesData.status,
+        lastAirDate: tmdbSeriesData.lastAirDate?.toISOString(),
+        numberOfSeasons: tmdbSeriesData.numberOfSeasons || undefined,
+      } : undefined
+    });
+
+    if (factSafetyResult.status === 'UNSAFE') {
+      console.log(`🚨 FACT SAFETY FAILED - ${factSafetyResult.rejectedFacts.length} unverified fact(s)`);
+      
+      // Log rejected facts
+      factSafetyResult.rejectedFacts.forEach(fact => {
+        console.log(`   ❌ ${fact.type}: "${fact.claim}"`);
+        console.log(`      Alternative: "${fact.alternative}"`);
+      });
+
+      // HARD FAIL if headline contains unverified facts
+      if (factSafetyResult.headlineViolations.length > 0) {
+        console.log(`\n🚫 HEADLINE contains unverified facts - SAVING AS DRAFT`);
+        
+        // Save as DRAFT with fact safety violations
+        const authors = await prisma.user.findMany({
+          where: { role: 'author' },
+          take: 10,
+          select: { id: true }
+        });
+        
+        const authorId = authors.length > 0 ? authors[0].id : 'system';
+        const slug = generateSlug(articleTitle);
+        const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+        
+        const draftArticle = await prisma.article.create({
+          data: {
+            id: `draft-fact-safety-${Date.now()}`,
+            slug: `${slug}-draft-fact`,
+            title: articleTitle,
+            excerpt: articleExcerpt,
+            contentHtml: generatedContent,
+            contentType: classification.content_type,
+            authorId,
+            status: 'draft',
+            publishMode: 'DRAFT',
+            publishedAt: null,
+            sourcePublishedAt: now,
+            sourceUrl: source.url + '-draft-fact',
+            readingTime: Math.ceil(generatedContent.split(' ').length / 200),
+            confidence: classification.confidence,
+            primarySeriesId: resolution.primarySeries.tmdbId,
+          },
+        });
+
+        console.log(`📝 Saved as DRAFT (Fact Safety): ${draftArticle.id}`);
+        console.log(`   Rejected facts: ${factSafetyResult.rejectedFacts.map(f => f.type).join(', ')}`);
+        
+        return { skipped: true, reason: 'fact_safety_failed_headline', draft: draftArticle };
+      }
+
+      // If only body facts are unverified, try rewrite ONCE
+      if (!hasRewritten && factSafetyResult.mustRewrite) {
+        console.log('\n🔄 Attempting fact-safe rewrite (removing unverified claims)...');
+        hasRewritten = true;
+
+        // Regenerate with safety instructions
+        generatedContent = await generateGermanArticle(
+          facts,
+          resolution.primarySeries.name,
+          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+          allSeriesNames
+        );
+
+        // Re-check fact safety
+        const recheckResult = await factSafetyCheck({
+          articleHtml: generatedContent,
+          headline: articleTitle,
+          extractedFacts: facts.key_statements.join('\n'),
+          tmdbSeriesData: tmdbSeriesData ? {
+            status: tmdbSeriesData.status,
+            lastAirDate: tmdbSeriesData.lastAirDate?.toISOString(),
+            numberOfSeasons: tmdbSeriesData.numberOfSeasons || undefined,
+          } : undefined
+        });
+
+        if (recheckResult.status === 'UNSAFE') {
+          console.log('❌ Rewrite still contains unverified facts - SAVING AS DRAFT');
+          
+          const authors = await prisma.user.findMany({
+            where: { role: 'author' },
+            take: 10,
+            select: { id: true }
+          });
+          
+          const authorId = authors.length > 0 ? authors[0].id : 'system';
+          const slug = generateSlug(articleTitle);
+          const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+          
+          const draftArticle = await prisma.article.create({
+            data: {
+              id: `draft-fact-retry-${Date.now()}`,
+              slug: `${slug}-draft-fact2`,
+              title: articleTitle,
+              excerpt: articleExcerpt,
+              contentHtml: generatedContent,
+              contentType: classification.content_type,
+              authorId,
+              status: 'draft',
+              publishMode: 'DRAFT',
+              publishedAt: null,
+              sourcePublishedAt: now,
+              sourceUrl: source.url + '-draft-fact2',
+              readingTime: Math.ceil(generatedContent.split(' ').length / 200),
+              confidence: classification.confidence,
+              primarySeriesId: resolution.primarySeries.tmdbId,
+            },
+          });
+
+          console.log(`📝 Saved as DRAFT (Fact Safety Retry Failed): ${draftArticle.id}`);
+          
+          return { skipped: true, reason: 'fact_safety_failed_retry', draft: draftArticle };
+        }
+
+        console.log('✅ Fact-safe rewrite successful');
+      }
+    } else {
+      console.log('✅ Fact Safety PASSED - All critical facts verified');
+    }
+
     // ========== STEP 6.5: ANTI-AI SMELL FILTER ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6.5: ANTI-AI SMELL FILTER');
