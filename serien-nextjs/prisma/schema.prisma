@@ -74,9 +74,9 @@ model Article {
   // Content Classification
   contentType   String?   // SINGLE_SERIES_NEWS | MULTI_SERIES_EDITORIAL
   
-  // Primary Series (REQUIRED)
-  primarySeriesId Int
-  primarySeries   Series    @relation("PrimarySeries", fields: [primarySeriesId], references: [tmdbId], onDelete: Restrict)
+  // Primary Series (REQUIRED, temp default for migration)
+  primarySeriesId Int      @default(119051)
+  primarySeries   Series   @relation("PrimarySeries", fields: [primarySeriesId], references: [tmdbId], onDelete: Restrict)
   
   // Many-to-Many: Related Series (max 7)
   articleSeries   ArticleSeries[]
