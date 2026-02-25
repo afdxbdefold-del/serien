@@ -149,44 +149,37 @@ function calculateFreshnessScore(publishedAt: Date, now: Date): number {
 async function getDiscoverScores(
   input: DiscoverGateInput,
   plainText: string
-): Promise<DiscoverScores> {
+): Promise<{ discover_probability: number; headline_quality: number; image_quality: number }> {
   const systemPrompt = `Du bist ein Google Discover Eligibility Prüfer für deutsche TV-News-Artikel.
 
-AUFGABE: Bewerte den Artikel auf 4 Dimensionen für Google Discover (0-10 Punkte):
+AUFGABE: Bewerte die Discover-Eignung:
 
-1. HEADLINE_QUALITY (0-10):
+1. DISCOVER_PROBABILITY (0.0-1.0):
+   - Wie wahrscheinlich wird dieser Artikel in Google Discover erscheinen?
+   - Berücksichtige: Headline-Qualität, Aktualität, Relevanz
+   
+2. HEADLINE_QUALITY (0-100):
    - Natürlich und journalistisch?
    - Kein Clickbait?
-   - Klare Information?
+   - Klar und informativ?
    
-2. IMAGE_QUALITY (0-10):
-   - Hochauflösend (≥1200px Breite)?
+3. IMAGE_QUALITY (0-100):
+   - Hochauflösend (≥1200px)?
    - Landscape Format?
    - Klarer Serien-Kontext?
-   
-3. CONTENT_TRUST (0-10):
-   - Faktisch und seriös?
-   - Keine Spekulation?
-   - Neutrale Sprache?
-   
-4. FRESHNESS (0-10):
-   - Aktuell und relevant?
-   - Zeitnah veröffentlicht?
-   - Kein altes Datum sichtbar?
 
 Antworte NUR mit JSON:
 {
-  "headline_quality": 8,
-  "image_quality": 9,
-  "content_trust": 9,
-  "freshness": 10
+  "discover_probability": 0.85,
+  "headline_quality": 90,
+  "image_quality": 95
 }`;
 
   const userPrompt = `HEADLINE:
 ${input.final_headline}
 
 ARTIKEL:
-${plainText}
+${plainText.substring(0, 500)}...
 
 HERO IMAGE:
 - Quelle: ${input.hero_image_metadata.source}
@@ -198,7 +191,7 @@ ${input.publishedAt.toISOString()}
 SERIE:
 ${input.primary_series}
 
-Bewerte jetzt für Google Discover.`;
+Bewerte für Google Discover.`;
 
   try {
     const response = await fetch(LLM_PROXY_URL, {
@@ -224,22 +217,18 @@ Bewerte jetzt für Google Discover.`;
     const parsed = JSON.parse(content);
 
     return {
+      discover_probability: parsed.discover_probability,
       headline_quality: parsed.headline_quality,
       image_quality: parsed.image_quality,
-      content_trust: parsed.content_trust,
-      freshness: parsed.freshness,
-      total: parsed.headline_quality + parsed.image_quality + parsed.content_trust + parsed.freshness,
     };
 
   } catch (error) {
     console.error('AI Discover scoring failed:', error);
     // Return conservative scores on error
     return {
-      headline_quality: 7,
-      image_quality: 7,
-      content_trust: 7,
-      freshness: 7,
-      total: 28,
+      discover_probability: 0.60,
+      headline_quality: 65,
+      image_quality: 70,
     };
   }
 }
