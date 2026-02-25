@@ -1,0 +1,185 @@
+/**
+ * STEP 2: TMDB Resolver
+ * Resolves series names to TMDB IDs and creates Series records if needed
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { searchTv, getTvDetails } from './tmdb';
+
+const prisma = new PrismaClient();
+
+export interface ResolvedSeries {
+  tmdbId: number;
+  name: string;
+  confidence: number;
+  alreadyInDb: boolean;
+}
+
+export interface TmdbResolutionResult {
+  primarySeries: ResolvedSeries;
+  relatedSeries: ResolvedSeries[];
+  totalResolved: number;
+}
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[äöü]/g, (char) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue' }[char] || char))
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Resolve a single series (for SINGLE_SERIES_NEWS)
+ */
+export async function resolveSingleSeries(
+  seriesName: string
+): Promise<ResolvedSeries | null> {
+  console.log(`\n🔍 Resolving single series: "${seriesName}"`);
+  
+  // Search TMDB
+  const searchResult = await searchTv(seriesName, 'de-DE');
+  
+  if (!searchResult) {
+    console.log('❌ No TMDB match found');
+    return null;
+  }
+
+  console.log(`✅ Found: ${searchResult.name} (confidence: ${(searchResult.confidence * 100).toFixed(1)}%)`);
+
+  if (searchResult.confidence < 0.75) {
+    console.log('⚠️  Confidence too low (<75%)');
+    return null;
+  }
+
+  const tmdbId = searchResult.tmdbId;
+
+  // Check if already in DB
+  const existing = await prisma.series.findUnique({
+    where: { tmdbId }
+  });
+
+  if (existing) {
+    console.log('✅ Series already in database');
+    return {
+      tmdbId,
+      name: existing.name || existing.title,
+      confidence: searchResult.confidence,
+      alreadyInDb: true
+    };
+  }
+
+  // Create new series
+  console.log('📚 Creating new series record...');
+  const details = await getTvDetails(tmdbId, 'de-DE');
+  const slug = generateSlug(searchResult.name || seriesName);
+
+  await prisma.series.create({
+    data: {
+      tmdbId,
+      tmdbType: 'tv',
+      title: searchResult.name || seriesName,
+      slug,
+      name: details?.name || searchResult.name,
+      originalName: details?.original_name || searchResult.originalName,
+      overview: details?.overview || searchResult.overview,
+      posterPath: details?.poster_path || searchResult.posterPath,
+      backdropPath: details?.backdrop_path || searchResult.backdropPath,
+      status: details?.status,
+      firstAirDate: details?.first_air_date ? new Date(details.first_air_date) : null,
+      genres: details?.genres?.map(g => g.name) || [],
+      genresJson: details?.genres || null,
+      networks: details?.networks?.map(n => n.name) || [],
+      networksJson: details?.networks || null,
+    }
+  });
+
+  console.log('✅ Series created');
+
+  return {
+    tmdbId,
+    name: details?.name || searchResult.name,
+    confidence: searchResult.confidence,
+    alreadyInDb: false
+  };
+}
+
+/**
+ * Resolve multiple series (for MULTI_SERIES_EDITORIAL)
+ * Returns 3-7 series, sorted by confidence
+ */
+export async function resolveMultipleSeries(
+  seriesNames: string[],
+  minCount: number = 3,
+  maxCount: number = 7
+): Promise<ResolvedSeries[]> {
+  console.log(`\n🔍 Resolving multiple series (${seriesNames.length} candidates)`);
+  
+  const resolved: ResolvedSeries[] = [];
+
+  for (const name of seriesNames.slice(0, maxCount + 3)) { // Try more than max in case some fail
+    try {
+      const result = await resolveSingleSeries(name);
+      if (result) {
+        resolved.push(result);
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Failed to resolve "${name}": ${error.message}`);
+    }
+
+    if (resolved.length >= maxCount) {
+      break;
+    }
+  }
+
+  // Sort by confidence (highest first)
+  resolved.sort((a, b) => b.confidence - a.confidence);
+
+  console.log(`✅ Resolved ${resolved.length}/${seriesNames.length} series`);
+
+  if (resolved.length < minCount) {
+    throw new Error(`Not enough series resolved (got ${resolved.length}, need ${minCount})`);
+  }
+
+  return resolved.slice(0, maxCount);
+}
+
+/**
+ * Main resolver function
+ */
+export async function resolveTmdbSeries(
+  mode: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+  seriesCandidates: string[]
+): Promise<TmdbResolutionResult> {
+  if (mode === 'SINGLE_SERIES_NEWS') {
+    // Exact match 1 series
+    if (seriesCandidates.length === 0) {
+      throw new Error('No series candidates provided');
+    }
+
+    const primary = await resolveSingleSeries(seriesCandidates[0]);
+    
+    if (!primary) {
+      throw new Error(`Failed to resolve primary series: ${seriesCandidates[0]}`);
+    }
+
+    return {
+      primarySeries: primary,
+      relatedSeries: [],
+      totalResolved: 1
+    };
+  } else {
+    // MULTI_SERIES_EDITORIAL: resolve 3-7 series
+    const allResolved = await resolveMultipleSeries(seriesCandidates, 3, 7);
+
+    if (allResolved.length === 0) {
+      throw new Error('Failed to resolve any series');
+    }
+
+    return {
+      primarySeries: allResolved[0], // Highest confidence
+      relatedSeries: allResolved.slice(1),
+      totalResolved: allResolved.length
+    };
+  }
+}
