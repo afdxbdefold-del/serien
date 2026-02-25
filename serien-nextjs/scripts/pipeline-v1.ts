@@ -124,6 +124,27 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log(`✅ Headline: "${articleTitle}" (${articleTitle.length} chars)`);
     console.log(`✅ Content rewritten (first 2 paragraphs + lead)`);
 
+    // ========== STEP 5.5: WAS BEDEUTET DAS? ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.5: WAS BEDEUTET DAS? BOX');
+    console.log('━'.repeat(70));
+
+    const wasBedeutetDasText = await generateWasBedeutetDas({
+      articleHtml: generatedContent,
+      headline: articleTitle,
+      seriesName: resolution.primarySeries.name,
+      contentType: classification.content_type,
+      extractedFacts: facts.key_statements.join('\n'),
+    });
+
+    if (wasBedeutetDasText) {
+      const wordCount = wasBedeutetDasText.split(/\s+/).length;
+      console.log(`✅ Generated: "${wasBedeutetDasText}"`);
+      console.log(`   (${wordCount} Wörter)`);
+    } else {
+      console.log(`⊘  Nicht generiert (nicht eligible oder validation failed)`);
+    }
+
     // ========== STEP 6: QUALITY CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6: QUALITY CHECK');
