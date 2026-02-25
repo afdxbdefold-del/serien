@@ -103,6 +103,21 @@ model Article {
   @@map("articles")
 }
 
+model ArticleSeries {
+  articleId String
+  seriesId  Int
+  position  Int      @default(0)  // For ordering related series
+  createdAt DateTime @default(now())
+  
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  series  Series  @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
+  
+  @@id([articleId, seriesId])
+  @@index([articleId])
+  @@index([seriesId])
+  @@map("article_series")
+}
+
 model Comment {
   id        String   @id @default(cuid())
   articleId String
