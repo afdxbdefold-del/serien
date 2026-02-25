@@ -4,7 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { searchTv, getTvDetails } from './tmdb';
+import { searchTv, getTvDetails, getTvDetailsComplete } from './tmdb';
 
 const prisma = new PrismaClient();
 
