@@ -59,7 +59,6 @@ export async function extractFacts(
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'https://llmapi.emergentagent.com/v1',
   });
 
   const userPrompt = `
