@@ -35,7 +35,6 @@ async function createAdminUser() {
         password: hashedPassword,
         name,
         role: 'admin',
-        verified: true,
       }
     });
 
