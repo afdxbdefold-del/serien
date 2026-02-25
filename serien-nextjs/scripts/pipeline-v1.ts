@@ -18,6 +18,7 @@ import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
+import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 
 
 const prisma = new PrismaClient();
