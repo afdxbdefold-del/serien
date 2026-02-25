@@ -207,7 +207,8 @@ LEAD (Absatz 1):
 - Was ist passiert?
 - Welche Serie?
 - Bei welchem Sender/Streamer?
-- 2-3 Sätze, präzise, bestätigt
+- GENAU 2 Sätze, nicht mehr!
+- Präzise, bestätigt
 
 ABSATZ 2:
 - Kontext (Staffelstatus, Produktion, Einordnung)
