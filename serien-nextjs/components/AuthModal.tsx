@@ -121,6 +121,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           email: registerData.email,
           password: registerData.password
         }),
+        credentials: 'include', // Important for cookies
       });
 
       if (!response.ok) {
@@ -128,8 +129,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Registrierung fehlgeschlagen');
       }
 
-      onClose(); // Close modal
-      router.push('/onboarding'); // Redirect to onboarding
+      // Auto-login after registration
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: registerData.email,
+          password: registerData.password
+        }),
+        credentials: 'include',
+      });
+
+      if (loginResponse.ok) {
+        onClose(); // Close modal
+        window.location.reload(); // Force reload to update auth state
+      }
     } catch (err: any) {
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
     } finally {
