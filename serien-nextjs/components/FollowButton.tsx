@@ -6,12 +6,14 @@ import { Check, Plus, Loader2 } from 'lucide-react';
 interface FollowButtonProps {
   tmdbId: number;
   seriesName: string;
+  onAuthRequired?: () => void; // Callback to open login modal
 }
 
-export default function FollowButton({ tmdbId, seriesName }: FollowButtonProps) {
+export default function FollowButton({ tmdbId, seriesName, onAuthRequired }: FollowButtonProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [requiresAuth, setRequiresAuth] = useState(false);
 
   // Check follow status on mount
   useEffect(() => {
@@ -20,9 +22,12 @@ export default function FollowButton({ tmdbId, seriesName }: FollowButtonProps) 
 
   const checkFollowStatus = async () => {
     try {
-      const res = await fetch(`/api/series/${tmdbId}/follow`);
+      const res = await fetch(`/api/series/${tmdbId}/follow`, {
+        credentials: 'include',
+      });
       const data = await res.json();
       setIsFollowing(data.following);
+      setRequiresAuth(data.requiresAuth || false);
     } catch (error) {
       console.error('Failed to check follow status:', error);
     } finally {
@@ -31,14 +36,30 @@ export default function FollowButton({ tmdbId, seriesName }: FollowButtonProps) 
   };
 
   const handleToggle = async () => {
+    // If user is not authenticated, trigger auth modal
+    if (requiresAuth && onAuthRequired) {
+      onAuthRequired();
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`/api/series/${tmdbId}/follow`, {
         method: 'POST',
+        credentials: 'include',
       });
       
+      if (res.status === 401) {
+        // User not authenticated
+        if (onAuthRequired) {
+          onAuthRequired();
+        }
+        return;
+      }
+
       const data = await res.json();
       setIsFollowing(data.following);
+      setRequiresAuth(false);
     } catch (error) {
       console.error('Failed to toggle follow:', error);
       alert('Fehler beim Folgen/Entfolgen');
@@ -76,7 +97,7 @@ export default function FollowButton({ tmdbId, seriesName }: FollowButtonProps) 
       ) : (
         <Plus className="h-5 w-5" />
       )}
-      {loading ? 'Laden...' : isFollowing ? 'Folge ich' : 'Folgen'}
+      {loading ? 'Laden...' : isFollowing ? 'Folge ich' : requiresAuth ? 'Jetzt folgen' : 'Folgen'}
     </button>
   );
 }
