@@ -48,7 +48,7 @@ export default function NewsCard({
   const streamerStyle = category ? streamerStyles[category] : null;
 
   return (
-    <Link href={`/${slug}`}>
+    <Link href={`/artikel/${slug}`}>
       <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
         {/* Image */}
         <div className="relative aspect-video overflow-hidden">

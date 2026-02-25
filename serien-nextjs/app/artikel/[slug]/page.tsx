@@ -258,7 +258,7 @@ export default async function ArticlePage({ params }: PageProps) {
             <h2 className="text-3xl font-bold mb-8">Ähnliche News</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedNews.map((news) => (
-                <Link key={news.id} href={`/${news.slug}`}>
+                <Link key={news.id} href={`/artikel/${news.slug}`}>
                   <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
                     {news.heroLocalUrl && (
                       <div className="relative aspect-video overflow-hidden">
