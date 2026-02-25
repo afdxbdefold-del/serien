@@ -259,8 +259,6 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5: IMAGE PIPELINE (TMDB)');
     console.log('━'.repeat(70));
-
-    const primaryTmdbId = resolution.primarySeries.tmdbId;
     
     const imageData = {
       tmdbId: primaryTmdbId,
