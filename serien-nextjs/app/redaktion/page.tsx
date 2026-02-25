@@ -27,6 +27,7 @@ export default async function RedaktionPage() {
       id: true,
       name: true,
       email: true,
+      image: true,
       _count: {
         select: {
           articles: true
