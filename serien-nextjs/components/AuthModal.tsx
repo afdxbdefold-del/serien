@@ -78,10 +78,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
 
       onClose(); // Close modal on success
-      // Small delay to ensure cookie is set before redirect
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
+      // Force a hard reload to ensure cookies are properly loaded
+      window.location.replace('/');
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
     } finally {
