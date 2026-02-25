@@ -123,7 +123,8 @@ Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeil
 export async function generateGermanArticle(
   facts: ExtractedFacts,
   primarySeriesName: string,
-  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+  allSeriesNames?: string[] // NEW: For MULTI_SERIES_EDITORIAL
 ): Promise<string> {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
@@ -136,9 +137,18 @@ export async function generateGermanArticle(
     baseURL: 'http://localhost:8002/v1',
   });
 
-  const factsPrompt = `
+  // Choose prompt based on content type
+  const systemPrompt = contentType === 'SINGLE_SERIES_NEWS' 
+    ? CONTENT_GENERATION_PROMPT_NEWS 
+    : CONTENT_GENERATION_PROMPT_EDITORIAL;
+
+  // Build facts prompt differently for each type
+  let factsPrompt = '';
+  
+  if (contentType === 'SINGLE_SERIES_NEWS') {
+    factsPrompt = `
 FAKTEN FÜR DEN ARTIKEL:
-Serie(n): ${facts.series_names.join(', ')}
+Serie: ${primarySeriesName}
 ${facts.season_numbers.length > 0 ? `Staffeln: ${facts.season_numbers.join(', ')}` : ''}
 ${facts.people_names.length > 0 ? `Personen: ${facts.people_names.slice(0, 10).join(', ')}` : ''}
 ${facts.networks_platforms.length > 0 ? `Plattformen: ${facts.networks_platforms.join(', ')}` : ''}
@@ -147,21 +157,44 @@ ${facts.release_dates.length > 0 ? `Zeitrahmen: ${facts.release_dates.join(', ')
 KEY STATEMENTS:
 ${facts.key_statements.slice(0, 8).map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
-ARTIKEL-TYP: ${contentType === 'SINGLE_SERIES_NEWS' ? 'News-Artikel über eine Serie' : 'Editorial über mehrere Serien'}
+ARTIKEL-TYP: News-Artikel über eine Serie
 HAUPT-SERIE: ${primarySeriesName}
 
 Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trennen).
 `.trim();
+  } else {
+    // MULTI_SERIES_EDITORIAL
+    const seriesList = allSeriesNames && allSeriesNames.length > 0 
+      ? allSeriesNames 
+      : facts.series_names;
+    
+    factsPrompt = `
+FAKTEN FÜR DEN ARTIKEL:
+Serien (insgesamt ${seriesList.length}):
+${seriesList.map((name, i) => `  ${i + 1}. ${name}`).join('\n')}
+
+${facts.networks_platforms.length > 0 ? `Plattformen: ${facts.networks_platforms.join(', ')}` : ''}
+${facts.release_dates.length > 0 ? `Zeitrahmen: ${facts.release_dates.join(', ')}` : ''}
+
+KEY STATEMENTS:
+${facts.key_statements.slice(0, 10).map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+ARTIKEL-TYP: Editorial/Listicle über mehrere Serien
+WICHTIG: Gehe auf JEDE der ${seriesList.length} Serien einzeln ein!
+
+Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trennen).
+`.trim();
+  }
 
   try {
     const response = await client.chat.completions.create({
       model: 'gpt-5.1',
       messages: [
-        { role: 'system', content: CONTENT_GENERATION_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: factsPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500, // More tokens for editorials
     });
 
     const rawContent = response.choices[0]?.message?.content;
@@ -181,7 +214,9 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
       primarySeriesName,
       {
         includeSubheading: rawContent.split(/\s+/).length > 500,
-        subheadingText: `Mehr zu ${primarySeriesName}`
+        subheadingText: contentType === 'MULTI_SERIES_EDITORIAL' 
+          ? `Alle Serien im Überblick`
+          : `Mehr zu ${primarySeriesName}`
       }
     );
 
