@@ -47,3 +47,26 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 }
+
+/* Internal Linking Engine Styles */
+@layer components {
+  .internal-link-box {
+    @apply my-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-r-lg;
+  }
+  
+  .internal-link-box h3 {
+    @apply text-lg font-bold text-gray-900 mb-3;
+  }
+  
+  .internal-link-box a {
+    @apply text-blue-600 hover:text-blue-800 font-medium underline decoration-blue-300 hover:decoration-blue-600 transition-colors;
+  }
+  
+  .internal-link-box ul {
+    @apply space-y-2 mt-3;
+  }
+  
+  .internal-link-box li {
+    @apply text-sm text-gray-700;
+  }
+}
