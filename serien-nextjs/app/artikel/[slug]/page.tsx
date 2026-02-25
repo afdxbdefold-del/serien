@@ -126,8 +126,8 @@ export default async function ArticlePage({ params }: PageProps) {
             datePublished: (article.publishedAt || article.createdAt).toISOString(),
             dateModified: article.updatedAt.toISOString(),
             author: {
-              '@type': 'Person',
-              name: article.author?.name || 'Redaktion',
+              '@type': 'Organization',
+              name: 'serien.de Redaktion',
             },
             publisher: {
               '@type': 'Organization',
@@ -139,7 +139,7 @@ export default async function ArticlePage({ params }: PageProps) {
             },
             mainEntityOfPage: {
               '@type': 'WebPage',
-              '@id': `https://serien.de/artikel/${params.slug}`,
+              '@id': `https://serien.de/${params.slug}`,
             },
           }),
         }}
@@ -157,14 +157,17 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Hero Image */}
         {article.heroLocalUrl && (
-          <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
-            <Image
-              src={article.heroLocalUrl}
-              alt={article.title}
-              fill
-              className="object-cover"
-              priority
-            />
+          <div className="mb-8">
+            <div className="relative aspect-video rounded-2xl overflow-hidden">
+              <Image
+                src={article.heroLocalUrl}
+                alt={article.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Bildquelle: TMDB</p>
           </div>
         )}
 
