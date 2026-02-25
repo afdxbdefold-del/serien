@@ -75,6 +75,38 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log('\n✅ Classification passed - proceeding to TMDB resolution');
 
+    // ========== STEP 1.5: TIME AXIS CORRECTION ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 1.5: TIME AXIS CORRECTION (Content Age Check)');
+    console.log('━'.repeat(70));
+
+    // Determine source published date (default to now if unknown)
+    const sourcePublishedAt = now; // In real scenario, extract from source metadata
+    
+    const timeAxisResult = classifyContentAge({
+      sourcePublishedAt,
+      headline: source.title,
+      contentType: 'NEWS' // Classification from STEP 1
+    });
+
+    // Check if content should be published based on age
+    const publishDecision = shouldPublishBasedOnAge(timeAxisResult);
+
+    if (!publishDecision.shouldPublish) {
+      console.log(`\n❌ SKIPPED: ${publishDecision.reason}`);
+      return { skipped: true, reason: 'content_too_old' };
+    }
+
+    // Force SEARCH_ONLY for old content
+    let forcedPublishMode = publishDecision.publishMode;
+    
+    if (timeAxisResult.contentAgeClass !== 'FRESH_NEWS') {
+      console.log(`   ⚠️  Forced Mode: ${forcedPublishMode} (not fresh news)`);
+    }
+
+    console.log('✅ Time Axis Check passed');
+
+
     // ========== STEP 2: TMDB RESOLVE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 2: TMDB RESOLUTION');
