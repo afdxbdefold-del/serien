@@ -303,10 +303,10 @@ export default async function ArticlePage({ params }: PageProps) {
                         {news.title}
                       </h3>
                       <p className="text-sm text-gray-500 mt-2">
-                        {new Date(news.publishedAt).toLocaleDateString('de-DE', {
+                        {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
                           day: 'numeric',
                           month: 'short',
-                        })}
+                        }) : 'Kein Datum'}
                       </p>
                     </div>
                   </article>
