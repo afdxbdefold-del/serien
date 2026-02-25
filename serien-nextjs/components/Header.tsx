@@ -14,6 +14,10 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Auth state
   const [user, setUser] = useState<any>(null);
@@ -57,7 +61,26 @@ export default function Header() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    // TODO: Implement search
+    
+    setSearchLoading(true);
+    try {
+      const response = await fetch(`/api/series/search?q=${encodeURIComponent(searchQuery)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const closeSearch = () => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   const isAuthenticated = !!user;
