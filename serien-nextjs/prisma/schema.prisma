@@ -83,6 +83,13 @@ model Series {
   // Keywords
   keywords        String[]
   
+  // Series Status Tracker
+  currentStatus        String?   // "RUNNING" | "RENEWED" | "ENDED" | "ON_HOLD" | "UNCLEAR"
+  statusDescription    String?
+  statusLastUpdate     DateTime?
+  lastSeasonNumber     Int?
+  lastNewsDate         DateTime?
+  
   // Full TMDB Data (backup)
   tmdbData        Json?
   
