@@ -169,24 +169,21 @@ async function processArticleWithTMDB(article: CrawledArticle) {
   });
 }
 
-// ECHTE CRAWLED DATA von CinemaHolic
+// ECHTE CRAWLED DATA von CinemaHolic - TEST ARTICLE 2
 const RAW_CONTENT = `
-Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie Skeleton Crew verlängert, berichtet The Cinemaholic.
-Christopher Ford, Co-Creator der Show, kehrt als Head Writer zurück.
-Die Regisseure Daniel Scheinert, Daniel Kwan, David Lowery und Jake Schreier kehren für die neuen Episoden zurück.
-Die Dreharbeiten finden in Manhattan Beach, Kalifornien statt.
-Die Serie spielt nach den Ereignissen von Return of the Jedi im gleichen Zeitrahmen wie The Mandalorian.
-Im Staffel 1 Finale treffen Jod Na Nawood, Fern und Fara auf den mächtigen Supervisor.
-Der Supervisor ist ein riesiger Droide der das Volk von At Attin seit Jahren beschützt.
-Als Jod den Supervisor mit einem Lichtschwert zerstört wird der gesamte Planet schutzlos.
-KB, Neel, Wim und Wendle nutzen Hoverbikes um Fern zu helfen.
-Gemeinsam erkennen sie dass der einzige Weg At Attin zu retten darin besteht die Barriere zu zerstören.
-Als die Barriere fällt sieht das Volk von At Attin zum ersten Mal die Neue Republik.
-Dank KB die Hilfe von SM-33 und Kh'ymm erhielt treffen X-Wings der Neuen Republik ein.
-Jods Piraten fliehen in Angst und sein Schiff wird zerstört.
-Für Staffel 2 werden folgende Cast-Mitglieder erwartet: Ravi Cabot-Conyers als Wim, Robert Timothy Smith als Neel, Ryan Kiera Armstrong als Fern.
-Auch Kyriana Kratter als KB, Nick Frost als SM-33, Kerry Condon als Fara, Tunde Adebimpe als Wendle und Alia Shawkat als Kh'ymm kehren zurück.
-Jude Law könnte als Jod Na Nawood zurückkehren der auf Rache aus ist.
+Netflix hat offiziell die dritte Staffel der Erfolgsserie Wednesday bestätigt.
+Die Dreharbeiten zur neuen Staffel sollen im Frühjahr 2026 in Rumänien beginnen.
+Jenna Ortega kehrt in ihrer ikonischen Rolle als Wednesday Addams zurück.
+Showrunner Alfred Gough und Miles Millar bleiben an Bord für die kommenden Episoden.
+Tim Burton wird erneut als ausführender Produzent fungieren und mindestens vier Episoden inszenieren.
+Die zweite Staffel endete mit einem dramatischen Cliffhanger der viele Fragen offen ließ.
+Wednesday musste sich gegen eine neue Bedrohung zur Wehr setzen die Nevermore Academy angriff.
+Ihre psychischen Fähigkeiten entwickelten sich weiter und erreichten ein neues Level.
+In Staffel 3 werden diese Kräfte eine zentrale Rolle spielen berichten Insider.
+Auch die Beziehung zu Enid wird weiter vertieft werden nachdem die beiden in Staffel 2 getrennte Wege gingen.
+Catherine Zeta-Jones und Luis Guzmán kehren als Morticia und Gomez Addams zurück.
+Netflix plant die dritte Staffel für Ende 2026 oder Anfang 2027 zu veröffentlichen.
+Die Serie ist eine der erfolgreichsten Netflix-Produktionen aller Zeiten und brach mehrere Streaming-Rekorde.
 `;
 
 const CRAWLED_DATA: CrawledArticle = {
