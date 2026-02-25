@@ -15,6 +15,11 @@ model User {
   role      String   @default("user")
   image     String?
   createdAt DateTime @default(now())
+  
+  // Onboarding preferences
+  favoriteStreamers String[] @default([])
+  onboardingCompleted Boolean @default(false)
+  
   articles      Article[]
   comments      Comment[]
   follows       Follow[]
