@@ -84,10 +84,10 @@ export default function FollowButton({ tmdbId, seriesName, onAuthRequired }: Fol
     <button
       onClick={handleToggle}
       disabled={loading}
-      className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-all shadow-lg hover:shadow-xl ${
+      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
         isFollowing
-          ? 'bg-white text-gray-900 hover:bg-gray-100'
-          : 'bg-blue-600 text-white hover:bg-blue-700'
+          ? 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm hover:shadow'
+          : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 shadow-md hover:shadow-lg'
       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {loading ? (
