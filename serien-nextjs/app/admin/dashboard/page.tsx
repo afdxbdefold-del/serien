@@ -1,9 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+
+// Force client-side only rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
 
 interface Stats {
   total_news: number;
