@@ -219,8 +219,17 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           {activeTab === 'all-news' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredNews.map((item) => (
-                  <NewsCard key={item.id} news={item} />
+                {filteredNews.map((item: any) => (
+                  <NewsCard 
+                    key={item.id}
+                    slug={item.slug}
+                    title={item.title}
+                    excerpt={item.excerpt}
+                    heroLocalUrl={item.heroLocalUrl}
+                    publishedAt={item.publishedAt}
+                    category={item.category}
+                    authorName={item.author?.name}
+                  />
                 ))}
               </div>
               
@@ -249,8 +258,17 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           {activeTab === 'my-news' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMyNews.length > 0 ? (
-                filteredMyNews.map((item) => (
-                  <NewsCard key={item.id} news={item} />
+                filteredMyNews.map((item: any) => (
+                  <NewsCard 
+                    key={item.id}
+                    slug={item.slug}
+                    title={item.title}
+                    excerpt={item.excerpt}
+                    heroLocalUrl={item.heroLocalUrl}
+                    publishedAt={item.publishedAt}
+                    category={item.category}
+                    authorName={item.author?.name}
+                  />
                 ))
               ) : (
                 <div className="col-span-full text-center py-12">
@@ -270,11 +288,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               {filteredSeriesByStreamer.length > 0 ? (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {filteredSeriesByStreamer.map((show) => (
+                    {filteredSeriesByStreamer.map((show: any) => (
                       <SeriesCard 
-                        key={show.tmdbId} 
-                        show={show}
-                        onFollowToggle={handleFollowToggle}
+                        key={show.tmdbId}
+                        tmdbId={show.tmdbId}
+                        slug={show.slug}
+                        title={show.title}
+                        posterPath={show.posterLocalUrl}
+                        overview={show.overview}
+                        status={show.status}
                       />
                     ))}
                   </div>
