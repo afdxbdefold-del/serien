@@ -25,8 +25,8 @@ async function main() {
         title: 'Stranger Things',
         slug: 'stranger-things',
         overview: 'In den 1980er Jahren verschwindet ein Junge spurlos. Seine Freunde, die Familie und die Polizei suchen nach Antworten und werden in ein außergewöhnliches Geheimnis verwickelt.',
-        posterPath: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=400',
-        backdropPath: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027?w=800',
+        posterLocalUrl: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=400',
+        backdropLocalUrl: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027?w=800',
         firstAirDate: new Date('2016-07-15'),
         status: 'Returning Series'
       }
@@ -37,8 +37,8 @@ async function main() {
         title: 'The Last of Us',
         slug: 'the-last-of-us',
         overview: '20 Jahre nach der Zerstörung der modernen Zivilisation überquert Joel, ein gehärteter Überlebender, das verwüstete Amerika mit Ellie, einem 14-jährigen Mädchen.',
-        posterPath: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400',
-        backdropPath: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=800',
+        posterLocalUrl: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400',
+        backdropLocalUrl: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=800',
         firstAirDate: new Date('2023-01-15'),
         status: 'Returning Series'
       }
@@ -49,8 +49,8 @@ async function main() {
         title: 'House of the Dragon',
         slug: 'house-of-the-dragon',
         overview: 'Die Geschichte spielt 200 Jahre vor den Ereignissen von Game of Thrones und erzählt von der Targaryen-Dynastie.',
-        posterPath: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
-        backdropPath: 'https://images.unsplash.com/photo-1579566346927-c68383817a25?w=800',
+        posterLocalUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400',
+        backdropLocalUrl: 'https://images.unsplash.com/photo-1579566346927-c68383817a25?w=800',
         firstAirDate: new Date('2022-08-21'),
         status: 'Returning Series'
       }
@@ -61,8 +61,8 @@ async function main() {
         title: 'Breaking Bad',
         slug: 'breaking-bad',
         overview: 'Ein Chemielehrer mit Krebs verwandelt sich in einen skrupellosen Methamphetamin-Produzenten, um die finanzielle Zukunft seiner Familie zu sichern.',
-        posterPath: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027?w=400',
-        backdropPath: 'https://images.unsplash.com/photo-1618945524163-32451704c499?w=800',
+        posterLocalUrl: 'https://images.unsplash.com/photo-1574267432644-f74f8ec93027?w=400',
+        backdropLocalUrl: 'https://images.unsplash.com/photo-1618945524163-32451704c499?w=800',
         firstAirDate: new Date('2008-01-20'),
         status: 'Ended'
       }
@@ -73,8 +73,8 @@ async function main() {
         title: 'The Boys',
         slug: 'the-boys',
         overview: 'Eine Gruppe von Vigilanten macht Jagd auf korrupte Superhelden, die ihre Superkräfte missbrauchen.',
-        posterPath: 'https://images.unsplash.com/photo-1608889476561-6242cfdbf622?w=400',
-        backdropPath: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=800',
+        posterLocalUrl: 'https://images.unsplash.com/photo-1608889476561-6242cfdbf622?w=400',
+        backdropLocalUrl: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=800',
         firstAirDate: new Date('2019-07-26'),
         status: 'Returning Series'
       }
