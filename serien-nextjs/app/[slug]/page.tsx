@@ -75,7 +75,7 @@ export default async function ArticlePage({ params }: PageProps) {
     where: { slug },
     include: {
       author: true,
-      series: true,
+      primarySeries: true,
     },
   });
 
@@ -90,7 +90,7 @@ export default async function ArticlePage({ params }: PageProps) {
       id: { not: article.id },
       OR: [
         { category: article.category },
-        { tmdbSeriesId: article.tmdbSeriesId },
+        { primarySeriesId: article.primarySeriesId },
       ],
     },
     take: 3,
