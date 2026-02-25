@@ -136,6 +136,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
       console.log('✅ Registration successful with auto-login, redirecting...');
       // Registration now returns a token and sets cookie automatically
+      // Close modal first (this triggers checkAuth in Header via onClose callback)
+      onClose();
       // Use Next.js router for client-side navigation (preserves cookies)
       router.replace('/');
       router.refresh(); // Force refetch of server state
