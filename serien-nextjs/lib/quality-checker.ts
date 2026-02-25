@@ -28,10 +28,7 @@ interface QualityCheckResult {
   requiresFullRewrite: boolean; // If body has issues, allow full rewrite
 }
 
-}
-
-// CLI usage
-if (require.main === module) {
+export async function qualityCheck(input: QualityCheckInput): Promise<QualityCheckResult> {
   const testArticle = `<p>Amazon hat eine zweite Staffel der Serie „Fallout" bestätigt. Die Videospiel-Adaption erhält damit eine Fortsetzung.</p>
 <p>Die erste Staffel basierte auf der gleichnamigen Spiele-Reihe. Sie erschien 2024 und markierte den Einstieg ins Serienformat.</p>
 <p>Showrunner Jonathan Nolan bleibt der Produktion erhalten. Die Dreharbeiten zur zweiten Staffel sollen noch in diesem Jahr beginnen.</p>`;
