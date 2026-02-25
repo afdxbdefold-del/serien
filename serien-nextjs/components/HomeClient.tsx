@@ -472,6 +472,12 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }
