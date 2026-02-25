@@ -6,9 +6,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create a test user (author)
-  const author = await prisma.user.create({
-    data: {
+  // Create or get test user (author)
+  const author = await prisma.user.upsert({
+    where: { email: 'redaktion@serien.de' },
+    update: {},
+    create: {
       id: uuidv4(),
       email: 'redaktion@serien.de',
       name: 'Redaktion'
