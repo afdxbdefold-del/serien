@@ -1,8 +1,8 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 
-export default async function newsSitemap(): Promise<any> {
-  const baseUrl = 'https://serien.de';
+export async function GET() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   
   // Get articles from last 48 hours only
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
