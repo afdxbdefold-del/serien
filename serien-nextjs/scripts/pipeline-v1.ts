@@ -42,6 +42,9 @@ export async function runContentPipeline(source: CrawledSource) {
   console.log(`🔗 URL: ${source.url}`);
   console.log('');
 
+  // Declare timestamp at the start for consistent usage throughout pipeline
+  const now = new Date();
+
   try {
     // ========== STEP 1: CLASSIFY ==========
     console.log('━'.repeat(70));
