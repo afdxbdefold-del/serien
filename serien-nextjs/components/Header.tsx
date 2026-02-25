@@ -1,27 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bell, Search, User, LogOut, Settings, X, Menu } from 'lucide-react';
 import Logo from './Logo';
+import AuthModal from './AuthModal';
 
 export default function Header() {
+  const router = useRouter();
   const [showSearch, setShowSearch] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
   
-  // Mock auth state - will be replaced with real auth later
-  const isAuthenticated = false;
-  const isAdmin = false;
-  const user = null;
+  // Auth state
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      }
+    } catch (err) {
+      console.error('Auth check failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      setShowUserMenu(false);
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     // TODO: Implement search
   };
+
+  const isAuthenticated = !!user;
+  const isAdmin = user?.role === 'admin';
 
   return (
     <>
@@ -85,67 +120,72 @@ export default function Header() {
                 </div>
               </form>
 
-              {isAuthenticated ? (
+              {loading ? (
+                <div className="w-8 h-8 rounded-full bg-white/20 animate-pulse" />
+              ) : isAuthenticated ? (
                 <>
-                  {/* Notifications */}
-                  <button 
-                    className="relative p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <Bell className="h-5 w-5 text-white" />
-                    <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-yellow-400 text-gray-900 text-[10px] font-bold flex items-center justify-center">
-                      0
-                    </span>
-                  </button>
-
                   {/* User Menu */}
                   <div className="relative user-menu-container">
                     <button 
                       onClick={() => setShowUserMenu(!showUserMenu)}
                       className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00b4d8] to-purple-600 flex items-center justify-center">
-                        <span className="text-white text-sm font-bold">
-                          {user?.name?.[0]?.toUpperCase() || 'U'}
-                        </span>
-                      </div>
+                      {user.image ? (
+                        <img
+                          src={user.image}
+                          alt={user.name}
+                          className="w-8 h-8 rounded-full border-2 border-white/20"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-white/30 to-white/10 flex items-center justify-center border-2 border-white/20">
+                          <span className="text-white text-sm font-bold">
+                            {user.name?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                      )}
                     </button>
 
                     {/* User Menu Dropdown */}
                     {showUserMenu && (
-                      <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-2xl z-[9999]">
-                        <div className="p-4 border-b border-gray-200">
-                          <div className="font-semibold text-gray-900">{user?.name || 'User'}</div>
-                          <div className="text-sm text-gray-500">{user?.email}</div>
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowUserMenu(false)}
+                        />
+                        <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-2xl z-50">
+                          <div className="p-4 border-b border-gray-200">
+                            <div className="font-semibold text-gray-900">{user.name}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
+                          <div className="p-2">
+                            <Link
+                              href="/einstellungen"
+                              onClick={() => setShowUserMenu(false)}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Settings className="h-4 w-4" />
+                              <span>Einstellungen</span>
+                            </Link>
+                            <button
+                              onClick={handleLogout}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-gray-50 rounded-lg transition-colors"
+                            >
+                              <LogOut className="h-4 w-4" />
+                              <span>Abmelden</span>
+                            </button>
+                          </div>
                         </div>
-                        <div className="p-2">
-                          <Link
-                            href="/settings"
-                            onClick={() => setShowUserMenu(false)}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Settings className="h-4 w-4" />
-                            <span>Einstellungen</span>
-                          </Link>
-                          <button
-                            onClick={() => setShowUserMenu(false)}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-gray-50 rounded-lg transition-colors"
-                          >
-                            <LogOut className="h-4 w-4" />
-                            <span>Abmelden</span>
-                          </button>
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </>
               ) : (
                 <button
-                  onClick={() => {/* TODO: Open auth modal */}}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  onClick={() => setShowAuthModal(true)}
+                  className="px-4 py-2 bg-white text-cyan-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
                 >
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <User className="h-5 w-5 text-white" />
-                  </div>
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">Anmelden</span>
                 </button>
               )}
             </div>
@@ -205,6 +245,15 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => {
+          setShowAuthModal(false);
+          checkAuth(); // Refresh auth state after login
+        }} 
+      />
     </>
   );
 }
