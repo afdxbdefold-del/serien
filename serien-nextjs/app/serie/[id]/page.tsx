@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${series.title} – News, Staffeln & Updates | serien.de`,
       description: series.overview || `Alle News, Trailer und Infos zu ${series.title}.`,
       type: 'website',
-      url: `https://serien.de/serie/${params.id}/`,
+      url: `https://serien.de/serie/${id}/`,
       images: (series.backdropLocalUrl || series.posterLocalUrl) ? [
         {
           url: series.backdropLocalUrl || series.posterLocalUrl || '',
