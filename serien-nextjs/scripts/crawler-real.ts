@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { searchTv, getTvDetails } from '../lib/tmdb';
+import { generateNaturalArticleHTML, validateArticleHTML } from '../lib/article-formatter';
 
 const prisma = new PrismaClient();
 
@@ -148,6 +149,25 @@ async function processArticleWithTMDB(article: CrawledArticle) {
 }
 
 // ECHTE CRAWLED DATA von CinemaHolic
+const RAW_CONTENT = `
+Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie Skeleton Crew verlängert, berichtet The Cinemaholic.
+Christopher Ford, Co-Creator der Show, kehrt als Head Writer zurück.
+Die Regisseure Daniel Scheinert, Daniel Kwan, David Lowery und Jake Schreier kehren für die neuen Episoden zurück.
+Die Dreharbeiten finden in Manhattan Beach, Kalifornien statt.
+Die Serie spielt nach den Ereignissen von Return of the Jedi im gleichen Zeitrahmen wie The Mandalorian.
+Im Staffel 1 Finale treffen Jod Na Nawood, Fern und Fara auf den mächtigen Supervisor.
+Der Supervisor ist ein riesiger Droide der das Volk von At Attin seit Jahren beschützt.
+Als Jod den Supervisor mit einem Lichtschwert zerstört wird der gesamte Planet schutzlos.
+KB, Neel, Wim und Wendle nutzen Hoverbikes um Fern zu helfen.
+Gemeinsam erkennen sie dass der einzige Weg At Attin zu retten darin besteht die Barriere zu zerstören.
+Als die Barriere fällt sieht das Volk von At Attin zum ersten Mal die Neue Republik.
+Dank KB die Hilfe von SM-33 und Kh'ymm erhielt treffen X-Wings der Neuen Republik ein.
+Jods Piraten fliehen in Angst und sein Schiff wird zerstört.
+Für Staffel 2 werden folgende Cast-Mitglieder erwartet: Ravi Cabot-Conyers als Wim, Robert Timothy Smith als Neel, Ryan Kiera Armstrong als Fern.
+Auch Kyriana Kratter als KB, Nick Frost als SM-33, Kerry Condon als Fara, Tunde Adebimpe als Wendle und Alia Shawkat als Kh'ymm kehren zurück.
+Jude Law könnte als Jod Na Nawood zurückkehren der auf Rache aus ist.
+`;
+
 const CRAWLED_DATA: CrawledArticle = {
   title: "Star Wars: Skeleton Crew bekommt Staffel 2 bei Disney+",
   url: "https://thecinemaholic.com/skeleton-crew-season-2/",
@@ -156,28 +176,39 @@ const CRAWLED_DATA: CrawledArticle = {
   publishDate: new Date('2026-02-12'),
   category: "Disney+",
   excerpt: "Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie 'Skeleton Crew' bestätigt. Dreharbeiten starten in Manhattan Beach, Kalifornien.",
-  content: `
-    <p>Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie "Skeleton Crew" verlängert, berichtet The Cinemaholic. Christopher Ford, Co-Creator der Show, kehrt als Head Writer zurück, zusammen mit den Regisseuren Daniel Scheinert & Daniel Kwan (die Daniels), David Lowery und Jake Schreier für die neuen Episoden.</p>
-    
-    <p>Die Dreharbeiten finden in Manhattan Beach, Kalifornien statt. Die Serie spielt nach den Ereignissen von "Return of the Jedi" im gleichen Zeitrahmen wie "The Mandalorian".</p>
-    
-    <p>Im Staffel 1 Finale (Episode 8 "The Real Good Guys") treffen Jod Na Nawood, Fern und Fara auf den mächtigen Supervisor - einen riesigen Droiden, der das Volk von At Attin seit Jahren beschützt. Als Jod den Supervisor mit einem Lichtschwert zerstört, wird der Planet schutzlos.</p>
-    
-    <p>KB, Neel, Wim und Wendle nutzen Hoverbikes um Fern zu helfen. Gemeinsam erkennen sie, dass der einzige Weg At Attin zu retten darin besteht, die Barriere zu zerstören und den Planeten der Galaxis zu offenbaren. Als die Neue Republik eintrifft, fliehen Jods Piraten und er wird besiegt.</p>
-    
-    <p>Für Staffel 2 werden folgende Cast-Mitglieder erwartet: Ravi Cabot-Conyers als Wim, Robert Timothy Smith als Neel, Ryan Kiera Armstrong als Fern, Kyriana Kratter als KB, Nick Frost als SM-33, Kerry Condon als Fara, Tunde Adebimpe als Wendle und Alia Shawkat als Kh'ymm. Jude Law könnte als Jod Na Nawood zurückkehren.</p>
-    
-    <p><strong>Quelle:</strong> The Cinemaholic</p>
-  `
+  content: "" // Will be generated with natural paragraphs
 };
 
 async function main() {
-  console.log('\n🕷️  Real Crawler Started - CinemaHolic\n');
+  console.log('\n🕷️  Real Crawler with Natural Paragraphs\n');
   console.log('=' .repeat(60));
 
-  // PLACEHOLDER - wird durch echte Crawl-Daten ersetzt
-  if (!CRAWLED_DATA.title) {
-    console.log('❌ No crawled data provided');
+  // Generate natural paragraph structure
+  console.log('📝 Generating natural paragraph structure...');
+  try {
+    const formattedContent = generateNaturalArticleHTML(
+      RAW_CONTENT,
+      CRAWLED_DATA.seriesName
+    );
+    
+    // Validate
+    const validation = validateArticleHTML(formattedContent);
+    if (!validation.valid) {
+      console.log('❌ Validation failed:');
+      validation.errors.forEach(e => console.log('  - ' + e));
+      process.exit(1);
+    }
+    
+    console.log('✅ Article structure validated');
+    console.log('  Paragraphs: Natural, scannable format');
+    console.log('  Lead: class="lead" applied');
+    console.log('  Max sentences per paragraph: 3');
+    
+    // Set the formatted content
+    CRAWLED_DATA.content = formattedContent;
+    
+  } catch (error: any) {
+    console.log('❌ Failed to generate article:', error.message);
     process.exit(1);
   }
 
@@ -185,15 +216,15 @@ async function main() {
     const result = await processArticleWithTMDB(CRAWLED_DATA);
     
     console.log('\n' + '='.repeat(60));
-    console.log('🎉 SUCCESS! Real article imported from CinemaHolic');
+    console.log('🎉 SUCCESS! Article with natural paragraphs imported');
     console.log('=' .repeat(60));
     console.log('\n📊 Results:');
     console.log('  Article:', result.article.title);
     console.log('  Slug:', result.article.slug);
+    console.log('  Structure: ✅ Natural paragraphs');
+    console.log('  Lead paragraph: ✅ Present');
     console.log('  Source:', result.article.sourceUrl);
     console.log('  Author:', CRAWLED_DATA.author);
-    console.log('  Series:', result.series.name);
-    console.log('  Confidence:', (result.confidence * 100).toFixed(1) + '%');
     
   } catch (error: any) {
     console.log('\n❌ FAILED:', error.message);
