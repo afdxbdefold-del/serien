@@ -1,14 +1,76 @@
 import { MetadataRoute } from 'next';
+import prisma from '@/lib/prisma';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien-de.vercel.app';
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = 'https://serien.de';
 
-  return [
+  // Fetch all published articles
+  const articles = await prisma.article.findMany({
+    where: { status: 'published' },
+    select: {
+      slug: true,
+      updatedAt: true,
+    },
+  });
+
+  // Fetch all series
+  const series = await prisma.series.findMany({
+    select: {
+      tmdbId: true,
+      slug: true,
+      updatedAt: true,
+    },
+  });
+
+  // Static pages
+  const staticPages = [
     {
       url: baseUrl,
       lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1
-    }
+      changeFrequency: 'daily' as const,
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/trending`,
+      lastModified: new Date(),
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/redaktion`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/impressum`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    },
   ];
+
+  // Article pages
+  const articlePages = articles.map((article) => ({
+    url: `${baseUrl}/artikel/${article.slug}`,
+    lastModified: article.updatedAt,
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  // Series pages
+  const seriesPages = series.map((show) => ({
+    url: `${baseUrl}/serie/${show.tmdbId}-${show.slug}`,
+    lastModified: show.updatedAt,
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
+
+  return [...staticPages, ...articlePages, ...seriesPages];
 }
