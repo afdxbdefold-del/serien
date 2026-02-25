@@ -94,22 +94,34 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-4 overflow-x-auto">
             {[
-              { id: 'dashboard', label: '📊 Dashboard' },
-              { id: 'articles', label: '📝 Articles' },
-              { id: 'users', label: '👥 Users' },
-              { id: 'crawler', label: '🕷️ Crawler' },
-            ].map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`py-4 px-3 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === id
-                    ? 'border-cyan-500 text-cyan-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {label}
-              </button>
+              { id: 'dashboard', label: '📊 Dashboard', href: null },
+              { id: 'discover', label: '🎯 Discover Analytics', href: '/admin/discover-analytics' },
+              { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
+              { id: 'articles', label: '📝 Articles', href: null },
+              { id: 'users', label: '👥 Users', href: null },
+              { id: 'crawler', label: '🕷️ Crawler', href: null },
+            ].map(({ id, label, href }) => (
+              href ? (
+                <Link
+                  key={id}
+                  href={href}
+                  className="py-4 px-3 border-b-2 border-transparent font-medium text-sm whitespace-nowrap text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                >
+                  {label}
+                </Link>
+              ) : (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`py-4 px-3 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === id
+                      ? 'border-cyan-500 text-cyan-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
             ))}
           </div>
         </div>
