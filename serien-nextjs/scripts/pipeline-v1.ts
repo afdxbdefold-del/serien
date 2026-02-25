@@ -188,7 +188,8 @@ export async function runContentPipeline(source: CrawledSource) {
         generatedContent = await generateGermanArticle(
           facts,
           resolution.primarySeries.name,
-          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+          allSeriesNames
         );
 
         // Rewrite again
@@ -311,7 +312,8 @@ export async function runContentPipeline(source: CrawledSource) {
       generatedContent = await generateGermanArticle(
         facts,
         resolution.primarySeries.name,
-        classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'
+        classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
+        allSeriesNames
       );
 
       editorialResult = await editorialRewrite({
