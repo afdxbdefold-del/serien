@@ -205,32 +205,37 @@ export default async function ArticlePage({ params }: PageProps) {
         </h1>
 
         {/* Meta Info */}
-        <div className="flex items-center gap-6 mb-8 pb-8 border-b">
-          {article.author && (
-            <div className="flex items-center gap-3">
-              {article.author.image ? (
-                <div className="relative w-12 h-12 rounded-full overflow-hidden">
-                  <Image
-                    src={article.author.image}
-                    alt={article.author.name || 'Author'}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                  {(article.author.name || 'A').charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div>
-                <p className="font-semibold text-gray-900">{article.author.name || 'Anonymous'}</p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Clock className="h-4 w-4" />
-                  <span>{getRelativeTime()}</span>
+        <div className="flex items-center justify-between gap-6 mb-8 pb-8 border-b">
+          <div className="flex items-center gap-6">
+            {article.author && (
+              <div className="flex items-center gap-3">
+                {article.author.image ? (
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                    <Image
+                      src={article.author.image}
+                      alt={article.author.name || 'Author'}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                    {(article.author.name || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-gray-900">{article.author.name || 'Anonymous'}</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Clock className="h-4 w-4" />
+                    <span>{getRelativeTime()}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          
+          {/* Share Button */}
+          <ShareButton title={article.title} />
         </div>
 
         {/* Excerpt/Lead */}
