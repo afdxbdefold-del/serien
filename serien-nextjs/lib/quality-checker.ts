@@ -119,20 +119,27 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
   const headlinePassed = scores.headline >= thresholds.HEADLINE_MIN;
   const contentPassed = scores.content >= thresholds.CONTENT_MIN;
   const structurePassed = scores.structure >= thresholds.STRUCTURE_MIN;
-  const MIN_CONTENT_SCORE = 70;
-  const MIN_STRUCTURE_SCORE = 65;
   
-  const passed = 
-    scores.headline >= MIN_HEADLINE_SCORE &&
-    scores.content >= MIN_CONTENT_SCORE &&
-    scores.structure >= MIN_STRUCTURE_SCORE &&
-    failReasons.length === 0;
+  // FAIL only if critical issues OR scores below threshold
+  const passed = headlinePassed && contentPassed && structurePassed && !hasParagraphWalls && !readerMatches;
+
+  if (!headlinePassed) {
+    failReasons.push(`Headline Score zu niedrig: ${scores.headline} (min: ${thresholds.HEADLINE_MIN})`);
+  }
+  if (!contentPassed) {
+    failReasons.push(`Content Score zu niedrig: ${scores.content} (min: ${thresholds.CONTENT_MIN})`);
+  }
+  if (!structurePassed) {
+    failReasons.push(`Structure Score zu niedrig: ${scores.structure} (min: ${thresholds.STRUCTURE_MIN})`);
+  }
 
   return {
     status: passed ? 'PASS' : 'FAIL',
     scores,
     failReasons,
     requiresFullRewrite,
+    articleType,
+    wordCount
   };
 }
 
