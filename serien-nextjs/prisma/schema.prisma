@@ -146,6 +146,7 @@ model Article {
   confidence    Float?
   sourceUrl     String?   @unique  // Track source URL
   publishMode   String    @default("DISCOVER") // "DISCOVER" | "SEARCH_ONLY" | "DRAFT"
+  wasBedeutetDasText String? // "Was bedeutet das?" Box (max 2 Sätze, max 35 Wörter)
   
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
