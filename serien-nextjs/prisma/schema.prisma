@@ -44,7 +44,6 @@ model Series {
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
   articles        Article[]
-  articlesNew     Article[] @relation("ArticleToSeries")
   follows         Follow[]
   @@map("series")
 }
@@ -72,7 +71,7 @@ model Article {
   category      String?
   tags          String[]
   tmdbSeriesId  Int?
-  seriesId      String?   // NEW: FK to Series.id
+  seriesId      String?   // Removed - use tmdbSeriesId instead
   authorId      String
   publishedAt   DateTime?
   updatedAt     DateTime  @updatedAt
@@ -80,10 +79,9 @@ model Article {
   status        String    @default("draft")
   readingTime   Int?
   confidence    Float?
-  sourceUrl     String?   @unique  // NEW: Track source URL
+  sourceUrl     String?   @unique  // Track source URL
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   series   Series?   @relation(fields: [tmdbSeriesId], references: [tmdbId], onDelete: SetNull)
-  seriesNew Series? @relation("ArticleToSeries", fields: [seriesId], references: [id], onDelete: SetNull)
   comments Comment[]
   @@index([slug])
   @@index([publishedAt])
