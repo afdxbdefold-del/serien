@@ -351,7 +351,6 @@ export async function runContentPipeline(source: CrawledSource) {
       const authorId = authors.length > 0 ? authors[0].id : 'system';
       const slug = generateSlug(articleTitle);
       const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
-      const now = new Date();
       
       const draftArticle = await prisma.article.create({
         data: {
