@@ -71,11 +71,19 @@ model Article {
   cardImageUrl     String?  // our proxied URL
   imageAttribution String   @default("TMDB")
   
+  // Content Classification
+  contentType   String?   // SINGLE_SERIES_NEWS | MULTI_SERIES_EDITORIAL
+  
+  // Primary Series (REQUIRED)
+  primarySeriesId Int
+  primarySeries   Series    @relation("PrimarySeries", fields: [primarySeriesId], references: [tmdbId], onDelete: Restrict)
+  
+  // Many-to-Many: Related Series (max 7)
+  articleSeries   ArticleSeries[]
+  
   streamer      String?
   category      String?
   tags          String[]
-  tmdbSeriesId  Int?
-  seriesId      String?   // Removed - use tmdbSeriesId instead
   authorId      String
   publishedAt   DateTime?
   sourcePublishedAt DateTime?  // Original source publication date (internal only)
@@ -85,13 +93,13 @@ model Article {
   readingTime   Int?
   confidence    Float?
   sourceUrl     String?   @unique  // Track source URL
+  
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  series   Series?   @relation(fields: [tmdbSeriesId], references: [tmdbId], onDelete: SetNull)
   comments Comment[]
+  
   @@index([slug])
   @@index([publishedAt])
-  @@index([seriesId])
-  @@index([tmdbId])
+  @@index([primarySeriesId])
   @@map("articles")
 }
 
