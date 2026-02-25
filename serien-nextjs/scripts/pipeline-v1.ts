@@ -198,26 +198,29 @@ export async function runContentPipeline(source: CrawledSource) {
           allSeriesNames
         );
 
-        // Rewrite again
-        editorialResult = await editorialRewrite({
-          generatedArticleHtml: generatedContent,
-          generatedHeadline: articleTitle,
-          extractedFacts: facts.key_statements.join('\n- '),
-          seriesName: resolution.primarySeries.name,
-          platform: resolution.primarySeries.networks?.[0] || 'Streaming',
-        });
+        // Rewrite again (skip for MULTI_SERIES_EDITORIAL)
+        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+          editorialResult = await editorialRewrite({
+            generatedArticleHtml: generatedContent,
+            generatedHeadline: articleTitle,
+            extractedFacts: facts.key_statements.join('\n- '),
+            seriesName: resolution.primarySeries.name,
+            platform: resolution.primarySeries.networks?.[0] || 'Streaming',
+          });
 
-        articleTitle = editorialResult.final_headline;
-        generatedContent = editorialResult.rewritten_article_html;
+          articleTitle = editorialResult.final_headline;
+          generatedContent = editorialResult.rewritten_article_html;
+        }
       } else {
         console.log('   → Headline + First 2 Paragraphs only');
         
-        // Just rewrite editorial (headline + first 2 paragraphs)
-        editorialResult = await editorialRewrite({
-          generatedArticleHtml: generatedContent,
-          generatedHeadline: articleTitle,
-          extractedFacts: facts.key_statements.join('\n- '),
-          seriesName: resolution.primarySeries.name,
+        // Just rewrite editorial (headline + first 2 paragraphs) - skip for MULTI_SERIES_EDITORIAL
+        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+          editorialResult = await editorialRewrite({
+            generatedArticleHtml: generatedContent,
+            generatedHeadline: articleTitle,
+            extractedFacts: facts.key_statements.join('\n- '),
+            seriesName: resolution.primarySeries.name,
           platform: resolution.primarySeries.networks?.[0] || 'Streaming',
         });
 
