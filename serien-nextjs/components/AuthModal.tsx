@@ -134,10 +134,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Registrierung fehlgeschlagen');
       }
 
-      console.log('✅ Registration successful with auto-login, redirecting...');
+      console.log('✅ Registration successful with auto-login, redirecting to onboarding...');
       // Registration now returns a token and sets cookie automatically
-      // Use full page reload to ensure Header re-mounts and checks auth
-      window.location.href = '/';
+      // Redirect to onboarding for new user setup
+      window.location.href = '/onboarding';
     } catch (err: any) {
       console.error('❌ Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
