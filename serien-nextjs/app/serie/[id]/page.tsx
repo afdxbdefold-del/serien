@@ -1,5 +1,4 @@
 import prisma from '@/lib/prisma';
-import Header from '@/components/Header';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Star, Calendar, Check, Plus } from 'lucide-react';
@@ -95,8 +94,6 @@ export default async function SeriesPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
-
       {/* Hero Section */}
       <div className="relative h-[280px] overflow-hidden">
         {/* Backdrop Image */}

@@ -1,5 +1,4 @@
 import prisma from '@/lib/prisma';
-import Header from '@/components/Header';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Clock, Share2 } from 'lucide-react';
@@ -114,8 +113,6 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
-
       <article className="container mx-auto px-6 md:px-12 py-8 max-w-4xl">
         {/* Back Button */}
         <Link 

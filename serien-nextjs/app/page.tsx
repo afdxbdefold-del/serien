@@ -1,5 +1,4 @@
 import prisma from '@/lib/prisma';
-import Header from '@/components/Header';
 import HomeClient from '@/components/HomeClient';
 import { Metadata } from 'next';
 
@@ -70,7 +69,6 @@ export default async function Page() {
 
   return (
     <>
-      <Header />
       <HomeClient 
         initialNews={articles} 
         initialSeries={series} 
