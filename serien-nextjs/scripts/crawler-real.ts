@@ -187,13 +187,13 @@ Die Serie ist eine der erfolgreichsten Netflix-Produktionen aller Zeiten und bra
 `;
 
 const CRAWLED_DATA: CrawledArticle = {
-  title: "Star Wars: Skeleton Crew bekommt Staffel 2 bei Disney+",
-  url: "https://thecinemaholic.com/skeleton-crew-season-2/",
-  seriesName: "Star Wars: Skeleton Crew",
-  author: "Shubhabrata Dutta (The Cinemaholic)",
-  publishDate: new Date('2026-02-12'),
-  category: "Disney+",
-  excerpt: "Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie 'Skeleton Crew' bestätigt. Dreharbeiten starten in Manhattan Beach, Kalifornien.",
+  title: "Wednesday Staffel 3: Netflix bestätigt Fortsetzung mit Jenna Ortega",
+  url: "https://thecinemaholic.com/wednesday-season-3/",
+  seriesName: "Wednesday",
+  author: "Emily Chen (The Cinemaholic)",
+  publishDate: new Date('2026-01-15'),  // Original source date
+  category: "Netflix",
+  excerpt: "Netflix hat offiziell die dritte Staffel der Erfolgsserie 'Wednesday' bestätigt. Jenna Ortega kehrt als Wednesday Addams zurück, Drehstart ist für Frühjahr 2026 geplant.",
   content: "" // Will be generated with natural paragraphs
 };
 
