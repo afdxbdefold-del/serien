@@ -450,7 +450,7 @@ async function main() {
   // Example: Single Series News - LIVE TEST MIT NEUER SERIE
   const testArticle: CrawledSource = {
     title: "Fallout Staffel 2: Amazon bestätigt Fortsetzung der Videospiel-Adaption",
-    url: "https://example.com/fallout-season-2-test-dashboard-2026",
+    url: "https://example.com/fallout-s2-discover-score-test-" + Date.now(),
     text: `Amazon Prime Video hat offiziell die zweite Staffel der erfolgreichen Fallout-Serie bestätigt. Die Videospiel-Adaption war einer der größten Hits des Jahres 2024. Ella Purnell und Walton Goggins kehren in ihren Hauptrollen zurück. Die Dreharbeiten zur zweiten Staffel beginnen im Sommer 2026. Jonathan Nolan und Lisa Joy bleiben als ausführende Produzenten an Bord.`
   };
 
