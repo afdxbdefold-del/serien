@@ -1,16 +1,6 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { Mail, BookOpen, Loader2 } from 'lucide-react';
+import { Mail, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-
-interface Author {
-  user_id: string;
-  name: string;
-  email: string;
-  article_count: number;
-  avatar_color: string;
-}
+import prisma from '@/lib/prisma';
 
 const gradientColors: Record<string, string> = {
   'from-rose-500 to-pink-600': 'linear-gradient(135deg, #f43f5e, #db2777)',
@@ -25,34 +15,26 @@ const gradientColors: Record<string, string> = {
   'from-sky-500 to-blue-600': 'linear-gradient(135deg, #0ea5e9, #2563eb)',
 };
 
-export default function RedaktionPage() {
-  const [authors, setAuthors] = useState<Author[]>([]);
-  const [loading, setLoading] = useState(true);
+function getRandomGradient() {
+  const keys = Object.keys(gradientColors);
+  return keys[Math.floor(Math.random() * keys.length)];
+}
 
-  useEffect(() => {
-    const fetchAuthors = async () => {
-      try {
-        const response = await fetch('/api/authors');
-        const data = await response.json();
-        setAuthors(data);
-      } catch (err) {
-        console.error('Failed to fetch authors:', err);
-      } finally {
-        setLoading(false);
+export default async function RedaktionPage() {
+  const authors = await prisma.user.findMany({
+    where: { role: 'author' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      _count: {
+        select: {
+          articles: true
+        }
       }
-    };
-    fetchAuthors();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-6 py-20 flex justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-        </div>
-      </div>
-    );
-  }
+    },
+    orderBy: { name: 'asc' }
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -78,12 +60,13 @@ export default function RedaktionPage() {
         {/* Authors Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {authors.map((author) => {
-            const gradient = gradientColors[author.avatar_color] || gradientColors['from-blue-500 to-cyan-600'];
+            const colorKey = getRandomGradient();
+            const gradient = gradientColors[colorKey];
             const initials = author.name.split(' ').map(n => n[0]).join('');
             
             return (
               <article 
-                key={author.user_id}
+                key={author.id}
                 className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
                 {/* Avatar Header */}
@@ -111,7 +94,7 @@ export default function RedaktionPage() {
                     <div className="flex items-center gap-2 text-gray-600">
                       <BookOpen className="w-4 h-4" />
                       <span className="text-sm font-medium">
-                        {author.article_count} {author.article_count === 1 ? 'Artikel' : 'Artikel'}
+                        {author._count.articles} {author._count.articles === 1 ? 'Artikel' : 'Artikel'}
                       </span>
                     </div>
                   </div>
