@@ -89,7 +89,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
       .toBuffer();
 
     // Return image with cache headers
-    return new Response(processedImage, {
+    return new Response(processedImage as any, {
       headers: {
         'Content-Type': 'image/webp',
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
