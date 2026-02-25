@@ -227,9 +227,9 @@ export async function runContentPipeline(source: CrawledSource) {
 async function main() {
   // Example: Single Series News - TEST MIT VOLLSTÄNDIGEN SERIES DETAILS
   const testArticle: CrawledSource = {
-    title: "Game of Thrones Spin-off: House of the Dragon wird um 2 weitere Staffeln verlängert",
-    url: "https://example.com/house-of-dragon-renewal-2026",
-    text: `HBO hat die Erfolgsserie House of the Dragon um zwei weitere Staffeln verlängert. Die Fantasy-Serie wird damit insgesamt vier Staffeln umfassen. Ryan Condal bleibt als Showrunner an Bord. Matt Smith und Emma D'Arcy werden in ihren Rollen zurückkehren. Die dritte Staffel soll 2027 erscheinen und die vierte Staffel wird voraussichtlich 2028 ausgestrahlt. George R.R. Martin ist weiterhin als ausführender Produzent beteiligt.`
+    title: "The Boys Staffel 5: Amazon bestätigt finale Staffel",
+    url: "https://example.com/the-boys-season-5-final",
+    text: `Amazon Prime Video hat die finale fünfte Staffel von The Boys offiziell bestätigt. Die Superhelden-Satire wird damit zu einem Abschluss gebracht. Eric Kripke kehrt als Showrunner zurück. Karl Urban, Jack Quaid und Antony Starr werden in ihren Hauptrollen zurückkehren. Die Dreharbeiten zur finalen Staffel beginnen im Frühjahr 2026.`
   };
 
   await runContentPipeline(testArticle);
