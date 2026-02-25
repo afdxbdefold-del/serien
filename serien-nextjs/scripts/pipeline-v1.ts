@@ -175,7 +175,9 @@ export async function runContentPipeline(source: CrawledSource) {
         status: 'PASS' as const,
         scores: { headline: 80, content: 80, structure: 80 },
         requiresFullRewrite: false,
-        failReasons: []
+        failReasons: [],
+        articleType: 'FULL_NEWS' as const,
+        wordCount: generatedContent.split(/\s+/).length
       };
     } else {
       var qualityResult = await qualityCheck({
