@@ -64,6 +64,7 @@ model Article {
   category      String?
   tags          String[]
   tmdbSeriesId  Int?
+  seriesId      String?   // NEW: FK to Series.id
   authorId      String
   publishedAt   DateTime?
   updatedAt     DateTime  @updatedAt
@@ -71,11 +72,15 @@ model Article {
   status        String    @default("draft")
   readingTime   Int?
   confidence    Float?
+  sourceUrl     String?   @unique  // NEW: Track source URL
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   series   Series?   @relation(fields: [tmdbSeriesId], references: [tmdbId], onDelete: SetNull)
+  seriesNew Series? @relation("ArticleToSeries", fields: [seriesId], references: [id], onDelete: SetNull)
   comments Comment[]
   @@index([slug])
   @@index([publishedAt])
+  @@index([seriesId])
+  @@index([tmdbId])
   @@map("articles")
 }
 
