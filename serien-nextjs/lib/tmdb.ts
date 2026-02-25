@@ -213,3 +213,101 @@ export function getTmdbImageUrl(
   if (!path) return null;
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
+
+/**
+ * Get COMPLETE TV series details including cast, crew, videos, keywords
+ * This is the MAXIMAL version for storing in database
+ */
+export async function getTvDetailsComplete(tmdbId: number, language: string = 'de-DE'): Promise<any> {
+  if (!TMDB_API_KEY) return null;
+
+  try {
+    // Get main details with append_to_response for everything
+    const url = `${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=${language}&append_to_response=credits,videos,keywords,external_ids`;
+    
+    const response = await fetch(url, {
+      next: { revalidate: 86400 } // Cache for 24h
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+
+    return {
+      // Basic Info
+      tmdbId: data.id,
+      name: data.name,
+      originalName: data.original_name,
+      overview: data.overview,
+      tagline: data.tagline || null,
+      type: data.type || null,
+      status: data.status,
+      inProduction: data.in_production,
+      
+      // Dates
+      firstAirDate: data.first_air_date || null,
+      lastAirDate: data.last_air_date || null,
+      
+      // Episodes & Seasons
+      numberOfSeasons: data.number_of_seasons,
+      numberOfEpisodes: data.number_of_episodes,
+      episodeRunTime: data.episode_run_time || [],
+      seasons: data.seasons || [],
+      
+      // Images
+      posterPath: data.poster_path,
+      backdropPath: data.backdrop_path,
+      
+      // Ratings
+      voteAverage: data.vote_average,
+      voteCount: data.vote_count,
+      popularity: data.popularity,
+      
+      // Language & Country
+      originalLanguage: data.original_language,
+      spokenLanguages: data.spoken_languages || [],
+      productionCountries: data.production_countries || [],
+      
+      // Genres & Networks
+      genres: data.genres || [],
+      networks: data.networks || [],
+      productionCompanies: data.production_companies || [],
+      
+      // Cast & Crew (Top 20 each)
+      cast: data.credits?.cast?.slice(0, 20).map((c: any) => ({
+        name: c.name,
+        character: c.character,
+        profile_path: c.profile_path,
+        order: c.order
+      })) || [],
+      
+      crew: data.credits?.crew?.slice(0, 20).map((c: any) => ({
+        name: c.name,
+        job: c.job,
+        department: c.department,
+        profile_path: c.profile_path
+      })) || [],
+      
+      // Videos (Trailers - YouTube only)
+      trailers: data.videos?.results
+        ?.filter((v: any) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'))
+        .slice(0, 5)
+        .map((v: any) => ({
+          key: v.key,  // YouTube ID
+          name: v.name,
+          type: v.type,
+          site: v.site
+        })) || [],
+      
+      // Keywords
+      keywords: data.keywords?.results?.map((k: any) => k.name) || [],
+      
+      // Full data for backup
+      tmdbData: data
+    };
+  } catch (error) {
+    console.error('Failed to fetch complete TV details:', error);
+    return null;
+  }
+}
+
