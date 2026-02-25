@@ -149,9 +149,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       console.log('🔐 Login response status:', loginResponse.status);
 
       if (loginResponse.ok) {
-        console.log('✅ Auto-login successful, reloading page...');
+        console.log('✅ Auto-login successful, redirecting...');
         onClose(); // Close modal
-        window.location.reload(); // Force reload to update auth state
+        // Use href instead of reload to ensure proper cookie handling
+        window.location.href = '/';
       } else {
         const loginError = await loginResponse.json();
         console.error('🔐 Auto-login failed:', loginError);
