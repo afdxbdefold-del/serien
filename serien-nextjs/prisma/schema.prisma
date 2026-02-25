@@ -47,6 +47,17 @@ model Article {
   contentHtml   String    @db.Text
   heroLocalUrl  String?
   heroVideoUrl  String?
+  
+  // TMDB Image Pipeline Fields
+  tmdbId        Int?
+  tmdbType      String    @default("tv") // "tv" | "movie"
+  tmdbBackdropPath String?
+  tmdbPosterPath   String?
+  heroImageUrl     String?  // our proxied URL
+  ogImageUrl       String?  // our proxied URL
+  cardImageUrl     String?  // our proxied URL
+  imageAttribution String   @default("TMDB")
+  
   streamer      String?
   category      String?
   tags          String[]
