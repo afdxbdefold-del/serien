@@ -147,16 +147,28 @@ async function processArticleWithTMDB(article: CrawledArticle) {
   });
 }
 
-// WIRD VON CRAWL-TOOL GEFÜLLT
-const CRAWLED_DATA = {
-  title: "",  // Wird gleich gefüllt
-  url: "",
-  content: "",
-  excerpt: "",
-  author: "",
-  publishDate: new Date(),
-  category: "",
-  seriesName: ""
+// ECHTE CRAWLED DATA von CinemaHolic
+const CRAWLED_DATA: CrawledArticle = {
+  title: "Star Wars: Skeleton Crew bekommt Staffel 2 bei Disney+",
+  url: "https://thecinemaholic.com/skeleton-crew-season-2/",
+  seriesName: "Star Wars: Skeleton Crew",
+  author: "Shubhabrata Dutta (The Cinemaholic)",
+  publishDate: new Date('2026-02-12'),
+  category: "Disney+",
+  excerpt: "Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie 'Skeleton Crew' bestätigt. Dreharbeiten starten in Manhattan Beach, Kalifornien.",
+  content: `
+    <p>Disney+ hat offiziell die zweite Staffel der Star Wars Spin-off Serie "Skeleton Crew" verlängert, berichtet The Cinemaholic. Christopher Ford, Co-Creator der Show, kehrt als Head Writer zurück, zusammen mit den Regisseuren Daniel Scheinert & Daniel Kwan (die Daniels), David Lowery und Jake Schreier für die neuen Episoden.</p>
+    
+    <p>Die Dreharbeiten finden in Manhattan Beach, Kalifornien statt. Die Serie spielt nach den Ereignissen von "Return of the Jedi" im gleichen Zeitrahmen wie "The Mandalorian".</p>
+    
+    <p>Im Staffel 1 Finale (Episode 8 "The Real Good Guys") treffen Jod Na Nawood, Fern und Fara auf den mächtigen Supervisor - einen riesigen Droiden, der das Volk von At Attin seit Jahren beschützt. Als Jod den Supervisor mit einem Lichtschwert zerstört, wird der Planet schutzlos.</p>
+    
+    <p>KB, Neel, Wim und Wendle nutzen Hoverbikes um Fern zu helfen. Gemeinsam erkennen sie, dass der einzige Weg At Attin zu retten darin besteht, die Barriere zu zerstören und den Planeten der Galaxis zu offenbaren. Als die Neue Republik eintrifft, fliehen Jods Piraten und er wird besiegt.</p>
+    
+    <p>Für Staffel 2 werden folgende Cast-Mitglieder erwartet: Ravi Cabot-Conyers als Wim, Robert Timothy Smith als Neel, Ryan Kiera Armstrong als Fern, Kyriana Kratter als KB, Nick Frost als SM-33, Kerry Condon als Fara, Tunde Adebimpe als Wendle und Alia Shawkat als Kh'ymm. Jude Law könnte als Jod Na Nawood zurückkehren.</p>
+    
+    <p><strong>Quelle:</strong> The Cinemaholic</p>
+  `
 };
 
 async function main() {
