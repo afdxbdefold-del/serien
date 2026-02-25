@@ -675,7 +675,20 @@ async function main() {
     text: `Amazon Prime Video hat offiziell die zweite Staffel der erfolgreichen Fallout-Serie bestätigt. Die Videospiel-Adaption war einer der größten Hits des Jahres 2024. Ella Purnell und Walton Goggins kehren in ihren Hauptrollen zurück. Die Dreharbeiten zur zweiten Staffel beginnen im Sommer 2026. Jonathan Nolan und Lisa Joy bleiben als ausführende Produzenten an Bord.`
   };
 
-  await runContentPipeline(testArticle);
+  const result = await runContentPipeline(testArticle);
+  
+  // Handle different result types
+  if ('skipped' in result && result.skipped) {
+    console.log(`\n⚠️  Pipeline Result: SKIPPED`);
+    console.log(`   Reason: ${result.reason}`);
+    if ('draft' in result && result.draft) {
+      console.log(`   Draft saved: ${result.draft.id}`);
+    }
+  } else if ('success' in result && result.success) {
+    console.log(`\n✅ Pipeline Result: SUCCESS`);
+    console.log(`   Article ID: ${result.article.id}`);
+    console.log(`   Article Slug: ${result.article.slug}`);
+  }
 }
 
 // Run if called directly
