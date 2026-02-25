@@ -611,9 +611,54 @@ export async function runContentPipeline(source: CrawledSource) {
     // Check if article is SHORT_NEWS (use qualityResult.articleType if available)
     const isShortNews = qualityResult.articleType === 'SHORT_NEWS';
     
+    // Check if Time Axis forces SEARCH_ONLY (not fresh news)
+    const isOldContent = timeAxisResult.contentAgeClass !== 'FRESH_NEWS';
+    
     let publishMode = 'DISCOVER';
 
-    if (isShortNews) {
+    if (isOldContent) {
+      // Old content always gets forcedPublishMode from Time Axis
+      console.log(`⏰ Time Axis: ${timeAxisResult.contentAgeClass} (${timeAxisResult.contentAgeDays} days)`);
+      console.log(`⚠️  OLD CONTENT → PUBLISH_MODE: ${forcedPublishMode}`);
+      publishMode = forcedPublishMode === 'SEARCH_ONLY' ? 'SEARCH_ONLY' : 'DISCOVER';
+      
+      if (publishMode === 'SEARCH_ONLY') {
+        // Skip Discover Gate for old content
+        var discoverResult = {
+          discover_eligible: false,
+          scores: { 
+            headline_quality: 0, 
+            freshness: 0, 
+            content_opening: 0, 
+            image_visual: 0, 
+            trust_clarity: 0, 
+            total: 0 
+          },
+          fail_reasons: [`Content age: ${timeAxisResult.contentAgeDays} days - too old for Discover`],
+          dashboard: {
+            headline: { score: 0, issues: [], strengths: [] },
+            content_opening: { score: 0, issues: [], strengths: [] },
+            freshness: { score: 0, issues: [], strengths: [] },
+            image_visual: { score: 0, issues: [], strengths: [] },
+            trust_clarity: { score: 0, issues: [], strengths: [] },
+            aggregation: {
+              primary_blockers: [`Content is ${timeAxisResult.contentAgeDays} days old`],
+              improvement_hints: ['Only fresh news (≤7 days) is eligible for Discover'],
+              final_verdict: `${timeAxisResult.contentAgeClass}: Automatisch SEARCH_ONLY`
+            }
+          }
+        };
+      } else {
+        // Even if allowed by time axis, still run discover gate
+        var discoverResult = await discoverGate({
+          final_headline: articleTitle,
+          article_html: generatedContent,
+          hero_image_metadata: heroImageMeta,
+          publishedAt: timeAxisResult.publishedAt,
+          primary_series: resolution.primarySeries.name,
+        });
+      }
+    } else if (isShortNews) {
       // SHORT_NEWS always gets SEARCH_ONLY (per policy)
       console.log(`📏 Article Type: SHORT_NEWS (${qualityResult.wordCount} words)`);
       console.log(`⚠️  SHORT_NEWS → PUBLISH_MODE: SEARCH_ONLY (policy)`);
