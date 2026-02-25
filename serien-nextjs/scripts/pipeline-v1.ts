@@ -426,35 +426,60 @@ export async function runContentPipeline(source: CrawledSource) {
       source: 'TMDB_BACKDROP' as const,
     };
 
-    const discoverResult = await discoverGate({
-      final_headline: articleTitle,
-      article_html: generatedContent,
-      hero_image_metadata: heroImageMeta,
-      publishedAt: new Date(), // NOW
-      primary_series: resolution.primarySeries.name,
-    });
-
-    console.log(`📊 Discover Scores (100-Punkte-System):`);
-    console.log(`   A) Headline Quality:  ${discoverResult.scores.headline_quality}/30`);
-    console.log(`   B) Freshness:         ${discoverResult.scores.freshness}/20`);
-    console.log(`   C) Content Opening:   ${discoverResult.scores.content_opening}/20`);
-    console.log(`   D) Image/Visual:      ${discoverResult.scores.image_visual}/15`);
-    console.log(`   E) Trust/Clarity:     ${discoverResult.scores.trust_clarity}/15`);
-    console.log(`   ─────────────────────────────`);
-    console.log(`   TOTAL:                ${discoverResult.scores.total}/100`);
-
-    // NO REWRITE in Discover Gate (already used rewrite quota)
-    let publishMode = 'DISCOVER';
+    // Check if article is SHORT_NEWS (use qualityResult.articleType if available)
+    const isShortNews = qualityResult.articleType === 'SHORT_NEWS';
     
-    if (discoverResult.discover_eligible) {
-      console.log(`✅ Discover Gate PASSED (≥65) → PUBLISH_MODE: DISCOVER`);
-      publishMode = 'DISCOVER';
-    } else {
-      console.log(`⚠️  Discover Gate FAILED (<65) → PUBLISH_MODE: SEARCH_ONLY`);
-      if (discoverResult.fail_reasons.length > 0) {
-        discoverResult.fail_reasons.forEach(reason => console.log(`   - ${reason}`));
-      }
+    let publishMode = 'DISCOVER';
+
+    if (isShortNews) {
+      // SHORT_NEWS always gets SEARCH_ONLY (per policy)
+      console.log(`📏 Article Type: SHORT_NEWS (${qualityResult.wordCount} words)`);
+      console.log(`⚠️  SHORT_NEWS → PUBLISH_MODE: SEARCH_ONLY (policy)`);
       publishMode = 'SEARCH_ONLY';
+      
+      // Skip Discover Gate for SHORT_NEWS
+      var discoverResult = {
+        discover_eligible: false,
+        scores: { headline_quality: 0, freshness: 0, content_opening: 0, image_visual: 0, trust_clarity: 0, total: 0 },
+        fail_reasons: ['SHORT_NEWS policy: always SEARCH_ONLY'],
+        dashboard: {
+          aggregation: {
+            primary_blockers: [],
+            improvement_hints: ['Für DISCOVER: Artikel auf 320+ Wörter erweitern']
+          }
+        }
+      };
+    } else {
+      // FULL_NEWS: Run Discover Gate
+      var discoverResult = await discoverGate({
+        final_headline: articleTitle,
+        article_html: generatedContent,
+        hero_image_metadata: heroImageMeta,
+        publishedAt: new Date(), // NOW
+        primary_series: resolution.primarySeries.name,
+      });
+
+      console.log(`📊 Discover Scores (100-Punkte-System):`);
+      console.log(`   A) Headline Quality:  ${discoverResult.scores.headline_quality}/30`);
+      console.log(`   B) Freshness:         ${discoverResult.scores.freshness}/20`);
+      console.log(`   C) Content Opening:   ${discoverResult.scores.content_opening}/20`);
+      console.log(`   D) Image/Visual:      ${discoverResult.scores.image_visual}/15`);
+      console.log(`   E) Trust/Clarity:     ${discoverResult.scores.trust_clarity}/15`);
+      console.log(`   ─────────────────────────────`);
+      console.log(`   TOTAL:                ${discoverResult.scores.total}/100`);
+
+      // NO REWRITE in Discover Gate (already used rewrite quota)
+      
+      if (discoverResult.discover_eligible) {
+        console.log(`✅ Discover Gate PASSED (≥65) → PUBLISH_MODE: DISCOVER`);
+        publishMode = 'DISCOVER';
+      } else {
+        console.log(`⚠️  Discover Gate FAILED (<65) → PUBLISH_MODE: SEARCH_ONLY`);
+        if (discoverResult.fail_reasons.length > 0) {
+          discoverResult.fail_reasons.forEach(reason => console.log(`   - ${reason}`));
+        }
+        publishMode = 'SEARCH_ONLY';
+      }
     }
 
     if (discoverResult.dashboard.aggregation.primary_blockers.length > 0) {
