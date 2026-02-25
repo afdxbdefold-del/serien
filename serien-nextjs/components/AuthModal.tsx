@@ -113,6 +113,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
+      console.log('📝 Starting registration...');
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,10 +125,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         credentials: 'include', // Important for cookies
       });
 
+      console.log('📝 Registration response status:', response.status);
+
       if (!response.ok) {
         const error = await response.json();
+        console.error('📝 Registration failed:', error);
         throw new Error(error.detail || 'Registrierung fehlgeschlagen');
       }
+
+      console.log('✅ Registration successful, attempting auto-login...');
 
       // Auto-login after registration
       const loginResponse = await fetch('/api/auth/login', {
@@ -140,11 +146,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         credentials: 'include',
       });
 
+      console.log('🔐 Login response status:', loginResponse.status);
+
       if (loginResponse.ok) {
+        console.log('✅ Auto-login successful, reloading page...');
         onClose(); // Close modal
         window.location.reload(); // Force reload to update auth state
+      } else {
+        const loginError = await loginResponse.json();
+        console.error('🔐 Auto-login failed:', loginError);
+        setError('Registrierung erfolgreich, aber automatischer Login fehlgeschlagen. Bitte melden Sie sich manuell an.');
       }
     } catch (err: any) {
+      console.error('❌ Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
     } finally {
       setLoading(false);
