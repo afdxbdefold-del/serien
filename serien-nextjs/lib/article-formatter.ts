@@ -88,8 +88,8 @@ export function generateNaturalArticleHTML(
   // Split into paragraphs
   const paragraphs = splitIntoNaturalParagraphs(rawContent);
 
-  if (paragraphs.length < 4) {
-    errors.push('Article must have at least 4 paragraphs');
+  if (paragraphs.length < 3) {
+    errors.push('Article must have at least 3 paragraphs');
   }
 
   // Extract lead paragraph (first one)
