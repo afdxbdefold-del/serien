@@ -25,7 +25,9 @@ export default function Header() {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include', // Important: Send cookies with request
+      });
       if (response.ok) {
         const data = await response.json();
         setUser(data);
