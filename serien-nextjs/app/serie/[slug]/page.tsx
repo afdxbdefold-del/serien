@@ -4,6 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Film, Star, Play } from 'lucide-react';
 import FollowButton from '@/components/FollowButton';
+import { SeriesStatusBox } from '@/components/SeriesStatusBox';
+import { SeriesHubArticles } from '@/components/SeriesHubArticles';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -134,6 +136,14 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
       {/* Content */}
       <main className="container mx-auto px-6 py-12 max-w-7xl">
+        {/* Series Status Box */}
+        <div className="mb-8">
+          <SeriesStatusBox 
+            seriesId={series.tmdbId.toString()} 
+            seriesName={series.name || ''} 
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Main Column */}
           <div className="lg:col-span-2 space-y-12">
@@ -226,6 +236,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 </div>
               </section>
             )}
+
+            {/* Recent Articles - Using SeriesHubArticles component */}
+            <section>
+              <SeriesHubArticles seriesId={series.tmdbId.toString()} limit={7} />
+            </section>
           </div>
 
           {/* Sidebar */}
