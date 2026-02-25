@@ -74,6 +74,7 @@ model Article {
   seriesId      String?   // Removed - use tmdbSeriesId instead
   authorId      String
   publishedAt   DateTime?
+  sourcePublishedAt DateTime?  // Original source publication date (internal only)
   updatedAt     DateTime  @updatedAt
   createdAt     DateTime  @default(now())
   status        String    @default("draft")
