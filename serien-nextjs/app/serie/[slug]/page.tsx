@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Film, Star, Play } from 'lucide-react';
+import FollowButton from '@/components/FollowButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
