@@ -4,10 +4,10 @@ import sharp from 'sharp';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     type: string;
     id: string;
-  };
+  }>;
 }
 
 async function fetchTMDBImage(path: string, size: string = 'original'): Promise<Buffer | null> {
