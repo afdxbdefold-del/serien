@@ -1,7 +1,8 @@
 /**
  * EMERGENT_QUALITY_CHECK
  * 
- * Stellt serienjunkies.de Editorial-Qualität sicher vor Veröffentlichung
+ * Neue Scoring-Logik: HEADLINE, CONTENT, STRUCTURE
+ * Min Scores: 70/70/65
  */
 
 const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
@@ -11,22 +12,20 @@ interface QualityCheckInput {
   finalHeadline: string;
   primarySeriesName: string;
   platform?: string;
-  extractedFacts?: string; // For factuality check
+  extractedFacts?: string;
 }
 
 interface QualityScores {
-  style: number; // 0-10
-  clarity: number; // 0-10
-  readability: number; // 0-10
-  trustworthiness: number; // 0-10
-  total: number;
+  headline: number; // 0-100
+  content: number; // 0-100
+  structure: number; // 0-100
 }
 
 interface QualityCheckResult {
   status: 'PASS' | 'FAIL';
   scores: QualityScores;
   failReasons: string[];
-  autoRewriteRecommended: boolean;
+  requiresFullRewrite: boolean; // If body has issues, allow full rewrite
 }
 
 const HYPE_WORDS = [
