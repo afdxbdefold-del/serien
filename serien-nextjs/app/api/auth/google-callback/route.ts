@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       where: { email },
     });
 
+    let isNewUser = false;
+
     if (!user) {
       // Create new user from Google OAuth
       user = await prisma.user.create({
@@ -54,8 +56,10 @@ export async function POST(request: NextRequest) {
           image: picture,
           role: 'user',
           password: null, // OAuth users don't have passwords
+          onboardingCompleted: false, // New users need onboarding
         },
       });
+      isNewUser = true;
     } else {
       // Update existing user's image if changed
       if (picture && user.image !== picture) {
@@ -72,13 +76,14 @@ export async function POST(request: NextRequest) {
       .setExpirationTime('7d')
       .sign(getJWTSecret());
 
-    // Create response
+    // Create response with redirect info for new users
     const res = NextResponse.json({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       image: user.image,
+      isNewUser, // Frontend will use this to redirect to onboarding
     });
 
     // Set cookie
