@@ -48,7 +48,7 @@ class ChatRequest(BaseModel):
     max_tokens: Optional[int] = 1500
 
 class ChatResponse(BaseModel):
-    content: str
+    choices: List[Dict]
     model: str
     usage: Optional[Dict] = None
 
@@ -100,10 +100,20 @@ async def chat_completion(request: ChatRequest):
         
         response_text = await chat.send_message(user_msg)
         
+        # OpenAI-compatible format
         return ChatResponse(
-            content=response_text,
+            choices=[
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": response_text
+                    },
+                    "index": 0,
+                    "finish_reason": "stop"
+                }
+            ],
             model=request.model,
-            usage={"total_tokens": 0}  # emergentintegrations doesn't return usage
+            usage={"total_tokens": 0}
         )
         
     except Exception as e:
