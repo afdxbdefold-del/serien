@@ -282,6 +282,13 @@ export async function runContentPipeline(source: CrawledSource) {
       publishMode = 'SEARCH_ONLY';
     }
 
+    console.log(`\n📊 Dashboard Metrics:`);
+    console.log(`   Discover Score: ${(discoverResult.dashboard.aggregation.discover_score * 100).toFixed(1)}%`);
+    console.log(`   Verdicts: H=${discoverResult.dashboard.headline.verdict} C=${discoverResult.dashboard.content.verdict} F=${discoverResult.dashboard.freshness.verdict} I=${discoverResult.dashboard.images.verdict} T=${discoverResult.dashboard.trust.verdict}`);
+    if (discoverResult.dashboard.aggregation.primary_blockers.length > 0) {
+      console.log(`   Blockers: ${discoverResult.dashboard.aggregation.primary_blockers.join('; ')}`);
+    }
+
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 8: PUBLISH');
