@@ -77,8 +77,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         throw new Error(error.detail || 'Anmeldung fehlgeschlagen');
       }
 
-      onClose(); // Close modal on success
-      // Force a hard reload to ensure cookies are properly loaded
+      // Don't call onClose() - just redirect and let page reload handle state
       window.location.replace('/');
     } catch (err: any) {
       setError(err.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
