@@ -2,11 +2,12 @@ import { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import prisma from './prisma';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not set');
+function getJWTSecret() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return new TextEncoder().encode(process.env.JWT_SECRET);
 }
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function getCurrentUser(request: NextRequest) {
   try {
