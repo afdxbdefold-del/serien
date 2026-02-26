@@ -99,9 +99,14 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
         )}
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-2">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            {/* Series Title */}
+            <h3 className="text-base font-bold text-gray-900">
+              {seriesName}
+            </h3>
+
             {/* Follow Button */}
-            <div className="flex-shrink-0 ml-auto">
+            <div className="flex-shrink-0">
               <FollowButtonLocal 
                 tmdbId={seriesId}
                 seriesName={seriesName}
