@@ -123,7 +123,8 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
   const structurePassed = scores.structure >= thresholds.STRUCTURE_MIN;
   
   // FAIL only if critical issues OR scores below threshold
-  const passed = headlinePassed && contentPassed && structurePassed && !hasParagraphWalls && !readerMatches;
+  const excessiveReaderAddress = readerMatches && readerMatches.length > 3;
+  const passed = headlinePassed && contentPassed && structurePassed && !hasParagraphWalls && !excessiveReaderAddress;
 
   if (!headlinePassed) {
     failReasons.push(`Headline Score zu niedrig: ${scores.headline} (min: ${thresholds.HEADLINE_MIN})`);
