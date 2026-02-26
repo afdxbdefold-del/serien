@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import CommentsSection from '@/components/CommentsSection';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import { WasBedeutetDasBox } from '@/components/WasBedeutetDasBox';
