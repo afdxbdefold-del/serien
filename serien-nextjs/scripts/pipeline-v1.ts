@@ -20,6 +20,7 @@ import { generateInternalLinks, validateInternalLinks } from '../lib/internal-li
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
+import { translateHeadlineOnly } from '../lib/headline-translator'; // NEW: TRANSLATE_ONLY policy
 
 
 const prisma = new PrismaClient();
@@ -220,16 +221,33 @@ export async function runContentPipeline(source: CrawledSource) {
       }
     }
 
-    // ========== STEP 5: EDITORIAL REWRITE ==========
+    // ========== STEP 5: HEADLINE TRANSLATION / EDITORIAL REWRITE ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 5: EDITORIAL REWRITE (Headline + First 2 Paragraphs)');
+    console.log('STEP 5: HEADLINE & CONTENT OPTIMIZATION');
     console.log('━'.repeat(70));
 
-    // Skip Editorial Rewrite for MULTI_SERIES_EDITORIAL and FULL_ARTICLE
-    if (classification.content_type === 'MULTI_SERIES_EDITORIAL' || isFullArticleMode) {
-      console.log(`⊘  Skipped for ${isFullArticleMode ? 'FULL_ARTICLE' : 'MULTI_SERIES_EDITORIAL'} (content already optimized)`);
+    // NEW POLICY: For FULL_ARTICLE, only translate headline (TRANSLATE_ONLY)
+    // For standard news, use full editorial rewrite
+    if (isFullArticleMode) {
+      console.log('📰 FULL_ARTICLE mode: Using TRANSLATE_ONLY headline policy');
+      
+      // Simple translation, no creative rewrite
+      const translatedHeadline = await translateHeadlineOnly(
+        source.title,
+        resolution.primarySeries.name
+      );
+      
+      articleTitle = translatedHeadline;
+      console.log(`✅ Headline translated: "${articleTitle}"`);
+      console.log(`   Original: "${source.title}"`);
+      console.log(`   ⊘  No editorial rewrite (TRANSLATE_ONLY policy)`);
+      
+    } else if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
+      console.log('⊘  Skipped for MULTI_SERIES_EDITORIAL (content already optimized)');
       // Keep original AI-generated headline and content
     } else {
+      console.log('✏️  Standard news: Using full editorial rewrite');
+      
       let editorialResult = await editorialRewrite({
         generatedArticleHtml: generatedContent,
         generatedHeadline: articleTitle,
