@@ -78,8 +78,8 @@ export default function Header() {
                 <Link href="/" className="text-white text-sm font-semibold hover:text-white/80 transition-colors">
                   NEWS
                 </Link>
-                <Link href="/trending" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
-                  TRENDING
+                <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
+                  SERIENFINDER
                 </Link>
                 <Link href="/redaktion" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   REDAKTION
@@ -207,11 +207,11 @@ export default function Header() {
                 NEWS
               </Link>
               <Link 
-                href="/trending" 
+                href="/serienfinder" 
                 className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
-                TRENDING
+                SERIENFINDER
               </Link>
               <Link 
                 href="/redaktion" 
