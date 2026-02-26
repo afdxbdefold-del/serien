@@ -35,22 +35,22 @@ export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'defau
     return (
       <button
         onClick={handleClick}
-        className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
+        className={`flex items-center gap-1 text-sm font-semibold uppercase transition-colors ${
           following
-            ? 'bg-white/20 text-white hover:bg-white/30'
-            : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+            ? 'text-gray-900 hover:text-gray-700'
+            : 'text-gray-700 hover:text-gray-900'
         }`}
       >
         {following ? (
-          <span className="flex items-center gap-1.5">
+          <>
             <Check className="h-3.5 w-3.5" />
-            FOLGE ICH
-          </span>
+            Folge ich
+          </>
         ) : (
-          <span className="flex items-center gap-1.5">
+          <>
             <Plus className="h-3.5 w-3.5" />
-            FOLGEN
-          </span>
+            Folgen
+          </>
         )}
       </button>
     );
