@@ -358,7 +358,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               <h4 className="font-semibold mb-4">Navigation</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li><Link href="/" className="hover:text-gray-900 transition-colors">News</Link></li>
-                <li><Link href="/trending" className="hover:text-gray-900 transition-colors">Trending</Link></li>
+                <li><Link href="/serienfinder" className="hover:text-gray-900 transition-colors">Serienfinder</Link></li>
                 <li><Link href="/redaktion" className="hover:text-gray-900 transition-colors">Redaktion</Link></li>
                 <li><Link href="/about" className="hover:text-gray-900 transition-colors">Über uns</Link></li>
               </ul>
