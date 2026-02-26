@@ -452,6 +452,32 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
+    // Special handling for YouTube: Try RapidAPI first (more reliable)
+    if (source === 'YouTube') {
+      console.log('   🚀 Attempting YouTube download via RapidAPI...');
+      const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
+      
+      if (rapidResult.success) {
+        console.log('   ✅ RapidAPI download successful!');
+        // Continue to upload to cloud storage below
+      } else {
+        console.log(`   ⚠️  RapidAPI failed: ${rapidResult.error}`);
+        console.log('   🔄 Falling back to yt-dlp...');
+        
+        // Fallback to yt-dlp
+        const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
+        if (!ytdlpResult.success) {
+          throw new Error(ytdlpResult.error || 'yt-dlp download failed');
+        }
+      }
+    } else {
+      // For non-YouTube sources, use yt-dlp directly
+      const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
+      if (!ytdlpResult.success) {
+        throw new Error(ytdlpResult.error || 'Download failed');
+      }
+    }
+
     // yt-dlp command with optimized settings for each source
     const ytdlpArgs = [
       'yt-dlp',
