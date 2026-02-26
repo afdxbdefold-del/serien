@@ -86,9 +86,9 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
             className="flex-shrink-0 group"
           >
             <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-md transition-transform group-hover:scale-105 bg-gradient-to-br from-gray-100 to-gray-200">
-              {posterUrl ? (
+              {posterImage ? (
                 <Image
-                  src={posterUrl}
+                  src={posterImage}
                   alt={seriesName}
                   fill
                   className="object-cover"
