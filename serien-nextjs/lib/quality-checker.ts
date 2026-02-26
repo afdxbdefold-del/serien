@@ -95,14 +95,16 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
     }
   });
 
-  // Check for reader address (only hard fail for FULL_NEWS)
+  // Check for reader address (now only warning with score penalty)
   const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
   const readerMatches = plainText.match(readerAddressPatterns);
-  if (readerMatches && readerMatches.length > 3) { // Only fail if excessive (>3 occurrences)
-    failReasons.push(`Leser-Ansprache zu häufig: ${readerMatches.length}x (max: 3)`);
-    if (articleType === 'FULL_NEWS') {
-      requiresFullRewrite = true; // Only hard fail for FULL_NEWS
-    }
+  let scorePenalty = 0;
+  
+  if (readerMatches && readerMatches.length > 0) {
+    // Warning with score penalty (5 points per occurrence, max 15)
+    scorePenalty = Math.min(readerMatches.length * 5, 15);
+    failReasons.push(`⚠️ Leser-Ansprache: ${readerMatches.length}x gefunden (Penalty: -${scorePenalty} Punkte)`);
+    // NO hard fail - only penalty on scores
   }
 
   // === SOFT CHECKS (Only warnings for SHORT_NEWS) ===
