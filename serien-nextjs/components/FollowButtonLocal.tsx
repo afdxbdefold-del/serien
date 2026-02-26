@@ -12,10 +12,12 @@ interface FollowButtonLocalProps {
 
 export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'default' }: FollowButtonLocalProps) {
   const [following, setFollowing] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Check initial status
     setFollowing(isFollowing(tmdbId));
+    setMounted(true);
 
     // Listen for changes from other components
     const unsubscribe = onFollowsChanged(() => {
