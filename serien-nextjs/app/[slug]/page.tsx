@@ -277,48 +277,8 @@ export default async function ArticlePage({ params }: PageProps) {
         <aside aria-labelledby="related-content">
           <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
 
-          {/* Related Series */}
-          {article.primarySeries && (
-            <section className="mb-12" aria-labelledby="related-series">
-              <h3 id="related-series" className="text-xl font-bold text-gray-900 mb-4">
-                Mehr zur Serie
-              </h3>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-              <Link 
-                href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
-                className="flex items-stretch gap-0 group"
-              >
-                {(article.primarySeries.posterLocalUrl || article.primarySeries.posterPath) && (
-                  <div className="relative w-32 flex-shrink-0">
-                    <Image
-                      src={article.primarySeries.posterLocalUrl || `https://image.tmdb.org/t/p/w300${article.primarySeries.posterPath}`}
-                      alt={article.primarySeries.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                <div className="flex-1 p-6 flex flex-col justify-center">
-                  <div className="text-sm font-semibold text-blue-600 mb-2 uppercase tracking-wide">
-                    Zur Serie
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                    {article.primarySeries.title}
-                  </p>
-                  <div className="flex items-center text-gray-600 group-hover:text-blue-600 transition-colors">
-                    <span className="text-sm font-medium">Mehr erfahren</span>
-                    <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </section>
-        )}
-
-        {/* Where to Stream Box */}
-        {article.primarySeriesId && article.primarySeries && (
+          {/* Where to Stream Box */}
+          {article.primarySeriesId && article.primarySeries && (
           <WhereToStreamBox
             seriesId={article.primarySeriesId}
             seriesName={article.primarySeries.title || article.primarySeries.name || ''}
