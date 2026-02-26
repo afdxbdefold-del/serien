@@ -13,3 +13,6 @@ next-env.d.ts
 *.mp4
 *.webm
 *.mov
+/app/serien-nextjs/cookies/
+*.txt
+!cookies/README.md
