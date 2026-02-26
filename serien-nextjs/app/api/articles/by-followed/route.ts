@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     // Get articles for the followed series
     const articles = await prisma.article.findMany({
       where: {
-        status: 'PUBLISHED',
+        status: 'published',
         primarySeriesId: {
           in: tmdbIds,
         },
@@ -26,8 +26,12 @@ export async function POST(request: Request) {
         title: true,
         excerpt: true,
         slug: true,
-        heroImage: true,
+        heroLocalUrl: true,
+        cardImageUrl: true,
         publishedAt: true,
+        category: true,
+        tmdbId: true,
+        tmdbType: true,
         primarySeriesId: true,
         primarySeries: {
           select: {
@@ -35,6 +39,12 @@ export async function POST(request: Request) {
             name: true,
             title: true,
             posterLocalUrl: true,
+            networks: true,
+          },
+        },
+        author: {
+          select: {
+            name: true,
           },
         },
       },
