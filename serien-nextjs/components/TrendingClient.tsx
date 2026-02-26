@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { TrendingUp, Filter, X } from 'lucide-react';
+import { Sparkles, Filter, X } from 'lucide-react';
 
 interface Series {
   tmdbId: number;
@@ -146,7 +146,7 @@ export default function TrendingClient({ series }: TrendingClientProps) {
           {/* Hero Section */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <TrendingUp className="h-8 w-8 text-cyan-500" />
+              <Sparkles className="h-8 w-8 text-cyan-500" />
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
                 Serienfinder
               </h1>
