@@ -207,9 +207,9 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 5: EDITORIAL REWRITE (Headline + First 2 Paragraphs)');
     console.log('━'.repeat(70));
 
-    // Skip Editorial Rewrite for MULTI_SERIES_EDITORIAL (already optimized)
-    if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
-      console.log('⊘  Skipped for MULTI_SERIES_EDITORIAL (content already formatted)');
+    // Skip Editorial Rewrite for MULTI_SERIES_EDITORIAL and FULL_ARTICLE
+    if (classification.content_type === 'MULTI_SERIES_EDITORIAL' || actualContentType === 'FULL_ARTICLE') {
+      console.log(`⊘  Skipped for ${actualContentType === 'FULL_ARTICLE' ? 'FULL_ARTICLE' : 'MULTI_SERIES_EDITORIAL'} (content already optimized)`);
       // Keep original AI-generated headline and content
     } else {
       let editorialResult = await editorialRewrite({
