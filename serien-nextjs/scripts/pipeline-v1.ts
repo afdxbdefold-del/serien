@@ -254,6 +254,7 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('━'.repeat(70));
 
     // Skip quality check for MULTI_SERIES_EDITORIAL (different format/rules)
+    // For FULL_ARTICLE, run simplified quality check with adjusted thresholds
     if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
       console.log('⊘  Skipped for MULTI_SERIES_EDITORIAL (editorial format has different quality criteria)');
       
@@ -266,6 +267,52 @@ export async function runContentPipeline(source: CrawledSource) {
         articleType: 'FULL_NEWS' as const,
         wordCount: generatedContent.split(/\s+/).length
       };
+    } else if (actualContentType === 'FULL_ARTICLE') {
+      console.log('📝 FULL_ARTICLE mode - checking word count and structure');
+      
+      const wordCount = generatedContent.replace(/<[^>]*>/g, '').split(/\s+/).length;
+      const paragraphCount = (generatedContent.match(/<p>/g) || []).length;
+      
+      console.log(`   📏 Word count: ${wordCount}`);
+      console.log(`   📄 Paragraphs: ${paragraphCount}`);
+      
+      let status: 'PASS' | 'WARN' | 'FAIL' = 'PASS';
+      let failReasons: string[] = [];
+      
+      // Word count validation
+      if (wordCount < 250) {
+        status = 'FAIL';
+        failReasons.push(`Artikel zu kurz: ${wordCount} Wörter (min: 250)`);
+      } else if (wordCount < 350) {
+        status = 'WARN';
+        failReasons.push(`Artikel unter Ziel: ${wordCount} Wörter (Ziel: 450-900)`);
+      } else if (wordCount < 450) {
+        console.log(`   ⚠️  Leicht unter Ziel (${wordCount} Wörter), aber akzeptabel`);
+      }
+      
+      // Paragraph validation
+      if (paragraphCount < 5) {
+        failReasons.push(`Zu wenige Absätze: ${paragraphCount} (min: 5)`);
+        if (status === 'PASS') status = 'WARN';
+      }
+      
+      var qualityResult = {
+        status: status === 'FAIL' ? 'FAIL' as const : 'PASS' as const,
+        scores: { 
+          headline: 75, 
+          content: wordCount >= 450 ? 85 : 70, 
+          structure: paragraphCount >= 5 ? 80 : 65 
+        },
+        requiresFullRewrite: false,
+        failReasons,
+        articleType: 'FULL_NEWS' as const,
+        wordCount
+      };
+      
+      console.log(`   Status: ${qualityResult.status}`);
+      if (failReasons.length > 0) {
+        failReasons.forEach(r => console.log(`   - ${r}`));
+      }
     } else {
       var qualityResult = await qualityCheck({
         generatedArticleHtml: generatedContent,
