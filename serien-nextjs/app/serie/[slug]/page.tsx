@@ -70,49 +70,49 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       {/* Series Info Section */}
       <div className="container mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-xl p-6 md:p-8 max-w-5xl">
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex gap-4 md:gap-6">
             {/* Poster */}
             {series.posterPath && (
               <div className="flex-shrink-0">
                 <Image
                   src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
                   alt={series.name || ''}
-                  width={150}
-                  height={225}
-                  className="rounded-lg shadow-lg"
+                  width={120}
+                  height={180}
+                  className="rounded-lg shadow-lg w-[100px] md:w-[150px] h-auto"
                 />
               </div>
             )}
             
             {/* Title & Meta */}
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2 md:mb-3">
                 {series.name}
               </h1>
               
               {/* Meta Pills */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-3 md:mb-4">
                 {series.voteAverage && (
-                  <div className="flex items-center gap-1.5 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200">
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-semibold text-gray-900">{series.voteAverage.toFixed(1)}</span>
+                  <div className="flex items-center gap-1 md:gap-1.5 bg-yellow-50 px-2 md:px-3 py-1 md:py-1.5 rounded-full border border-yellow-200">
+                    <Star className="h-3 md:h-4 w-3 md:w-4 text-yellow-500 fill-yellow-500" />
+                    <span className="font-semibold text-gray-900 text-sm md:text-base">{series.voteAverage.toFixed(1)}</span>
                   </div>
                 )}
                 
                 {series.firstAirDate && (
-                  <div className="bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
+                  <div className="bg-gray-100 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium text-gray-700">
                     {new Date(series.firstAirDate).getFullYear()}
                   </div>
                 )}
                 
                 {series.numberOfSeasons && (
-                  <div className="bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
-                    {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
+                  <div className="bg-gray-100 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium text-gray-700">
+                    {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'S' : 'S'}
                   </div>
                 )}
                 
                 {series.status && (
-                  <div className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                  <div className={`px-2 md:px-3 py-1 md:py-1.5 rounded-full text-xs md:text-sm font-medium ${
                     series.status === 'Returning Series' || series.status === 'Running'
                       ? 'bg-green-50 text-green-700 border border-green-200'
                       : 'bg-gray-100 text-gray-700 border border-gray-200'
@@ -125,7 +125,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               
               {/* Overview */}
               {series.overview && (
-                <p className="text-gray-700 leading-relaxed mb-4">
+                <p className="text-gray-700 leading-relaxed mb-3 md:mb-4 text-sm md:text-base line-clamp-3 md:line-clamp-none">
                   {series.overview}
                 </p>
               )}
