@@ -155,40 +155,22 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section - nur für nicht-eingeloggte User */}
+      {/* Hero Section - Clean style like Feed buttons */}
       {!isAuthenticated && (
-        <div className="relative overflow-hidden">
-          {/* Background Image - Random on reload */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: `url('${currentBg}')`
-            }}
-          />
-          
-          {/* Gradient Overlay - like TMDB */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/95 via-blue-500/90 to-blue-600/85" />
-          
-          {/* Pattern Overlay */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute inset-0" style={{
-              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-            }} />
-          </div>
-
-          <div className="container mx-auto px-6 md:px-12 py-10 md:py-14 relative z-10">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
+        <div className="py-10 md:py-14">
+          <div className="container mx-auto px-6 md:px-12">
+            <div className="max-w-3xl mx-auto text-center bg-gray-50 rounded-3xl p-8 md:p-12">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
                 Folge deinen Lieblingsserien
               </h1>
-              <p className="text-lg md:text-xl text-white/95 mb-6">
+              <p className="text-lg md:text-xl text-gray-700 mb-6">
                 um personalisierte News und Updates zu erhalten.
               </p>
 
               {/* Serien entdecken Button */}
               <Link 
                 href="/trending"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-white text-cyan-600 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
+                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
