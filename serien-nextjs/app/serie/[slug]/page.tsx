@@ -116,6 +116,82 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 </div>
               </div>
             </div>
+
+            {/* Mobile: Additional Info Sections */}
+            <div className="mt-6 space-y-6">
+              {/* Genres */}
+              {series.genres && series.genres.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Genres</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {series.genres.map((genre) => (
+                      <span key={genre} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Networks */}
+              {series.networks && series.networks.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Sender/Plattform</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {series.networks.map((network) => (
+                      <span key={network} className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                        {network}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cast */}
+              {cast.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">🎭 Cast</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {cast.slice(0, 6).map((actor) => (
+                      <div key={actor.id} className="text-center">
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 mb-2">
+                          {actor.profile_path ? (
+                            <Image
+                              src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                              alt={actor.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <Tv className="h-8 w-8" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs font-medium text-gray-900 line-clamp-1">{actor.name}</div>
+                        <div className="text-xs text-gray-500 line-clamp-1">{actor.character}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trailer */}
+              {trailers.length > 0 && trailers[0].key && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">🎬 Weiterer Trailer</h3>
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${trailers[0].key}`}
+                      title="Series Trailer"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
