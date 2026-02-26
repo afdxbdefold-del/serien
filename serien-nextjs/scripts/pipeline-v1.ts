@@ -1069,6 +1069,7 @@ export async function runContentPipeline(source: CrawledSource) {
           primarySeriesId: resolution.primarySeries.tmdbId,
           publishMode,
           wasBedeutetDasText,
+          trailerLocalUrl: trailerLocalPath, // NEW: Trailer video path
           ...imageData,
         },
       });
