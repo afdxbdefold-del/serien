@@ -18,45 +18,49 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
     return null;
   }
 
-  // Map network names to their URLs (if available)
-  const getNetworkUrl = (network: string): string | null => {
-    const networkLower = network.toLowerCase();
+  // Render provider card
+  const renderProvider = (provider: WatchProvider, type: 'flatrate' | 'buy' | 'rent' | 'ads' | 'free') => {
+    const displayName = getProviderDisplayName(provider.provider_name);
+    const logoUrl = getTMDBLogoUrl(provider.logo_path, 'w92');
     
-    if (networkLower.includes('netflix')) {
-      return `https://www.netflix.com/search?q=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('disney')) {
-      return `https://www.disneyplus.com/search?q=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('amazon') || networkLower.includes('prime')) {
-      return `https://www.primevideo.com/search?phrase=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('apple')) {
-      return `https://tv.apple.com/search?term=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('hbo') || networkLower.includes('max')) {
-      return `https://www.max.com/search?q=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('paramount')) {
-      return `https://www.paramountplus.com/search/?query=${encodeURIComponent(seriesName)}`;
-    }
-    if (networkLower.includes('hulu')) {
-      return `https://www.hulu.com/search?q=${encodeURIComponent(seriesName)}`;
-    }
+    const typeLabels = {
+      flatrate: 'Jetzt streamen',
+      buy: 'Kaufen',
+      rent: 'Leihen',
+      ads: 'Mit Werbung',
+      free: 'Kostenlos'
+    };
     
-    // Default: link to TMDB (has "Watch Now" info)
-    return `https://www.themoviedb.org/tv/${seriesId}`;
-  };
-
-  // Display name mapping (for better readability)
-  const getDisplayName = (network: string): string => {
-    const networkLower = network.toLowerCase();
-    
-    if (networkLower.includes('hulu')) {
-      return 'Hulu bei Disney';
-    }
-    
-    return network;
+    return (
+      <a
+        key={`${type}-${provider.provider_id}`}
+        href={providers.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+            <Image
+              src={logoUrl}
+              alt={displayName}
+              width={48}
+              height={48}
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+              {displayName}
+            </p>
+            <p className="text-xs text-gray-500">
+              {typeLabels[type]}
+            </p>
+          </div>
+        </div>
+        <ExternalLink className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+      </a>
+    );
   };
 
   return (
@@ -71,40 +75,25 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
       </div>
 
       <div className="space-y-3">
-        {networks.map((network, index) => {
-          const url = getNetworkUrl(network);
-          const displayName = getDisplayName(network);
-          
-          return (
-            <a
-              key={index}
-              href={url || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                  {displayName.substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {displayName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Jetzt ansehen
-                  </p>
-                </div>
-              </div>
-              <ExternalLink className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-            </a>
-          );
-        })}
+        {/* Flatrate (Streaming Subscriptions) */}
+        {providers.flatrate && providers.flatrate.map(p => renderProvider(p, 'flatrate'))}
+        
+        {/* Free with Ads */}
+        {providers.ads && providers.ads.map(p => renderProvider(p, 'ads'))}
+        
+        {/* Free */}
+        {providers.free && providers.free.map(p => renderProvider(p, 'free'))}
+        
+        {/* Buy */}
+        {providers.buy && providers.buy.slice(0, 3).map(p => renderProvider(p, 'buy'))}
+        
+        {/* Rent */}
+        {providers.rent && providers.rent.slice(0, 3).map(p => renderProvider(p, 'rent'))}
       </div>
 
       <div className="mt-4 pt-4 border-t border-blue-100">
         <p className="text-xs text-gray-500 text-center">
-          Die Verfügbarkeit kann je nach Region variieren. Bitte überprüfe die Verfügbarkeit direkt beim Anbieter.
+          Streaming-Verfügbarkeit für Deutschland • Daten von TMDB
         </p>
       </div>
     </div>
