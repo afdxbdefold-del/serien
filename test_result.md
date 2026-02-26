@@ -276,7 +276,19 @@ test_plan:
           agent: "testing"
           comment: "✅ Tested Young Sheldon article page. VideoPlayerModal component working perfectly. Play button overlay appears on hover over hero image, clicking opens modal with video player. Video source verified: '/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4'. Video has controls and autoplay. No errors found."
 
-  - task: "Article Detail Page - Trailer Integration"
+  - task: "InlineVideoPlayer Component - Article Trailer Display (Migration from Modal)"
+    implemented: true
+    working: true
+    file: "/app/serien-nextjs/components/InlineVideoPlayer.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED 2026-02-26: InlineVideoPlayer component working perfectly. Tested Young Sheldon article page (/wie-erklaert-young-sheldon-staffel-6-sheldons-hausregeln-in-the-big-bang-theory). Initial state shows hero image with centered play button overlay. Clicking play button successfully replaces hero image with inline video player (NO modal popup). Video source: '/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4'. Video has controls and autoplay attributes. Video renders within hero container maintaining same position. Screenshots captured: before-play.png (hero with play button) and after-play-video.png (video player inline)."
+
+  - task: "Article Detail Page - Inline Trailer Integration"
     implemented: true
     working: true
     file: "/app/serien-nextjs/app/[slug]/page.tsx"
@@ -287,6 +299,9 @@ test_plan:
         - working: true
           agent: "testing"
           comment: "✅ Article page (/wie-erklaert-young-sheldon-staffel-6-sheldons-hausregeln-in-the-big-bang-theory) loads correctly with title, hero image, and trailer functionality. VideoPlayerModal conditionally renders when trailerLocalUrl exists. Integration working as expected."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED 2026-02-26: Updated to use InlineVideoPlayer component (line 10 import, lines 186-190 usage). Article page loads correctly with InlineVideoPlayer integration. Component receives heroImageUrl, trailerUrl (article.trailerLocalUrl), and title props. Video player successfully replaces hero image inline when play button clicked. All functionality working as expected."
 
 agent_communication:
     - agent: "testing"
