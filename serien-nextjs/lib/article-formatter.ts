@@ -180,8 +180,8 @@ export function validateArticleHTML(html: string): { valid: boolean; errors: str
   paragraphs.forEach((p, i) => {
     const text = p.replace(/<[^>]+>/g, '');
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    if (sentences.length > 3) {
-      errors.push(`Paragraph ${i + 1} has more than 3 sentences`);
+    if (sentences.length > 4) {
+      errors.push(`Paragraph ${i + 1} has more than 4 sentences`);
     }
   });
 
