@@ -25,11 +25,15 @@ interface SeriesStatusBoxProps {
   seriesName: string;
   seriesSlug?: string;
   posterUrl?: string | null;
+  posterPath?: string | null;
 }
 
-export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }: SeriesStatusBoxProps) {
+export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, posterPath }: SeriesStatusBoxProps) {
   const [statusData, setStatusData] = useState<SeriesStatusData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Determine which poster image to use
+  const posterImage = posterUrl || (posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null);
 
   useEffect(() => {
     async function fetchStatus() {
