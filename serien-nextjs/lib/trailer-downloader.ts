@@ -168,7 +168,53 @@ export async function searchVimeoTrailer(seriesName: string): Promise<string | n
 }
 
 /**
- * Download video from YouTube or Vimeo using yt-dlp
+ * Search IMDB for series trailer (uses TMDB to get IMDB ID)
+ */
+export async function searchIMDBTrailer(
+  seriesName: string,
+  tmdbId?: number
+): Promise<string | null> {
+  try {
+    // If we have TMDB ID, we can get IMDB ID from there
+    if (tmdbId) {
+      // Get IMDB ID from TMDB external IDs
+      const tmdbApiKey = process.env.TMDB_API_KEY;
+      if (!tmdbApiKey) {
+        console.error('❌ TMDB_API_KEY not found');
+        return null;
+      }
+
+      const externalIdsUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${tmdbApiKey}`;
+      const externalIdsRes = await fetch(externalIdsUrl);
+      const externalIds = await externalIdsRes.json();
+      
+      if (externalIds.imdb_id) {
+        const imdbId = externalIds.imdb_id;
+        console.log(`✅ Found IMDB ID via TMDB: ${imdbId}`);
+        
+        // Get videos from IMDB title page
+        const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
+        const command = `yt-dlp "${imdbUrl}" --get-id --no-playlist --max-downloads 1`;
+        
+        const { stdout } = await execAsync(command, { timeout: 15000 });
+        const videoId = stdout.trim().split('\n')[0];
+        
+        if (videoId && videoId.match(/^\d+$/)) {
+          console.log(`✅ Found trailer on IMDB: ${videoId}`);
+          return `imdb:${videoId}`;
+        }
+      }
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('❌ IMDB search failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Download video from YouTube, Vimeo, or IMDB using yt-dlp
  */
 export async function downloadVideoTrailer(
   videoId: string,
@@ -197,6 +243,10 @@ export async function downloadVideoTrailer(
       const vimeoId = videoId.replace('vimeo:', '');
       videoUrl = `https://vimeo.com/${vimeoId}`;
       source = 'Vimeo';
+    } else if (videoId.startsWith('imdb:')) {
+      const imdbId = videoId.replace('imdb:', '');
+      videoUrl = `https://www.imdb.com/video/vi${imdbId}/`;
+      source = 'IMDB';
     } else {
       videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
       source = 'YouTube';
@@ -216,7 +266,7 @@ export async function downloadVideoTrailer(
       '--max-filesize', '30M',
       '--socket-timeout', '30',
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
-      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : 'https://vimeo.com/',
+      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : source === 'Vimeo' ? 'https://vimeo.com/' : 'https://www.imdb.com/',
       videoUrl
     ];
 
