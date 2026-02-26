@@ -157,7 +157,7 @@ export async function resolveSingleSeries(
  */
 export async function resolveMultipleSeries(
   seriesNames: string[],
-  minCount: number = 3,
+  minCount: number = 2,
   maxCount: number = 7
 ): Promise<ResolvedSeries[]> {
   console.log(`\n🔍 Resolving multiple series (${seriesNames.length} candidates)`);
