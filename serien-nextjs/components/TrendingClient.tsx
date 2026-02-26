@@ -276,9 +276,9 @@ export default function TrendingClient({ series }: TrendingClientProps) {
                   
                   {/* Series Info Below Cover */}
                   <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block p-3">
-                    <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-cyan-600 transition-colors">
+                    <p className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-cyan-600 transition-colors">
                       {show.title}
-                    </h3>
+                    </p>
                     {show.voteAverage && (
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-yellow-500 text-xs">⭐</span>
