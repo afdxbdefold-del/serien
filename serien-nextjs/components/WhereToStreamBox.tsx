@@ -45,6 +45,17 @@ export default function WhereToStreamBox({ seriesId, seriesName, networks, slug 
     return `https://www.themoviedb.org/tv/${seriesId}`;
   };
 
+  // Display name mapping (for better readability)
+  const getDisplayName = (network: string): string => {
+    const networkLower = network.toLowerCase();
+    
+    if (networkLower.includes('hulu')) {
+      return 'Hulu bei Disney';
+    }
+    
+    return network;
+  };
+
   return (
     <div className="border-2 border-blue-100 rounded-xl p-6 mb-8 bg-gradient-to-br from-blue-50 to-cyan-50">
       <div className="flex items-start gap-3 mb-4">
@@ -59,6 +70,7 @@ export default function WhereToStreamBox({ seriesId, seriesName, networks, slug 
       <div className="space-y-3">
         {networks.map((network, index) => {
           const url = getNetworkUrl(network);
+          const displayName = getDisplayName(network);
           
           return (
             <a
@@ -70,11 +82,11 @@ export default function WhereToStreamBox({ seriesId, seriesName, networks, slug 
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                  {network.substring(0, 2).toUpperCase()}
+                  {displayName.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {network}
+                    {displayName}
                   </p>
                   <p className="text-xs text-gray-500">
                     Jetzt ansehen
