@@ -6,7 +6,6 @@ import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-r
 import FeedSwitcher from './FeedSwitcher';
 import NewsCard from './NewsCard';
 import SeriesCard from './SeriesCard';
-import AuthModal from './AuthModal';
 
 // All available streamers
 const ALL_STREAMERS = [
@@ -34,7 +33,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const [activeTab, setActiveTab] = useState('all-news');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
   
   // Hero background images - random selection on page load
