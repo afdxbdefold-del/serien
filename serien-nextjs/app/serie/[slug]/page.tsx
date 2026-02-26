@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Film, Star, Play } from 'lucide-react';
-import FollowButton from '@/components/FollowButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import { SeriesHubArticles } from '@/components/SeriesHubArticles';
 
