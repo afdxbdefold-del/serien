@@ -23,6 +23,7 @@ import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { translateHeadlineOnly } from '../lib/headline-translator'; // NEW: TRANSLATE_ONLY policy
 import { generateDistinctLead } from '../lib/distinct-lead-generator'; // NEW: Distinct lead generator
 import { preserveHeadline } from '../lib/headline-preserver'; // NEW: Headline preserver
+import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader'; // NEW: Trailer downloader
 
 
 const prisma = new PrismaClient();
@@ -939,6 +940,56 @@ export async function runContentPipeline(source: CrawledSource) {
     if (!linkValidation.valid) {
       console.log(`\n⚠️  Link Validation Warnings:`);
       linkValidation.errors.forEach(err => console.log(`   - ${err}`));
+    }
+
+    // ========== STEP 7.8: TRAILER DOWNLOAD ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.8: TRAILER DOWNLOAD (LOCAL STORAGE)');
+    console.log('━'.repeat(70));
+
+    let trailerLocalPath: string | null = null;
+
+    try {
+      // First: Check TMDB trailers
+      let youtubeId: string | null = null;
+      
+      if (resolution.primarySeries.trailers) {
+        youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
+        if (youtubeId) {
+          console.log(`✅ Found trailer in TMDB data: ${youtubeId}`);
+        }
+      }
+
+      // Fallback: Search YouTube
+      if (!youtubeId) {
+        console.log('🔍 No TMDB trailer → Searching YouTube...');
+        youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
+        
+        if (youtubeId) {
+          console.log(`✅ Found via YouTube search: ${youtubeId}`);
+        } else {
+          console.log('⏭️  No trailer found → Skipping');
+        }
+      }
+
+      // Download if found
+      if (youtubeId) {
+        console.log(`🎬 Downloading: https://youtube.com/watch?v=${youtubeId}`);
+        const downloadResult = await downloadYouTubeTrailer(
+          youtubeId,
+          resolution.primarySeries.name
+        );
+
+        if (downloadResult.success && downloadResult.localPath) {
+          trailerLocalPath = downloadResult.localPath;
+          console.log(`✅ Trailer downloaded: ${trailerLocalPath}`);
+        } else {
+          console.log(`⚠️  Download failed: ${downloadResult.error}`);
+        }
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Trailer download error: ${error.message}`);
+      console.log('   → Continuing without trailer');
     }
 
     // ========== STEP 8: PUBLISH ==========
