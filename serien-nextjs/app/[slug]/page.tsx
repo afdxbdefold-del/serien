@@ -318,11 +318,6 @@ export default async function ArticlePage({ params }: PageProps) {
           />
         )}
 
-        {/* Comments Section */}
-        <div className="mb-12">
-          <CommentsSection articleSlug={article.slug} />
-        </div>
-
         {/* Related News */}
         {relatedNews.length > 0 && (
           <div className="mt-16">
