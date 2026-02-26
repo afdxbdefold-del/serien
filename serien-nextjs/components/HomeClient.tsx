@@ -434,9 +434,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </div>
       )}
 
-      {/* Auth Modal */}
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-
       {/* Footer */}
       <footer className="border-t bg-white mt-20">
         <div className="container mx-auto px-6 md:px-12 py-12">
@@ -486,12 +483,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
         </div>
       </footer>
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
     </div>
   );
 }
