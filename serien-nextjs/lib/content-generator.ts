@@ -188,7 +188,8 @@ export async function generateGermanArticle(
   primarySeriesName: string,
   contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE',
   allSeriesNames?: string[],
-  sourceUrl?: string // NEW: For adding "Quelle" block
+  sourceUrl?: string, // NEW: For adding "Quelle" block
+  targetWordCount?: number // NEW: Dynamic word count target based on source
 ): Promise<string> {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
@@ -214,7 +215,11 @@ export async function generateGermanArticle(
   let factsPrompt = '';
   
   if (contentType === 'FULL_ARTICLE') {
-    // FULL ARTICLE mode
+    // FULL ARTICLE mode - use dynamic word count if provided
+    const minWords = targetWordCount ? Math.max(350, targetWordCount - 150) : 450;
+    const maxWords = targetWordCount ? Math.min(1200, targetWordCount + 150) : 900;
+    const targetWords = targetWordCount || 650;
+    
     factsPrompt = `
 FAKTEN FÜR DEN ARTIKEL:
 Serie: ${primarySeriesName}
@@ -226,15 +231,18 @@ ${facts.release_dates.length > 0 ? `Zeitrahmen: ${facts.release_dates.join(', ')
 KEY STATEMENTS:
 ${facts.key_statements.slice(0, 12).map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
-ARTIKEL-TYP: Vollständiger Artikel (450-900 Wörter)
+ARTIKEL-TYP: Vollständiger Artikel
+ZIEL-LÄNGE: ${targetWords} Wörter (Range: ${minWords}-${maxWords} Wörter)
 HAUPT-SERIE: ${primarySeriesName}
 
 WICHTIG: 
 - Schreibe einen KOMPLETT NEUEN Artikel basierend auf diesen Fakten
 - NIEMALS Originaltext kopieren oder paraphrasieren
-- Mindestens 450 Wörter, ideal 600-800 Wörter
+- Ziel: ca. ${targetWords} Wörter (mindestens ${minWords}, maximal ${maxWords})
+- NUTZE ALLE verfügbaren Fakten und Details
+- Bei langen Quellen: Gehe in die Tiefe, erkläre ausführlich
 
-Schreibe jetzt den vollständigen deutschen Artikel (450-900 Wörter, mindestens 5 Absätze).
+Schreibe jetzt den vollständigen deutschen Artikel (${minWords}-${maxWords} Wörter).
 `.trim();
   } else if (contentType === 'SINGLE_SERIES_NEWS') {
     factsPrompt = `
@@ -285,7 +293,9 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
         { role: 'user', content: factsPrompt }
       ],
       temperature: 0.7,
-      max_tokens: contentType === 'FULL_ARTICLE' ? 2500 : (contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500),
+      max_tokens: contentType === 'FULL_ARTICLE' 
+        ? Math.min(3500, Math.max(2000, (targetWordCount || 650) * 3)) // Dynamic based on target
+        : (contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500),
     });
 
     const rawContent = response.choices[0]?.message?.content;
