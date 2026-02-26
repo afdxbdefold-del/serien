@@ -180,12 +180,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               <p className="text-gray-500 text-sm">Noch keine News zu dieser Serie verfügbar.</p>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Mobile: Series Info Box (AFTER News) */}
-        <div className="mt-8 px-6">
+        <section className="mt-8 px-6" aria-labelledby="series-info-mobile">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-6">📊 Serien-Infos</h2>
+            <h2 id="series-info-mobile" className="text-lg font-bold text-gray-900 mb-6">📊 Serien-Infos</h2>
             <div className="space-y-6">
               {/* Genres */}
               {series.genres && series.genres.length > 0 && (
