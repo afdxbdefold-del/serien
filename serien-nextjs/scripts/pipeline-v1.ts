@@ -22,6 +22,7 @@ import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadli
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { translateHeadlineOnly } from '../lib/headline-translator'; // NEW: TRANSLATE_ONLY policy
 import { generateDistinctLead } from '../lib/distinct-lead-generator'; // NEW: Distinct lead generator
+import { preserveHeadline } from '../lib/headline-preserver'; // NEW: Headline preserver
 
 
 const prisma = new PrismaClient();
