@@ -320,6 +320,18 @@ test_plan:
           agent: "testing"
           comment: "❌ CRITICAL BUG FOUND (2026-02-26): 'Wo wird die Serie gestreamt?' box NOT displayed on Young Sheldon series page (/serie/71728-young-sheldon). Tested both desktop and mobile views by scrolling entire page - box is completely missing. Root cause: Component props mismatch. Page.tsx line 206 calls <WhereToStreamBox tmdbId={series.tmdbId} tmdbType='tv' /> but component expects props {seriesId, seriesName, networks, slug}. This causes seriesId to be undefined, getTVWatchProviders(undefined) returns 404 error from TMDB API (confirmed in console logs), component returns null and renders nothing. Console error: 'TMDB API error: 404'. Fix required: Update props to <WhereToStreamBox seriesId={series.tmdbId} seriesName={series.name || ''} networks={series.networks} slug={slug} />."
 
+  - task: "Article Content Sanitizer - Artificial Heading Removal"
+    implemented: true
+    working: true
+    file: "/app/serien-nextjs/lib/content-sanitizer.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED (2026-02-26): Tested Young Sheldon article (/wie-erklaert-young-sheldon-staffel-6-sheldons-hausregeln-in-the-big-bang-theory). Function sanitizeArticleContent correctly removes artificial headings while preserving legitimate ones. FINDINGS: (1) Article displayed only 1 visible heading: 'Mehr zu Young Sheldon' (legitimate, preserved correctly). (2) No artificial headings found in rendered content. (3) Unit tests confirmed: All artificial patterns ('Artikel-Inhalt', 'Inhalt', 'Content', 'News', etc.) are removed. All legitimate patterns ('Zusammenfassung', 'Story', 'Mehr zu', 'Was bedeutet das?', etc.) are preserved. (4) Function applied at runtime in page.tsx line 270 during article rendering. (5) No console errors. Feature working as designed."
+
 agent_communication:
     - agent: "testing"
       message: "CRITICAL ISSUE FOUND AND RESOLVED: The application is using React 19.0.0 which has built-in metadata support that fundamentally conflicts with react-helmet-async. All pages were showing red error screens with 'Helmet expects a string as a child of <title>' errors. Solution: Replaced react-helmet-async with custom usePageMeta hook that directly manipulates document.title and meta tags. This is the recommended approach for React 19 according to GitHub issue #239."
