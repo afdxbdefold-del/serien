@@ -1070,14 +1070,21 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Single Series News - LIVE TEST MIT NEUER SERIE
-  const testArticle: CrawledSource = {
-    title: "Fallout Staffel 2: Amazon bestätigt Fortsetzung der Videospiel-Adaption",
-    url: "https://example.com/fallout-s2-discover-score-test-" + Date.now(),
-    text: `Amazon Prime Video hat offiziell die zweite Staffel der erfolgreichen Fallout-Serie bestätigt. Die Videospiel-Adaption war einer der größten Hits des Jahres 2024. Ella Purnell und Walton Goggins kehren in ihren Hauptrollen zurück. Die Dreharbeiten zur zweiten Staffel beginnen im Sommer 2026. Jonathan Nolan und Lisa Joy bleiben als ausführende Produzenten an Bord.`
+  // Example: Full Article Mode Test
+  const testFullArticle: CrawledSource = {
+    title: "The Last of Us Staffel 3: HBO bestätigt Fortsetzung",
+    url: "https://example.com/test-full-" + Date.now(),
+    text: `HBO hat offiziell die dritte Staffel von The Last of Us bestätigt. Die Serie basiert auf dem erfolgreichen Videospiel und gehört zu den größten Hits von HBO.
+
+Pedro Pascal und Bella Ramsey kehren in ihren Hauptrollen zurück. Die Produktion soll im Herbst 2026 beginnen.
+
+Craig Mazin und Neil Druckmann bleiben als Showrunner an Bord. Die dritte Staffel wird Elemente aus Teil 2 des Spiels adaptieren.
+
+HBO plant mindestens vier Staffeln, um die komplette Story zu erzählen. Die Produktionskosten liegen bei geschätzten 100 Millionen Dollar pro Staffel.`,
+    useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE
   };
 
-  const result = await runContentPipeline(testArticle);
+  const result = await runContentPipeline(testFullArticle);
   
   // Handle different result types
   if ('skipped' in result && result.skipped) {
