@@ -169,7 +169,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
               {/* Serien entdecken Button */}
               <Link 
-                href="/trending"
+                href="/serienfinder"
                 className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
