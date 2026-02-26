@@ -1,6 +1,6 @@
-'use client';
-
-import { ExternalLink, Tv } from 'lucide-react';
+import { ExternalLink, Tv, ShoppingCart, Film, TvMinimal } from 'lucide-react';
+import Image from 'next/image';
+import { getTVWatchProviders, getTMDBLogoUrl, getProviderDisplayName, type WatchProvider } from '@/lib/tmdb-watch-providers';
 
 interface WhereToStreamBoxProps {
   seriesId: number;
@@ -9,9 +9,12 @@ interface WhereToStreamBoxProps {
   slug?: string;
 }
 
-export default function WhereToStreamBox({ seriesId, seriesName, networks, slug }: WhereToStreamBoxProps) {
-  // If no networks data, don't show the box
-  if (!networks || networks.length === 0) {
+export default async function WhereToStreamBox({ seriesId, seriesName, networks, slug }: WhereToStreamBoxProps) {
+  // Fetch watch providers from TMDB
+  const providers = await getTVWatchProviders(seriesId);
+  
+  // If no providers available, don't show the box
+  if (!providers || (!providers.flatrate && !providers.buy && !providers.rent && !providers.ads && !providers.free)) {
     return null;
   }
 
