@@ -133,19 +133,22 @@ export async function downloadYouTubeTrailer(
     console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with deno + ffmpeg for proper video merging
+    // yt-dlp command with deno + remote components for JS challenge solving
+    // Using lowest quality to reduce blocks and save space
     const command = [
       'yt-dlp',
       // Use deno as JavaScript runtime
       '--js-runtime', 'deno',
-      // Format: best video+audio combo under 480p, merge with ffmpeg
-      '--format', 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
-      '--merge-output-format', 'mp4',
+      // Use remote components for JS challenge solving
+      '--remote-components', 'ejs:github',
+      // Format: worst quality to avoid blocks (use best quality if this fails)
+      '--format', 'worst[ext=mp4]/best[height<=480][ext=mp4]',
       '--output', tempFilePath,
       '--no-playlist',
       '--max-filesize', '30M',
       '--socket-timeout', '30',
-      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      '--referer', 'https://www.youtube.com/',
       youtubeUrl
     ].join(' ');
 
