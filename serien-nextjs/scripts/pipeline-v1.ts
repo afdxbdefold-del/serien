@@ -1114,12 +1114,12 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Full Article Mode Test - A Knight of the Seven Kingdoms
+  // Example: Full Article Mode Test - 56 Days
   const testFullArticle: CrawledSource = {
-    title: "A Knight of the Seven Kingdoms Episode 5 Recap",
-    url: "https://thecinemaholic.com/a-knight-of-the-seven-kingdoms-episode-5-recap/",
+    title: "56 Days Ending Explained: Who is the Victim?",
+    url: "https://thecinemaholic.com/56-days-ending-explained/",
     text: `Initial placeholder - will be fetched via Playwright`,
-    useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE WITH PROPORTIONAL LENGTH
+    useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE WITH TRANSLATE_ONLY HEADLINE
   };
 
   const result = await runContentPipeline(testFullArticle);
