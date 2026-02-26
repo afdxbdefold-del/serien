@@ -55,7 +55,7 @@ export async function runContentPipeline(source: CrawledSource) {
     // ========== STEP 0.5: FULL TEXT FETCHER (if enabled) ==========
     let fullSourceText = source.text;
     let sourceDomain = '';
-    let sourceWordCount = 0;
+    let sourceWordCount = 0; // Will be set in FULL_TEXT mode
     
     if (source.useFullTextMode) {
       console.log('━'.repeat(70));
@@ -68,21 +68,20 @@ export async function runContentPipeline(source: CrawledSource) {
         if (fullTextResult.wordCount > 100) {
           fullSourceText = fullTextResult.fullText;
           sourceDomain = fullTextResult.sourceDomain;
-          sourceWordCount = fullTextResult.wordCount;
+          sourceWordCount = fullTextResult.wordCount; // Store for later use
           
           console.log(`✅ Full text fetched: ${fullTextResult.wordCount} words`);
           console.log(`   Domain: ${sourceDomain}`);
         } else {
           console.log(`⚠️  Full text fetch yielded insufficient content, using provided text`);
-          sourceWordCount = source.text.split(/\s+/).length;
+          sourceWordCount = source.text.split(/\s+/).filter((w: string) => w.length > 0).length;
         }
       } catch (error: any) {
         console.log(`⚠️  Full text fetch failed: ${error.message}, using provided text`);
-        sourceWordCount = source.text.split(/\s+/).length;
+        sourceWordCount = source.text.split(/\s+/).filter((w: string) => w.length > 0).length;
       }
       
-      // Calculate target word count based on source length
-      // Aim for 50-70% of source length, with min 350 and max 1200
+      // Calculate and display target word count
       const targetWordCount = Math.max(350, Math.min(1200, Math.round(sourceWordCount * 0.6)));
       console.log(`\n📊 Length Planning:`);
       console.log(`   Source: ${sourceWordCount} words`);
