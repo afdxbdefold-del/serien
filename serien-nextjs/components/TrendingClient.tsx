@@ -226,12 +226,7 @@ export default function TrendingClient({ series }: TrendingClientProps) {
           {/* Series Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {filteredSeries.map((show, index) => (
-              <div key={show.tmdbId} className="relative">
-                {/* Ranking Badge */}
-                <div className="absolute -top-2 -left-2 z-10 w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">
-                  #{index + 1}
-                </div>
-                
+              <div key={show.tmdbId}>
                 {/* Series Card */}
                 <Link href={`/serie/${show.tmdbId}-${show.slug}`}>
                   <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
