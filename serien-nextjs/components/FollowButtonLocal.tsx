@@ -30,25 +30,25 @@ export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'defau
     setFollowing(newStatus);
   };
 
-  // Navbar style (like NEWS, TRENDING buttons)
+  // Navbar style (gradient button like filter buttons)
   if (variant === 'navbar') {
     return (
       <button
         onClick={handleClick}
-        className={`flex items-center gap-1 text-sm font-semibold uppercase transition-colors ${
+        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2 ${
           following
-            ? 'text-gray-900 hover:text-gray-700'
-            : 'text-gray-700 hover:text-gray-900'
+            ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
+            : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600'
         }`}
       >
         {following ? (
           <>
-            <Check className="h-3.5 w-3.5" />
+            <Check className="h-4 w-4" />
             Folge ich
           </>
         ) : (
           <>
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
             Folgen
           </>
         )}
