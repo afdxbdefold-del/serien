@@ -8,6 +8,7 @@ import CommentsSection from '@/components/CommentsSection';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import { WasBedeutetDasBox } from '@/components/WasBedeutetDasBox';
+import WhereToStreamBox from '@/components/WhereToStreamBox';
 
 interface PageProps {
   params: Promise<{
