@@ -1077,8 +1077,8 @@ export async function runContentPipeline(source: CrawledSource) {
 async function main() {
   // Example: Full Article Mode Test - 56 Days from thecinemaholic.com
   const testFullArticle: CrawledSource = {
-    title: "56 Days Ending Explained: Netflix Thriller",
-    url: "https://thecinemaholic.com/56-days-ending-explained/",
+    title: "56 Days Ending Explained: Netflix Thriller Test 2",
+    url: "https://thecinemaholic.com/56-days-ending-explained-test2",
     text: `Initial placeholder - will be fetched via Playwright`,
     useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE
   };
