@@ -8,7 +8,6 @@ import CommentsSection from '@/components/CommentsSection';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import { WasBedeutetDasBox } from '@/components/WasBedeutetDasBox';
-import FollowButtonLocal from '@/components/FollowButtonLocal';
 
 interface PageProps {
   params: Promise<{
