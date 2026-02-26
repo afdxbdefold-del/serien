@@ -116,9 +116,76 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 seriesName={series.name || ''} 
               />
             </div>
+          </div>
+        </div>
 
-            {/* Mobile: Additional Info Sections */}
-            <div className="mt-6 space-y-6">
+        {/* Mobile: News Section */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 px-6">
+            📰 News zu {series.name}
+          </h2>
+
+          {series.primaryArticles && series.primaryArticles.length > 0 ? (
+            <div className="space-y-4 px-6">
+              {series.primaryArticles.slice(0, 3).map((article) => (
+                <Link
+                  key={article.slug}
+                  href={`/${article.slug}`}
+                  className="block group"
+                >
+                  <article className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
+                    {(article.heroLocalUrl || article.cardImageUrl) && (
+                      <div className="relative h-48 overflow-hidden bg-gray-100">
+                        <Image
+                          src={article.heroLocalUrl || article.cardImageUrl || ''}
+                          alt={article.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
+                        {article.title}
+                      </h3>
+                      
+                      {article.excerpt && (
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                          {article.excerpt}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                        {article.author?.name && (
+                          <span className="font-medium">{article.author.name}</span>
+                        )}
+                        {article.publishedAt && (
+                          <span>
+                            {new Date(article.publishedAt).toLocaleDateString('de-DE', {
+                              day: 'numeric',
+                              month: 'short'
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center mx-6">
+              <p className="text-gray-500 text-sm">Noch keine News zu dieser Serie verfügbar.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile: Series Info Box (AFTER News) */}
+        <div className="mt-8 px-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">📊 Serien-Infos</h2>
+            <div className="space-y-6">
               {/* Genres */}
               {series.genres && series.genres.length > 0 && (
                 <div>
