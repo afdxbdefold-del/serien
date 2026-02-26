@@ -196,7 +196,8 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </section>
       )}
 
-      <main className="container mx-auto px-6 md:px-12 py-8">
+      {/* News Feed Section */}
+      <div className="container mx-auto px-6 md:px-12 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Feed Switcher */}
           <FeedSwitcher 
@@ -306,7 +307,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Floating Newsfilter Button - Bottom Right */}
       {(activeTab === 'all-news' || activeTab === 'my-news') && (
