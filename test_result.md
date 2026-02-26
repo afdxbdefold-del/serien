@@ -286,7 +286,7 @@ test_plan:
     implemented: true
     working: false
     file: "/app/serien-nextjs/components/InlineVideoPlayer.tsx"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -296,6 +296,9 @@ test_plan:
         - working: false
           agent: "testing"
           comment: "❌ TESTED 2026-02-26: User reported trailer not playing. ROOT CAUSE IDENTIFIED: Video file in Emergent Object Storage is corrupted/has invalid streams. FINDINGS: (1) ✅ InlineVideoPlayer component renders correctly - hero image loads, play button appears, click replaces image with video element. (2) ✅ HTTP Range Request implementation was FIXED in /app/serien-nextjs/app/(api)/trailer/[...path]/route.ts - now properly returns 206 Partial Content with correct Content-Range headers. Verified with curl tests. (3) ❌ CRITICAL: Video file 'serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4' fails with Chrome error 'DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams'. This means the MP4 container exists but has no valid H.264/AAC streams that browser can decode. (4) File appears valid (3.1MB, ftyp atom present, claims avc1 codec) but streams are corrupted or improperly encoded. (5) Byte-level verification confirms range requests work correctly - MD5 hashes match. SOLUTION REQUIRED: Re-encode video file with proper H.264+AAC codecs and re-upload to storage. Use: ffmpeg -i input.mp4 -c:v libx264 -c:a aac -movflags +faststart output.mp4"
+        - working: false
+          agent: "testing"
+          comment: "❌ TESTED 2026-02-26: Knight article trailer test (http://localhost:3000/a-knight-of-the-seven-kingdoms-episode-2-recap-hartes-poekelrind). Video file 'serien-nextjs/trailers/a-knight-of-the-seven-kingdoms------t--g-o.mp4' STILL FAILS with same DEMUXER_ERROR_NO_SUPPORTED_STREAMS error. ROOT CAUSE IDENTIFIED VIA WEBSEARCH: Video is encoded with H.264 HIGH PROFILE which is NOT supported in Playwright/Chromium testing environments. Chrome FFmpegDemuxer only supports Constrained Baseline profile, not High profile. VIDEO FILE ANALYSIS: File is properly encoded (Duration: 2:33, Size: 6.9MB, H.264 High Profile level 3.0, AAC-LC 44100Hz stereo, moov atom at beginning for faststart). File plays correctly with ffmpeg but NOT in browser. SOLUTION: Re-encode video with H.264 BASELINE profile for browser compatibility: ffmpeg -i input.mp4 -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -movflags +faststart output.mp4. Reference: https://github.com/microsoft/playwright/issues/10035"
 
   - task: "Article Detail Page - Inline Trailer Integration"
     implemented: true
