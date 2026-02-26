@@ -263,6 +263,9 @@ test_plan:
     - "Impressum page title verification"
     - "Console error check for Helmet issues"
     - "React 19 compatibility verification"
+    - "InlineVideoPlayer component functionality (2026-02-26)"
+    - "Inline video player replaces hero image without modal (2026-02-26)"
+    - "Video autoplay and controls verification (2026-02-26)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
