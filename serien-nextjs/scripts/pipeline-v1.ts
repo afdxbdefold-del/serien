@@ -45,7 +45,7 @@ export async function runContentPipeline(source: CrawledSource) {
   console.log('='.repeat(70));
   console.log(`\n📄 Source: ${source.title}`);
   console.log(`🔗 URL: ${source.url}`);
-  console.log(`📝 Mode: ${source.useFullTextMode ? 'FULL TEXT (450-900 words)' : 'STANDARD'}`);
+  console.log(`📝 Mode: ${source.useFullTextMode ? 'FULL TEXT (proportional length)' : 'STANDARD'}`);
   console.log('');
 
   // Declare timestamp at the start for consistent usage throughout pipeline
@@ -55,6 +55,7 @@ export async function runContentPipeline(source: CrawledSource) {
     // ========== STEP 0.5: FULL TEXT FETCHER (if enabled) ==========
     let fullSourceText = source.text;
     let sourceDomain = '';
+    let sourceWordCount = 0;
     
     if (source.useFullTextMode) {
       console.log('━'.repeat(70));
@@ -67,15 +68,26 @@ export async function runContentPipeline(source: CrawledSource) {
         if (fullTextResult.wordCount > 100) {
           fullSourceText = fullTextResult.fullText;
           sourceDomain = fullTextResult.sourceDomain;
+          sourceWordCount = fullTextResult.wordCount;
           
           console.log(`✅ Full text fetched: ${fullTextResult.wordCount} words`);
           console.log(`   Domain: ${sourceDomain}`);
         } else {
           console.log(`⚠️  Full text fetch yielded insufficient content, using provided text`);
+          sourceWordCount = source.text.split(/\s+/).length;
         }
       } catch (error: any) {
         console.log(`⚠️  Full text fetch failed: ${error.message}, using provided text`);
+        sourceWordCount = source.text.split(/\s+/).length;
       }
+      
+      // Calculate target word count based on source length
+      // Aim for 50-70% of source length, with min 350 and max 1200
+      const targetWordCount = Math.max(350, Math.min(1200, Math.round(sourceWordCount * 0.6)));
+      console.log(`\n📊 Length Planning:`);
+      console.log(`   Source: ${sourceWordCount} words`);
+      console.log(`   Target: ${targetWordCount} words (60% of source)`);
+      console.log(`   Range: ${Math.max(350, targetWordCount - 150)} - ${Math.min(1200, targetWordCount + 150)} words`);
     }
 
     // ========== STEP 1: CLASSIFY ==========
