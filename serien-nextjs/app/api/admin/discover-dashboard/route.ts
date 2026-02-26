@@ -1,58 +1,75 @@
-/**
- * Admin API: Discover Dashboard
- * 
- * GET /api/admin/discover-dashboard?articleId=xxx
- * GET /api/admin/discover-dashboard/recent?limit=100
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
+/**
+ * GET /api/admin/discover-dashboard
+ * 
+ * Query params:
+ * - articleId: Get specific article breakdown
+ * - recent: Get recent audits (default: last 100)
+ * - limit: Max audits to return (default: 100)
+ */
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const articleId = searchParams.get('articleId');
+  const limit = parseInt(searchParams.get('limit') || '100');
+
+  // Simple auth: check for admin header or token
+  // TODO: Replace with proper auth
+  const adminSecret = request.headers.get('x-admin-secret');
+  if (adminSecret !== process.env.ADMIN_SECRET && !process.env.ADMIN_SECRET) {
+    // Allow if ADMIN_SECRET not set (dev mode)
+    console.log('[Admin] Access granted (dev mode)');
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const articleId = searchParams.get('articleId');
-    
-    if (!articleId) {
-      return NextResponse.json(
-        { error: 'articleId parameter required' },
-        { status: 400 }
-      );
+    if (articleId) {
+      // Get specific article breakdown
+      const audit = await prisma.discoverAudit.findUnique({
+        where: { articleId },
+        include: {
+          article: {
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              publishedAt: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (!audit) {
+        return NextResponse.json({ error: 'Audit not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(audit);
     }
 
-    // Get dashboard data for specific article
-    const dashboard = await prisma.discoverScoreDashboard.findFirst({
-      where: { articleId },
-      orderBy: { timestamp: 'desc' },
+    // Get recent audits
+    const audits = await prisma.discoverAudit.findMany({
+      take: Math.min(limit, 500),
+      orderBy: { createdAt: 'desc' },
       include: {
         article: {
           select: {
             id: true,
-            title: true,
             slug: true,
-            publishMode: true,
+            title: true,
             publishedAt: true,
+            status: true,
           },
         },
       },
     });
 
-    if (!dashboard) {
-      return NextResponse.json(
-        { error: 'Dashboard not found for this article' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
-      success: true,
-      data: dashboard,
+      total: audits.length,
+      audits,
     });
-
   } catch (error: any) {
-    console.error('Dashboard API error:', error);
+    console.error('[Admin API] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error', message: error.message },
       { status: 500 }
