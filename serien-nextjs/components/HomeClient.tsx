@@ -282,36 +282,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           )}
         </div>
       </main>
-    </div>
-                        </div>
-                        <span className="font-medium text-left">{streamer.label}</span>
-                        {isSelected && (
-                          <Check className="h-5 w-5 text-brand ml-auto" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex gap-4">
-                <button
-                  onClick={clearFilters}
-                  className="flex-1 px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Zurücksetzen
-                </button>
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="flex-1 px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-hover transition-colors"
-                >
-                  Anwenden
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="border-t bg-white mt-20">
