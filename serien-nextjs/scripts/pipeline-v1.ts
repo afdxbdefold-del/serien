@@ -408,7 +408,8 @@ export async function runContentPipeline(source: CrawledSource) {
       
       // Save as DRAFT
       const slug = generateSlug(articleTitle);
-      const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+      const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
       
       const draftArticle = await prisma.article.create({
         data: {
@@ -485,7 +486,8 @@ export async function runContentPipeline(source: CrawledSource) {
         
         const authorId = authors.length > 0 ? authors[0].id : 'system';
         const slug = generateSlug(articleTitle);
-        const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+        const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
         
         const draftArticle = await prisma.article.create({
           data: {
@@ -550,7 +552,8 @@ export async function runContentPipeline(source: CrawledSource) {
           
           const authorId = authors.length > 0 ? authors[0].id : 'system';
           const slug = generateSlug(articleTitle);
-          const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+          const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
           
           const draftArticle = await prisma.article.create({
             data: {
@@ -669,7 +672,8 @@ export async function runContentPipeline(source: CrawledSource) {
       
       const authorId = authors.length > 0 ? authors[0].id : 'system';
       const slug = generateSlug(articleTitle);
-      const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+      const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
       
       const draftArticle = await prisma.article.create({
         data: {
