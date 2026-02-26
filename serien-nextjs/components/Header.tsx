@@ -28,6 +28,40 @@ export default function Header() {
     checkAuth();
   }, []);
 
+  // Realtime search with debounce
+  useEffect(() => {
+    const performRealtimeSearch = async () => {
+      // Only search if query is at least 2 characters
+      if (searchQuery.trim().length < 2) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
+
+      setSearchLoading(true);
+      
+      try {
+        const response = await fetch(`/api/series/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSearchResults(data);
+          setShowSearchResults(data.length > 0);
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    // Debounce: wait 300ms after user stops typing
+    const debounceTimer = setTimeout(() => {
+      performRealtimeSearch();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
   const checkAuth = async () => {
     try {
       const response = await fetch('/api/auth/me', {
@@ -60,21 +94,7 @@ export default function Header() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    
-    setSearchLoading(true);
-    try {
-      const response = await fetch(`/api/series/search?q=${encodeURIComponent(searchQuery)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSearchResults(data);
-        setShowSearchResults(true);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-    } finally {
-      setSearchLoading(false);
-    }
+    // Search is now handled by realtime effect via useEffect
   };
 
   const closeSearch = () => {
