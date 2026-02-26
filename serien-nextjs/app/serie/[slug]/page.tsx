@@ -132,6 +132,15 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 </div>
               </div>
             </div>
+            
+            {/* Overview - Critical Info */}
+            {series.overview && (
+              <div className="mt-8 max-w-4xl">
+                <p className="text-gray-700 text-lg leading-relaxed">
+                  {series.overview}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -329,16 +338,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                       className="w-full h-full"
                     />
                   </div>
-                </div>
-              )}
-
-              {/* Overview */}
-              {series.overview && (
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">📝 Über die Serie</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    {series.overview}
-                  </p>
                 </div>
               )}
             </div>
