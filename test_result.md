@@ -264,6 +264,30 @@ test_plan:
     - "Console error check for Helmet issues"
     - "React 19 compatibility verification"
 
+  - task: "VideoPlayerModal Component - Article Trailer Display"
+    implemented: true
+    working: true
+    file: "/app/serien-nextjs/components/VideoPlayerModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ Tested Young Sheldon article page. VideoPlayerModal component working perfectly. Play button overlay appears on hover over hero image, clicking opens modal with video player. Video source verified: '/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4'. Video has controls and autoplay. No errors found."
+
+  - task: "Article Detail Page - Trailer Integration"
+    implemented: true
+    working: true
+    file: "/app/serien-nextjs/app/[slug]/page.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ Article page (/wie-erklaert-young-sheldon-staffel-6-sheldons-hausregeln-in-the-big-bang-theory) loads correctly with title, hero image, and trailer functionality. VideoPlayerModal conditionally renders when trailerLocalUrl exists. Integration working as expected."
+
 agent_communication:
     - agent: "testing"
       message: "CRITICAL ISSUE FOUND AND RESOLVED: The application is using React 19.0.0 which has built-in metadata support that fundamentally conflicts with react-helmet-async. All pages were showing red error screens with 'Helmet expects a string as a child of <title>' errors. Solution: Replaced react-helmet-async with custom usePageMeta hook that directly manipulates document.title and meta tags. This is the recommended approach for React 19 according to GitHub issue #239."
@@ -271,3 +295,5 @@ agent_communication:
       message: "TESTING COMPLETE: All critical pages tested and verified working. NO Helmet errors found. All page titles correctly formatted. Migration to custom hook solution successful. Application is now stable and React 19 compatible."
     - agent: "testing"
       message: "MINOR FIX APPLIED: Fixed bug in NewsDetail.js where displayTitle variable was undefined - changed to use news.title directly. No further action needed from main agent."
+    - agent: "testing"
+      message: "TRAILER VIDEO PLAYER TESTING COMPLETE (2026-02-26): Tested Young Sheldon article page video player functionality. All tests passed successfully. VideoPlayerModal component working correctly - play button appears on hover, modal opens on click, video player loads with correct source URL (/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4). Video has controls and autoplay attributes. No issues found."
