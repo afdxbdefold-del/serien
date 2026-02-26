@@ -68,18 +68,18 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       )}
 
       {/* Series Info Section */}
-      <div className="container mx-auto px-6 -mt-16 relative z-10">
+      <div className="container mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-xl p-6 md:p-8 max-w-5xl">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Poster */}
             {series.posterPath && (
-              <div className="flex-shrink-0 -mt-24 md:-mt-32">
+              <div className="flex-shrink-0">
                 <Image
                   src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
                   alt={series.name || ''}
                   width={150}
                   height={225}
-                  className="rounded-lg shadow-2xl border-4 border-white"
+                  className="rounded-lg shadow-lg"
                 />
               </div>
             )}
