@@ -132,13 +132,15 @@ async function detectAndTranslate(
   seriesNames: string[]
 ): Promise<{ headline: string; wasTranslated: boolean }> {
   // Simple language detection: check for German tokens
-  const germanTokens = ['der', 'die', 'das', 'und', 'mit', 'für', 'von', 'zu', 'nach', 'wird', 'ist', 'auf'];
+  const germanTokens = ['der', 'die', 'das', 'und', 'mit', 'für', 'von', 'zu', 'nach', 'wird', 'ist', 'auf', 'staffel', 'keine', 'kommt', 'endet'];
+  const englishTokens = ['season', 'episode', 'confirmed', 'renewed', 'cancelled', 'returns', 'coming', 'official'];
+  
   const words = headline.toLowerCase().split(/\s+/);
   const germanCount = words.filter(w => germanTokens.includes(w)).length;
-  const germanRatio = germanCount / words.length;
-
-  // If >30% non-German tokens, translate
-  if (germanRatio < 0.3 && words.length > 3) {
+  const englishCount = words.filter(w => englishTokens.includes(w)).length;
+  
+  // If has English keywords, translate
+  if (englishCount > 0 && germanCount === 0) {
     // Protect series names with placeholders
     let headlineWithPlaceholders = headline;
     const placeholders: Map<string, string> = new Map();
@@ -170,8 +172,14 @@ async function detectAndTranslate(
 async function translateHeadline(text: string): Promise<string> {
   try {
     const { default: OpenAI } = await import('openai');
+    const apiKey = process.env.EMERGENT_LLM_KEY;
+    
+    if (!apiKey) {
+      throw new Error('EMERGENT_LLM_KEY not set');
+    }
+    
     const openai = new OpenAI({
-      apiKey: process.env.EMERGENT_LLM_KEY,
+      apiKey,
       baseURL: 'https://llm.kindo.ai/v1',
     });
 
@@ -192,8 +200,8 @@ async function translateHeadline(text: string): Promise<string> {
     });
 
     return response.choices[0]?.message?.content?.trim() || text;
-  } catch (error) {
-    console.error('Translation failed:', error);
+  } catch (error: any) {
+    console.error('Translation failed:', error.message);
     return text;
   }
 }
@@ -318,11 +326,14 @@ function validateHeadline(
   headline: string,
   facts: FactsVerdict
 ): { valid: boolean; reason: string } {
-  // Check if German (simple check)
-  const germanTokens = ['der', 'die', 'das', 'und', 'mit', 'nach', 'wird'];
+  // Check if German (relaxed check - allow series names in English)
+  const germanTokens = ['der', 'die', 'das', 'und', 'mit', 'nach', 'wird', 'staffel', 'keine', 'kommt', 'endet', 'von', 'zu', 'bei'];
   const hasGerman = germanTokens.some(token => headline.toLowerCase().includes(token));
   
-  if (!hasGerman && headline.length > 20) {
+  // Allow if has German keywords OR if it's a known German-structure headline
+  const hasGermanStructure = /staffel\s*\d+/i.test(headline) || /keine/i.test(headline) || /endet/i.test(headline);
+  
+  if (!hasGerman && !hasGermanStructure && headline.length > 20) {
     return { valid: false, reason: 'not German' };
   }
   
