@@ -180,11 +180,14 @@ export async function runContentPipeline(source: CrawledSource) {
       ? [resolution.primarySeries.name, ...resolution.relatedSeries.map(s => s.name)]
       : [resolution.primarySeries.name];
 
-    // Determine if we're in FULL_ARTICLE mode
+    // Determine if we're in FULL_ARTICLE mode and calculate target
     const isFullArticleMode = source.useFullTextMode === true;
+    let targetWordCount: number | undefined;
     
-    if (isFullArticleMode) {
-      console.log('   🔹 Using FULL_ARTICLE mode (450-900 words target)');
+    if (isFullArticleMode && sourceWordCount > 0) {
+      targetWordCount = Math.max(350, Math.min(1200, Math.round(sourceWordCount * 0.6)));
+      console.log('   🔹 Using FULL_ARTICLE mode');
+      console.log(`   📊 Target: ${targetWordCount} words (60% of ${sourceWordCount} source words)`);
     }
 
     let generatedContent = await generateGermanArticle(
@@ -192,7 +195,8 @@ export async function runContentPipeline(source: CrawledSource) {
       resolution.primarySeries.name,
       isFullArticleMode ? 'FULL_ARTICLE' : (classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'),
       allSeriesNames,
-      source.url // For Quelle block
+      source.url, // For Quelle block
+      targetWordCount // Dynamic target based on source length
     );
 
     let articleTitle = source.title;
@@ -202,12 +206,18 @@ export async function runContentPipeline(source: CrawledSource) {
     // Log word count for FULL_ARTICLE mode
     if (isFullArticleMode) {
       const wordCount = generatedContent.replace(/<[^>]*>/g, '').split(/\s+/).length;
-      console.log(`   📏 Word count: ${wordCount} words (target: 450-900)`);
+      const minTarget = targetWordCount ? targetWordCount - 150 : 450;
+      const maxTarget = targetWordCount ? targetWordCount + 150 : 900;
       
-      if (wordCount < 450) {
-        console.log(`   ⚠️  WARNING: Article below target length`);
-      } else if (wordCount > 900) {
-        console.log(`   ⚠️  WARNING: Article exceeds target length`);
+      console.log(`   📏 Word count: ${wordCount} words`);
+      console.log(`   🎯 Target range: ${minTarget}-${maxTarget} words`);
+      
+      if (wordCount < minTarget) {
+        console.log(`   ⚠️  Below target (${wordCount} < ${minTarget})`);
+      } else if (wordCount > maxTarget) {
+        console.log(`   ⚠️  Above target (${wordCount} > ${maxTarget})`);
+      } else {
+        console.log(`   ✅ Within target range!`);
       }
     }
 
