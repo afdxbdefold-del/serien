@@ -191,6 +191,13 @@ export default async function ArticlePage({ params }: PageProps) {
                 className="object-cover"
                 priority
               />
+              {/* Video Player Overlay (if trailer exists) */}
+              {article.trailerLocalUrl && (
+                <VideoPlayerModal 
+                  trailerUrl={article.trailerLocalUrl}
+                  seriesTitle={article.title}
+                />
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-2">
               Bild: {article.imageAttribution || 'TMDB'}
