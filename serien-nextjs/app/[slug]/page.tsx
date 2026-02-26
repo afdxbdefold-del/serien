@@ -258,16 +258,20 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Excerpt/Lead */}
         {article.excerpt && (
-          <p className="text-xl text-gray-700 mb-8 leading-relaxed font-medium">
+          <p className="text-xl text-gray-700 leading-relaxed font-medium">
             {article.excerpt}
           </p>
         )}
+        </header>
 
-        {/* Content */}
-        <div 
-          className="prose prose-lg max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: article.contentHtml || '' }}
-        />
+        {/* Article Body */}
+        <section aria-labelledby="article-content">
+          <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
+          <div 
+            className="prose prose-lg max-w-none mb-12"
+            dangerouslySetInnerHTML={{ __html: article.contentHtml || '' }}
+          />
+        </section>
 
         {/* Related Series */}
         {article.primarySeries && (
