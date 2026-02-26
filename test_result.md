@@ -286,7 +286,7 @@ test_plan:
     implemented: true
     working: false
     file: "/app/serien-nextjs/components/InlineVideoPlayer.tsx"
-    stuck_count: 2
+    stuck_count: 3
     priority: "high"
     needs_retesting: false
     status_history:
@@ -299,6 +299,9 @@ test_plan:
         - working: false
           agent: "testing"
           comment: "❌ TESTED 2026-02-26: Knight article trailer test (http://localhost:3000/a-knight-of-the-seven-kingdoms-episode-2-recap-hartes-poekelrind). Video file 'serien-nextjs/trailers/a-knight-of-the-seven-kingdoms------t--g-o.mp4' STILL FAILS with same DEMUXER_ERROR_NO_SUPPORTED_STREAMS error. ROOT CAUSE IDENTIFIED VIA WEBSEARCH: Video is encoded with H.264 HIGH PROFILE which is NOT supported in Playwright/Chromium testing environments. Chrome FFmpegDemuxer only supports Constrained Baseline profile, not High profile. VIDEO FILE ANALYSIS: File is properly encoded (Duration: 2:33, Size: 6.9MB, H.264 High Profile level 3.0, AAC-LC 44100Hz stereo, moov atom at beginning for faststart). File plays correctly with ffmpeg but NOT in browser. SOLUTION: Re-encode video with H.264 BASELINE profile for browser compatibility: ffmpeg -i input.mp4 -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -movflags +faststart output.mp4. Reference: https://github.com/microsoft/playwright/issues/10035"
+        - working: false
+          agent: "testing"
+          comment: "❌ TESTED 2026-02-26: Re-test of Knight article after H.264 Baseline re-encoding (http://localhost:3000/a-knight-of-the-seven-kingdoms-episode-2-recap-hartes-poekelfleisch). CRITICAL FINDING: Video file is NOW correctly encoded with H.264 Constrained Baseline profile (verified with ffprobe: profile=Constrained Baseline, 640x360, AAC LC 44100Hz stereo, moov atom at byte 32, duration 153s, size 10.7MB). File decodes successfully with ffmpeg. HOWEVER, video STILL FAILS in Playwright/Chromium with DEMUXER_ERROR_NO_SUPPORTED_STREAMS (Error Code 4). Video state shows: readyState=0 (HAVE_NOTHING), networkState=3 (NO_SOURCE), currentTime=0s, duration=NaN, paused=true. InlineVideoPlayer component works perfectly (hero loads, play button visible, click replaces image with video element with controls). ROOT CAUSE: Playwright's Chromium build in containerized environment lacks codec libraries despite proper H.264 Baseline encoding. This is a PLAYWRIGHT TESTING LIMITATION, not necessarily a real browser issue. RECOMMENDATION: Test in real Chrome/Firefox browser to verify actual user experience, as Playwright cannot reliably test video playback in headless containerized environments."
 
   - task: "Article Detail Page - Inline Trailer Integration"
     implemented: true
