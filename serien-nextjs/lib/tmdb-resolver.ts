@@ -216,8 +216,8 @@ export async function resolveTmdbSeries(
       totalResolved: 1
     };
   } else {
-    // MULTI_SERIES_EDITORIAL: resolve 3-7 series
-    const allResolved = await resolveMultipleSeries(seriesCandidates, 3, 7);
+    // MULTI_SERIES_EDITORIAL: resolve 2-7 series (changed from 3-7)
+    const allResolved = await resolveMultipleSeries(seriesCandidates, 2, 7);
 
     if (allResolved.length === 0) {
       throw new Error('Failed to resolve any series');
