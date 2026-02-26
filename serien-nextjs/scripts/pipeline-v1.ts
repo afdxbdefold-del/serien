@@ -354,7 +354,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
         // Rewrite again (skip for MULTI_SERIES_EDITORIAL and FULL_ARTICLE)
         if (classification.content_type !== 'MULTI_SERIES_EDITORIAL' && actualContentType !== 'FULL_ARTICLE') {
-          editorialResult = await editorialRewrite({
+          const editorialResult = await editorialRewrite({
             generatedArticleHtml: generatedContent,
             generatedHeadline: articleTitle,
             extractedFacts: facts.key_statements.join('\n- '),
@@ -370,7 +370,7 @@ export async function runContentPipeline(source: CrawledSource) {
         
         // Just rewrite editorial (headline + first 2 paragraphs) - skip for MULTI_SERIES_EDITORIAL and FULL_ARTICLE
         if (classification.content_type !== 'MULTI_SERIES_EDITORIAL' && actualContentType !== 'FULL_ARTICLE') {
-          editorialResult = await editorialRewrite({
+          const editorialResult = await editorialRewrite({
             generatedArticleHtml: generatedContent,
             generatedHeadline: articleTitle,
             extractedFacts: facts.key_statements.join('\n- '),
