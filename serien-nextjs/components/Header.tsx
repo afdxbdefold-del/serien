@@ -239,97 +239,66 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Search Bar - TMDB Style: Prominent & Clean */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 border-b border-blue-700">
-        <div className="container mx-auto px-4 py-6">
-          <form onSubmit={handleSearch} className="max-w-4xl mx-auto">
-            <div className="relative">
-              <div className="absolute inset-0 bg-white rounded-full shadow-2xl"></div>
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Suche nach Serien..."
-                className="relative z-10 w-full pl-14 pr-12 py-4 bg-transparent border-0 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all placeholder:text-gray-400"
-              />
-              {searchLoading && (
-                <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-600 animate-spin z-10" />
-              )}
-            </div>
-          </form>
+      {/* Search Bar - Full Width, Clean Design */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <form onSubmit={handleSearch} className="w-full">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Serien durchsuchen..."
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            {searchLoading && (
+              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-600 animate-spin" />
+            )}
+          </div>
+        </form>
 
-          {/* Search Results Dropdown - TMDB Style */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="max-w-4xl mx-auto mt-4">
-              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-                <div className="divide-y divide-gray-100">
-                  {searchResults.map((series: any) => (
-                    <Link
-                      key={series.tmdbId}
-                      href={`/serie/${series.tmdbId}-${series.slug}`}
-                      onClick={closeSearch}
-                      className="flex items-center gap-4 p-4 hover:bg-blue-50 transition-colors group"
-                    >
-                      {/* Poster Image */}
-                      <div className="relative w-16 h-24 rounded-lg overflow-hidden flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-                        {series.posterLocalUrl ? (
-                          <Image
-                            src={series.posterLocalUrl}
-                            alt={series.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                            <span className="text-gray-400 text-xs">No Image</span>
-                          </div>
-                        )}
+        {/* Search Results Dropdown */}
+        {showSearchResults && searchResults.length > 0 && (
+          <div className="relative max-w-2xl mx-auto px-4 pb-2">
+            <div className="absolute top-0 left-4 right-4 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
+              <div className="p-2">
+                {searchResults.map((series: any) => (
+                  <Link
+                    key={series.tmdbId}
+                    href={`/serie/${series.tmdbId}-${series.slug}`}
+                    onClick={closeSearch}
+                    className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    {series.posterLocalUrl && (
+                      <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0">
+                        <Image
+                          src={series.posterLocalUrl}
+                          alt={series.name}
+                          fill
+                          className="object-cover"
+                        />
                       </div>
-                      
-                      {/* Series Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-lg group-hover:text-blue-600 transition-colors truncate">
-                          {series.name}
-                        </h3>
-                        {series.firstAirDate && (
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              TV
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              {new Date(series.firstAirDate).getFullYear()}
-                            </span>
-                          </div>
-                        )}
-                        {series.overview && (
-                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                            {series.overview}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {/* Arrow Icon */}
-                      <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-                
-                {/* Close Button */}
-                <button
-                  onClick={closeSearch}
-                  className="w-full p-4 text-center text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-t border-gray-100 transition-colors"
-                >
-                  Schließen
-                </button>
+                    )}
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900">{series.name}</div>
+                      {series.firstAirDate && (
+                        <div className="text-sm text-gray-500">
+                          {new Date(series.firstAirDate).getFullYear()}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
               </div>
+              <button
+                onClick={closeSearch}
+                className="w-full p-3 text-center text-sm text-gray-500 hover:bg-gray-50 border-t border-gray-200"
+              >
+                Schließen
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Menu Overlay */}
