@@ -283,6 +283,85 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </div>
       </main>
 
+      {/* Floating Newsfilter Button - Bottom Right */}
+      {(activeTab === 'all-news' || activeTab === 'my-news') && (
+        <button
+          onClick={() => setShowFilterModal(true)}
+          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:from-cyan-600 hover:to-blue-600 transition-all z-40"
+        >
+          <SlidersHorizontal className="h-5 w-5" />
+          <span className="font-semibold">Newsfilter</span>
+          {selectedStreamers.length > 0 && (
+            <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full">
+              {selectedStreamers.length}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Newsfilter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFilterModal(false)}>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold">Newsfilter nach Streamer</h2>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {ALL_STREAMERS.map((streamer) => {
+                  const isSelected = selectedStreamers.includes(streamer.id);
+                  return (
+                    <button
+                      key={streamer.id}
+                      onClick={() => toggleStreamer(streamer.id)}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        isSelected
+                          ? 'border-cyan-500 bg-cyan-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 ${streamer.color} rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0`}
+                        >
+                          {streamer.label.substring(0, 1)}
+                        </div>
+                        <span className="font-medium text-left">{streamer.label}</span>
+                        {isSelected && (
+                          <Check className="h-5 w-5 text-cyan-600 ml-auto" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-4">
+                <button
+                  onClick={clearFilters}
+                  className="flex-1 px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Zurücksetzen
+                </button>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-colors"
+                >
+                  Anwenden
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="border-t bg-white mt-20">
         <div className="container mx-auto px-6 md:px-12 py-12">
