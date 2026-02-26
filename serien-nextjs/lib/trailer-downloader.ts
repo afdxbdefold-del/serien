@@ -274,7 +274,7 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with deno + remote components
+    // yt-dlp command with deno + remote components + cookie extraction
     const ytdlpArgs = [
       'yt-dlp',
       '--js-runtime', 'deno',
@@ -286,8 +286,32 @@ export async function downloadVideoTrailer(
       '--socket-timeout', '30',
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
       '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : source === 'Vimeo' ? 'https://vimeo.com/' : 'https://www.imdb.com/',
-      videoUrl
     ];
+
+    // Add cookie extraction for YouTube (helps bypass 403 errors)
+    if (source === 'YouTube') {
+      // Try to extract cookies from browser (chromium, then firefox as fallback)
+      // This significantly improves YouTube download success rate
+      try {
+        const { stdout: chromiumCheck } = await execAsync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { timeout: 2000 });
+        if (chromiumCheck.trim()) {
+          console.log('   🍪 Using Chromium cookies for authentication');
+          ytdlpArgs.push('--cookies-from-browser', 'chromium');
+        }
+      } catch {
+        try {
+          const { stdout: firefoxCheck } = await execAsync('which firefox 2>/dev/null', { timeout: 2000 });
+          if (firefoxCheck.trim()) {
+            console.log('   🍪 Using Firefox cookies for authentication');
+            ytdlpArgs.push('--cookies-from-browser', 'firefox');
+          }
+        } catch {
+          console.log('   ⚠️  No browser cookies available (may increase 403 risk)');
+        }
+      }
+    }
+
+    ytdlpArgs.push(videoUrl);
 
     // Set PATH to include deno
     const env = {
