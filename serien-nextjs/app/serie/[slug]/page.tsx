@@ -203,7 +203,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               )}
 
               {/* Streaming Availability */}
-              <WhereToStreamBox tmdbId={series.tmdbId} tmdbType="tv" />
+              <WhereToStreamBox 
+                seriesId={series.tmdbId}
+                seriesName={series.name || ''}
+                networks={series.networks as string[] | undefined}
+                slug={slug}
+              />
 
               {/* Networks */}
               {series.networks && series.networks.length > 0 && (
