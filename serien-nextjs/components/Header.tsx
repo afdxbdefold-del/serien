@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Bell, Search, User, LogOut, Settings, X, Menu } from 'lucide-react';
+import { Bell, Search, User, LogOut, Settings, X, Menu, Loader2 } from 'lucide-react';
 import Logo from './Logo';
 import AuthModal from './AuthModal';
 
