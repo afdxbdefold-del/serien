@@ -7,7 +7,7 @@ import { isFollowing, toggleFollow, onFollowsChanged } from '@/lib/followStorage
 interface FollowButtonLocalProps {
   tmdbId: number;
   seriesName: string;
-  variant?: 'default' | 'compact' | 'navbar';
+  variant?: 'default' | 'compact' | 'navbar' | 'icon-only';
 }
 
 export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'default' }: FollowButtonLocalProps) {
@@ -29,6 +29,23 @@ export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'defau
     const newStatus = toggleFollow(tmdbId, seriesName);
     setFollowing(newStatus);
   };
+
+  // Icon-only variant (for mobile on series finder)
+  if (variant === 'icon-only') {
+    return (
+      <button
+        onClick={handleClick}
+        className={`flex items-center justify-center w-10 h-10 md:px-4 md:py-2 md:w-auto md:h-auto rounded-lg font-semibold transition-all ${
+          following
+            ? 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm'
+            : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 shadow-md'
+        }`}
+      >
+        {following ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+        <span className="hidden md:inline ml-2">{following ? 'Folge ich' : 'Folgen'}</span>
+      </button>
+    );
+  }
 
   // Navbar style (gradient button like filter buttons)
   if (variant === 'navbar') {
