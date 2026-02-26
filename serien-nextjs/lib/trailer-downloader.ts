@@ -597,23 +597,24 @@ export async function downloadVideoTrailer(
       if (rapidResult.success) {
         console.log('   ✅ RapidAPI download successful!');
         
-        // Re-encode with ffmpeg for web compatibility
+        // Re-encode with ffmpeg for web compatibility (H.264 Baseline Profile)
         const webCompatiblePath = tempFilePath.replace('.mp4', '-web.mp4');
-        console.log('   🔄 Re-encoding for web compatibility...');
+        console.log('   🔄 Re-encoding for web compatibility (H.264 Baseline Profile)...');
         
         try {
           const { exec } = require('child_process');
           const { promisify } = require('util');
           const execAsync = promisify(exec);
           
-          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -c:a aac -movflags +faststart -y "${webCompatiblePath}"`, {
+          // Use H.264 Baseline profile for maximum browser compatibility
+          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -b:a 128k -movflags +faststart -y "${webCompatiblePath}"`, {
             timeout: 120000
           });
           
           // Replace original with web-compatible version
           await fs.unlink(tempFilePath);
           await fs.rename(webCompatiblePath, tempFilePath);
-          console.log('   ✅ Re-encoding complete (web-compatible H.264/AAC)');
+          console.log('   ✅ Re-encoding complete (H.264 Baseline + AAC for maximum browser compatibility)');
         } catch (error: any) {
           console.log(`   ⚠️  Re-encoding failed: ${error.message}`);
           console.log('   📹 Using original file (may not play in all browsers)');
