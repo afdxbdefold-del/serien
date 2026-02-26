@@ -306,6 +306,18 @@ test_plan:
           agent: "testing"
           comment: "✅ TESTED 2026-02-26: Updated to use InlineVideoPlayer component (line 10 import, lines 186-190 usage). Article page loads correctly with InlineVideoPlayer integration. Component receives heroImageUrl, trailerUrl (article.trailerLocalUrl), and title props. Video player successfully replaces hero image inline when play button clicked. All functionality working as expected."
 
+  - task: "WhereToStreamBox Component - Series Detail Page"
+    implemented: true
+    working: false
+    file: "/app/serien-nextjs/app/serie/[slug]/page.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "❌ CRITICAL BUG FOUND (2026-02-26): 'Wo wird die Serie gestreamt?' box NOT displayed on Young Sheldon series page (/serie/71728-young-sheldon). Tested both desktop and mobile views by scrolling entire page - box is completely missing. Root cause: Component props mismatch. Page.tsx line 206 calls <WhereToStreamBox tmdbId={series.tmdbId} tmdbType='tv' /> but component expects props {seriesId, seriesName, networks, slug}. This causes seriesId to be undefined, getTVWatchProviders(undefined) returns 404 error from TMDB API (confirmed in console logs), component returns null and renders nothing. Console error: 'TMDB API error: 404'. Fix required: Update props to <WhereToStreamBox seriesId={series.tmdbId} seriesName={series.name || ''} networks={series.networks} slug={slug} />."
+
 agent_communication:
     - agent: "testing"
       message: "CRITICAL ISSUE FOUND AND RESOLVED: The application is using React 19.0.0 which has built-in metadata support that fundamentally conflicts with react-helmet-async. All pages were showing red error screens with 'Helmet expects a string as a child of <title>' errors. Solution: Replaced react-helmet-async with custom usePageMeta hook that directly manipulates document.title and meta tags. This is the recommended approach for React 19 according to GitHub issue #239."
@@ -317,3 +329,5 @@ agent_communication:
       message: "TRAILER VIDEO PLAYER TESTING COMPLETE (2026-02-26): Tested Young Sheldon article page video player functionality. All tests passed successfully. VideoPlayerModal component working correctly - play button appears on hover, modal opens on click, video player loads with correct source URL (/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4). Video has controls and autoplay attributes. No issues found."
     - agent: "testing"
       message: "INLINE VIDEO PLAYER MIGRATION TESTING COMPLETE (2026-02-26): Tested new InlineVideoPlayer component on Young Sheldon article page. Migration from modal to inline player successful. ✅ ALL TESTS PASSED: Hero image loads with play button overlay, clicking play replaces image with video player INLINE (no modal), video has controls and autoplay, video renders in same position as hero image. Implementation working correctly as specified in review request."
+    - agent: "testing"
+      message: "STREAMING BOX TESTING (2026-02-26): ❌ CRITICAL BUG - WhereToStreamBox component NOT rendering on Young Sheldon series page. Tested /serie/71728-young-sheldon on both desktop (1920x1080) and mobile (390x844) views. Scrolled entire page in both views - box completely absent. Page shows News, Cast, Trailer sections but missing streaming providers box. Console log shows 'TMDB API error: 404'. Root cause identified: Props mismatch in page.tsx line 206. Component called with {tmdbId, tmdbType} but expects {seriesId, seriesName, networks, slug}. This causes API call getTVWatchProviders(undefined) to fail with 404. Component silently returns null when no providers found. Fix is straightforward prop name correction."
