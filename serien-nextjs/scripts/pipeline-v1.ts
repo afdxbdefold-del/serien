@@ -1031,21 +1031,28 @@ export async function runContentPipeline(source: CrawledSource) {
         }
 
         // Download if found
-        if (youtubeId) {
-          const source = youtubeId.startsWith('vimeo:') ? 'Vimeo' 
-                       : youtubeId.startsWith('imdb:') ? 'IMDB'
+        if (videoId) {
+          const source = videoId.startsWith('filmstarts:') ? 'FilmStarts'
+                       : videoId.startsWith('videobuster:') ? 'VideoBuster'
+                       : videoId.startsWith('imdb:') ? 'IMDB'
+                       : videoId.startsWith('vimeo:') ? 'Vimeo' 
                        : 'YouTube';
-          const displayUrl = youtubeId.startsWith('vimeo:') 
-            ? `https://vimeo.com/${youtubeId.replace('vimeo:', '')}`
-            : youtubeId.startsWith('imdb:')
-            ? `https://www.imdb.com/video/vi${youtubeId.replace('imdb:', '')}/`
-            : `https://youtube.com/watch?v=${youtubeId}`;
+          
+          const displayUrl = videoId.startsWith('filmstarts:') 
+            ? videoId.replace('filmstarts:', '')
+            : videoId.startsWith('videobuster:')
+            ? videoId.replace('videobuster:', '')
+            : videoId.startsWith('vimeo:') 
+            ? `https://vimeo.com/${videoId.replace('vimeo:', '')}`
+            : videoId.startsWith('imdb:')
+            ? `https://www.imdb.com/video/vi${videoId.replace('imdb:', '')}/`
+            : `https://youtube.com/watch?v=${videoId}`;
           
           console.log(`🎬 Downloading from ${source}: ${displayUrl}`);
           
           const { downloadVideoTrailer } = await import('../lib/trailer-downloader');
           const downloadResult = await downloadVideoTrailer(
-            youtubeId,
+            videoId,
             resolution.primarySeries.name
           );
 
