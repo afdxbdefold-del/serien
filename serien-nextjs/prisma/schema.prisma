@@ -22,7 +22,6 @@ model User {
   
   articles      Article[]
   comments      Comment[]
-  discoverAudit DiscoverAudit?
   follows       Follow[]
   notifications Notification[]
   @@map("users")
@@ -151,6 +150,7 @@ model Article {
   
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
+  discoverAudit DiscoverAudit?
   discoverDashboards DiscoverScoreDashboard[]
   headlineComparison HeadlineComparison?
   
