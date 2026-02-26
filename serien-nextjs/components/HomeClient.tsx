@@ -177,16 +177,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 </Link>
                 {' '}zum Anschauen.
               </p>
-
-              {/* Login Section */}
-              <div className="max-w-sm mx-auto">
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="w-full px-6 py-3 bg-white text-cyan-600 rounded-lg font-semibold hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl"
-                >
-                  Anmelden
-                </button>
-              </div>
             </div>
           </div>
         </div>
