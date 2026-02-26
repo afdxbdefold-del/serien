@@ -441,6 +441,14 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 
                 {/* Additional Info */}
                 <div className="border-t border-gray-200 p-6 space-y-4">
+                  {/* Streaming Availability */}
+                  <WhereToStreamBox 
+                    seriesId={series.tmdbId}
+                    seriesName={series.name || ''}
+                    networks={series.networks as string[] | undefined}
+                    slug={slug}
+                  />
+
                   {series.networks && series.networks.length > 0 && (
                     <div>
                       <div className="text-sm text-gray-600 mb-2 font-medium">Sender/Plattform</div>
