@@ -19,6 +19,7 @@ import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
+import { fetchFullArticleText } from '../lib/full-text-fetcher';
 
 
 const prisma = new PrismaClient();
@@ -27,6 +28,7 @@ interface CrawledSource {
   title: string;
   url: string;
   text: string;
+  useFullTextMode?: boolean; // NEW: Flag für Volltext-Modus
 }
 
 function generateSlug(title: string): string {
@@ -43,12 +45,39 @@ export async function runContentPipeline(source: CrawledSource) {
   console.log('='.repeat(70));
   console.log(`\n📄 Source: ${source.title}`);
   console.log(`🔗 URL: ${source.url}`);
+  console.log(`📝 Mode: ${source.useFullTextMode ? 'FULL TEXT (450-900 words)' : 'STANDARD'}`);
   console.log('');
 
   // Declare timestamp at the start for consistent usage throughout pipeline
   const now = new Date();
 
   try {
+    // ========== STEP 0.5: FULL TEXT FETCHER (if enabled) ==========
+    let fullSourceText = source.text;
+    let sourceDomain = '';
+    
+    if (source.useFullTextMode) {
+      console.log('━'.repeat(70));
+      console.log('STEP 0.5: FULL TEXT FETCHER');
+      console.log('━'.repeat(70));
+      
+      try {
+        const fullTextResult = await fetchFullArticleText(source.url);
+        
+        if (fullTextResult.wordCount > 100) {
+          fullSourceText = fullTextResult.fullText;
+          sourceDomain = fullTextResult.sourceDomain;
+          
+          console.log(`✅ Full text fetched: ${fullTextResult.wordCount} words`);
+          console.log(`   Domain: ${sourceDomain}`);
+        } else {
+          console.log(`⚠️  Full text fetch yielded insufficient content, using provided text`);
+        }
+      } catch (error: any) {
+        console.log(`⚠️  Full text fetch failed: ${error.message}, using provided text`);
+      }
+    }
+
     // ========== STEP 1: CLASSIFY ==========
     console.log('━'.repeat(70));
     console.log('STEP 1: CONTENT CLASSIFICATION');
@@ -57,7 +86,7 @@ export async function runContentPipeline(source: CrawledSource) {
     const classification = await classifyContent(
       source.title,
       source.url,
-      source.text
+      fullSourceText
     );
 
     console.log(`\n📊 Classification Result:`);
@@ -127,7 +156,7 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 3: FACT EXTRACTION');
     console.log('━'.repeat(70));
 
-    const facts = await extractFacts(source.title, source.text);
+    const facts = await extractFacts(source.title, fullSourceText);
 
     // ========== STEP 4: AI GENERATE ==========
     console.log('\n' + '━'.repeat(70));
