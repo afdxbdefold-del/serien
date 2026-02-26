@@ -308,6 +308,16 @@ export default async function ArticlePage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Where to Stream Box */}
+        {article.primarySeriesId && article.primarySeries && (
+          <WhereToStreamBox
+            seriesId={article.primarySeriesId}
+            seriesName={article.primarySeries.title || article.primarySeries.name || ''}
+            networks={article.primarySeries.networks}
+            slug={article.primarySeries.slug}
+          />
+        )}
+
         {/* Comments Section */}
         <div className="mb-12">
           <CommentsSection articleSlug={article.slug} />
