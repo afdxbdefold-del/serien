@@ -334,7 +334,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 ${streamer.color} rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0`}
+                          className={`w-8 h-8 ${streamer.color} rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 text-sm`}
                         >
                           {streamer.label.substring(0, 1)}
                         </div>
