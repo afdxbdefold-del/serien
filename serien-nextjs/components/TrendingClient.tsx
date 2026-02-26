@@ -237,16 +237,16 @@ export default function TrendingClient({ series }: TrendingClientProps) {
                 <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden">
                   {/* Poster Image */}
                   <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block relative aspect-[2/3] overflow-hidden bg-gray-200">
-                    {show.posterLocalUrl ? (
+                    {show.posterPath ? (
                       <Image
-                        src={show.posterLocalUrl}
+                        src={`https://image.tmdb.org/t/p/w500${show.posterPath}`}
                         alt={show.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        Kein Bild
+                        <span className="text-4xl">📺</span>
                       </div>
                     )}
                     
