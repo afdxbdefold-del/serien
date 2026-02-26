@@ -36,32 +36,37 @@ async function crawlCinemaHolic(): Promise<Article[]> {
 
     // Extract articles from homepage
     const articles = await page.evaluate(() => {
-      const articleElements = document.querySelectorAll('article, .post, .entry');
+      // Try multiple selector patterns
+      const articleElements = document.querySelectorAll('article, div[class*="post"]');
       const results: { title: string; url: string; excerpt: string }[] = [];
 
       articleElements.forEach((article) => {
-        // Find title and link
-        const titleElement = article.querySelector('h2 a, h3 a, .entry-title a, .post-title a');
-        const excerptElement = article.querySelector('.excerpt, .entry-excerpt, .post-excerpt, p');
+        // Find title and link - try multiple patterns
+        const titleElement = 
+          article.querySelector('h2 a') || 
+          article.querySelector('h3 a') || 
+          article.querySelector('a[title]') ||
+          article.querySelector('a');
         
         if (titleElement && titleElement.textContent) {
           const title = titleElement.textContent.trim();
           const url = titleElement.getAttribute('href') || '';
-          const excerpt = excerptElement?.textContent?.trim() || '';
 
-          // Only TV series related articles
+          // Only TV series related articles (Season, Episode, Recap, Ending)
           const isTVRelated = 
-            title.toLowerCase().includes('season') ||
-            title.toLowerCase().includes('series') ||
-            title.toLowerCase().includes('show') ||
-            title.toLowerCase().includes('tv') ||
-            title.toLowerCase().includes('renewed') ||
-            title.toLowerCase().includes('canceled') ||
-            title.toLowerCase().includes('premiere') ||
-            title.toLowerCase().includes('finale');
+            /season\s+\d+/i.test(title) ||
+            /episode\s+\d+/i.test(title) ||
+            /\brecap\b/i.test(title) ||
+            /\bending\s+explained\b/i.test(title) ||
+            /\bseries\b/i.test(title) ||
+            /\bshow\b/i.test(title) ||
+            /\bfinale\b/i.test(title);
 
           if (isTVRelated && url && url.startsWith('http')) {
-            results.push({ title, url, excerpt });
+            // Avoid duplicates
+            if (!results.find(r => r.url === url)) {
+              results.push({ title, url, excerpt: '' });
+            }
           }
         }
       });
