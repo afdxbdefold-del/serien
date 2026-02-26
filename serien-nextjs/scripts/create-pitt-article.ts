@@ -13,7 +13,7 @@ async function createPittArticle() {
 
   // Get default author
   const author = await prisma.user.findFirst({
-    where: { role: 'ADMIN' }
+    where: { email: 'redaktion@serien.de' }
   });
 
   if (!author) {
