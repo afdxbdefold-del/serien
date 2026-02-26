@@ -321,6 +321,17 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
 
     console.log('✅ Content validated and formatted');
     
+    // Add "Quelle" block for FULL_ARTICLE mode
+    if (contentType === 'FULL_ARTICLE' && sourceUrl) {
+      const sourceDomain = new URL(sourceUrl).hostname.replace('www.', '');
+      const quelleBlock = `\n\n<p class="article-source"><strong>Quelle:</strong> <a href="${sourceUrl}" target="_blank" rel="noopener">${sourceDomain}</a></p>`;
+      
+      const finalHTML = formattedHTML + quelleBlock;
+      console.log('✅ Added Quelle block');
+      
+      return finalHTML;
+    }
+    
     return formattedHTML;
     
   } catch (error: any) {
