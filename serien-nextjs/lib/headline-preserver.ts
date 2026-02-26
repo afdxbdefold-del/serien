@@ -180,7 +180,7 @@ async function translateHeadline(text: string): Promise<string> {
     
     const openai = new OpenAI({
       apiKey,
-      baseURL: 'https://llm.kindo.ai/v1',
+      baseURL: 'http://localhost:8002/v1',
     });
 
     const response = await openai.chat.completions.create({
