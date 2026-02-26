@@ -18,12 +18,12 @@ function validateParagraph(text: string): { valid: boolean; error?: string } {
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
   const wordCount = text.split(/\s+/).length;
 
-  if (sentences.length > 3) {
-    return { valid: false, error: 'Paragraph exceeds 3 sentences' };
+  if (sentences.length > 4) {
+    return { valid: false, error: 'Paragraph exceeds 4 sentences' };
   }
 
-  if (wordCount > 80) {
-    return { valid: false, error: 'Paragraph exceeds 80 words' };
+  if (wordCount > 100) {
+    return { valid: false, error: 'Paragraph exceeds 100 words' };
   }
 
   return { valid: true };
