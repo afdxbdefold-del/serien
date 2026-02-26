@@ -1,22 +1,26 @@
 import Link from 'next/link';
+import prisma from '@/lib/prisma';
 
 export default async function DiscoverDashboard() {
   let audits = [];
   let error = null;
 
   try {
-    // Fetch audits from API
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/admin/discover-dashboard?limit=100`, {
-      cache: 'no-store',
+    // Direct database access instead of fetching localhost
+    audits = await prisma.discoverAudit.findMany({
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        article: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            publishedAt: true,
+          }
+        }
+      }
     });
-    
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
-    }
-    
-    const data = await response.json();
-    audits = data.audits || [];
   } catch (err: any) {
     console.error('[Discover Dashboard] Error:', err);
     error = err.message;
