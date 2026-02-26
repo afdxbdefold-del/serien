@@ -88,10 +88,19 @@ export default function Header() {
 
             {/* Right - Search & Mobile Menu */}
             <div className="flex items-center gap-3">
+              {/* Search Icon - Mobile only */}
+              <button 
+                onClick={() => setShowSearch(!showSearch)}
+                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Toggle search"
+              >
+                <Search className="h-6 w-6 text-white" />
+              </button>
+
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors order-last"
+                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
                 aria-label="Toggle menu"
               >
                 {showMobileMenu ? (
