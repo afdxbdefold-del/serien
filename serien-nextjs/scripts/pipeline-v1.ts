@@ -968,56 +968,65 @@ export async function runContentPipeline(source: CrawledSource) {
         console.log(`   Path: ${existingTrailer.trailerLocalUrl}`);
         trailerLocalPath = existingTrailer.trailerLocalUrl;
       } else {
-        console.log('🔍 No existing trailer in DB → Starting optimized 4-source fallback...');
-        console.log('   📊 Priority: IMDB (best) → Vimeo → TMDB → YouTube (cookies enabled)');
+        console.log('🔍 No existing trailer in DB → Starting optimized multi-source search...');
+        console.log('   📊 Priority: FilmStarts (DE) → VideoBuster (DE) → IMDB → Vimeo → YouTube (last resort)');
         
-        let youtubeId: string | null = null;
+        let videoId: string | null = null;
         
-        // Source 1: Search IMDB (highest success rate, no blocking!)
-        console.log('\n🔍 [1/4] Searching IMDB...');
-        const { searchIMDBTrailer } = await import('../lib/trailer-downloader');
-        youtubeId = await searchIMDBTrailer(
-          resolution.primarySeries.name,
-          resolution.primarySeries.tmdbId
-        );
+        // Source 1: Search FilmStarts.de (German aggregator, all studios, high success rate!)
+        console.log('\n🔍 [1/5] Searching FilmStarts.de...');
+        const { searchFilmStartsTrailer } = await import('../lib/trailer-downloader');
+        videoId = await searchFilmStartsTrailer(resolution.primarySeries.name);
         
-        if (youtubeId) {
-          console.log(`✅ Found via IMDB: ${youtubeId}`);
+        if (videoId) {
+          console.log(`✅ Found via FilmStarts.de: ${videoId}`);
         }
 
-        // Source 2: Search Vimeo
-        if (!youtubeId) {
-          console.log('\n🔍 [2/4] IMDB failed → Searching Vimeo...');
+        // Source 2: Search VideoBuster.de (German aggregator, all studios)
+        if (!videoId) {
+          console.log('\n🔍 [2/5] FilmStarts failed → Searching VideoBuster.de...');
+          const { searchVideoBusterTrailer } = await import('../lib/trailer-downloader');
+          videoId = await searchVideoBusterTrailer(resolution.primarySeries.name);
+          
+          if (videoId) {
+            console.log(`✅ Found via VideoBuster.de: ${videoId}`);
+          }
+        }
+
+        // Source 3: Search IMDB (International, good for US shows)
+        if (!videoId) {
+          console.log('\n🔍 [3/5] VideoBuster failed → Searching IMDB...');
+          const { searchIMDBTrailer } = await import('../lib/trailer-downloader');
+          videoId = await searchIMDBTrailer(
+            resolution.primarySeries.name,
+            resolution.primarySeries.tmdbId
+          );
+          
+          if (videoId) {
+            console.log(`✅ Found via IMDB: ${videoId}`);
+          }
+        }
+
+        // Source 4: Search Vimeo
+        if (!videoId) {
+          console.log('\n🔍 [4/5] IMDB failed → Searching Vimeo...');
           const { searchVimeoTrailer } = await import('../lib/trailer-downloader');
-          youtubeId = await searchVimeoTrailer(resolution.primarySeries.name);
+          videoId = await searchVimeoTrailer(resolution.primarySeries.name);
           
-          if (youtubeId) {
-            console.log(`✅ Found via Vimeo: ${youtubeId}`);
+          if (videoId) {
+            console.log(`✅ Found via Vimeo: ${videoId}`);
           }
         }
 
-        // Source 3: Check TMDB trailers
-        if (!youtubeId) {
-          console.log('\n🔍 [3/4] Vimeo failed → Checking TMDB data...');
-          if (resolution.primarySeries.trailers) {
-            youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
-            if (youtubeId) {
-              console.log(`✅ Found in TMDB data: ${youtubeId} (YouTube)`);
-            }
-          } else {
-            console.log('   ⏭️  No trailers in TMDB data');
-          }
-        }
-
-        // Source 4: Search YouTube (last resort, but with cookies!)
-        if (!youtubeId) {
-          console.log('\n🔍 [4/4] TMDB failed → Searching YouTube (with cookie auth)...');
-          youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
+        // Source 5: Search YouTube (last resort, often blocked but still try)
+        if (!videoId) {
+          console.log('\n🔍 [5/5] Vimeo failed → Searching YouTube (last resort)...');
+          videoId = await searchYouTubeTrailer(resolution.primarySeries.name);
           
-          if (youtubeId) {
-            console.log(`✅ Found via YouTube search: ${youtubeId}`);
+          if (videoId) {
+            console.log(`✅ Found via YouTube search: ${videoId}`);
           } else {
-            console.log('\n⏭️  All 4 sources exhausted → No trailer available');
+            console.log('\n⏭️  All 5 sources exhausted → No trailer available');
           }
         }
 
