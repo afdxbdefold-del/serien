@@ -286,9 +286,9 @@ export default async function ArticlePage({ params }: PageProps) {
                   <div className="text-sm font-semibold text-blue-600 mb-2 uppercase tracking-wide">
                     Zur Serie
                   </div>
-                  <h4 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  <p className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                     {article.primarySeries.title}
-                  </h4>
+                  </p>
                   <div className="flex items-center text-gray-600 group-hover:text-blue-600 transition-colors">
                     <span className="text-sm font-medium">Mehr erfahren</span>
                     <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,9 +330,9 @@ export default async function ArticlePage({ params }: PageProps) {
                       </div>
                     )}
                     <div className="p-4">
-                      <h3 className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-2">
+                      <p className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-2">
                         {news.title}
-                      </h3>
+                      </p>
                       <p className="text-sm text-gray-500 mt-2">
                         {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
                           day: 'numeric',
