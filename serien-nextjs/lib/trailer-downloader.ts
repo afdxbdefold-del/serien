@@ -324,6 +324,81 @@ export async function searchIMDBTrailer(
 }
 
 /**
+ * Download YouTube video using RapidAPI (bypasses YouTube blocking)
+ * More reliable than yt-dlp for YouTube
+ */
+async function downloadYouTubeViaRapidAPI(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const rapidApiKey = process.env.RAPIDAPI_KEY;
+    if (!rapidApiKey) {
+      return { success: false, error: 'RAPIDAPI_KEY not found in environment' };
+    }
+
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    console.log('   🌐 Using RapidAPI for YouTube download (bypasses blocking)...');
+
+    // Call RapidAPI to get download URL
+    const apiUrl = new URL('https://youtube-info-download-api.p.rapidapi.com/ajax/download.php');
+    apiUrl.searchParams.set('format', 'mp4');
+    apiUrl.searchParams.set('add_info', '0');
+    apiUrl.searchParams.set('url', youtubeUrl);
+    apiUrl.searchParams.set('no_merge', 'false');
+
+    const response = await fetch(apiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': 'youtube-info-download-api.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `RapidAPI error: ${response.status} ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    
+    // Extract download URL from response
+    // Response format varies, but usually has a "url" or "download_url" field
+    let downloadUrl: string | null = null;
+    
+    if (data.url) {
+      downloadUrl = data.url;
+    } else if (data.download_url) {
+      downloadUrl = data.download_url;
+    } else if (data.formats && Array.isArray(data.formats) && data.formats.length > 0) {
+      // Find worst quality format (smallest file)
+      const worstFormat = data.formats[data.formats.length - 1];
+      downloadUrl = worstFormat.url || worstFormat.download_url;
+    }
+
+    if (!downloadUrl) {
+      return { success: false, error: 'No download URL in RapidAPI response' };
+    }
+
+    console.log('   📥 Downloading video from RapidAPI URL...');
+
+    // Download the video file
+    const videoResponse = await fetch(downloadUrl);
+    if (!videoResponse.ok) {
+      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded via RapidAPI: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download video from YouTube, Vimeo, or IMDB using yt-dlp
  */
 export async function downloadVideoTrailer(
