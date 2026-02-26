@@ -268,6 +268,7 @@ test_plan:
     - "Inline video player replaces hero image without modal (2026-02-26)"
     - "Video autoplay and controls verification (2026-02-26)"
     - "WhereToStreamBox visibility test on Young Sheldon series page (2026-02-26)"
+    - "Article content sanitizer - artificial heading removal (2026-02-26)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
