@@ -164,15 +164,20 @@ export default async function ArticlePage({ params }: PageProps) {
         }}
       />
 
+      {/* Article with proper semantic structure */}
       <article className="container mx-auto px-6 md:px-12 py-8 max-w-4xl">
-        {/* Back Button */}
+        {/* Back Button (before header) */}
         <Link 
           href="/"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          aria-label="Zurück zur Startseite"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           <span>Zurück zur Startseite</span>
         </Link>
+
+        {/* Article Header */}
+        <header className="mb-8">
 
         {/* Hero Image */}
         {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
