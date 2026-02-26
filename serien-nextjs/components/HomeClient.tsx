@@ -290,15 +290,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                         <h3 className="text-xl font-bold text-gray-900 mb-3">
                           Noch keine personalisierten News
                         </h3>
-                        <p className="text-gray-600 mb-6">
+                        <p className="text-gray-600">
                           Folge deinen Lieblingsserien, um personalisierte News und Updates zu erhalten.
                         </p>
-                        <button
-                          onClick={() => setActiveTab('follow-shows')}
-                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg"
-                        >
-                          Serien entdecken
-                        </button>
                       </div>
                     </div>
                   )}
