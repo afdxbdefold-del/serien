@@ -274,11 +274,9 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with deno + remote components + cookie extraction
+    // yt-dlp command with PO Token Provider plugin (bgutil-ytdlp-pot-provider)
     const ytdlpArgs = [
       'yt-dlp',
-      '--js-runtime', 'deno',
-      '--remote-components', 'ejs:github',
       '--format', 'worst',
       '--output', tempFilePath,
       '--no-playlist',
@@ -288,51 +286,14 @@ export async function downloadVideoTrailer(
       '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : source === 'Vimeo' ? 'https://vimeo.com/' : 'https://www.imdb.com/',
     ];
 
-    // Add cookie extraction for YouTube (helps bypass 403 errors)
-    // Note: Only add cookies if browser profile actually exists
+    // YouTube-specific optimizations with PO Token support
     if (source === 'YouTube') {
-      // Try to extract cookies from browser (chromium, then firefox as fallback)
-      // This significantly improves YouTube download success rate
-      let cookiesAdded = false;
-      try {
-        // Check if Chromium cookies database exists (not just if binary is installed)
-        const chromiumCookiesPath = `${process.env.HOME}/.config/chromium/Default/Cookies`;
-        const googleCookiesPath = `${process.env.HOME}/.config/google-chrome/Default/Cookies`;
-        
-        await fs.access(chromiumCookiesPath).then(() => {
-          console.log('   🍪 Using Chromium cookies for authentication');
-          ytdlpArgs.push('--cookies-from-browser', 'chromium');
-          cookiesAdded = true;
-        }).catch(() => {});
-        
-        if (!cookiesAdded) {
-          await fs.access(googleCookiesPath).then(() => {
-            console.log('   🍪 Using Google Chrome cookies for authentication');
-            ytdlpArgs.push('--cookies-from-browser', 'chrome');
-            cookiesAdded = true;
-          }).catch(() => {});
-        }
-      } catch {
-        // Chromium check failed
-      }
+      console.log('   🎯 Using mweb client with PO Token Provider plugin');
+      // Use mweb client (recommended by yt-dlp wiki for PO Token support)
+      ytdlpArgs.push('--extractor-args', 'youtube:player_client=mweb');
       
-      if (!cookiesAdded) {
-        try {
-          // Check Firefox cookies
-          const firefoxPath = `${process.env.HOME}/.mozilla/firefox`;
-          await fs.access(firefoxPath).then(() => {
-            console.log('   🍪 Using Firefox cookies for authentication');
-            ytdlpArgs.push('--cookies-from-browser', 'firefox');
-            cookiesAdded = true;
-          }).catch(() => {});
-        } catch {
-          // Firefox check failed
-        }
-      }
-      
-      if (!cookiesAdded) {
-        console.log('   ⚠️  No browser cookies available - proceeding without cookie auth');
-      }
+      // Note: bgutil-ytdlp-pot-provider plugin automatically generates PO Tokens
+      // No manual configuration needed - the plugin hooks into yt-dlp automatically
     }
 
     ytdlpArgs.push(videoUrl);
