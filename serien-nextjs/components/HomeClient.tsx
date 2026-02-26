@@ -437,6 +437,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }
