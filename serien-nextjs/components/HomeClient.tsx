@@ -159,13 +159,13 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white">
       {/* Hero Section - Clean style like Feed buttons */}
       {!isAuthenticated && (
-        <div className="py-10 md:py-14">
+        <section className="py-10 md:py-14" aria-labelledby="hero-heading">
           <div className="container mx-auto px-6 md:px-12">
             <div className="max-w-3xl mx-auto text-center bg-gray-50 rounded-3xl p-8 md:p-12">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+              <h1 id="hero-heading" className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
                 Folge deinen Lieblingsserien
               </h1>
               <p className="text-lg md:text-xl text-gray-700 mb-6">
@@ -182,7 +182,18 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               </Link>
             </div>
           </div>
-        </div>
+        </section>
+      )}
+
+      {/* Authenticated: Show H1 at top */}
+      {isAuthenticated && (
+        <section className="py-6 bg-gray-50 border-b" aria-labelledby="main-heading">
+          <div className="container mx-auto px-6 md:px-12">
+            <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900">
+              Serien-News
+            </h1>
+          </div>
+        </section>
       )}
 
       <main className="container mx-auto px-6 md:px-12 py-8">
