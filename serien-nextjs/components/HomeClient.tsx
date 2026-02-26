@@ -117,10 +117,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const filterByStreamers = (items: any[], isNews = false) => {
     if (selectedStreamers.length === 0) return items;
     return items.filter(item => {
-      const itemStreamers = isNews 
-        ? [item.streamer, ...(item.providers || [])]
-        : (item.providers || []);
-      return itemStreamers.some((s: string) => selectedStreamers.includes(s));
+      // For news articles, check primarySeries.networks
+      if (isNews && item.primarySeries?.networks) {
+        return item.primarySeries.networks.some((network: string) => 
+          selectedStreamers.includes(network)
+        );
+      }
+      // For series, check networks or providers
+      const itemNetworks = item.networks || item.providers || [];
+      return itemNetworks.some((network: string) => selectedStreamers.includes(network));
     });
   };
 
