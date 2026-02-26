@@ -53,9 +53,10 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       {/* Mobile: Hero at top */}
-      <div className="lg:hidden container mx-auto px-6 py-8">
+      <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
+        <h1 id="series-hero" className="sr-only">{series.name}</h1>
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
           {/* Hero Image with Video Player (if trailer exists) */}
           <MobileHeroWithVideo
