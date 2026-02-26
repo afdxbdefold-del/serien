@@ -69,6 +69,7 @@ Die Episode zeigt eindrucksvoll, wie sehr sich das Personal des Pittsburgh Traum
       title,
       excerpt,
       content,
+      contentHtml: content, // For now, use same as content
       status: 'published',
       publishedAt: new Date(),
       category: 'recap',
