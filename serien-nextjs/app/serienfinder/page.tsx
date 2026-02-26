@@ -17,6 +17,7 @@ export default async function SerienfinderPage() {
       title: true,
       slug: true,
       posterLocalUrl: true,
+      posterPath: true,
       status: true,
       genres: true,
       networks: true,
