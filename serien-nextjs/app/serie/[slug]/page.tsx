@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Tv } from 'lucide-react';
 import FollowButtonLocal from '@/components/FollowButtonLocal';
+import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -56,34 +57,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       {/* Mobile: Hero at top */}
       <div className="lg:hidden container mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-          {/* Hero Image with Poster Overlay */}
-          <div className="relative w-full aspect-[21/9] bg-gray-900">
-            {series.backdropPath && (
-              <>
-                <Image
-                  src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
-                  alt={series.name || ''}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-              </>
-            )}
-            
-            {/* Poster Overlay */}
-            {series.posterPath && (
-              <div className="absolute bottom-0 left-6 transform translate-y-1/2">
-                <Image
-                  src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
-                  alt={series.name || ''}
-                  width={100}
-                  height={150}
-                  className="rounded-lg shadow-2xl border-4 border-white w-[100px] h-auto"
-                />
-              </div>
-            )}
-          </div>
+          {/* Hero Image with Video Player (if trailer exists) */}
+          <MobileHeroWithVideo
+            backdropPath={series.backdropPath}
+            posterPath={series.posterPath}
+            seriesName={series.name || ''}
+            trailerKey={trailers.length > 0 ? trailers[0].key : null}
+          />
           
           {/* Series Info */}
           <div className="pt-16 px-6 pb-6">
