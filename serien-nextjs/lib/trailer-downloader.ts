@@ -192,16 +192,35 @@ export async function searchIMDBTrailer(
         const imdbId = externalIds.imdb_id;
         console.log(`✅ Found IMDB ID via TMDB: ${imdbId}`);
         
-        // Get videos from IMDB title page
-        const imdbUrl = `https://www.imdb.com/title/${imdbId}/`;
-        const command = `yt-dlp "${imdbUrl}" --get-id --no-playlist --max-downloads 1`;
-        
-        const { stdout } = await execAsync(command, { timeout: 15000 });
-        const videoId = stdout.trim().split('\n')[0];
-        
-        if (videoId && videoId.match(/^\d+$/)) {
-          console.log(`✅ Found trailer on IMDB: ${videoId}`);
-          return `imdb:${videoId}`;
+        // Try to get video directly from IMDB using imdb: prefix
+        // This is more reliable than scraping the page
+        try {
+          // First, try to get the first video from the title
+          const command = `yt-dlp "https://www.imdb.com/title/${imdbId}/videogallery/" --get-id --no-playlist --playlist-items 1`;
+          
+          const { stdout } = await execAsync(command, { timeout: 15000 });
+          const videoId = stdout.trim().split('\n')[0];
+          
+          if (videoId && videoId.match(/^\d+$/)) {
+            console.log(`✅ Found trailer on IMDB: ${videoId}`);
+            return `imdb:${videoId}`;
+          }
+        } catch (galleryError: any) {
+          console.log(`⚠️  Video gallery failed, trying direct title page...`);
+          
+          // Fallback: Try getting videos from title page
+          try {
+            const command2 = `yt-dlp "imdb:title:${imdbId}" --get-id --no-playlist --playlist-items 1`;
+            const { stdout: stdout2 } = await execAsync(command2, { timeout: 15000 });
+            const videoId2 = stdout2.trim().split('\n')[0];
+            
+            if (videoId2 && videoId2.match(/^\d+$/)) {
+              console.log(`✅ Found trailer on IMDB (fallback): ${videoId2}`);
+              return `imdb:${videoId2}`;
+            }
+          } catch (titleError: any) {
+            console.log(`⚠️  IMDB title page also failed`);
+          }
         }
       }
     }
@@ -290,8 +309,8 @@ export async function downloadVideoTrailer(
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         proc.kill();
-        reject(new Error('Download timeout after 2 minutes'));
-      }, 120000);
+        reject(new Error('Download timeout after 3 minutes'));
+      }, 180000); // Increased to 3 minutes
       
       proc.on('close', (code) => {
         clearTimeout(timeout);

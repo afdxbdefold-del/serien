@@ -1041,6 +1041,8 @@ export async function runContentPipeline(source: CrawledSource) {
             console.log(`✅ Trailer downloaded from ${source}: ${trailerLocalPath}`);
           } else {
             console.log(`⚠️  Download failed from ${source}: ${downloadResult.error}`);
+            console.log(`⚠️  Continuing without trailer (article will still be published)`);
+            trailerLocalPath = null; // Explicitly set to null to continue
           }
         }
       }
