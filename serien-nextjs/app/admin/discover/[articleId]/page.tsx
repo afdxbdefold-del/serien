@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import prisma from '@/lib/prisma';
 
 interface PageProps {
   params: Promise<{ articleId: string }>;
@@ -13,21 +14,32 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
   let error: string | null = null;
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    const response = await fetch(
-      `${baseUrl}/api/admin/discover-dashboard?articleId=${articleId}`,
-      { cache: 'no-store' }
-    );
+    // Direct database access instead of fetching localhost
+    audit = await prisma.discoverAudit.findUnique({
+      where: { articleId },
+      include: {
+        article: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            excerpt: true,
+            publishedAt: true,
+            heroLocalUrl: true,
+            primarySeries: {
+              select: {
+                name: true,
+                title: true,
+              }
+            }
+          }
+        }
+      }
+    });
 
-    if (response.status === 404) {
+    if (!audit) {
       notFound();
     }
-
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
-    }
-
-    audit = await response.json();
   } catch (err: any) {
     console.error('[Discover Detail] Error:', err);
     error = err.message;
