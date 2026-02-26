@@ -7,6 +7,7 @@ async function createPittSeries() {
     update: {},
     create: {
       tmdbId: 999999,
+      slug: '999999-the-pitt',
       name: 'The Pitt',
       title: 'The Pitt',
       overview: 'Die Serie spielt im Pittsburgh Trauma Medical Center und folgt dem medizinischen Personal durch die Herausforderungen eines hektischen Krankenhausalltags.',
