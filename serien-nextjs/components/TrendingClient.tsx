@@ -269,6 +269,7 @@ export default function TrendingClient({ series }: TrendingClientProps) {
                       <FollowButtonLocal 
                         tmdbId={show.tmdbId} 
                         seriesName={show.title}
+                        variant="icon-only"
                       />
                     </div>
                   </Link>
