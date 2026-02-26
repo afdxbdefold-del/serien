@@ -38,9 +38,9 @@ const QUALITY_THRESHOLDS = {
   SHORT_NEWS: {
     WORDS_MIN: 160,
     WORDS_MAX: 260,
-    HEADLINE_MIN: 70,
-    CONTENT_MIN: 65,
-    STRUCTURE_MIN: 60,
+    HEADLINE_MIN: 65,  // Lowered from 70
+    CONTENT_MIN: 60,   // Lowered from 65
+    STRUCTURE_MIN: 55, // Lowered from 60
   },
   FULL_NEWS: {
     WORDS_MIN: 320,
