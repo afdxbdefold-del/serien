@@ -273,10 +273,17 @@ export default async function ArticlePage({ params }: PageProps) {
           />
         </section>
 
-        {/* Related Series */}
-        {article.primarySeries && (
-          <div className="mb-12">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+        {/* Sidebar/Related Content */}
+        <aside aria-labelledby="related-content">
+          <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
+
+          {/* Related Series */}
+          {article.primarySeries && (
+            <section className="mb-12" aria-labelledby="related-series">
+              <h3 id="related-series" className="text-xl font-bold text-gray-900 mb-4">
+                Mehr zur Serie
+              </h3>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
               <Link 
                 href={`/serie/${article.primarySeries.tmdbId}-${article.primarySeries.slug}`}
                 className="flex items-stretch gap-0 group"
