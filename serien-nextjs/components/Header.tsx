@@ -87,22 +87,19 @@ export default function Header() {
               </nav>
             </div>
 
-            {/* Right - Search & Mobile Menu */}
+            {/* Right - Search Icon & Mobile Menu */}
             <div className="flex items-center gap-3">
-              {/* Search Icon - Mobile only - scrolls to search bar */}
+              {/* Search Icon - All devices */}
               <button 
-                onClick={() => {
-                  // Scroll to search bar and focus
-                  const searchBar = document.querySelector('input[placeholder="Serien durchsuchen..."]') as HTMLInputElement;
-                  if (searchBar) {
-                    searchBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    setTimeout(() => searchBar.focus(), 300);
-                  }
-                }}
-                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Search"
+                onClick={() => setShowSearch(!showSearch)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Toggle search"
               >
-                <Search className="h-6 w-6 text-white" />
+                {showSearch ? (
+                  <X className="h-6 w-6 text-white" />
+                ) : (
+                  <Search className="h-6 w-6 text-white" />
+                )}
               </button>
 
               {/* Mobile Menu Toggle */}
@@ -117,20 +114,6 @@ export default function Header() {
                   <Menu className="h-6 w-6 text-white" />
                 )}
               </button>
-
-              {/* Search Bar - Desktop */}
-              <form onSubmit={handleSearch} className="hidden md:block">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Serien durchsuchen..."
-                    className="w-64 px-4 py-2 pl-10 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder-white/60 focus:outline-none focus:border-white/40 focus:bg-white/15 transition-colors"
-                  />
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60" />
-                </div>
-              </form>
             </div>
           </div>
         </div>
