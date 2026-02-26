@@ -56,38 +56,42 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       {/* Series Info Section with integrated Hero */}
       <div className="container mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-xl overflow-hidden max-w-5xl">
-          {/* Hero Image inside Box */}
-          {series.backdropPath && (
-            <div className="relative w-full aspect-[21/9] md:aspect-[21/7] bg-gray-900">
-              <Image
-                src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
-                alt={series.name || ''}
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-            </div>
-          )}
+          {/* Hero Image with Poster Overlay */}
+          <div className="relative w-full aspect-[21/9] md:aspect-[21/7] bg-gray-900">
+            {series.backdropPath && (
+              <>
+                <Image
+                  src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
+                  alt={series.name || ''}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+              </>
+            )}
+            
+            {/* Poster Overlay - Left Bottom */}
+            {series.posterPath && (
+              <div className="absolute bottom-0 left-6 md:left-8 transform translate-y-1/2">
+                <Image
+                  src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
+                  alt={series.name || ''}
+                  width={120}
+                  height={180}
+                  className="rounded-lg shadow-2xl border-4 border-white w-[100px] md:w-[150px] h-auto"
+                />
+              </div>
+            )}
+          </div>
           
           {/* Series Info */}
-          <div className="p-6 md:p-8">
+          <div className="pt-16 md:pt-20 px-6 md:px-8 pb-6 md:pb-8">
             <div className="flex gap-4 md:gap-6">
-              {/* Left: Poster + Meta */}
-              <div className="flex-shrink-0">
-                {/* Poster */}
-                {series.posterPath && (
-                  <Image
-                    src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
-                    alt={series.name || ''}
-                    width={120}
-                    height={180}
-                    className="rounded-lg shadow-lg w-[100px] md:w-[150px] h-auto mb-3"
-                  />
-                )}
-                
-                {/* Meta Pills under Poster */}
-                <div className="flex flex-col gap-2 w-[100px] md:w-[150px]">
+              {/* Left: Spacer for Poster + Meta Pills */}
+              <div className="flex-shrink-0 w-[100px] md:w-[150px]">
+                {/* Meta Pills */}
+                <div className="flex flex-col gap-2">
                   {series.voteAverage && (
                     <div className="flex items-center justify-center gap-1 bg-yellow-50 px-2 py-1.5 rounded-lg border border-yellow-200">
                       <Star className="h-3 md:h-4 w-3 md:w-4 text-yellow-500 fill-yellow-500" />
