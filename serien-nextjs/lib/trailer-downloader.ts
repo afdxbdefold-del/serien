@@ -133,16 +133,17 @@ export async function downloadYouTubeTrailer(
     console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with LOW QUALITY settings (360p max, 480p fallback)
+    // yt-dlp command with LOW QUALITY settings (360p max, simpler format selector)
     const command = [
       'yt-dlp',
-      // Format priority: 360p → 480p → best available (with proper shell escaping)
-      '--format', '"(bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4])/(bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4])/best"',
-      '--merge-output-format', 'mp4',
+      // Simpler format: best video+audio combo under 480p
+      '--format', '"best[height<=480][ext=mp4]"',
       '--output', `"${tempFilePath}"`,
       '--no-playlist',
       '--max-filesize', '30M',
       '--socket-timeout', '30',
+      '--no-check-certificates', // Bypass SSL issues
+      '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"',
       `"${youtubeUrl}"`
     ].join(' ');
 
