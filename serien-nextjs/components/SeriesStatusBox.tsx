@@ -99,28 +99,28 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
         )}
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            {/* Series Title */}
-            <h3 className="text-base font-bold text-gray-900">
+          {/* Series Title with Link */}
+          {seriesSlug ? (
+            <Link 
+              href={`/serie/${seriesId}-${seriesSlug}`}
+              className="block mb-3"
+            >
+              <h3 className="text-base font-bold text-gray-900 hover:text-blue-600 transition-colors">
+                {seriesName}
+              </h3>
+            </Link>
+          ) : (
+            <h3 className="text-base font-bold text-gray-900 mb-3">
               {seriesName}
             </h3>
-
-            {/* Follow Button */}
-            <div className="flex-shrink-0">
-              <FollowButtonLocal 
-                tmdbId={seriesId}
-                seriesName={seriesName}
-                variant="compact"
-              />
-            </div>
-          </div>
+          )}
           
           <p className="text-sm text-gray-700 mb-2">
             <span className="font-medium">Letzte Entwicklung:</span>{' '}
             {statusData.description}
           </p>
           
-          <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+          <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
             {statusData.lastNewsDate && (
               <span>
                 Letzte News: {formatDate(statusData.lastNewsDate)}
@@ -134,11 +134,20 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
             )}
           </div>
 
+          {/* Follow Button below metadata */}
+          <div className="mb-2">
+            <FollowButtonLocal 
+              tmdbId={seriesId}
+              seriesName={seriesName}
+              variant="compact"
+            />
+          </div>
+
           {/* Series Link */}
           {seriesSlug && (
             <Link 
               href={`/serie/${seriesId}-${seriesSlug}`}
-              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 font-medium transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Zur Serie →
             </Link>
