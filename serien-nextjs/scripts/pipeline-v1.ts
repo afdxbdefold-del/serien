@@ -331,8 +331,10 @@ export async function runContentPipeline(source: CrawledSource) {
     // REWRITE COUNTER (MAX 1 TOTAL)
     let hasRewritten = false;
 
-    // AUTO-REWRITE on FAIL (ONCE) - only for SINGLE_SERIES_NEWS
-    if (qualityResult.status === 'FAIL' && !hasRewritten && classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+    // AUTO-REWRITE on FAIL (ONCE) - only for SINGLE_SERIES_NEWS (not MULTI_SERIES_EDITORIAL or FULL_ARTICLE)
+    if (qualityResult.status === 'FAIL' && !hasRewritten && 
+        classification.content_type !== 'MULTI_SERIES_EDITORIAL' && 
+        actualContentType !== 'FULL_ARTICLE') {
       console.log('\n🔄 Quality Check FAILED - Attempting rewrite (1/1)...');
       hasRewritten = true;
 
@@ -343,8 +345,9 @@ export async function runContentPipeline(source: CrawledSource) {
         generatedContent = await generateGermanArticle(
           facts,
           resolution.primarySeries.name,
-          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
-          allSeriesNames
+          actualContentType,
+          allSeriesNames,
+          source.url
         );
 
         // Rewrite again (skip for MULTI_SERIES_EDITORIAL)
