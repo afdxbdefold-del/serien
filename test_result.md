@@ -284,15 +284,18 @@ test_plan:
 
   - task: "InlineVideoPlayer Component - Article Trailer Display (Migration from Modal)"
     implemented: true
-    working: true
+    working: false
     file: "/app/serien-nextjs/components/InlineVideoPlayer.tsx"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "testing"
           comment: "✅ TESTED 2026-02-26: InlineVideoPlayer component working perfectly. Tested Young Sheldon article page (/wie-erklaert-young-sheldon-staffel-6-sheldons-hausregeln-in-the-big-bang-theory). Initial state shows hero image with centered play button overlay. Clicking play button successfully replaces hero image with inline video player (NO modal popup). Video source: '/trailer/serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4'. Video has controls and autoplay attributes. Video renders within hero container maintaining same position. Screenshots captured: before-play.png (hero with play button) and after-play-video.png (video player inline)."
+        - working: false
+          agent: "testing"
+          comment: "❌ TESTED 2026-02-26: User reported trailer not playing. ROOT CAUSE IDENTIFIED: Video file in Emergent Object Storage is corrupted/has invalid streams. FINDINGS: (1) ✅ InlineVideoPlayer component renders correctly - hero image loads, play button appears, click replaces image with video element. (2) ✅ HTTP Range Request implementation was FIXED in /app/serien-nextjs/app/(api)/trailer/[...path]/route.ts - now properly returns 206 Partial Content with correct Content-Range headers. Verified with curl tests. (3) ❌ CRITICAL: Video file 'serien-nextjs/trailers/young-sheldon---t--cj--i-.mp4' fails with Chrome error 'DEMUXER_ERROR_NO_SUPPORTED_STREAMS: FFmpegDemuxer: no supported streams'. This means the MP4 container exists but has no valid H.264/AAC streams that browser can decode. (4) File appears valid (3.1MB, ftyp atom present, claims avc1 codec) but streams are corrupted or improperly encoded. (5) Byte-level verification confirms range requests work correctly - MD5 hashes match. SOLUTION REQUIRED: Re-encode video file with proper H.264+AAC codecs and re-upload to storage. Use: ffmpeg -i input.mp4 -c:v libx264 -c:a aac -movflags +faststart output.mp4"
 
   - task: "Article Detail Page - Inline Trailer Integration"
     implemented: true
