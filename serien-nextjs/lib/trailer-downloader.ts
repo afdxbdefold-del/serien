@@ -596,12 +596,33 @@ export async function downloadVideoTrailer(
       
       if (rapidResult.success) {
         console.log('   ✅ RapidAPI download successful!');
-        // Continue to upload to cloud storage below
+        
+        // Re-encode with ffmpeg for web compatibility
+        const webCompatiblePath = tempFilePath.replace('.mp4', '-web.mp4');
+        console.log('   🔄 Re-encoding for web compatibility...');
+        
+        try {
+          const { execAsync } = await import('child_process');
+          const util = await import('util');
+          const exec = util.promisify(execAsync);
+          
+          await exec(`ffmpeg -i "${tempFilePath}" -c:v libx264 -c:a aac -movflags +faststart -y "${webCompatiblePath}"`, {
+            timeout: 120000
+          });
+          
+          // Replace original with web-compatible version
+          await fs.unlink(tempFilePath);
+          await fs.rename(webCompatiblePath, tempFilePath);
+          console.log('   ✅ Re-encoding complete (web-compatible H.264/AAC)');
+        } catch (error: any) {
+          console.log(`   ⚠️  Re-encoding failed: ${error.message}`);
+          console.log('   📹 Using original file (may not play in all browsers)');
+        }
       } else {
         console.log(`   ⚠️  RapidAPI failed: ${rapidResult.error}`);
         console.log('   🔄 Falling back to yt-dlp...');
         
-        // Fallback to yt-dlp
+        // Fallback to yt-dlp (already downloads in compatible format)
         const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
         if (!ytdlpResult.success) {
           throw new Error(ytdlpResult.error || 'yt-dlp download failed');
