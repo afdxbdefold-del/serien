@@ -15,6 +15,13 @@ export default function VideoPlayerModal({ trailerUrl, seriesTitle }: VideoPlaye
     return null;
   }
 
+  // Convert storage path to proxy API URL
+  // trailerUrl format: "serien-nextjs/trailers/filename.mp4"
+  // Convert to: "/trailer/serien-nextjs/trailers/filename.mp4"
+  const videoProxyUrl = trailerUrl.startsWith('/') 
+    ? trailerUrl 
+    : `/trailer/${trailerUrl}`;
+
   return (
     <>
       {/* Play Button Overlay on Hero Image */}
@@ -50,13 +57,13 @@ export default function VideoPlayerModal({ trailerUrl, seriesTitle }: VideoPlaye
             {/* Video Player */}
             <div className="relative aspect-video">
               <video
-                src={trailerUrl}
+                src={videoProxyUrl}
                 controls
                 autoPlay
                 className="w-full h-full"
                 preload="metadata"
               >
-                <source src={trailerUrl} type="video/mp4" />
+                <source src={videoProxyUrl} type="video/mp4" />
                 Dein Browser unterstützt das Video-Tag nicht.
               </video>
             </div>
