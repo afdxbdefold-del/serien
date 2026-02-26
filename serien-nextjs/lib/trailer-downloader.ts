@@ -564,6 +564,21 @@ export async function downloadVideoTrailer(
       }
     }
 
+    // Verify file was downloaded
+    try {
+      const stats = await fs.stat(tempFilePath);
+      if (stats.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      console.log(`✅ Video file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+    } catch (error: any) {
+      throw new Error(`Downloaded file verification failed: ${error.message}`);
+    }
+
+    // Read file into buffer for upload
+    const videoBuffer = await fs.readFile(tempFilePath);
+    console.log(`📦 File size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+
     // Upload to Emergent Object Storage
     const storagePath = `${APP_NAME}/trailers/${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`;
     console.log(`☁️  Uploading to cloud: ${storagePath}`);
