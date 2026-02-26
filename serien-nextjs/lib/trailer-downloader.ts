@@ -68,14 +68,15 @@ export async function downloadYouTubeTrailer(
     console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
     console.log(`   Output: ${outputPath}`);
 
-    // yt-dlp command with optimized settings
+    // yt-dlp command with LOW QUALITY settings (360p max, 480p fallback)
     const command = [
       'yt-dlp',
-      '--format', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
+      // Format priority: 360p → 480p → best available
+      '--format', '(bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4])/(bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4])/best',
       '--merge-output-format', 'mp4',
       '--output', `${outputPath}.mp4`,
       '--no-playlist',
-      '--max-filesize', '50M',  // Limit to 50MB
+      '--max-filesize', '30M',  // Reduced: 360p should be ~10-20MB
       '--socket-timeout', '30',
       youtubeUrl
     ].join(' ');
