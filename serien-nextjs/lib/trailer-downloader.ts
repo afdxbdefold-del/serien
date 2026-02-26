@@ -136,18 +136,19 @@ export async function downloadYouTubeTrailer(
     // yt-dlp command with LOW QUALITY settings (360p max, 480p fallback)
     const command = [
       'yt-dlp',
-      // Format priority: 360p → 480p → best available
-      '--format', '(bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4])/(bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4])/best',
+      // Format priority: 360p → 480p → best available (with proper shell escaping)
+      '--format', '"(bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4])/(bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4])/best"',
       '--merge-output-format', 'mp4',
-      '--output', tempFilePath,
+      '--output', `"${tempFilePath}"`,
       '--no-playlist',
-      '--max-filesize', '30M',  // Reduced: 360p should be ~10-20MB
+      '--max-filesize', '30M',
       '--socket-timeout', '30',
-      youtubeUrl
+      `"${youtubeUrl}"`
     ].join(' ');
 
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 120000 // 2 minutes timeout
+      timeout: 120000, // 2 minutes timeout
+      shell: '/bin/bash' // Use bash for better quote handling
     });
 
     console.log('✅ Download complete');
