@@ -21,39 +21,65 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-gray-900 text-gray-400 py-8 mt-12">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* Left: Copyright */}
-          <div className="text-sm">
-            © {new Date().getFullYear()} serien.de
-          </div>
-
-          {/* Center: Links */}
-          <div className="flex gap-6 text-sm">
+    <>
+      {/* Personalization Navigation Bar (above footer) */}
+      <div className="bg-gray-50 border-t border-gray-200">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div className="text-sm text-gray-600">
+              💾 Deine Daten werden nur lokal gespeichert
+            </div>
+            
             <button
               onClick={handleReset}
-              className={`hover:text-white transition-colors ${
-                showConfirm ? 'text-red-400 font-medium' : ''
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-all ${
+                showConfirm 
+                  ? 'bg-red-500 text-white hover:bg-red-600' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {showConfirm ? '⚠️ Jetzt zurücksetzen?' : 'Personalisierung zurücksetzen'}
+              {showConfirm ? '⚠️ Jetzt zurücksetzen?' : '🔄 Personalisierung zurücksetzen'}
             </button>
           </div>
 
-          {/* Right: Info */}
-          <div className="text-xs text-gray-500">
-            Deine Daten werden nur lokal gespeichert
+          {/* Confirmation message */}
+          {showConfirm && (
+            <div className="mt-3 text-center text-sm text-orange-600 font-medium">
+              ⚠️ Klicke erneut, um alle gespeicherten Serien zu löschen
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-8">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Left: Copyright */}
+            <div className="text-sm">
+              © {new Date().getFullYear()} serien.de
+            </div>
+
+            {/* Center: Links */}
+            <div className="flex gap-6 text-sm">
+              <a href="/impressum" className="hover:text-white transition-colors">
+                Impressum
+              </a>
+              <a href="/datenschutz" className="hover:text-white transition-colors">
+                Datenschutz
+              </a>
+              <a href="mailto:mail@serien.de" className="hover:text-white transition-colors">
+                Kontakt
+              </a>
+            </div>
+
+            {/* Right: Info */}
+            <div className="text-xs text-gray-500">
+              Deine Quelle für Serien-News
+            </div>
           </div>
         </div>
-
-        {/* Confirmation message */}
-        {showConfirm && (
-          <div className="mt-4 text-center text-sm text-yellow-400">
-            Klicke erneut, um alle gespeicherten Serien zu löschen
-          </div>
-        )}
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 }
