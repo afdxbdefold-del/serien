@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Star, Tv } from 'lucide-react';
 import FollowButtonLocal from '@/components/FollowButtonLocal';
 import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
+import WhereToStreamBox from '@/components/WhereToStreamBox';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
