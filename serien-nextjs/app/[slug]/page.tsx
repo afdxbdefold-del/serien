@@ -6,7 +6,6 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
-import { WasBedeutetDasBox } from '@/components/WasBedeutetDasBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 
 interface PageProps {
@@ -257,11 +256,6 @@ export default async function ArticlePage({ params }: PageProps) {
           <p className="text-xl text-gray-700 mb-8 leading-relaxed font-medium">
             {article.excerpt}
           </p>
-        )}
-
-        {/* Was bedeutet das? Box */}
-        {article.wasBedeutetDasText && (
-          <WasBedeutetDasBox text={article.wasBedeutetDasText} />
         )}
 
         {/* Content */}
