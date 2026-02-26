@@ -45,17 +45,16 @@ async function testRapidAPIDirectDownload() {
   console.log('✅ RAPIDAPI_KEY is configured');
   
   // Test with a known YouTube video ID (short video for quick test)
-  const testVideoId = 'jNQXAC9IVRw'; // "Me at the zoo" - first YouTube video (short)
+  const testVideoId = 'dQw4w9WgXcQ'; // Rick Astley - well-known stable video
   const youtubeUrl = `https://www.youtube.com/watch?v=${testVideoId}`;
   
   console.log(`\n🔗 Testing with video: ${youtubeUrl}`);
   
   try {
+    // Use format=360 for async download (the API's working format)
     const apiUrl = new URL('https://youtube-info-download-api.p.rapidapi.com/ajax/download.php');
-    apiUrl.searchParams.set('format', 'mp4');
-    apiUrl.searchParams.set('add_info', '0');
+    apiUrl.searchParams.set('format', '360'); // 360p for smaller files
     apiUrl.searchParams.set('url', youtubeUrl);
-    apiUrl.searchParams.set('no_merge', 'false');
 
     console.log('📡 Calling RapidAPI...');
     
@@ -67,15 +66,15 @@ async function testRapidAPIDirectDownload() {
       },
     });
 
-    const duration = Date.now() - startTime;
-    console.log(`⏱️  API Response Time: ${duration}ms`);
+    const apiDuration = Date.now() - startTime;
+    console.log(`⏱️  API Response Time: ${apiDuration}ms`);
 
     if (!response.ok) {
       results.push({
         feature: 'RapidAPI Direct Download',
         status: 'FAIL',
         details: `HTTP ${response.status}: ${response.statusText}`,
-        duration
+        duration: apiDuration
       });
       console.log(`❌ RapidAPI returned error: ${response.status} ${response.statusText}`);
       return;
@@ -84,30 +83,80 @@ async function testRapidAPIDirectDownload() {
     const data = await response.json();
     console.log('\n📦 RapidAPI Response Structure:');
     console.log(`   Keys: ${Object.keys(data).join(', ')}`);
+    console.log(`   Success: ${data.success}`);
+    console.log(`   Title: ${data.title || 'N/A'}`);
     
-    // Check for download URL
+    // Check for async download (progress_url)
+    if (data.success && data.progress_url) {
+      console.log(`   ✅ Async download initiated`);
+      console.log(`   Progress URL: ${data.progress_url}`);
+      
+      // Poll for completion (max 30 seconds)
+      console.log('\n⏳ Polling for download completion...');
+      let downloadUrl: string | null = null;
+      
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        
+        try {
+          const progressRes = await fetch(data.progress_url);
+          if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            console.log(`   📊 Progress: ${progressData.progress || 0}% - ${progressData.text || 'Processing'}`);
+            
+            if (progressData.success === 1 && progressData.download_url) {
+              downloadUrl = progressData.download_url;
+              break;
+            }
+          }
+        } catch (e) {
+          // Continue polling
+        }
+      }
+      
+      const totalDuration = Date.now() - startTime;
+      
+      if (downloadUrl) {
+        results.push({
+          feature: 'RapidAPI Direct Download',
+          status: 'PASS',
+          details: `API returns valid download URL after async processing`,
+          duration: totalDuration
+        });
+        console.log('\n✅ TEST PASSED: RapidAPI async download completed');
+        console.log(`   Download URL obtained in ${totalDuration}ms`);
+      } else {
+        results.push({
+          feature: 'RapidAPI Direct Download',
+          status: 'FAIL',
+          details: 'Async download timeout - no URL after 30 seconds',
+          duration: totalDuration
+        });
+        console.log('\n⏱️  TEST TIMEOUT: Download not ready within 30 seconds');
+        console.log('   Note: This may be normal for longer videos or high API load');
+      }
+      return;
+    }
+    
+    // Check for direct download URL in response (fallback)
     let downloadUrl: string | null = null;
     
     if (data.url) {
       downloadUrl = data.url;
-      console.log(`   ✅ Direct URL found: ${downloadUrl.substring(0, 80)}...`);
+      console.log(`   ✅ Direct URL found`);
     } else if (data.download_url) {
       downloadUrl = data.download_url;
-      console.log(`   ✅ download_url found: ${downloadUrl.substring(0, 80)}...`);
-    } else if (data.formats && Array.isArray(data.formats) && data.formats.length > 0) {
-      console.log(`   ✅ ${data.formats.length} format(s) available`);
-      downloadUrl = data.formats[data.formats.length - 1]?.url;
-      if (downloadUrl) {
-        console.log(`   ✅ Using last format URL`);
-      }
+      console.log(`   ✅ download_url found`);
     }
+
+    const totalDuration = Date.now() - startTime;
 
     if (downloadUrl) {
       results.push({
         feature: 'RapidAPI Direct Download',
         status: 'PASS',
         details: 'API returns valid download URL',
-        duration
+        duration: totalDuration
       });
       console.log('\n✅ TEST PASSED: RapidAPI returns download URL');
     } else {
@@ -115,10 +164,10 @@ async function testRapidAPIDirectDownload() {
         feature: 'RapidAPI Direct Download',
         status: 'FAIL',
         details: 'No download URL in response',
-        duration
+        duration: totalDuration
       });
       console.log('\n❌ TEST FAILED: No download URL in response');
-      console.log('   Response data:', JSON.stringify(data, null, 2).substring(0, 500));
+      console.log('   Response:', JSON.stringify(data, null, 2).substring(0, 300));
     }
 
   } catch (error: any) {
