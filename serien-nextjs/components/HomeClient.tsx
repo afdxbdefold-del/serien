@@ -387,56 +387,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="border-t bg-white mt-20">
-        <div className="container mx-auto px-6 md:px-12 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">
-                serien.de
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Deine Quelle für TV-Serien News
-              </p>
-              {/* Statistics */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <span className="font-semibold">📺 {stats.series_total > 0 ? stats.series_total.toLocaleString('de-DE') : '...'}</span>
-                  <span className="text-gray-500">Serien</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-700">
-                  <span className="font-semibold">📰 {stats.news_total > 0 ? stats.news_total.toLocaleString('de-DE') : '...'}</span>
-                  <span className="text-gray-500">News-Artikel</span>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Navigation</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/" className="hover:text-gray-900 transition-colors">News</Link></li>
-                <li><Link href="/serienfinder" className="hover:text-gray-900 transition-colors">Serienfinder</Link></li>
-                <li><Link href="/redaktion" className="hover:text-gray-900 transition-colors">Redaktion</Link></li>
-                <li><Link href="/about" className="hover:text-gray-900 transition-colors">Über uns</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Rechtliches</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/impressum" className="hover:text-gray-900 transition-colors">Impressum</Link></li>
-                <li><a href="/" className="hover:text-gray-900 transition-colors">Datenschutz</a></li>
-                <li><a href="mailto:mail@serien.de" className="hover:text-gray-900 transition-colors">Kontakt</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="pt-8 border-t text-center text-sm text-gray-600">
-            <p>© 2024 serien.de. Alle Rechte vorbehalten.</p>
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }
