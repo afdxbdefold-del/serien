@@ -3,13 +3,13 @@ import { Metadata } from 'next';
 import TrendingClient from '@/components/TrendingClient';
 
 export const metadata: Metadata = {
-  title: 'Trending Serien | serien.de',
-  description: 'Die beliebtesten und angesagtesten Serien im Trend - entdecke was gerade alle schauen.',
+  title: 'Serienfinder | serien.de',
+  description: 'Finde deine nächste Lieblingsserie - mit umfangreichen Filtern nach Genre, Sender, Bewertung und mehr.',
 };
 
 export const revalidate = 3600; // Revalidate every hour
 
-export default async function TrendingPage() {
+export default async function SerienfinderPage() {
   // Fetch all series with necessary fields for filtering
   const series = await prisma.series.findMany({
     select: {

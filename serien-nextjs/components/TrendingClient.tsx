@@ -148,12 +148,17 @@ export default function TrendingClient({ series }: TrendingClientProps) {
             <div className="flex items-center gap-3 mb-4">
               <TrendingUp className="h-8 w-8 text-cyan-500" />
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-                Trending Serien
+                Serienfinder
               </h1>
             </div>
-            <p className="text-lg text-gray-600">
-              Die beliebtesten Serien nach Aufrufen sortiert
+            <p className="text-lg text-gray-600 mb-3">
+              Finde deine nächste Lieblingsserie mit umfangreichen Filtern
             </p>
+            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">
+                💡 <strong>Tipp:</strong> Folge deinen Lieblingsserien, um personalisierte News und Serien-Vorschläge zu erhalten!
+              </p>
+            </div>
           </div>
 
           {/* Active Filters */}
