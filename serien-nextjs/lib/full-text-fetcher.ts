@@ -123,7 +123,9 @@ export async function fetchFullArticleText(url: string): Promise<FullTextResult>
       fullText: result.fullText,
       wordCount,
       sourceDomain: result.sourceDomain,
-      title: result.title
+      title: result.title,
+      headline: result.title, // ADD: headline field
+      rawText: result.fullText // ADD: raw text
     };
 
   } catch (error) {
@@ -136,7 +138,9 @@ export async function fetchFullArticleText(url: string): Promise<FullTextResult>
       fullText: '',
       wordCount: 0,
       sourceDomain: domain,
-      title: ''
+      title: '',
+      headline: 'Article Title', // ADD: fallback headline
+      rawText: '' // ADD: empty raw text
     };
   }
 }
