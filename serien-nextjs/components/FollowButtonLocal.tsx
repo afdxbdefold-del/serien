@@ -7,7 +7,7 @@ import { isFollowing, toggleFollow, onFollowsChanged } from '@/lib/followStorage
 interface FollowButtonLocalProps {
   tmdbId: number;
   seriesName: string;
-  variant?: 'default' | 'compact';
+  variant?: 'default' | 'compact' | 'navbar';
 }
 
 export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'default' }: FollowButtonLocalProps) {
@@ -29,6 +29,32 @@ export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'defau
     const newStatus = toggleFollow(tmdbId, seriesName);
     setFollowing(newStatus);
   };
+
+  // Navbar style (like NEWS, TRENDING buttons)
+  if (variant === 'navbar') {
+    return (
+      <button
+        onClick={handleClick}
+        className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
+          following
+            ? 'bg-white/20 text-white hover:bg-white/30'
+            : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+        }`}
+      >
+        {following ? (
+          <span className="flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5" />
+            FOLGE ICH
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            FOLGEN
+          </span>
+        )}
+      </button>
+    );
+  }
 
   if (variant === 'compact') {
     return (
