@@ -137,12 +137,9 @@ export async function downloadYouTubeTrailer(
     // Using lowest quality to reduce blocks and save space
     const command = [
       'yt-dlp',
-      // Use deno as JavaScript runtime
       '--js-runtime', 'deno',
-      // Use remote components for JS challenge solving
       '--remote-components', 'ejs:github',
-      // Format: worst quality to avoid blocks (use best quality if this fails)
-      '--format', 'worst[ext=mp4]/best[height<=480][ext=mp4]',
+      '--format', 'worst',  // Simplified: just get worst quality
       '--output', tempFilePath,
       '--no-playlist',
       '--max-filesize', '30M',
