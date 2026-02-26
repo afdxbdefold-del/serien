@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, Plus } from 'lucide-react';
+import { isFollowing, toggleFollow, onFollowsChanged } from '@/lib/followStorage';
 
 interface SeriesCardProps {
   tmdbId: number;
@@ -24,46 +25,26 @@ export default function SeriesCard({
   status,
   initialFollowing = false
 }: SeriesCardProps) {
-  const [isFollowing, setIsFollowing] = useState(initialFollowing);
-  const [loading, setLoading] = useState(false);
+  const [following, setFollowing] = useState(false);
 
-  const handleFollowToggle = async (e: React.MouseEvent) => {
+  useEffect(() => {
+    // Check LocalStorage status
+    setFollowing(isFollowing(tmdbId));
+
+    // Listen for changes from other components
+    const unsubscribe = onFollowsChanged(() => {
+      setFollowing(isFollowing(tmdbId));
+    });
+
+    return unsubscribe;
+  }, [tmdbId]);
+
+  const handleFollowToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    setLoading(true);
-    try {
-      if (isFollowing) {
-        // Unfollow
-        const response = await fetch(`/api/follow?seriesId=${tmdbId}`, {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          setIsFollowing(false);
-        } else if (response.status === 401) {
-          alert('Bitte melden Sie sich an, um Serien zu folgen.');
-        }
-      } else {
-        // Follow
-        const response = await fetch('/api/follow', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seriesId: tmdbId }),
-        });
-        
-        if (response.ok) {
-          setIsFollowing(true);
-        } else if (response.status === 401) {
-          alert('Bitte melden Sie sich an, um Serien zu folgen.');
-        }
-      }
-    } catch (err) {
-      console.error('Follow toggle failed:', err);
-      alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
-    } finally {
-      setLoading(false);
-    }
+    const newStatus = toggleFollow(tmdbId, title);
+    setFollowing(newStatus);
   };
 
   return (
