@@ -118,15 +118,20 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
   
   const scores = await getAIQualityScores(input, plainText);
 
+  // Apply score penalty for reader addressing
+  if (scorePenalty > 0) {
+    scores.content = Math.max(0, scores.content - scorePenalty);
+    console.log(`   ⚠️ Reader Address Penalty: -${scorePenalty} points (Content: ${scores.content + scorePenalty} → ${scores.content})`);
+  }
+
   // === PASS/FAIL DECISION ===
   
   const headlinePassed = scores.headline >= thresholds.HEADLINE_MIN;
   const contentPassed = scores.content >= thresholds.CONTENT_MIN;
   const structurePassed = scores.structure >= thresholds.STRUCTURE_MIN;
   
-  // FAIL only if critical issues OR scores below threshold
-  const excessiveReaderAddress = readerMatches && readerMatches.length > 3;
-  const passed = headlinePassed && contentPassed && structurePassed && !hasParagraphWalls && !excessiveReaderAddress;
+  // FAIL only if critical issues (paragraph walls) OR scores below threshold
+  const passed = headlinePassed && contentPassed && structurePassed && !hasParagraphWalls;
 
   if (!headlinePassed) {
     failReasons.push(`Headline Score zu niedrig: ${scores.headline} (min: ${thresholds.HEADLINE_MIN})`);
