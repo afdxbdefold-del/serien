@@ -998,16 +998,34 @@ export async function runContentPipeline(source: CrawledSource) {
           
           if (youtubeId) {
             console.log(`✅ Found via Vimeo search: ${youtubeId}`);
+          }
+        }
+
+        // Fallback 3: Search IMDB (if Vimeo also failed)
+        if (!youtubeId) {
+          console.log('🔍 Vimeo search failed → Searching IMDB...');
+          const { searchIMDBTrailer } = await import('../lib/trailer-downloader');
+          youtubeId = await searchIMDBTrailer(
+            resolution.primarySeries.name,
+            resolution.primarySeries.tmdbId
+          );
+          
+          if (youtubeId) {
+            console.log(`✅ Found via IMDB search: ${youtubeId}`);
           } else {
-            console.log('⏭️  No trailer found on any source → Skipping');
+            console.log('⏭️  No trailer found on any source (YouTube/Vimeo/IMDB) → Skipping');
           }
         }
 
         // Download if found
         if (youtubeId) {
-          const source = youtubeId.startsWith('vimeo:') ? 'Vimeo' : 'YouTube';
+          const source = youtubeId.startsWith('vimeo:') ? 'Vimeo' 
+                       : youtubeId.startsWith('imdb:') ? 'IMDB'
+                       : 'YouTube';
           const displayUrl = youtubeId.startsWith('vimeo:') 
             ? `https://vimeo.com/${youtubeId.replace('vimeo:', '')}`
+            : youtubeId.startsWith('imdb:')
+            ? `https://www.imdb.com/video/vi${youtubeId.replace('imdb:', '')}/`
             : `https://youtube.com/watch?v=${youtubeId}`;
           
           console.log(`🎬 Downloading from ${source}: ${displayUrl}`);
