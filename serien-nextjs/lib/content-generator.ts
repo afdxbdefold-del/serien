@@ -186,8 +186,9 @@ Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeil
 export async function generateGermanArticle(
   facts: ExtractedFacts,
   primarySeriesName: string,
-  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
-  allSeriesNames?: string[] // NEW: For MULTI_SERIES_EDITORIAL
+  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE',
+  allSeriesNames?: string[],
+  sourceUrl?: string // NEW: For adding "Quelle" block
 ): Promise<string> {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
@@ -201,14 +202,41 @@ export async function generateGermanArticle(
   });
 
   // Choose prompt based on content type
-  const systemPrompt = contentType === 'SINGLE_SERIES_NEWS' 
-    ? CONTENT_GENERATION_PROMPT_NEWS 
-    : CONTENT_GENERATION_PROMPT_EDITORIAL;
+  let systemPrompt = CONTENT_GENERATION_PROMPT_NEWS;
+  
+  if (contentType === 'FULL_ARTICLE') {
+    systemPrompt = CONTENT_GENERATION_PROMPT_FULL;
+  } else if (contentType === 'MULTI_SERIES_EDITORIAL') {
+    systemPrompt = CONTENT_GENERATION_PROMPT_EDITORIAL;
+  }
 
   // Build facts prompt differently for each type
   let factsPrompt = '';
   
-  if (contentType === 'SINGLE_SERIES_NEWS') {
+  if (contentType === 'FULL_ARTICLE') {
+    // FULL ARTICLE mode
+    factsPrompt = `
+FAKTEN FÜR DEN ARTIKEL:
+Serie: ${primarySeriesName}
+${facts.season_numbers.length > 0 ? `Staffeln: ${facts.season_numbers.join(', ')}` : ''}
+${facts.people_names.length > 0 ? `Personen: ${facts.people_names.slice(0, 10).join(', ')}` : ''}
+${facts.networks_platforms.length > 0 ? `Plattformen: ${facts.networks_platforms.join(', ')}` : ''}
+${facts.release_dates.length > 0 ? `Zeitrahmen: ${facts.release_dates.join(', ')}` : ''}
+
+KEY STATEMENTS:
+${facts.key_statements.slice(0, 12).map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+ARTIKEL-TYP: Vollständiger Artikel (450-900 Wörter)
+HAUPT-SERIE: ${primarySeriesName}
+
+WICHTIG: 
+- Schreibe einen KOMPLETT NEUEN Artikel basierend auf diesen Fakten
+- NIEMALS Originaltext kopieren oder paraphrasieren
+- Mindestens 450 Wörter, ideal 600-800 Wörter
+
+Schreibe jetzt den vollständigen deutschen Artikel (450-900 Wörter, mindestens 5 Absätze).
+`.trim();
+  } else if (contentType === 'SINGLE_SERIES_NEWS') {
     factsPrompt = `
 FAKTEN FÜR DEN ARTIKEL:
 Serie: ${primarySeriesName}
@@ -257,7 +285,7 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
         { role: 'user', content: factsPrompt }
       ],
       temperature: 0.7,
-      max_tokens: contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500, // More tokens for editorials
+      max_tokens: contentType === 'FULL_ARTICLE' ? 2500 : (contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500),
     });
 
     const rawContent = response.choices[0]?.message?.content;
