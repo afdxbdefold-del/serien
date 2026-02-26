@@ -426,12 +426,10 @@ async function downloadYouTubeViaRapidAPI(
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
     console.log('   🌐 Using RapidAPI for YouTube download (bypasses blocking)...');
 
-    // Call RapidAPI to get download URL
+    // Call RapidAPI to initiate download - use format=360 for smaller file size
     const apiUrl = new URL('https://youtube-info-download-api.p.rapidapi.com/ajax/download.php');
-    apiUrl.searchParams.set('format', 'mp4');
-    apiUrl.searchParams.set('add_info', '0');
+    apiUrl.searchParams.set('format', '360'); // Use 360p for smaller files
     apiUrl.searchParams.set('url', youtubeUrl);
-    apiUrl.searchParams.set('no_merge', 'false');
 
     const response = await fetch(apiUrl.toString(), {
       method: 'GET',
@@ -442,13 +440,66 @@ async function downloadYouTubeViaRapidAPI(
     });
 
     if (!response.ok) {
-      return { success: false, error: `RapidAPI error: ${response.status} ${response.statusText}` };
+      const errorText = await response.text().catch(() => '');
+      return { success: false, error: `RapidAPI error: ${response.status} ${response.statusText} - ${errorText}` };
     }
 
     const data = await response.json();
     
-    // Extract download URL from response
-    // Response format varies, but usually has a "url" or "download_url" field
+    // Check if API returned success with progress_url (async download)
+    if (data.success && data.progress_url) {
+      console.log('   ⏳ Download initiated, polling for completion...');
+      
+      // Poll progress URL until download is ready (max 60 seconds)
+      const maxAttempts = 30;
+      let downloadUrl: string | null = null;
+      
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        
+        try {
+          const progressResponse = await fetch(data.progress_url);
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json();
+            
+            console.log(`   📊 Progress: ${progressData.progress || 0}% - ${progressData.text || 'Processing'}`);
+            
+            if (progressData.success === 1 && progressData.download_url) {
+              downloadUrl = progressData.download_url;
+              console.log('   ✅ Download ready!');
+              break;
+            }
+            
+            // Check for failure
+            if (progressData.text && progressData.text.toLowerCase().includes('error')) {
+              return { success: false, error: `RapidAPI processing failed: ${progressData.text}` };
+            }
+          }
+        } catch (pollError: any) {
+          console.log(`   ⚠️  Poll attempt ${attempt + 1} failed: ${pollError.message}`);
+        }
+      }
+      
+      if (!downloadUrl) {
+        return { success: false, error: 'RapidAPI download timeout - no URL received after 60 seconds' };
+      }
+      
+      console.log('   📥 Downloading video from RapidAPI URL...');
+      
+      // Download the video file
+      const videoResponse = await fetch(downloadUrl);
+      if (!videoResponse.ok) {
+        return { success: false, error: `Video download failed: ${videoResponse.status}` };
+      }
+
+      const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+      await fs.writeFile(tempFilePath, videoBuffer);
+
+      console.log(`   ✅ Downloaded via RapidAPI: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+      return { success: true };
+    }
+    
+    // Fallback: Check for direct download URL in response
     let downloadUrl: string | null = null;
     
     if (data.url) {
@@ -462,7 +513,7 @@ async function downloadYouTubeViaRapidAPI(
     }
 
     if (!downloadUrl) {
-      return { success: false, error: 'No download URL in RapidAPI response' };
+      return { success: false, error: `No download URL in RapidAPI response: ${JSON.stringify(data).substring(0, 200)}` };
     }
 
     console.log('   📥 Downloading video from RapidAPI URL...');
