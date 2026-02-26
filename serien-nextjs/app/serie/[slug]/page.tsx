@@ -180,7 +180,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               <p className="text-gray-500 text-sm">Noch keine News zu dieser Serie verfügbar.</p>
             </div>
           )}
-        </section>
+        </div>
 
         {/* Mobile: Series Info Box (AFTER News) */}
         <section className="mt-8 px-6" aria-labelledby="series-info-mobile">
