@@ -1,0 +1,84 @@
+/**
+ * TMDB Watch Providers API Integration
+ * Fetches streaming availability for Germany (DE)
+ */
+
+export interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+}
+
+export interface WatchProvidersResult {
+  link: string;
+  flatrate?: WatchProvider[];
+  buy?: WatchProvider[];
+  rent?: WatchProvider[];
+  ads?: WatchProvider[];
+  free?: WatchProvider[];
+}
+
+export interface TMDBWatchProvidersResponse {
+  id: number;
+  results: {
+    [countryCode: string]: WatchProvidersResult;
+  };
+}
+
+/**
+ * Fetch watch providers for a TV series in Germany
+ */
+export async function getTVWatchProviders(seriesId: number): Promise<WatchProvidersResult | null> {
+  const apiKey = process.env.TMDB_API_KEY;
+  
+  if (!apiKey) {
+    console.error('TMDB_API_KEY not configured');
+    return null;
+  }
+
+  try {
+    const url = `https://api.themoviedb.org/3/tv/${seriesId}/watch/providers?api_key=${apiKey}`;
+    const response = await fetch(url, {
+      next: { revalidate: 86400 } // Cache for 24 hours
+    });
+
+    if (!response.ok) {
+      console.error(`TMDB API error: ${response.status}`);
+      return null;
+    }
+
+    const data: TMDBWatchProvidersResponse = await response.json();
+    
+    // Return German (DE) providers
+    return data.results?.DE || null;
+    
+  } catch (error) {
+    console.error('Error fetching TMDB watch providers:', error);
+    return null;
+  }
+}
+
+/**
+ * Get TMDB image URL for provider logo
+ */
+export function getTMDBLogoUrl(logoPath: string, size: 'original' | 'w92' | 'w154' | 'w185' = 'w92'): string {
+  return `https://image.tmdb.org/t/p/${size}${logoPath}`;
+}
+
+/**
+ * Get display name for provider (optional localization)
+ */
+export function getProviderDisplayName(providerName: string): string {
+  const nameMap: Record<string, string> = {
+    'Amazon Prime Video': 'Prime Video',
+    'Disney Plus': 'Disney+',
+    'Apple TV Plus': 'Apple TV+',
+    'Paramount Plus': 'Paramount+',
+    'WOW': 'WOW (Sky)',
+    'Joyn Plus': 'Joyn+',
+    'RTL Plus': 'RTL+',
+  };
+  
+  return nameMap[providerName] || providerName;
+}
