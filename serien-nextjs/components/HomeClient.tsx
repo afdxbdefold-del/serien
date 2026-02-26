@@ -194,6 +194,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             isAuthenticated={isAuthenticated}
           />
 
+          {/* Tip Box for All News Tab */}
+          {activeTab === 'all-news' && (
+            <div className="mb-6 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">
+                💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
+              </p>
+            </div>
+          )}
+
           {/* Content based on active tab */}
           {activeTab === 'all-news' && (
             <>
