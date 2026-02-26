@@ -248,6 +248,7 @@ export default async function ArticlePage({ params }: PageProps) {
             seriesName={article.primarySeries.title || article.primarySeries.name || ''} 
             seriesSlug={article.primarySeries.slug}
             posterUrl={article.primarySeries.posterLocalUrl}
+            posterPath={article.primarySeries.posterPath}
           />
         )}
 
