@@ -32,6 +32,19 @@ export default function FollowButtonLocal({ tmdbId, seriesName, variant = 'defau
     setFollowing(newStatus);
   };
 
+  // Show skeleton during hydration to prevent layout shift
+  if (!mounted) {
+    return (
+      <button
+        disabled
+        className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-400 animate-pulse cursor-not-allowed"
+      >
+        <Plus className="h-5 w-5" />
+        <span>Folgen</span>
+      </button>
+    );
+  }
+
   // Icon-only variant (for mobile on series finder)
   if (variant === 'icon-only') {
     return (
