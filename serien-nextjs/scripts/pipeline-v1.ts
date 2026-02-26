@@ -172,6 +172,35 @@ export async function runContentPipeline(source: CrawledSource) {
 
     const facts = await extractFacts(source.title, fullSourceText);
 
+    // ========== STEP 3.5: HEADLINE PRESERVER (NEW) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 3.5: HEADLINE PRESERVATION');
+    console.log('━'.repeat(70));
+
+    // Build facts verdict for headline preserver
+    const factsVerdict = {
+      renewalStatus: (facts.renewal_status || 'UNKNOWN') as 'RENEWED' | 'NOT_RENEWED' | 'UNKNOWN',
+      seasonMentioned: facts.season_number || null,
+      keyClaim: facts.key_statements?.[0] || '',
+      entities: {
+        seriesNames: facts.series?.map((s: any) => s.name) || [],
+        peopleNames: facts.people?.map((p: any) => p.name) || [],
+        platforms: facts.platforms || [],
+      },
+    };
+
+    const headlineResult = await preserveHeadline(source.title, factsVerdict);
+    
+    console.log(`📰 Headline Processing:`);
+    console.log(`   Original: "${source.title}"`);
+    console.log(`   Final: "${headlineResult.final}"`);
+    console.log(`   Mode: ${headlineResult.mode}`);
+    console.log(`   Reason: ${headlineResult.reason}`);
+
+    // Use preserved headline for article
+    const preservedHeadline = headlineResult.final;
+    const headlineMode = headlineResult.mode;
+
     // ========== STEP 4: AI GENERATE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 4: AI CONTENT GENERATION');
