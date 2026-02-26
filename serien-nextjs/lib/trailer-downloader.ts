@@ -298,11 +298,10 @@ export async function downloadVideoTrailer(
 
     ytdlpArgs.push(videoUrl);
 
-    // Set PATH to include deno
+    // Set PATH for yt-dlp
     const env = {
       ...process.env,
-      PATH: `${process.env.HOME}/.deno/bin:${process.env.PATH}`,
-      DENO_DIR: `${process.env.HOME}/.deno`
+      PATH: process.env.PATH
     };
 
     // Use spawn instead of exec for better arg handling
