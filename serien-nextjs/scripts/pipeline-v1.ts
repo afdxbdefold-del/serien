@@ -950,41 +950,62 @@ export async function runContentPipeline(source: CrawledSource) {
     let trailerLocalPath: string | null = null;
 
     try {
-      // First: Check TMDB trailers
-      let youtubeId: string | null = null;
-      
-      if (resolution.primarySeries.trailers) {
-        youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
-        if (youtubeId) {
-          console.log(`✅ Found trailer in TMDB data: ${youtubeId}`);
+      // FIRST: Check if we already have a trailer for this series in DB
+      const existingTrailer = await prisma.article.findFirst({
+        where: {
+          primarySeriesId: resolution.primarySeries.tmdbId,
+          trailerLocalUrl: { not: null }
+        },
+        select: { 
+          trailerLocalUrl: true,
+          title: true
         }
-      }
+      });
 
-      // Fallback: Search YouTube
-      if (!youtubeId) {
-        console.log('🔍 No TMDB trailer → Searching YouTube...');
-        youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
+      if (existingTrailer?.trailerLocalUrl) {
+        console.log(`✅ Reusing existing trailer from DB`);
+        console.log(`   Source: "${existingTrailer.title}"`);
+        console.log(`   Path: ${existingTrailer.trailerLocalUrl}`);
+        trailerLocalPath = existingTrailer.trailerLocalUrl;
+      } else {
+        console.log('🔍 No existing trailer in DB → Starting download...');
         
-        if (youtubeId) {
-          console.log(`✅ Found via YouTube search: ${youtubeId}`);
-        } else {
-          console.log('⏭️  No trailer found → Skipping');
+        // Check TMDB trailers
+        let youtubeId: string | null = null;
+        
+        if (resolution.primarySeries.trailers) {
+          youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
+          if (youtubeId) {
+            console.log(`✅ Found trailer in TMDB data: ${youtubeId}`);
+          }
         }
-      }
 
-      // Download if found
-      if (youtubeId) {
-        console.log(`🎬 Downloading: https://youtube.com/watch?v=${youtubeId}`);
-        const downloadResult = await downloadYouTubeTrailer(
-          youtubeId,
-          resolution.primarySeries.name
-        );
+        // Fallback: Search YouTube
+        if (!youtubeId) {
+          console.log('🔍 No TMDB trailer → Searching YouTube...');
+          youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
+          
+          if (youtubeId) {
+            console.log(`✅ Found via YouTube search: ${youtubeId}`);
+          } else {
+            console.log('⏭️  No trailer found → Skipping');
+          }
+        }
 
-        if (downloadResult.success && downloadResult.localPath) {
-          trailerLocalPath = downloadResult.localPath;
-          console.log(`✅ Trailer downloaded: ${trailerLocalPath}`);
-        } else {
-          console.log(`⚠️  Download failed: ${downloadResult.error}`);
+        // Download if found
+        if (youtubeId) {
+          console.log(`🎬 Downloading: https://youtube.com/watch?v=${youtubeId}`);
+          const downloadResult = await downloadYouTubeTrailer(
+            youtubeId,
+            resolution.primarySeries.name
+          );
+
+          if (downloadResult.success && downloadResult.localPath) {
+            trailerLocalPath = downloadResult.localPath;
+            console.log(`✅ Trailer downloaded: ${trailerLocalPath}`);
+          } else {
+            console.log(`⚠️  Download failed: ${downloadResult.error}`);
+          }
         }
       }
     } catch (error: any) {
