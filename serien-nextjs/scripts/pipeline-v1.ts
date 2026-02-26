@@ -968,52 +968,56 @@ export async function runContentPipeline(source: CrawledSource) {
         console.log(`   Path: ${existingTrailer.trailerLocalUrl}`);
         trailerLocalPath = existingTrailer.trailerLocalUrl;
       } else {
-        console.log('🔍 No existing trailer in DB → Starting download...');
+        console.log('🔍 No existing trailer in DB → Starting optimized 4-source fallback...');
+        console.log('   📊 Priority: IMDB (best) → Vimeo → TMDB → YouTube (cookies enabled)');
         
-        // Check TMDB trailers
         let youtubeId: string | null = null;
         
-        if (resolution.primarySeries.trailers) {
-          youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
-          if (youtubeId) {
-            console.log(`✅ Found trailer in TMDB data: ${youtubeId}`);
-          }
+        // Source 1: Search IMDB (highest success rate, no blocking!)
+        console.log('\n🔍 [1/4] Searching IMDB...');
+        const { searchIMDBTrailer } = await import('../lib/trailer-downloader');
+        youtubeId = await searchIMDBTrailer(
+          resolution.primarySeries.name,
+          resolution.primarySeries.tmdbId
+        );
+        
+        if (youtubeId) {
+          console.log(`✅ Found via IMDB: ${youtubeId}`);
         }
 
-        // Fallback 1: Search IMDB (highest success rate!)
+        // Source 2: Search Vimeo
         if (!youtubeId) {
-          console.log('🔍 No TMDB trailer → Searching IMDB (highest success rate)...');
-          const { searchIMDBTrailer } = await import('../lib/trailer-downloader');
-          youtubeId = await searchIMDBTrailer(
-            resolution.primarySeries.name,
-            resolution.primarySeries.tmdbId
-          );
-          
-          if (youtubeId) {
-            console.log(`✅ Found via IMDB search: ${youtubeId}`);
-          }
-        }
-
-        // Fallback 2: Search Vimeo
-        if (!youtubeId) {
-          console.log('🔍 IMDB search failed → Searching Vimeo...');
+          console.log('\n🔍 [2/4] IMDB failed → Searching Vimeo...');
           const { searchVimeoTrailer } = await import('../lib/trailer-downloader');
           youtubeId = await searchVimeoTrailer(resolution.primarySeries.name);
           
           if (youtubeId) {
-            console.log(`✅ Found via Vimeo search: ${youtubeId}`);
+            console.log(`✅ Found via Vimeo: ${youtubeId}`);
           }
         }
 
-        // Fallback 3: Search YouTube (last resort due to blocking)
+        // Source 3: Check TMDB trailers
         if (!youtubeId) {
-          console.log('🔍 Vimeo search failed → Searching YouTube (last resort)...');
+          console.log('\n🔍 [3/4] Vimeo failed → Checking TMDB data...');
+          if (resolution.primarySeries.trailers) {
+            youtubeId = findTrailerYouTubeId(resolution.primarySeries.trailers);
+            if (youtubeId) {
+              console.log(`✅ Found in TMDB data: ${youtubeId} (YouTube)`);
+            }
+          } else {
+            console.log('   ⏭️  No trailers in TMDB data');
+          }
+        }
+
+        // Source 4: Search YouTube (last resort, but with cookies!)
+        if (!youtubeId) {
+          console.log('\n🔍 [4/4] TMDB failed → Searching YouTube (with cookie auth)...');
           youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
           
           if (youtubeId) {
             console.log(`✅ Found via YouTube search: ${youtubeId}`);
           } else {
-            console.log('⏭️  No trailer found on any source (IMDB/Vimeo/YouTube) → Skipping');
+            console.log('\n⏭️  All 4 sources exhausted → No trailer available');
           }
         }
 
