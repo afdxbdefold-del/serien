@@ -602,11 +602,11 @@ export async function downloadVideoTrailer(
         console.log('   🔄 Re-encoding for web compatibility...');
         
         try {
-          const { execAsync } = await import('child_process');
-          const util = await import('util');
-          const exec = util.promisify(execAsync);
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execAsync = promisify(exec);
           
-          await exec(`ffmpeg -i "${tempFilePath}" -c:v libx264 -c:a aac -movflags +faststart -y "${webCompatiblePath}"`, {
+          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -c:a aac -movflags +faststart -y "${webCompatiblePath}"`, {
             timeout: 120000
           });
           
