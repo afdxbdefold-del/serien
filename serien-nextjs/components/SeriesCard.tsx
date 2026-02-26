@@ -69,23 +69,30 @@ export default function SeriesCard({
         {/* Follow Button */}
         <button
           onClick={handleFollowToggle}
-          disabled={loading}
           className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-lg ${
-            isFollowing
+            following
               ? 'bg-green-500 hover:bg-green-600'
               : 'bg-white/90 hover:bg-white'
-          } disabled:opacity-50`}
+          }`}
         >
-          {loading ? (
-            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          ) : isFollowing ? (
-            <Check className="h-4 w-4 text-white" />
+          {following ? (
+            <Check className="h-5 w-5 text-white" />
           ) : (
-            <Plus className="h-4 w-4 text-gray-700" />
+            <Plus className="h-5 w-5 text-gray-700" />
           )}
         </button>
 
-        {/* Overlay with Info */}
+        {/* Title and Status Overlay */}
+        <div className="p-4">
+          <h3 className="font-bold text-gray-900 line-clamp-2 mb-1">
+            {title}
+          </h3>
+          {status && (
+            <span className="text-gray-500 text-sm">{status}</span>
+          )}
+        </div>
+
+        {/* Hover Overlay with Info */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">
             {title}
