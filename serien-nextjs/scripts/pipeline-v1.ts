@@ -350,8 +350,8 @@ export async function runContentPipeline(source: CrawledSource) {
           source.url
         );
 
-        // Rewrite again (skip for MULTI_SERIES_EDITORIAL)
-        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+        // Rewrite again (skip for MULTI_SERIES_EDITORIAL and FULL_ARTICLE)
+        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL' && actualContentType !== 'FULL_ARTICLE') {
           editorialResult = await editorialRewrite({
             generatedArticleHtml: generatedContent,
             generatedHeadline: articleTitle,
@@ -366,8 +366,8 @@ export async function runContentPipeline(source: CrawledSource) {
       } else {
         console.log('   → Headline + First 2 Paragraphs only');
         
-        // Just rewrite editorial (headline + first 2 paragraphs) - skip for MULTI_SERIES_EDITORIAL
-        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+        // Just rewrite editorial (headline + first 2 paragraphs) - skip for MULTI_SERIES_EDITORIAL and FULL_ARTICLE
+        if (classification.content_type !== 'MULTI_SERIES_EDITORIAL' && actualContentType !== 'FULL_ARTICLE') {
           editorialResult = await editorialRewrite({
             generatedArticleHtml: generatedContent,
             generatedHeadline: articleTitle,
@@ -523,8 +523,9 @@ export async function runContentPipeline(source: CrawledSource) {
         generatedContent = await generateGermanArticle(
           facts,
           resolution.primarySeries.name,
-          classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
-          allSeriesNames
+          actualContentType,
+          allSeriesNames,
+          source.url
         );
 
         // Re-check fact safety
@@ -619,12 +620,13 @@ export async function runContentPipeline(source: CrawledSource) {
       generatedContent = await generateGermanArticle(
         facts,
         resolution.primarySeries.name,
-        classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
-        allSeriesNames
+        actualContentType,
+        allSeriesNames,
+        source.url
       );
 
-      // Rewrite editorial (skip for MULTI_SERIES_EDITORIAL)
-      if (classification.content_type !== 'MULTI_SERIES_EDITORIAL') {
+      // Rewrite editorial (skip for MULTI_SERIES_EDITORIAL and FULL_ARTICLE)
+      if (classification.content_type !== 'MULTI_SERIES_EDITORIAL' && actualContentType !== 'FULL_ARTICLE') {
         editorialResult = await editorialRewrite({
           generatedArticleHtml: generatedContent,
           generatedHeadline: articleTitle,
