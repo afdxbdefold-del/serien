@@ -33,8 +33,8 @@ yt-dlp --cookies-from-browser chromium <url>
 - ✅ Keine externe API nötig
 
 **Einschränkungen:**
-- Benötigt installierten Browser im Container
-- Cookies können nach einiger Zeit ablaufen
+- ~~Benötigt installierten Browser im Container~~ ✅ Chromium 145 installiert
+- Cookies können nach einiger Zeit ablaufen (manueller Browser-Besuch nötig)
 
 ## Erwartete Verbesserung
 - **Vorher**: ~30-40% Erfolgsquote bei YouTube
