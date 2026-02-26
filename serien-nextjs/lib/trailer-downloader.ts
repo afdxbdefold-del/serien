@@ -324,6 +324,92 @@ export async function searchIMDBTrailer(
 }
 
 /**
+ * Download video using yt-dlp
+ */
+async function downloadViaYtDlp(
+  videoUrl: string,
+  tempFilePath: string,
+  source: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // yt-dlp command with optimized settings for each source
+    const ytdlpArgs = [
+      'yt-dlp',
+      '--format', 'worst',
+      '--output', tempFilePath,
+      '--no-playlist',
+      '--max-filesize', '60M',
+      '--socket-timeout', '30',
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
+      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : 
+                   source === 'Vimeo' ? 'https://vimeo.com/' : 
+                   source === 'IMDB' ? 'https://www.imdb.com/' :
+                   source === 'Netflix' ? 'https://www.netflix.com/' :
+                   source === 'FilmStarts' ? 'https://www.filmstarts.de/' :
+                   source === 'VideoBuster' ? 'https://www.videobuster.de/' :
+                   'https://www.google.com/',
+    ];
+
+    // YouTube-specific: Use cookies for authentication
+    if (source === 'YouTube') {
+      const YOUTUBE_COOKIES_PATH = process.env.YOUTUBE_COOKIES_PATH || 
+        path.join(process.cwd(), 'cookies', 'youtube-cookies.txt');
+      
+      try {
+        await fs.access(YOUTUBE_COOKIES_PATH);
+        ytdlpArgs.push('--cookies', YOUTUBE_COOKIES_PATH);
+        console.log('   🍪 Using YouTube cookies for authentication');
+      } catch {
+        console.log('   ⚠️  No YouTube cookies found');
+      }
+    }
+
+    ytdlpArgs.push(videoUrl);
+
+    // Set PATH for yt-dlp
+    const env = {
+      ...process.env,
+      PATH: process.env.PATH
+    };
+
+    // Use spawn for better arg handling
+    const { spawn } = await import('child_process');
+    const proc = spawn(ytdlpArgs[0], ytdlpArgs.slice(1), { env });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    proc.stdout.on('data', (data) => stdout += data);
+    proc.stderr.on('data', (data) => stderr += data);
+    
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        proc.kill();
+        reject(new Error('Download timeout after 3 minutes'));
+      }, 180000);
+
+      proc.on('close', (code) => {
+        clearTimeout(timeout);
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
+        }
+      });
+
+      proc.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download YouTube video using RapidAPI (bypasses YouTube blocking)
  * More reliable than yt-dlp for YouTube
  */
