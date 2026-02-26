@@ -21,6 +21,7 @@ import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { translateHeadlineOnly } from '../lib/headline-translator'; // NEW: TRANSLATE_ONLY policy
+import { generateDistinctLead } from '../lib/distinct-lead-generator'; // NEW: Distinct lead generator
 
 
 const prisma = new PrismaClient();
@@ -925,9 +926,16 @@ export async function runContentPipeline(source: CrawledSource) {
       return { skipped: true, reason: 'duplicate' };
     }
 
-    // Generate excerpt from GERMAN content (not English source)
-    const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
+    // Generate DISTINCT lead paragraph (not from article body)
+    console.log('📝 Generating distinct lead paragraph...');
+    const articleExcerpt = await generateDistinctLead({
+      articleHtml: generatedContent,
+      headline: articleTitle,
+      seriesName: resolution.primarySeries.name,
+      facts: facts.key_statements,
+    });
+    console.log(`✅ Distinct lead generated: "${articleExcerpt.substring(0, 100)}..."`);
+    
 
 
     // Generate image data
