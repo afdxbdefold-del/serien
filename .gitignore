@@ -80,3 +80,7 @@ memory/
 # Documentation (keep in repo)
 !*.md
 !*.txt
+-e 
+# Environment files
+*.env
+*.env.*
