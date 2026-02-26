@@ -95,12 +95,14 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
     }
   });
 
-  // Check for reader address (hard fail)
+  // Check for reader address (only hard fail for FULL_NEWS)
   const readerAddressPatterns = /\b(ihr|du|wir|euch|uns)\b/gi;
   const readerMatches = plainText.match(readerAddressPatterns);
-  if (readerMatches && readerMatches.length > 0) {
-    failReasons.push(`Leser-Ansprache gefunden: ${readerMatches.slice(0, 3).join(', ')}`);
-    requiresFullRewrite = true;
+  if (readerMatches && readerMatches.length > 3) { // Only fail if excessive (>3 occurrences)
+    failReasons.push(`Leser-Ansprache zu häufig: ${readerMatches.length}x (max: 3)`);
+    if (articleType === 'FULL_NEWS') {
+      requiresFullRewrite = true; // Only hard fail for FULL_NEWS
+    }
   }
 
   // === SOFT CHECKS (Only warnings for SHORT_NEWS) ===
