@@ -144,6 +144,64 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
 }
 
 /**
+ * Search Netflix for series trailer (NEW: Primary source #1)
+ * Netflix hosts trailers directly on their platform (no DRM for trailers)
+ */
+export async function searchNetflixTrailer(seriesName: string, tmdbId?: number): Promise<string | null> {
+  try {
+    // Try direct Netflix URL if we have one
+    // Format: https://www.netflix.com/title/{netflix_id}
+    // We'll search for the series title page which usually has trailers
+    const searchQuery = `${seriesName} site:netflix.com`;
+    console.log(`🔍 Searching Netflix for: ${seriesName}`);
+    
+    // For now, we'll use a simple approach: try common Netflix URL patterns
+    // TODO: Implement proper Netflix title search API or scraping
+    return null; // Placeholder - Netflix needs title ID mapping
+  } catch (error: any) {
+    console.error('❌ Netflix search failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Search FilmStarts.de for series trailer (NEW: Primary source #2)
+ * German trailer aggregator with direct downloads
+ */
+export async function searchFilmStartsTrailer(seriesName: string): Promise<string | null> {
+  try {
+    console.log(`🔍 Searching FilmStarts.de for: ${seriesName}`);
+    
+    // Use yt-dlp to search FilmStarts
+    // FilmStarts URLs format: https://www.filmstarts.de/serien/{id}/videos/{video_id}/
+    const searchCmd = `yt-dlp "https://www.filmstarts.de/trailer/serien/" --get-id --flat-playlist --playlist-items 1:50 2>&1 | grep -i "${seriesName.toLowerCase()}" | head -1`;
+    
+    // For now, return null - needs proper implementation
+    return null; // Placeholder - needs FilmStarts search API
+  } catch (error: any) {
+    console.error('❌ FilmStarts search failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Search VideoBuster.de for series trailer (NEW: Primary source #3)
+ * German video rental service with trailer section
+ */
+export async function searchVideoBusterTrailer(seriesName: string): Promise<string | null> {
+  try {
+    console.log(`🔍 Searching VideoBuster.de for: ${seriesName}`);
+    
+    // VideoBuster URLs format: https://www.videobuster.de/trailer/{id}/{slug}-trailer
+    // Needs proper search implementation
+    return null; // Placeholder - needs VideoBuster search API
+  } catch (error: any) {
+    console.error('❌ VideoBuster search failed:', error.message);
+    return null;
+  }
+}
+
+/**
  * Search Vimeo for series trailer (alternative source)
  */
 export async function searchVimeoTrailer(seriesName: string): Promise<string | null> {
