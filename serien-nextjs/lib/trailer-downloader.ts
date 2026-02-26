@@ -172,12 +172,29 @@ export async function searchFilmStartsTrailer(seriesName: string): Promise<strin
   try {
     console.log(`🔍 Searching FilmStarts.de for: ${seriesName}`);
     
-    // Use yt-dlp to search FilmStarts
-    // FilmStarts URLs format: https://www.filmstarts.de/serien/{id}/videos/{video_id}/
-    const searchCmd = `yt-dlp "https://www.filmstarts.de/trailer/serien/" --get-id --flat-playlist --playlist-items 1:50 2>&1 | grep -i "${seriesName.toLowerCase()}" | head -1`;
+    // FilmStarts doesn't have a public API, but we can use yt-dlp to search
+    // their trailer archive. For now, we'll use YouTube search with "site:filmstarts.de"
+    // as a workaround to find FilmStarts URLs
     
-    // For now, return null - needs proper implementation
-    return null; // Placeholder - needs FilmStarts search API
+    // Search YouTube for FilmStarts videos about this series
+    const searchQuery = `${seriesName} trailer site:filmstarts.de`;
+    const command = `yt-dlp "ytsearch1:${searchQuery}" --get-url --no-playlist 2>/dev/null || echo ""`;
+    
+    try {
+      const { stdout } = await execAsync(command, { timeout: 15000 });
+      const url = stdout.trim();
+      
+      // Check if we got a FilmStarts URL
+      if (url && url.includes('filmstarts.de')) {
+        console.log(`✅ Found FilmStarts URL: ${url}`);
+        return `filmstarts:${url}`;
+      }
+    } catch {
+      // Search failed, that's ok
+    }
+    
+    console.log('⏭️  No trailer found on FilmStarts.de');
+    return null;
   } catch (error: any) {
     console.error('❌ FilmStarts search failed:', error.message);
     return null;
@@ -192,9 +209,25 @@ export async function searchVideoBusterTrailer(seriesName: string): Promise<stri
   try {
     console.log(`🔍 Searching VideoBuster.de for: ${seriesName}`);
     
-    // VideoBuster URLs format: https://www.videobuster.de/trailer/{id}/{slug}-trailer
-    // Needs proper search implementation
-    return null; // Placeholder - needs VideoBuster search API
+    // Similar approach: Use YouTube search to find VideoBuster trailers
+    const searchQuery = `${seriesName} trailer site:videobuster.de`;
+    const command = `yt-dlp "ytsearch1:${searchQuery}" --get-url --no-playlist 2>/dev/null || echo ""`;
+    
+    try {
+      const { stdout } = await execAsync(command, { timeout: 15000 });
+      const url = stdout.trim();
+      
+      // Check if we got a VideoBuster URL
+      if (url && url.includes('videobuster.de')) {
+        console.log(`✅ Found VideoBuster URL: ${url}`);
+        return `videobuster:${url}`;
+      }
+    } catch {
+      // Search failed, that's ok
+    }
+    
+    console.log('⏭️  No trailer found on VideoBuster.de');
+    return null;
   } catch (error: any) {
     console.error('❌ VideoBuster search failed:', error.message);
     return null;
