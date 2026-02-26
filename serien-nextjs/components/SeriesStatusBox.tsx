@@ -120,7 +120,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
           )}
           
           <p className="text-sm text-gray-700 mb-2">
-            <span className="font-medium">Letzte Entwicklung:</span>{' '}
+            <span className="font-medium">Status:</span>{' '}
             {statusData.description}
           </p>
           
