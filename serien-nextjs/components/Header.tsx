@@ -3,30 +3,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { Bell, Search, User, LogOut, Settings, X, Menu, Loader2 } from 'lucide-react';
+import { Search, X, Menu, Loader2 } from 'lucide-react';
 import Logo from './Logo';
-import AuthModal from './AuthModal';
 
 export default function Header() {
-  const router = useRouter();
-  const [showSearch, setShowSearch] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  
-  // Auth state
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check auth immediately (no delay needed with router.replace)
-    checkAuth();
-  }, []);
 
   // Realtime search with debounce
   useEffect(() => {
