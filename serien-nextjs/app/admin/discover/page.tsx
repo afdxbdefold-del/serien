@@ -1,13 +1,45 @@
 import Link from 'next/link';
 
 export default async function DiscoverDashboard() {
-  // Fetch audits from API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/admin/discover-dashboard?limit=100`, {
-    cache: 'no-store',
-  });
-  
-  const data = await response.json();
-  const audits = data.audits || [];
+  let audits = [];
+  let error = null;
+
+  try {
+    // Fetch audits from API
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/admin/discover-dashboard?limit=100`, {
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    audits = data.audits || [];
+  } catch (err: any) {
+    console.error('[Discover Dashboard] Error:', err);
+    error = err.message;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">
+            📊 Discover Score Dashboard
+          </h1>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <p className="text-red-800 font-medium">Error loading dashboard</p>
+            <p className="text-red-600 text-sm mt-2">{error}</p>
+            <p className="text-gray-600 text-sm mt-4">
+              Make sure the database is connected and migrations are applied.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
