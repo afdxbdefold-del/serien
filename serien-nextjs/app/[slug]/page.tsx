@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
+import VideoPlayerModal from '@/components/VideoPlayerModal';
 
 interface PageProps {
   params: Promise<{
