@@ -182,15 +182,20 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 Folge deinen Lieblingsserien
               </h1>
               <p className="text-lg md:text-xl text-white/95 mb-6">
-                oder entdecke{' '}
-                <Link 
-                  href="/trending" 
-                  className="underline hover:text-white transition-colors font-semibold"
-                >
-                  neue Serien
-                </Link>
-                {' '}zum Anschauen.
+                um personalisierte News und Updates zu erhalten.
               </p>
+
+              {/* Serien entdecken Button */}
+              <Link 
+                href="/trending"
+                className="inline-flex items-center gap-2 px-8 py-3 bg-white text-cyan-600 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+                Serien entdecken
+              </Link>
             </div>
           </div>
         </div>
