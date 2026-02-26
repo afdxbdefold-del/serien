@@ -27,22 +27,6 @@ interface SeriesStatusBoxProps {
   posterUrl?: string | null;
 }
 
-const STATUS_LABELS = {
-  RUNNING: 'Läuft',
-  RENEWED: 'Verlängert',
-  ENDED: 'Beendet',
-  ON_HOLD: 'Pause',
-  UNCLEAR: 'Status unklar',
-};
-
-const STATUS_COLORS = {
-  RUNNING: 'bg-green-100 text-green-800 border-green-300',
-  RENEWED: 'bg-blue-100 text-blue-800 border-blue-300',
-  ENDED: 'bg-gray-100 text-gray-800 border-gray-300',
-  ON_HOLD: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  UNCLEAR: 'bg-gray-100 text-gray-600 border-gray-300',
-};
-
 export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }: SeriesStatusBoxProps) {
   const [statusData, setStatusData] = useState<SeriesStatusData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,9 +61,6 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
   if (!statusData) {
     return null;
   }
-
-  const statusLabel = STATUS_LABELS[statusData.status] || 'Status unklar';
-  const statusColor = STATUS_COLORS[statusData.status] || STATUS_COLORS.UNCLEAR;
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'unbekannt';
