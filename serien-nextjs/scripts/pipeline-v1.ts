@@ -253,13 +253,15 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 6: QUALITY CHECK');
     console.log('━'.repeat(70));
 
+    let qualityResult: any;
+
     // Skip quality check for MULTI_SERIES_EDITORIAL (different format/rules)
     // For FULL_ARTICLE, run simplified quality check with adjusted thresholds
     if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
       console.log('⊘  Skipped for MULTI_SERIES_EDITORIAL (editorial format has different quality criteria)');
       
       // Create a passing quality result
-      var qualityResult = {
+      qualityResult = {
         status: 'PASS' as const,
         scores: { headline: 80, content: 80, structure: 80 },
         requiresFullRewrite: false,
@@ -296,7 +298,7 @@ export async function runContentPipeline(source: CrawledSource) {
         if (status === 'PASS') status = 'WARN';
       }
       
-      var qualityResult = {
+      qualityResult = {
         status: status === 'FAIL' ? 'FAIL' as const : 'PASS' as const,
         scores: { 
           headline: 75, 
@@ -314,7 +316,7 @@ export async function runContentPipeline(source: CrawledSource) {
         failReasons.forEach(r => console.log(`   - ${r}`));
       }
     } else {
-      var qualityResult = await qualityCheck({
+      qualityResult = await qualityCheck({
         generatedArticleHtml: generatedContent,
         finalHeadline: articleTitle,
         primarySeriesName: resolution.primarySeries.name,
