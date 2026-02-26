@@ -112,6 +112,7 @@ model Article {
   contentHtml   String    @db.Text
   heroLocalUrl  String?
   heroVideoUrl  String?
+  trailerLocalUrl String?  // Local video file for downloaded trailer
   
   // TMDB Image Pipeline Fields
   tmdbId        Int?
