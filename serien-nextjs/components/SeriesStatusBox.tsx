@@ -95,18 +95,24 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
     <div className="border border-gray-200 rounded-lg p-4 mb-6 bg-white">
       <div className="flex items-start gap-4">
         {/* Series Poster with Link */}
-        {posterUrl && seriesSlug && (
+        {seriesSlug && (
           <Link 
             href={`/serie/${seriesId}-${seriesSlug}`}
             className="flex-shrink-0 group"
           >
-            <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-md transition-transform group-hover:scale-105">
-              <Image
-                src={posterUrl}
-                alt={seriesName}
-                fill
-                className="object-cover"
-              />
+            <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-md transition-transform group-hover:scale-105 bg-gradient-to-br from-gray-100 to-gray-200">
+              {posterUrl ? (
+                <Image
+                  src={posterUrl}
+                  alt={seriesName}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center p-2">
+                  {seriesName}
+                </div>
+              )}
             </div>
           </Link>
         )}
@@ -152,7 +158,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
           {seriesSlug && (
             <Link 
               href={`/serie/${seriesId}-${seriesSlug}`}
-              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 font-medium"
+              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 font-medium transition-colors"
             >
               Zur Serie →
             </Link>
