@@ -1070,17 +1070,11 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Full Article Mode Test
+  // Example: Full Article Mode Test - 56 Days from thecinemaholic.com
   const testFullArticle: CrawledSource = {
-    title: "The Last of Us Staffel 3: HBO bestätigt Fortsetzung",
-    url: "https://example.com/test-full-" + Date.now(),
-    text: `HBO hat offiziell die dritte Staffel von The Last of Us bestätigt. Die Serie basiert auf dem erfolgreichen Videospiel und gehört zu den größten Hits von HBO.
-
-Pedro Pascal und Bella Ramsey kehren in ihren Hauptrollen zurück. Die Produktion soll im Herbst 2026 beginnen.
-
-Craig Mazin und Neil Druckmann bleiben als Showrunner an Bord. Die dritte Staffel wird Elemente aus Teil 2 des Spiels adaptieren.
-
-HBO plant mindestens vier Staffeln, um die komplette Story zu erzählen. Die Produktionskosten liegen bei geschätzten 100 Millionen Dollar pro Staffel.`,
+    title: "56 Days Ending Explained: Netflix Thriller",
+    url: "https://thecinemaholic.com/56-days-ending-explained/",
+    text: `Initial placeholder - will be fetched via Playwright`,
     useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE
   };
 
