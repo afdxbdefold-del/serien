@@ -22,6 +22,7 @@ model User {
   
   articles      Article[]
   comments      Comment[]
+  discoverAudit DiscoverAudit?
   follows       Follow[]
   notifications Notification[]
   @@map("users")
