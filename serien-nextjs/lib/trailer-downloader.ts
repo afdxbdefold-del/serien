@@ -344,26 +344,37 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with PO Token Provider plugin (bgutil-ytdlp-pot-provider)
+    // yt-dlp command with optimized settings for each source
     const ytdlpArgs = [
       'yt-dlp',
       '--format', 'worst',
       '--output', tempFilePath,
       '--no-playlist',
-      '--max-filesize', '30M',
+      '--max-filesize', '60M', // Increased for VideoBuster (58 MB files)
       '--socket-timeout', '30',
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
-      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : source === 'Vimeo' ? 'https://vimeo.com/' : 'https://www.imdb.com/',
+      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : 
+                   source === 'Vimeo' ? 'https://vimeo.com/' : 
+                   source === 'IMDB' ? 'https://www.imdb.com/' :
+                   source === 'Netflix' ? 'https://www.netflix.com/' :
+                   source === 'FilmStarts' ? 'https://www.filmstarts.de/' :
+                   source === 'VideoBuster' ? 'https://www.videobuster.de/' :
+                   'https://www.google.com/',
     ];
 
-    // YouTube-specific optimizations with PO Token support
+    // YouTube-specific: Use cookies for authentication
     if (source === 'YouTube') {
-      console.log('   🎯 Using mweb client with PO Token Provider plugin');
-      // Use mweb client (recommended by yt-dlp wiki for PO Token support)
-      ytdlpArgs.push('--extractor-args', 'youtube:player_client=mweb');
+      const YOUTUBE_COOKIES_PATH = process.env.YOUTUBE_COOKIES_PATH || 
+        path.join(process.cwd(), 'cookies', 'youtube-cookies.txt');
       
-      // Note: bgutil-ytdlp-pot-provider plugin automatically generates PO Tokens
-      // No manual configuration needed - the plugin hooks into yt-dlp automatically
+      try {
+        await fs.access(YOUTUBE_COOKIES_PATH);
+        ytdlpArgs.push('--cookies', YOUTUBE_COOKIES_PATH);
+        console.log('   🍪 Using YouTube cookies for authentication');
+      } catch {
+        console.log('   ⚠️  No YouTube cookies found - may encounter 403 errors');
+        console.log(`   💡 Add cookies to: ${YOUTUBE_COOKIES_PATH}`);
+      }
     }
 
     ytdlpArgs.push(videoUrl);
