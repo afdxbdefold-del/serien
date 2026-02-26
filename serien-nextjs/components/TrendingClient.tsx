@@ -296,7 +296,7 @@ export default function TrendingClient({ series }: TrendingClientProps) {
         className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 z-40"
       >
         <Filter className="h-5 w-5" />
-        <span className="font-semibold">Filter</span>
+        <span className="font-semibold">Serienfilter</span>
         {hasActiveFilters && (
           <span className="bg-white text-cyan-600 px-2 py-0.5 rounded-full text-xs font-bold">
             {selectedGenres.length + selectedStatuses.length + selectedNetworks.length + (minRating > 0 ? 1 : 0)}
