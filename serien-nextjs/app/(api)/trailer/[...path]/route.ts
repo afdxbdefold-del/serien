@@ -72,14 +72,51 @@ export async function GET(
 
     // Get video buffer
     const videoBuffer = await response.arrayBuffer();
+    const totalSize = videoBuffer.byteLength;
     
-    // Return video with appropriate headers
+    // Parse Range header for video streaming support
+    const rangeHeader = request.headers.get('range');
+    
+    if (rangeHeader) {
+      // Parse range header (e.g., "bytes=0-1023")
+      const ranges = rangeHeader.replace(/bytes=/, '').split('-');
+      const start = parseInt(ranges[0], 10);
+      const end = ranges[1] ? parseInt(ranges[1], 10) : totalSize - 1;
+      
+      // Validate range
+      if (start >= totalSize || end >= totalSize || start > end) {
+        return new NextResponse('Range Not Satisfiable', {
+          status: 416,
+          headers: {
+            'Content-Range': `bytes */${totalSize}`,
+          },
+        });
+      }
+      
+      const chunkSize = end - start + 1;
+      const chunk = videoBuffer.slice(start, end + 1);
+      
+      // Return partial content (206)
+      return new NextResponse(chunk, {
+        status: 206,
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': chunkSize.toString(),
+          'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    }
+    
+    // Return full video with appropriate headers (200)
     return new NextResponse(videoBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'video/mp4',
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Length': totalSize.toString(),
         'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });
 
