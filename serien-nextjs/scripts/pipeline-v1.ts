@@ -168,16 +168,39 @@ export async function runContentPipeline(source: CrawledSource) {
       ? [resolution.primarySeries.name, ...resolution.relatedSeries.map(s => s.name)]
       : [resolution.primarySeries.name];
 
+    // Determine content type based on mode
+    let actualContentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE';
+    
+    if (source.useFullTextMode) {
+      actualContentType = 'FULL_ARTICLE';
+      console.log('   🔹 Using FULL_ARTICLE mode (450-900 words target)');
+    } else {
+      actualContentType = classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL';
+    }
+
     let generatedContent = await generateGermanArticle(
       facts,
       resolution.primarySeries.name,
-      classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL',
-      allSeriesNames
+      actualContentType,
+      allSeriesNames,
+      source.url // For Quelle block
     );
 
     let articleTitle = source.title;
     const originalHeadline = source.title; // Store for comparison
     console.log(`✅ Generated article (${generatedContent.length} chars)`);
+    
+    // Log word count for FULL_ARTICLE mode
+    if (actualContentType === 'FULL_ARTICLE') {
+      const wordCount = generatedContent.replace(/<[^>]*>/g, '').split(/\s+/).length;
+      console.log(`   📏 Word count: ${wordCount} words (target: 450-900)`);
+      
+      if (wordCount < 450) {
+        console.log(`   ⚠️  WARNING: Article below target length`);
+      } else if (wordCount > 900) {
+        console.log(`   ⚠️  WARNING: Article exceeds target length`);
+      }
+    }
 
     // ========== STEP 5: EDITORIAL REWRITE ==========
     console.log('\n' + '━'.repeat(70));
