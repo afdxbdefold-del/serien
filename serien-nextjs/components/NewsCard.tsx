@@ -87,9 +87,9 @@ export default function NewsCard({
 
         {/* Content */}
         <div className="p-5">
-          <h3 className="text-lg font-bold text-gray-900 leading-snug mb-3 group-hover:text-purple-600 transition-colors">
+          <p className="text-lg font-bold text-gray-900 leading-snug mb-3 group-hover:text-purple-600 transition-colors">
             {title}
-          </h3>
+          </p>
 
           {excerpt && (
             <p className="text-sm text-gray-600 line-clamp-2 mb-4">
