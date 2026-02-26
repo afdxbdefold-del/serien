@@ -329,8 +329,8 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Related News */}
         {relatedNews.length > 0 && (
-          <div className="mt-16">
-            <h2 className="text-3xl font-bold mb-8">Ähnliche News</h2>
+          <section className="mt-16" aria-labelledby="similar-news">
+            <h3 id="similar-news" className="text-3xl font-bold mb-8">Ähnliche News</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedNews.map((news) => (
                 <Link key={news.id} href={`/artikel/${news.slug}`}>
@@ -360,8 +360,9 @@ export default async function ArticlePage({ params }: PageProps) {
                 </Link>
               ))}
             </div>
-          </div>
+          </section>
         )}
+        </aside>
       </article>
 
       {/* Footer */}
