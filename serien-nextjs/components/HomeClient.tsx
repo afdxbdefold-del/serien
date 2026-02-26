@@ -61,18 +61,23 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const NEWS_PER_PAGE = 20;
   const SERIES_PER_PAGE = 20;
 
-  // Load My Feed when user switches to "my-news" tab
-  React.useEffect(() => {
+  // Load My Feed from LocalStorage followed series
+  useEffect(() => {
     const loadMyFeed = async () => {
-      if (activeTab === 'my-news' && isAuthenticated && myNews.length === 0) {
+      const followedIds = getFollowedIds();
+      
+      if (activeTab === 'my-news' && followedIds.length > 0 && myNews.length === 0) {
         setLoadingMyFeed(true);
         try {
-          const response = await fetch('/api/user/my-feed', {
-            credentials: 'include',
+          const response = await fetch('/api/articles/by-followed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tmdbIds: followedIds }),
           });
+          
           if (response.ok) {
             const data = await response.json();
-            setMyNews(data);
+            setMyNews(data.articles || []);
           }
         } catch (error) {
           console.error('Failed to load my feed:', error);
@@ -80,16 +85,26 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           setLoadingMyFeed(false);
         }
       }
+      
+      // If no followed series, clear feed
+      if (followedIds.length === 0) {
+        setMyNews([]);
+      }
     };
+    
     loadMyFeed();
-  }, [activeTab, isAuthenticated, myNews.length]);
+    
+    // Listen for follow changes
+    const unsubscribe = onFollowsChanged(() => {
+      setMyNews([]); // Clear cache when follows change
+      loadMyFeed();
+    });
+    
+    return unsubscribe;
+  }, [activeTab, myNews.length]);
 
-  // Google Login
-  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-  const loginWithGoogle = () => {
-    const redirectUrl = window.location.origin + '/auth/callback';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  // Remove old Google Login function (not needed without auth)
+  // const loginWithGoogle = () => { ... };
 
   // Filter series by search
   const filteredSeries = searchQuery
