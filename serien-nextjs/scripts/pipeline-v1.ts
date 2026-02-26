@@ -74,6 +74,12 @@ export async function runContentPipeline(source: CrawledSource) {
           sourceDomain = fullTextResult.sourceDomain;
           sourceWordCount = fullTextResult.wordCount; // Store for later use
           
+          // CRITICAL FIX: Use extracted title (override placeholder!)
+          if (fullTextResult.title && fullTextResult.title.length > 5) {
+            source.title = fullTextResult.title;
+            console.log(`✅ Title extracted and updated: "${source.title}"`);
+          }
+          
           console.log(`✅ Full text fetched: ${fullTextResult.wordCount} words`);
           console.log(`   Domain: ${sourceDomain}`);
         } else {
