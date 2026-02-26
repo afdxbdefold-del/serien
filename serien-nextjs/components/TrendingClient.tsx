@@ -234,52 +234,58 @@ export default function TrendingClient({ series }: TrendingClientProps) {
             {filteredSeries.map((show, index) => (
               <div key={show.tmdbId}>
                 {/* Series Card */}
-                <Link href={`/serie/${show.tmdbId}-${show.slug}`}>
-                  <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
-                    {/* Poster Image */}
-                    <div className="relative aspect-[2/3] overflow-hidden bg-gray-200">
-                      {show.posterLocalUrl ? (
-                        <Image
-                          src={show.posterLocalUrl}
-                          alt={show.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          Kein Bild
+                <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden">
+                  {/* Poster Image */}
+                  <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block relative aspect-[2/3] overflow-hidden bg-gray-200">
+                    {show.posterLocalUrl ? (
+                      <Image
+                        src={show.posterLocalUrl}
+                        alt={show.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        Kein Bild
+                      </div>
+                    )}
+                    
+                    {/* Overlay on hover with info */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {show.voteAverage && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="text-yellow-400">⭐</span>
+                          <span className="text-white text-sm font-semibold">{show.voteAverage.toFixed(1)}</span>
                         </div>
                       )}
                       
-                      {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        {show.voteAverage && (
-                          <div className="flex items-center gap-1 mb-2">
-                            <span className="text-yellow-400">⭐</span>
-                            <span className="text-white text-sm font-semibold">{show.voteAverage.toFixed(1)}</span>
-                          </div>
-                        )}
-                        
-                        {show.status && (
-                          <span className="text-xs text-white/80">{show.status}</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Series Info Below Cover */}
-                    <div className="p-3">
-                      <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-cyan-600 transition-colors">
-                        {show.title}
-                      </h3>
-                      {show.voteAverage && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-yellow-500 text-xs">⭐</span>
-                          <span className="text-xs text-gray-600">{show.voteAverage.toFixed(1)}</span>
-                        </div>
+                      {show.status && (
+                        <span className="text-xs text-white/80">{show.status}</span>
                       )}
                     </div>
-                  </article>
-                </Link>
+                    
+                    {/* Follow Button - Top Right */}
+                    <div className="absolute top-2 right-2 z-10" onClick={(e) => e.preventDefault()}>
+                      <FollowButtonLocal 
+                        tmdbId={show.tmdbId} 
+                        seriesName={show.title}
+                      />
+                    </div>
+                  </Link>
+                  
+                  {/* Series Info Below Cover */}
+                  <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block p-3">
+                    <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-cyan-600 transition-colors">
+                      {show.title}
+                    </h3>
+                    {show.voteAverage && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-yellow-500 text-xs">⭐</span>
+                        <span className="text-xs text-gray-600">{show.voteAverage.toFixed(1)}</span>
+                      </div>
+                    )}
+                  </Link>
+                </article>
               </div>
             ))}
           </div>
