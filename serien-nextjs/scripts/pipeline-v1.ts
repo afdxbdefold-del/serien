@@ -1152,10 +1152,18 @@ export async function runContentPipeline(source: CrawledSource) {
 
 // ========== EXAMPLE USAGE ==========
 async function main() {
-  // Example: Full Article Mode Test - 56 Days
+  // Get URL from command line args or use default
+  const urlArg = process.argv[2];
+  
+  if (!urlArg) {
+    console.error('❌ Error: No URL provided');
+    console.error('Usage: npx tsx scripts/pipeline-v1.ts <article-url>');
+    process.exit(1);
+  }
+  
   const testFullArticle: CrawledSource = {
-    title: "56 Days Ending Explained: Who is the Victim?",
-    url: "https://thecinemaholic.com/56-days-ending-explained/",
+    title: "Placeholder - will be fetched",
+    url: urlArg,
     text: `Initial placeholder - will be fetched via Playwright`,
     useFullTextMode: true  // ACTIVATE FULL_ARTICLE MODE WITH TRANSLATE_ONLY HEADLINE
   };
