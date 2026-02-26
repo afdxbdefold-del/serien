@@ -4,16 +4,14 @@ const prisma = new PrismaClient();
 
 async function checkArticle() {
   const article = await prisma.article.findUnique({
-    where: { id: 'pipeline-1772073191200' },
+    where: { id: 'pipeline-1772073714136' },
     select: {
       id: true,
       slug: true,
       title: true,
       publishMode: true,
-      contentHtml: true,
       excerpt: true,
-      readingTime: true,
-      sourceUrl: true
+      contentHtml: true
     }
   });
 
