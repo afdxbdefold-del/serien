@@ -77,7 +77,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 mb-6 bg-white">
+    <div className="rounded-xl p-6 mb-8 bg-gray-50">
       <div className="flex items-start gap-4">
         {/* Series Poster with Link */}
         {seriesSlug && (
