@@ -121,12 +121,6 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
           </p>
           
           <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
-            {statusData.lastNewsDate && (
-              <span>
-                Letzte News: {formatDate(statusData.lastNewsDate)}
-              </span>
-            )}
-            
             {statusData.lastSeason && (
               <span>
                 Letzte Staffel: Staffel {statusData.lastSeason}
