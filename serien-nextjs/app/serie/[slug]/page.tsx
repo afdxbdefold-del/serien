@@ -261,8 +261,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </section>
 
       {/* Desktop: 2-Column Layout */}
       <section className="container mx-auto px-6 py-8 lg:py-12 hidden lg:block" aria-labelledby="series-desktop">
