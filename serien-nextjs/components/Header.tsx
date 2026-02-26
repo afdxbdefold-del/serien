@@ -47,10 +47,46 @@ export default function Header() {
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
 
-  // Realtime search with debounce
-  useEffect(() => {
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Search is now handled by realtime effect via useEffect
+  };
 
-            {/* Right - Search & User */}
+  const closeSearch = () => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  return (
+    <>
+      {/* Header - Brand Blue Background */}
+      <header className="sticky top-0 z-50 bg-[#00b4d8] border-b border-white/10">
+        {/* Top Bar */}
+        <div className="max-w-[1400px] mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Left - Logo & Nav */}
+            <div className="flex items-center gap-8">
+              {/* Logo */}
+              <Link href="/" className="flex-shrink-0">
+                <Logo className="h-8" />
+              </Link>
+
+              {/* Desktop Navigation */}
+              <nav className="hidden md:flex items-center gap-6">
+                <Link href="/" className="text-white text-sm font-semibold hover:text-white/80 transition-colors">
+                  NEWS
+                </Link>
+                <Link href="/trending" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
+                  TRENDING
+                </Link>
+                <Link href="/redaktion" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
+                  REDAKTION
+                </Link>
+              </nav>
+            </div>
+
+            {/* Right - Search & Mobile Menu */}
             <div className="flex items-center gap-3">
               {/* Mobile Menu Toggle */}
               <button 
@@ -184,28 +220,10 @@ export default function Header() {
               >
                 REDAKTION
               </Link>
-              {isAdmin && (
-                <Link 
-                  href="/admin" 
-                  className="block px-4 py-3 text-yellow-600 hover:bg-gray-50 rounded-lg transition-colors font-medium"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  ADMIN
-                </Link>
-              )}
             </nav>
           </div>
         </div>
       )}
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => {
-          setShowAuthModal(false);
-          checkAuth(); // Refresh auth state after login
-        }} 
-      />
     </>
   );
 }
