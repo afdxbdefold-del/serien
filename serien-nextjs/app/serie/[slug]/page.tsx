@@ -52,75 +52,83 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Compact Hero Section */}
-      <div className="relative bg-gradient-to-br from-slate-100 to-gray-100 overflow-hidden">
-        {series.backdropPath && (
-          <>
-            <Image
-              src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
-              alt={series.name || ''}
-              fill
-              className="object-cover opacity-20"
-              priority
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/60 to-transparent" />
-          </>
-        )}
-        
-        <div className="relative container mx-auto px-6 py-8 md:py-12">
-          <div className="flex flex-col md:flex-row md:items-end gap-6">
-            {/* Poster - Hidden on mobile */}
+    <div className="min-h-screen bg-white">
+      {/* Hero Image (Full Width) */}
+      {series.backdropPath && (
+        <div className="relative w-full aspect-[21/9] md:aspect-[21/7] bg-gray-900">
+          <Image
+            src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
+            alt={series.name || ''}
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        </div>
+      )}
+
+      {/* Series Info Section */}
+      <div className="container mx-auto px-6 -mt-16 relative z-10">
+        <div className="bg-white rounded-xl shadow-xl p-6 md:p-8 max-w-5xl">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Poster */}
             {series.posterPath && (
-              <div className="hidden md:block flex-shrink-0">
+              <div className="flex-shrink-0 -mt-24 md:-mt-32">
                 <Image
                   src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
                   alt={series.name || ''}
-                  width={120}
-                  height={180}
-                  className="rounded-lg shadow-xl border-2 border-white"
+                  width={150}
+                  height={225}
+                  className="rounded-lg shadow-2xl border-4 border-white"
                 />
               </div>
             )}
             
-            {/* Title & Quick Meta */}
+            {/* Title & Meta */}
             <div className="flex-1">
-              <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
                 {series.name}
               </h1>
               
-              {/* Meta Row */}
-              <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
+              {/* Meta Pills */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 {series.voteAverage && (
-                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-200">
+                  <div className="flex items-center gap-1.5 bg-yellow-50 px-3 py-1.5 rounded-full border border-yellow-200">
                     <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                     <span className="font-semibold text-gray-900">{series.voteAverage.toFixed(1)}</span>
                   </div>
                 )}
                 
                 {series.firstAirDate && (
-                  <div className="bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-200 text-sm font-medium text-gray-700">
+                  <div className="bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
                     {new Date(series.firstAirDate).getFullYear()}
                   </div>
                 )}
                 
                 {series.numberOfSeasons && (
-                  <div className="bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-200 text-sm font-medium text-gray-700">
+                  <div className="bg-gray-100 px-3 py-1.5 rounded-full text-sm font-medium text-gray-700">
                     {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
                   </div>
                 )}
                 
                 {series.status && (
-                  <div className={`px-3 py-1.5 rounded-full shadow-sm border text-sm font-medium ${
+                  <div className={`px-3 py-1.5 rounded-full text-sm font-medium ${
                     series.status === 'Returning Series' || series.status === 'Running'
-                      ? 'bg-green-50 text-green-700 border-green-200'
-                      : 'bg-gray-100 text-gray-700 border-gray-200'
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200'
                   }`}>
                     {series.status === 'Returning Series' ? 'Läuft' : 
                      series.status === 'Ended' ? 'Beendet' : series.status}
                   </div>
                 )}
               </div>
+              
+              {/* Overview */}
+              {series.overview && (
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {series.overview}
+                </p>
+              )}
               
               {/* Follow Button */}
               <div>
@@ -131,15 +139,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
-          
-          {/* Overview - Critical Info */}
-          {series.overview && (
-            <div className="mt-6 md:mt-8 max-w-4xl">
-              <p className="text-gray-700 text-base md:text-lg leading-relaxed">
-                {series.overview}
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
