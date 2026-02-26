@@ -133,21 +133,20 @@ export async function downloadYouTubeTrailer(
     console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with deno + remote components for JS challenge solving
-    // Using lowest quality to reduce blocks and save space
-    const command = [
+    // yt-dlp command with deno + remote components
+    const ytdlpArgs = [
       'yt-dlp',
       '--js-runtime', 'deno',
       '--remote-components', 'ejs:github',
-      '--format', 'worst',  // Simplified: just get worst quality
+      '--format', 'worst',
       '--output', tempFilePath,
       '--no-playlist',
       '--max-filesize', '30M',
       '--socket-timeout', '30',
-      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
       '--referer', 'https://www.youtube.com/',
       youtubeUrl
-    ].join(' ');
+    ];
 
     // Set PATH to include deno
     const env = {
@@ -156,9 +155,35 @@ export async function downloadYouTubeTrailer(
       DENO_DIR: `${process.env.HOME}/.deno`
     };
 
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 120000, // 2 minutes timeout
-      env
+    // Use spawn instead of exec for better arg handling
+    const { spawn } = await import('child_process');
+    const proc = spawn(ytdlpArgs[0], ytdlpArgs.slice(1), { env });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    proc.stdout.on('data', (data) => stdout += data);
+    proc.stderr.on('data', (data) => stderr += data);
+    
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        proc.kill();
+        reject(new Error('Download timeout after 2 minutes'));
+      }, 120000);
+      
+      proc.on('close', (code) => {
+        clearTimeout(timeout);
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`yt-dlp exited with code ${code}\n${stderr}`));
+        }
+      });
+      
+      proc.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
 
     console.log('✅ Download complete');
