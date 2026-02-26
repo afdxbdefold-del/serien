@@ -140,17 +140,17 @@ async function detectAndTranslate(
   // If >30% non-German tokens, translate
   if (germanRatio < 0.3 && words.length > 3) {
     // Protect series names with placeholders
-    let protected = headline;
+    let headlineWithPlaceholders = headline;
     const placeholders: Map<string, string> = new Map();
     
     seriesNames.forEach((name, i) => {
       const placeholder = `__SERIES_${i}__`;
       placeholders.set(placeholder, name);
-      protected = protected.replace(new RegExp(name, 'gi'), placeholder);
+      headlineWithPlaceholders = headlineWithPlaceholders.replace(new RegExp(name, 'gi'), placeholder);
     });
 
     // Translate
-    const translated = await translateHeadline(protected);
+    const translated = await translateHeadline(headlineWithPlaceholders);
     
     // Restore series names
     let restored = translated;
