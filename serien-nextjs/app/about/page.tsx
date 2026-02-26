@@ -152,40 +152,6 @@ export default function AboutPage() {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t bg-white mt-20">
-        <div className="container mx-auto px-6 md:px-12 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">serien.de</h3>
-              <p className="text-sm text-gray-600">Deine Quelle für TV-Serien News</p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Navigation</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/" className="hover:text-gray-900 transition-colors">News</Link></li>
-                <li><Link href="/trending" className="hover:text-gray-900 transition-colors">Trending</Link></li>
-                <li><Link href="/about" className="hover:text-gray-900 transition-colors">Über uns</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-4">Rechtliches</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><Link href="/impressum" className="hover:text-gray-900 transition-colors">Impressum</Link></li>
-                <li><a href="/" className="hover:text-gray-900 transition-colors">Datenschutz</a></li>
-                <li><a href="mailto:mail@serien.de" className="hover:text-gray-900 transition-colors">Kontakt</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="pt-8 border-t text-center text-sm text-gray-600">
-            <p>© 2024 serien.de. Alle Rechte vorbehalten.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
