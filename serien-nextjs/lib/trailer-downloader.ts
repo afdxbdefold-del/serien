@@ -316,7 +316,19 @@ export async function downloadVideoTrailer(
     let videoUrl: string;
     let source: string;
     
-    if (videoId.startsWith('vimeo:')) {
+    if (videoId.startsWith('netflix:')) {
+      const netflixId = videoId.replace('netflix:', '');
+      videoUrl = `https://www.netflix.com/title/${netflixId}`;
+      source = 'Netflix';
+    } else if (videoId.startsWith('filmstarts:')) {
+      const filmstartsUrl = videoId.replace('filmstarts:', '');
+      videoUrl = filmstartsUrl; // Full URL for FilmStarts
+      source = 'FilmStarts';
+    } else if (videoId.startsWith('videobuster:')) {
+      const videobusterUrl = videoId.replace('videobuster:', '');
+      videoUrl = videobusterUrl; // Full URL for VideoBuster
+      source = 'VideoBuster';
+    } else if (videoId.startsWith('vimeo:')) {
       const vimeoId = videoId.replace('vimeo:', '');
       videoUrl = `https://vimeo.com/${vimeoId}`;
       source = 'Vimeo';
