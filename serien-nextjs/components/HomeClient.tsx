@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-react';
 import FeedSwitcher from './FeedSwitcher';
 import NewsCard from './NewsCard';
 import SeriesCard from './SeriesCard';
+import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
 const ALL_STREAMERS = [
