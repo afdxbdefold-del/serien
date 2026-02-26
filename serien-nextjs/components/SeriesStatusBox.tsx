@@ -142,16 +142,6 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }:
               variant="compact"
             />
           </div>
-
-          {/* Series Link */}
-          {seriesSlug && (
-            <Link 
-              href={`/serie/${seriesId}-${seriesSlug}`}
-              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              Zur Serie →
-            </Link>
-          )}
         </div>
       </div>
     </div>
