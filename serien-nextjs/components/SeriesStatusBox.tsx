@@ -8,6 +8,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import FollowButtonLocal from './FollowButtonLocal';
 
 interface SeriesStatusData {
@@ -21,6 +23,8 @@ interface SeriesStatusData {
 interface SeriesStatusBoxProps {
   seriesId: number;
   seriesName: string;
+  seriesSlug?: string;
+  posterUrl?: string | null;
 }
 
 const STATUS_LABELS = {
@@ -39,7 +43,7 @@ const STATUS_COLORS = {
   UNCLEAR: 'bg-gray-100 text-gray-600 border-gray-300',
 };
 
-export function SeriesStatusBox({ seriesId, seriesName }: SeriesStatusBoxProps) {
+export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl }: SeriesStatusBoxProps) {
   const [statusData, setStatusData] = useState<SeriesStatusData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -89,12 +93,40 @@ export function SeriesStatusBox({ seriesId, seriesName }: SeriesStatusBoxProps) 
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 mb-6 bg-white">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-xs font-semibold px-2 py-1 rounded border ${statusColor}`}>
-              {statusLabel}
-            </span>
+      <div className="flex items-start gap-4">
+        {/* Series Poster with Link */}
+        {posterUrl && seriesSlug && (
+          <Link 
+            href={`/serie/${seriesId}-${seriesSlug}`}
+            className="flex-shrink-0 group"
+          >
+            <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-md transition-transform group-hover:scale-105">
+              <Image
+                src={posterUrl}
+                alt={seriesName}
+                fill
+                className="object-cover"
+              />
+            </div>
+          </Link>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold px-2 py-1 rounded border ${statusColor}`}>
+                {statusLabel}
+              </span>
+            </div>
+
+            {/* Follow Button */}
+            <div className="flex-shrink-0">
+              <FollowButtonLocal 
+                tmdbId={seriesId}
+                seriesName={seriesName}
+                variant="compact"
+              />
+            </div>
           </div>
           
           <p className="text-sm text-gray-700 mb-2">
@@ -115,15 +147,16 @@ export function SeriesStatusBox({ seriesId, seriesName }: SeriesStatusBoxProps) 
               </span>
             )}
           </div>
-        </div>
 
-        {/* Follow Button */}
-        <div className="flex-shrink-0">
-          <FollowButtonLocal 
-            tmdbId={seriesId}
-            seriesName={seriesName}
-            variant="compact"
-          />
+          {/* Series Link */}
+          {seriesSlug && (
+            <Link 
+              href={`/serie/${seriesId}-${seriesSlug}`}
+              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 font-medium"
+            >
+              Zur Serie →
+            </Link>
+          )}
         </div>
       </div>
     </div>
