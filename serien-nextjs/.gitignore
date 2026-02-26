@@ -7,3 +7,9 @@
 *.tsbuildinfo
 next-env.d.ts
 /prisma/*.db
+
+# Videos (large files - use cloud storage)
+/public/videos/
+*.mp4
+*.webm
+*.mov
