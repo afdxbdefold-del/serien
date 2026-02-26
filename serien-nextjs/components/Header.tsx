@@ -89,11 +89,18 @@ export default function Header() {
 
             {/* Right - Search & Mobile Menu */}
             <div className="flex items-center gap-3">
-              {/* Search Icon - Mobile only */}
+              {/* Search Icon - Mobile only - scrolls to search bar */}
               <button 
-                onClick={() => setShowSearch(!showSearch)}
+                onClick={() => {
+                  // Scroll to search bar and focus
+                  const searchBar = document.querySelector('input[placeholder="Serien durchsuchen..."]') as HTMLInputElement;
+                  if (searchBar) {
+                    searchBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => searchBar.focus(), 300);
+                  }
+                }}
                 className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Toggle search"
+                aria-label="Search"
               >
                 <Search className="h-6 w-6 text-white" />
               </button>
