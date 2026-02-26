@@ -1128,6 +1128,18 @@ export async function runContentPipeline(source: CrawledSource) {
       // Select random author
       const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
       console.log(`✍️  Selected random author: ${randomAuthor.name}`);
+      console.log(`🔑 Generated slug: ${slug}`);
+
+      // Check if article already exists
+      const existingArticle = await tx.article.findUnique({
+        where: { slug },
+        select: { id: true, title: true }
+      });
+      
+      if (existingArticle) {
+        console.log(`⚠️  DUPLICATE: Article with slug "${slug}" exists: "${existingArticle.title}"`);
+        throw new Error(`Duplicate slug: ${slug}`);
+      }
 
       // Create article
       const article = await tx.article.create({
