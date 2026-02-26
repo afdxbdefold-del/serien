@@ -94,7 +94,8 @@ Schreibe jetzt den EIGENSTÄNDIGEN Lead für "${headline}":`;
     
   } catch (error: any) {
     console.error(`Lead generation failed: ${error.message}`);
-    // Fallback: Generate from facts
-    return `Neue Entwicklungen bei ${seriesName}: ${facts[0] || 'Die neueste Episode sorgt für Aufsehen.'}`;
+    // Fallback: Generate from headline and series name
+    const shortFact = facts[0] ? facts[0].substring(0, 100) : 'Die neueste Episode bringt spannende Entwicklungen.';
+    return `${seriesName}: ${shortFact}`;
   }
 }
