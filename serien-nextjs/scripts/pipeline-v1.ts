@@ -168,20 +168,17 @@ export async function runContentPipeline(source: CrawledSource) {
       ? [resolution.primarySeries.name, ...resolution.relatedSeries.map(s => s.name)]
       : [resolution.primarySeries.name];
 
-    // Determine content type based on mode
-    let actualContentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE';
+    // Determine if we're in FULL_ARTICLE mode
+    const isFullArticleMode = source.useFullTextMode === true;
     
-    if (source.useFullTextMode) {
-      actualContentType = 'FULL_ARTICLE';
+    if (isFullArticleMode) {
       console.log('   🔹 Using FULL_ARTICLE mode (450-900 words target)');
-    } else {
-      actualContentType = classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL';
     }
 
     let generatedContent = await generateGermanArticle(
       facts,
       resolution.primarySeries.name,
-      actualContentType,
+      isFullArticleMode ? 'FULL_ARTICLE' : (classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'),
       allSeriesNames,
       source.url // For Quelle block
     );
@@ -191,7 +188,7 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log(`✅ Generated article (${generatedContent.length} chars)`);
     
     // Log word count for FULL_ARTICLE mode
-    if (actualContentType === 'FULL_ARTICLE') {
+    if (isFullArticleMode) {
       const wordCount = generatedContent.replace(/<[^>]*>/g, '').split(/\s+/).length;
       console.log(`   📏 Word count: ${wordCount} words (target: 450-900)`);
       
