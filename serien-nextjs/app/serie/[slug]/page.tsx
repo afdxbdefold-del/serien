@@ -265,7 +265,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       </div>
 
       {/* Desktop: 2-Column Layout */}
-      <div className="container mx-auto px-6 py-8 lg:py-12">
+      <section className="container mx-auto px-6 py-8 lg:py-12 hidden lg:block" aria-labelledby="series-desktop">
+        <h1 id="series-desktop" className="sr-only">{series.name}</h1>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* LEFT: News Feed (Main Content) */}
