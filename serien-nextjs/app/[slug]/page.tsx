@@ -242,10 +242,12 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
 
         {/* Series Status Box (if primary series exists) */}
-        {article.primarySeriesId && (
+        {article.primarySeriesId && article.primarySeries && (
           <SeriesStatusBox 
             seriesId={article.primarySeriesId} 
-            seriesName={article.primarySeries?.title || ''} 
+            seriesName={article.primarySeries.title || article.primarySeries.name || ''} 
+            seriesSlug={article.primarySeries.slug}
+            posterUrl={article.primarySeries.posterLocalUrl}
           />
         )}
 
