@@ -882,8 +882,9 @@ export async function runContentPipeline(source: CrawledSource) {
       return { skipped: true, reason: 'duplicate' };
     }
 
-    // Generate excerpt
-    const articleExcerpt = facts.key_statements[0] || generatedContent.replace(/<[^>]*>/g, '').substring(0, 200);
+    // Generate excerpt from GERMAN content (not English source)
+    const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
 
 
     // Generate image data
