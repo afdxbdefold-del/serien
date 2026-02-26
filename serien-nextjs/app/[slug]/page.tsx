@@ -314,7 +314,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 </div>
               </Link>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Where to Stream Box */}
