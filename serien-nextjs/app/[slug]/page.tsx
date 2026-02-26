@@ -8,6 +8,7 @@ import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
+import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 
 interface PageProps {
   params: Promise<{
