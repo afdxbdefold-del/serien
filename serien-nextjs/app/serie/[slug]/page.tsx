@@ -506,7 +506,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
