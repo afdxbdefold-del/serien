@@ -133,23 +133,32 @@ export async function downloadYouTubeTrailer(
     console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // yt-dlp command with LOW QUALITY settings (360p max, simpler format selector)
+    // yt-dlp command with deno + ffmpeg for proper video merging
     const command = [
       'yt-dlp',
-      // Simpler format: best video+audio combo under 480p
-      '--format', '"best[height<=480][ext=mp4]"',
-      '--output', `"${tempFilePath}"`,
+      // Use deno as JavaScript runtime
+      '--js-runtime', 'deno',
+      // Format: best video+audio combo under 480p, merge with ffmpeg
+      '--format', 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best',
+      '--merge-output-format', 'mp4',
+      '--output', tempFilePath,
       '--no-playlist',
       '--max-filesize', '30M',
       '--socket-timeout', '30',
-      '--no-check-certificates', // Bypass SSL issues
-      '--user-agent', '"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"',
-      `"${youtubeUrl}"`
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      youtubeUrl
     ].join(' ');
+
+    // Set PATH to include deno
+    const env = {
+      ...process.env,
+      PATH: `${process.env.HOME}/.deno/bin:${process.env.PATH}`,
+      DENO_DIR: `${process.env.HOME}/.deno`
+    };
 
     const { stdout, stderr } = await execAsync(command, {
       timeout: 120000, // 2 minutes timeout
-      shell: '/bin/bash' // Use bash for better quote handling
+      env
     });
 
     console.log('✅ Download complete');
