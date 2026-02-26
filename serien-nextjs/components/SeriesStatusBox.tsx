@@ -137,7 +137,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
             <FollowButtonLocal 
               tmdbId={seriesId}
               seriesName={seriesName}
-              variant="compact"
+              variant="navbar"
             />
           </div>
         </div>
