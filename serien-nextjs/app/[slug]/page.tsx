@@ -208,16 +208,6 @@ export default async function ArticlePage({ params }: PageProps) {
           {article.title}
         </h1>
 
-        {/* Follow Button - if article has a primary series */}
-        {article.primarySeriesId && article.primarySeries && (
-          <div className="mb-6">
-            <FollowButtonLocal 
-              tmdbId={article.primarySeriesId}
-              seriesName={article.primarySeries.title || article.primarySeries.name || ''}
-            />
-          </div>
-        )}
-
         {/* Meta Info */}
         <div className="flex items-center justify-between gap-6 mb-8 pb-8 border-b">
           <div className="flex items-center gap-6">
