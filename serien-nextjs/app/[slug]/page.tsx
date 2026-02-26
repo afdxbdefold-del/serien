@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
-import VideoPlayerModal from '@/components/VideoPlayerModal';
+import InlineVideoPlayer from '@/components/InlineVideoPlayer';
 
 interface PageProps {
   params: Promise<{
@@ -183,22 +183,11 @@ export default async function ArticlePage({ params }: PageProps) {
         {/* Hero Image */}
         {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
           <div className="mb-8">
-            <div className="relative aspect-video rounded-2xl overflow-hidden">
-              <Image
-                src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                alt={article.title}
-                fill
-                className="object-cover"
-                priority
-              />
-              {/* Video Player Overlay (if trailer exists) */}
-              {article.trailerLocalUrl && (
-                <VideoPlayerModal 
-                  trailerUrl={article.trailerLocalUrl}
-                  seriesTitle={article.title}
-                />
-              )}
-            </div>
+            <InlineVideoPlayer
+              heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+              trailerUrl={article.trailerLocalUrl}
+              title={article.title}
+            />
             <p className="text-xs text-gray-500 mt-2">
               Bild: {article.imageAttribution || 'TMDB'}
             </p>
