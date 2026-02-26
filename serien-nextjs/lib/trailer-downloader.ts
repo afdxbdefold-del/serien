@@ -289,25 +289,49 @@ export async function downloadVideoTrailer(
     ];
 
     // Add cookie extraction for YouTube (helps bypass 403 errors)
+    // Note: Only add cookies if browser profile actually exists
     if (source === 'YouTube') {
       // Try to extract cookies from browser (chromium, then firefox as fallback)
       // This significantly improves YouTube download success rate
+      let cookiesAdded = false;
       try {
-        const { stdout: chromiumCheck } = await execAsync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { timeout: 2000 });
-        if (chromiumCheck.trim()) {
+        // Check if Chromium cookies database exists (not just if binary is installed)
+        const chromiumCookiesPath = `${process.env.HOME}/.config/chromium/Default/Cookies`;
+        const googleCookiesPath = `${process.env.HOME}/.config/google-chrome/Default/Cookies`;
+        
+        await fs.access(chromiumCookiesPath).then(() => {
           console.log('   🍪 Using Chromium cookies for authentication');
           ytdlpArgs.push('--cookies-from-browser', 'chromium');
+          cookiesAdded = true;
+        }).catch(() => {});
+        
+        if (!cookiesAdded) {
+          await fs.access(googleCookiesPath).then(() => {
+            console.log('   🍪 Using Google Chrome cookies for authentication');
+            ytdlpArgs.push('--cookies-from-browser', 'chrome');
+            cookiesAdded = true;
+          }).catch(() => {});
         }
       } catch {
+        // Chromium check failed
+      }
+      
+      if (!cookiesAdded) {
         try {
-          const { stdout: firefoxCheck } = await execAsync('which firefox 2>/dev/null', { timeout: 2000 });
-          if (firefoxCheck.trim()) {
+          // Check Firefox cookies
+          const firefoxPath = `${process.env.HOME}/.mozilla/firefox`;
+          await fs.access(firefoxPath).then(() => {
             console.log('   🍪 Using Firefox cookies for authentication');
             ytdlpArgs.push('--cookies-from-browser', 'firefox');
-          }
+            cookiesAdded = true;
+          }).catch(() => {});
         } catch {
-          console.log('   ⚠️  No browser cookies available (may increase 403 risk)');
+          // Firefox check failed
         }
+      }
+      
+      if (!cookiesAdded) {
+        console.log('   ⚠️  No browser cookies available - proceeding without cookie auth');
       }
     }
 
