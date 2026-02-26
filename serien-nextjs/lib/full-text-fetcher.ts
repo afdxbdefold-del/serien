@@ -12,7 +12,9 @@ export interface FullTextResult {
   wordCount: number;
   sourceDomain: string;
   title: string;
+  headline: string; // ADD: Explicit headline field
   publishDate?: Date;
+  rawText?: string; // ADD: Raw text for other uses
 }
 
 export async function fetchFullArticleText(url: string): Promise<FullTextResult> {
@@ -74,14 +76,30 @@ export async function fetchFullArticleText(url: string): Promise<FullTextResult>
         }
       });
 
-      // Get title
+      // Get title/headline with multiple fallbacks
       const titleElement = 
         document.querySelector('h1.entry-title') ||
+        document.querySelector('h1[class*="title"]') ||
+        document.querySelector('h1[class*="headline"]') ||
         document.querySelector('h1') ||
         document.querySelector('.post-title') ||
-        document.querySelector('[itemprop="headline"]');
+        document.querySelector('[itemprop="headline"]') ||
+        document.querySelector('meta[property="og:title"]');
       
-      const title = titleElement?.textContent?.trim() || '';
+      let title = '';
+      if (titleElement) {
+        if (titleElement.tagName === 'META') {
+          title = (titleElement as HTMLMetaElement).content || '';
+        } else {
+          title = titleElement.textContent?.trim() || '';
+        }
+      }
+      
+      // Fallback: Try <title> tag
+      if (!title) {
+        const titleTag = document.querySelector('title');
+        title = titleTag?.textContent?.trim() || '';
+      }
 
       // Get domain
       const sourceDomain = window.location.hostname.replace('www.', '');
