@@ -146,9 +146,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                     )}
                     
                     <div className="p-4">
-                      <h3 className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
+                      <p className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
                         {article.title}
-                      </h3>
+                      </p>
                       
                       {article.excerpt && (
                         <p className="text-sm text-gray-600 line-clamp-2 mb-3">
@@ -305,11 +305,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                       )}
                       
                       <div className={`p-6 ${index === 0 ? 'lg:flex-1' : ''}`}>
-                        <h3 className={`font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 ${
+                        <p className={`font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 ${
                           index === 0 ? 'text-2xl mb-3' : 'text-lg mb-2'
                         }`}>
                           {article.title}
-                        </h3>
+                        </p>
                         
                         {article.excerpt && (
                           <p className={`text-gray-600 line-clamp-${index === 0 ? '3' : '2'} mb-3`}>
@@ -410,9 +410,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                      <p className="text-2xl font-bold text-gray-900 mb-3" aria-label={`Serie: ${series.name}`}>
                         {series.name}
-                      </h1>
+                      </p>
                       {series.overview && (
                         <p className="text-gray-700 leading-relaxed mb-4 text-sm">
                           {series.overview}
