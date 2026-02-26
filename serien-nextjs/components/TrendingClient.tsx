@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Sparkles, Filter, X } from 'lucide-react';
+import FollowButtonLocal from './FollowButtonLocal';
 
 interface Series {
   tmdbId: number;
