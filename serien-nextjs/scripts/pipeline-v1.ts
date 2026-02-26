@@ -980,31 +980,49 @@ export async function runContentPipeline(source: CrawledSource) {
           }
         }
 
-        // Fallback: Search YouTube
+        // Fallback 1: Search YouTube
         if (!youtubeId) {
           console.log('🔍 No TMDB trailer → Searching YouTube...');
           youtubeId = await searchYouTubeTrailer(resolution.primarySeries.name);
           
           if (youtubeId) {
             console.log(`✅ Found via YouTube search: ${youtubeId}`);
+          }
+        }
+
+        // Fallback 2: Search Vimeo (if YouTube failed)
+        if (!youtubeId) {
+          console.log('🔍 YouTube search failed → Searching Vimeo...');
+          const { searchVimeoTrailer } = await import('../lib/trailer-downloader');
+          youtubeId = await searchVimeoTrailer(resolution.primarySeries.name);
+          
+          if (youtubeId) {
+            console.log(`✅ Found via Vimeo search: ${youtubeId}`);
           } else {
-            console.log('⏭️  No trailer found → Skipping');
+            console.log('⏭️  No trailer found on any source → Skipping');
           }
         }
 
         // Download if found
         if (youtubeId) {
-          console.log(`🎬 Downloading: https://youtube.com/watch?v=${youtubeId}`);
-          const downloadResult = await downloadYouTubeTrailer(
+          const source = youtubeId.startsWith('vimeo:') ? 'Vimeo' : 'YouTube';
+          const displayUrl = youtubeId.startsWith('vimeo:') 
+            ? `https://vimeo.com/${youtubeId.replace('vimeo:', '')}`
+            : `https://youtube.com/watch?v=${youtubeId}`;
+          
+          console.log(`🎬 Downloading from ${source}: ${displayUrl}`);
+          
+          const { downloadVideoTrailer } = await import('../lib/trailer-downloader');
+          const downloadResult = await downloadVideoTrailer(
             youtubeId,
             resolution.primarySeries.name
           );
 
           if (downloadResult.success && downloadResult.localPath) {
             trailerLocalPath = downloadResult.localPath;
-            console.log(`✅ Trailer downloaded: ${trailerLocalPath}`);
+            console.log(`✅ Trailer downloaded from ${source}: ${trailerLocalPath}`);
           } else {
-            console.log(`⚠️  Download failed: ${downloadResult.error}`);
+            console.log(`⚠️  Download failed from ${source}: ${downloadResult.error}`);
           }
         }
       }
