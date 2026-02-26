@@ -251,7 +251,8 @@ metadata:
   test_date: "2025-02-24"
 
 test_plan:
-  current_focus: []
+  current_focus: 
+    - "WhereToStreamBox Component - Series Detail Page"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -266,6 +267,7 @@ test_plan:
     - "InlineVideoPlayer component functionality (2026-02-26)"
     - "Inline video player replaces hero image without modal (2026-02-26)"
     - "Video autoplay and controls verification (2026-02-26)"
+    - "WhereToStreamBox visibility test on Young Sheldon series page (2026-02-26)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
