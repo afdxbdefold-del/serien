@@ -1,6 +1,6 @@
 'use client';
 
-import { Newspaper, Tv, Sparkles } from 'lucide-react';
+import { Newspaper, Sparkles } from 'lucide-react';
 
 interface FeedSwitcherProps {
   activeTab: string;
@@ -9,7 +9,7 @@ interface FeedSwitcherProps {
 }
 
 export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: FeedSwitcherProps) {
-  const tabs = ['all-news', 'my-news', 'follow-shows'];
+  const tabs = ['all-news', 'my-news'];
 
   const tabConfig: Record<string, { label: string; icon: any; gradient: string }> = {
     'my-news': {
@@ -21,11 +21,6 @@ export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: Fee
       label: 'News',
       icon: Newspaper,
       gradient: 'from-cyan-500 via-cyan-600 to-teal-600'
-    },
-    'follow-shows': {
-      label: 'Serien',
-      icon: Tv,
-      gradient: 'from-orange-600 via-red-600 to-pink-600'
     }
   };
 
