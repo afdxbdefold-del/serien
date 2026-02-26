@@ -66,55 +66,55 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           />
           
           {/* Series Info */}
-          <div className="pt-16 px-6 pb-6">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-[100px]">
-                <div className="flex flex-col gap-2">
-                  {series.voteAverage && (
-                    <div className="flex items-center justify-center gap-1 bg-yellow-50 px-2 py-1.5 rounded-lg border border-yellow-200">
-                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                      <span className="font-semibold text-gray-900 text-sm">{series.voteAverage.toFixed(1)}</span>
-                    </div>
-                  )}
-                  {series.firstAirDate && (
-                    <div className="bg-gray-100 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 text-center">
-                      {new Date(series.firstAirDate).getFullYear()}
-                    </div>
-                  )}
-                  {series.numberOfSeasons && (
-                    <div className="bg-gray-100 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 text-center">
-                      {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'S' : 'S'}
-                    </div>
-                  )}
-                  {series.status && (
-                    <div className={`px-2 py-1.5 rounded-lg text-xs font-medium text-center ${
-                      series.status === 'Returning Series' || series.status === 'Running'
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'bg-gray-100 text-gray-700 border border-gray-200'
-                    }`}>
-                      {series.status === 'Returning Series' ? 'Läuft' : 
-                       series.status === 'Ended' ? 'Beendet' : series.status}
-                    </div>
-                  )}
+          <div className="pt-6 px-6 pb-6">
+            {/* Title First */}
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">
+              {series.name}
+            </h1>
+
+            {/* Metadata Row: Rating, Year, Seasons, Status */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              {series.voteAverage && (
+                <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200">
+                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                  <span className="font-semibold text-gray-900 text-sm">{series.voteAverage.toFixed(1)}</span>
                 </div>
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                  {series.name}
-                </h1>
-                {series.overview && (
-                  <p className="text-gray-700 leading-relaxed mb-3 text-sm">
-                    {series.overview}
-                  </p>
-                )}
-                <div>
-                  <FollowButtonLocal 
-                    tmdbId={series.tmdbId} 
-                    seriesName={series.name || ''} 
-                  />
+              )}
+              {series.firstAirDate && (
+                <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700">
+                  {new Date(series.firstAirDate).getFullYear()}
                 </div>
-              </div>
+              )}
+              {series.numberOfSeasons && (
+                <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700">
+                  {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
+                </div>
+              )}
+              {series.status && (
+                <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                  series.status === 'Returning Series' || series.status === 'Running'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200'
+                }`}>
+                  {series.status === 'Returning Series' ? 'Läuft' : 
+                   series.status === 'Ended' ? 'Beendet' : series.status}
+                </div>
+              )}
+            </div>
+
+            {/* Description */}
+            {series.overview && (
+              <p className="text-gray-700 leading-relaxed mb-4 text-sm">
+                {series.overview}
+              </p>
+            )}
+
+            {/* Follow Button */}
+            <div>
+              <FollowButtonLocal 
+                tmdbId={series.tmdbId} 
+                seriesName={series.name || ''} 
+              />
             </div>
 
             {/* Mobile: Additional Info Sections */}
