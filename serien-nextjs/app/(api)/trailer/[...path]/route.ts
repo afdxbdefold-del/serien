@@ -37,9 +37,12 @@ async function initStorage(): Promise<string> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // Await params (Next.js 15 requirement)
+    const params = await context.params;
+    
     // Reconstruct the full storage path
     const storagePath = params.path.join('/');
     
