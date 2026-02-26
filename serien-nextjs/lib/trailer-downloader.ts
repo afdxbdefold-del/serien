@@ -109,9 +109,69 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
 
 /**
  * Download YouTube video using yt-dlp and upload to Emergent Object Storage
+ * @deprecated Use downloadVideoTrailer instead for multi-source support
  */
 export async function downloadYouTubeTrailer(
   youtubeId: string,
+  seriesName: string
+): Promise<TrailerDownloadResult> {
+  // Delegate to the new multi-source function
+  return downloadVideoTrailer(youtubeId, seriesName);
+}
+
+/**
+ * Search YouTube for series trailer (fallback if no TMDB trailer)
+ */
+export async function searchYouTubeTrailer(seriesName: string): Promise<string | null> {
+  try {
+    // Use yt-dlp to search
+    const searchQuery = `${seriesName} official trailer`;
+    const command = `yt-dlp "ytsearch1:${searchQuery}" --get-id --no-playlist`;
+
+    const { stdout } = await execAsync(command, { timeout: 10000 });
+    const videoId = stdout.trim();
+
+    if (videoId && videoId.length === 11) {
+      console.log(`✅ Found trailer via YouTube search: ${videoId}`);
+      return videoId;
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('❌ YouTube search failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Search Vimeo for series trailer (alternative source)
+ */
+export async function searchVimeoTrailer(seriesName: string): Promise<string | null> {
+  try {
+    // Use yt-dlp to search Vimeo
+    const searchQuery = `${seriesName} official trailer`;
+    const command = `yt-dlp "https://vimeo.com/search?q=${encodeURIComponent(searchQuery)}" --get-id --no-playlist --max-downloads 1`;
+
+    const { stdout } = await execAsync(command, { timeout: 15000 });
+    const videoId = stdout.trim().split('\n')[0]; // Get first result
+
+    if (videoId && videoId.match(/^\d+$/)) {
+      console.log(`✅ Found trailer via Vimeo search: ${videoId}`);
+      return `vimeo:${videoId}`; // Prefix with vimeo: to identify source
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('❌ Vimeo search failed:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Download video from YouTube or Vimeo using yt-dlp
+ */
+export async function downloadVideoTrailer(
+  videoId: string,
   seriesName: string
 ): Promise<TrailerDownloadResult> {
   let tempFilePath: string | null = null;
@@ -127,10 +187,22 @@ export async function downloadYouTubeTrailer(
       .replace(/-+/g, '-')
       .substring(0, 50);
 
-    tempFilePath = path.join(tempDir, `${safeFilename}-${youtubeId}.mp4`);
-    const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
+    tempFilePath = path.join(tempDir, `${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`);
+    
+    // Determine video URL based on source
+    let videoUrl: string;
+    let source: string;
+    
+    if (videoId.startsWith('vimeo:')) {
+      const vimeoId = videoId.replace('vimeo:', '');
+      videoUrl = `https://vimeo.com/${vimeoId}`;
+      source = 'Vimeo';
+    } else {
+      videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      source = 'YouTube';
+    }
 
-    console.log(`🎬 Downloading trailer: ${youtubeUrl}`);
+    console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
     // yt-dlp command with deno + remote components
@@ -144,8 +216,8 @@ export async function downloadYouTubeTrailer(
       '--max-filesize', '30M',
       '--socket-timeout', '30',
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121.0.0.0 Safari/537.36',
-      '--referer', 'https://www.youtube.com/',
-      youtubeUrl
+      '--referer', source === 'YouTube' ? 'https://www.youtube.com/' : 'https://vimeo.com/',
+      videoUrl
     ];
 
     // Set PATH to include deno
@@ -187,7 +259,7 @@ export async function downloadYouTubeTrailer(
     });
 
     console.log('✅ Download complete');
-    if (stderr) console.log('   stderr:', stderr);
+    if (stderr) console.log('   stderr (last 200 chars):', stderr.slice(-200));
 
     // Verify file exists
     await fs.access(tempFilePath);
@@ -198,12 +270,13 @@ export async function downloadYouTubeTrailer(
     console.log(`📦 File size: ${fileSizeMB} MB`);
 
     // Upload to Emergent Object Storage
-    const storagePath = `${APP_NAME}/trailers/${safeFilename}-${youtubeId}.mp4`;
+    const storagePath = `${APP_NAME}/trailers/${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`;
     console.log(`☁️  Uploading to cloud: ${storagePath}`);
     
     const uploadResult = await uploadToStorage(storagePath, videoBuffer, 'video/mp4');
     
     console.log(`✅ Upload complete: ${uploadResult.path}`);
+    console.log(`   Source: ${source}`);
 
     // Cleanup temp file
     try {
@@ -235,30 +308,6 @@ export async function downloadYouTubeTrailer(
       success: false,
       error: error.message
     };
-  }
-}
-
-/**
- * Search YouTube for series trailer (fallback if no TMDB trailer)
- */
-export async function searchYouTubeTrailer(seriesName: string): Promise<string | null> {
-  try {
-    // Use yt-dlp to search
-    const searchQuery = `${seriesName} official trailer`;
-    const command = `yt-dlp "ytsearch1:${searchQuery}" --get-id --no-playlist`;
-
-    const { stdout } = await execAsync(command, { timeout: 10000 });
-    const videoId = stdout.trim();
-
-    if (videoId && videoId.length === 11) {
-      console.log(`✅ Found trailer via search: ${videoId}`);
-      return videoId;
-    }
-
-    return null;
-  } catch (error: any) {
-    console.error('❌ YouTube search failed:', error.message);
-    return null;
   }
 }
 
