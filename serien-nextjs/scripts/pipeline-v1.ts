@@ -369,6 +369,38 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log(`✅ Meta Description validiert: Google Discover ready`);
 
+    // ========== STEP 5.7: DISCOVER STRUCTURE OPTIMIZATION ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.7: DISCOVER STRUCTURE OPTIMIZATION');
+    console.log('━'.repeat(70));
+
+    const { optimizeForDiscover } = await import('../lib/discover-structure-optimizer.js');
+    
+    // Extract core event from title
+    let coreEvent = 'erklärt die Handlung';
+    if (/ende|ending/i.test(articleTitle)) {
+      coreEvent = 'erklärt das Ende';
+    } else if (/staffel|season/i.test(articleTitle)) {
+      coreEvent = 'berichtet über die neue Staffel';
+    } else if (/tod|death/i.test(articleTitle)) {
+      coreEvent = 'erklärt den Tod';
+    }
+    
+    const discoverOptimization = optimizeForDiscover({
+      content: generatedContent,
+      seriesName: resolution.primarySeries.title || resolution.primarySeries.name,
+      coreEvent: coreEvent,
+    });
+    
+    // Use optimized content
+    generatedContent = discoverOptimization.optimizedContent;
+    
+    console.log('✅ Discover Structure optimized');
+    console.log(`   Signals: ${discoverOptimization.signals.seriesNameCount} mentions, ${discoverOptimization.signals.clearOpening ? 'clear opening' : 'needs improvement'}`);
+    if (discoverOptimization.warnings.length > 0) {
+      console.log(`   Warnings: ${discoverOptimization.warnings.length}`);
+    }
+
     // ========== STEP 6: QUALITY CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6: QUALITY CHECK');
