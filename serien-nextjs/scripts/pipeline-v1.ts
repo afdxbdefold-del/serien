@@ -322,6 +322,53 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`⊘  Nicht generiert (nicht eligible oder validation failed)`);
     }
 
+    // ========== STEP 5.6: META DESCRIPTION (Google Discover) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.6: META DESCRIPTION (Google Discover)');
+    console.log('━'.repeat(70));
+
+    const { generateMetaDescription } = await import('../lib/meta-description-generator.js');
+    const metaDescription = await generateMetaDescription({
+      title: articleTitle,
+      content: generatedContent,
+      primarySeries: resolution.primarySeries.title || resolution.primarySeries.name,
+      wasBedeutetDas: wasBedeutetDasText || undefined,
+    });
+
+    const metaLength = metaDescription.length;
+    console.log(`📝 Meta Description: "${metaDescription}"`);
+    console.log(`   Länge: ${metaLength} Zeichen`);
+
+    // Strict validation
+    const validationErrors: string[] = [];
+    
+    if (metaLength < 120) {
+      validationErrors.push(`Zu kurz (${metaLength} < 120 Zeichen)`);
+    }
+    if (metaLength > 155) {
+      validationErrors.push(`Zu lang (${metaLength} > 155 Zeichen)`);
+    }
+    if (metaDescription.includes('?')) {
+      validationErrors.push('Enthält Fragezeichen');
+    }
+    if (metaDescription.includes('!')) {
+      validationErrors.push('Enthält Ausrufezeichen');
+    }
+    if (/\d{4}/.test(metaDescription)) {
+      validationErrors.push('Enthält Jahreszahl');
+    }
+    if (/musst du wissen|was wirklich|schockierend|unglaublich|absolut|extrem/i.test(metaDescription)) {
+      validationErrors.push('Enthält Clickbait-Formulierung');
+    }
+
+    if (validationErrors.length > 0) {
+      console.log(`❌ Meta Description Validierung fehlgeschlagen:`);
+      validationErrors.forEach(err => console.log(`   - ${err}`));
+      throw new Error(`❌ PUBLISH BLOCKED: Meta Description ungültig - ${validationErrors.join(', ')}`);
+    }
+
+    console.log(`✅ Meta Description validiert: Google Discover ready`);
+
     // ========== STEP 6: QUALITY CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6: QUALITY CHECK');
