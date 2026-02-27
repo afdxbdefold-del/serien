@@ -85,7 +85,7 @@ export default async function PersonPage({ params }: PersonPageProps) {
   const relatedSeries = Array.from(
     new Map(
       person.articles.map((ap) => [
-        ap.article.primarySeries.id,
+        ap.article.primarySeries.tmdbId,
         ap.article.primarySeries,
       ])
     ).values()
