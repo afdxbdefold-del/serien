@@ -8,13 +8,13 @@ import prisma from '@/lib/prisma';
 
 interface RouteParams {
   params: Promise<{
-    id: string;
+    tmdbId: string;
   }>;
 }
 
 export async function GET(request: NextRequest, context: RouteParams) {
-  const { id } = await context.params;
-  const seriesId = parseInt(id);
+  const { tmdbId } = await context.params;
+  const seriesId = parseInt(tmdbId);
 
   if (isNaN(seriesId)) {
     return NextResponse.json({ error: 'Invalid series ID' }, { status: 400 });
