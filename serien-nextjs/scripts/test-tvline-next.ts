@@ -34,6 +34,7 @@ async function processNextArticle() {
           OR: [
             { slug: { contains: possibleSlug } },
             { title: { contains: article.title.substring(0, 40) } },
+            { sourceUrl: article.url }, // Check sourceUrl too
           ],
         },
         select: { id: true, slug: true },
