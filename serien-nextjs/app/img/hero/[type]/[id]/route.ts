@@ -50,11 +50,51 @@ async function initStorage(): Promise<string> {
 export async function GET(request: NextRequest, context: RouteParams) {
   const { type, id } = await context.params;
   
-  // Validate
-  if (!['tv', 'movie'].includes(type)) {
+  // Validate type
+  if (!['tv', 'movie', 'article'].includes(type)) {
     return new NextResponse('Invalid type', { status: 400 });
   }
+
+  // Handle article type separately
+  if (type === 'article') {
+    try {
+      const article = await prisma.article.findUnique({
+        where: { id },
+        select: { heroImagePath: true },
+      });
+
+      if (!article || !article.heroImagePath) {
+        console.warn(`Article ${id} not found or has no heroImagePath`);
+        return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      }
+
+      const storagePath = article.heroImagePath;
+      const key = await initStorage();
+      
+      const response = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
+        method: 'GET',
+        headers: { 'X-Storage-Key': key },
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to fetch article image from storage: ${storagePath}`);
+        return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+      }
+
+      const imageBuffer = await response.arrayBuffer();
+      return new Response(imageBuffer, {
+        headers: {
+          'Content-Type': 'image/webp',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    } catch (error) {
+      console.error('Article hero image error:', error);
+      return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
+    }
+  }
   
+  // Handle tv/movie types (TMDB-based)
   const tmdbId = parseInt(id);
   if (isNaN(tmdbId)) {
     return new NextResponse('Invalid ID', { status: 400 });
