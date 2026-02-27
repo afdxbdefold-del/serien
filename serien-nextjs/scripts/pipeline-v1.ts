@@ -921,8 +921,30 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 7.5: INTERNAL LINKING ENGINE');
     console.log('━'.repeat(70));
 
+    // Validate article title before slug generation
+    if (!articleTitle || articleTitle.trim().length < 5) {
+      console.log(`❌ Invalid article title: "${articleTitle}"`);
+      throw new Error(`Pipeline error: Article title is empty or too short (${articleTitle?.length || 0} chars)`);
+    }
+    
+    // Check for placeholder patterns
+    const placeholderPatterns = [
+      /platzhalter/i,
+      /placeholder/i,
+      /wird\s+abgerufen/i,
+      /fetching/i,
+      /loading/i,
+    ];
+    
+    const hasPlaceholder = placeholderPatterns.some(pattern => pattern.test(articleTitle));
+    if (hasPlaceholder) {
+      console.log(`❌ Placeholder detected in title: "${articleTitle}"`);
+      throw new Error(`Pipeline error: Article title contains placeholder text`);
+    }
+
     // We need slug first for this step, so generate it here
     const slug = generateSlug(articleTitle);
+    console.log(`🔑 Pre-generated slug: ${slug}`);
 
     const internalLinksResult = await generateInternalLinks({
       articleId: `pipeline-${Date.now()}`, // Temporary, will be replaced
