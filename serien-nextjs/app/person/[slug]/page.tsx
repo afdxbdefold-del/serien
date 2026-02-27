@@ -43,8 +43,9 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
 }
 
 export default async function PersonPage({ params }: PersonPageProps) {
+  const { slug } = await params;
   const person = await prisma.person.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: {
       articles: {
         include: {
