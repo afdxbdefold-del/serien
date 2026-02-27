@@ -25,7 +25,7 @@ function detectArticleType(title: string, content: string): 'NEWS' | 'THEORY' | 
   const titleLower = title.toLowerCase();
   const contentStart = content.substring(0, 500).toLowerCase();
   
-  // THEORY indicators
+  // THEORY indicators (must be checked first, most specific)
   if (
     /theorie|spekulation|könnte|möglich|denkbar|vielleicht/i.test(titleLower) ||
     /theorie|spekulation|könnte passieren|möglicherweise|denkbar/i.test(contentStart)
@@ -33,15 +33,20 @@ function detectArticleType(title: string, content: string): 'NEWS' | 'THEORY' | 
     return 'THEORY';
   }
   
-  // REVIEW indicators
-  if (
-    /review|kritik|einordnung|bewertung|fazit|einschätzung/i.test(titleLower) ||
-    /stärken|schwächen|einordnung|bewertung/i.test(contentStart)
-  ) {
-    return 'REVIEW';
+  // REVIEW indicators (explicit reviews only, not breakdowns/explanations)
+  // Exclude "episode breakdown" style content
+  const isEpisodeBreakdown = /episode|staffel.*episode|folge|erklärt|analysiert|breakdown|breaks down/i.test(titleLower);
+  
+  if (!isEpisodeBreakdown) {
+    if (
+      /review|kritik|bewertung|fazit/i.test(titleLower) ||
+      /(review|kritik|bewertung):/i.test(contentStart)
+    ) {
+      return 'REVIEW';
+    }
   }
   
-  // Default: NEWS
+  // Default: NEWS (includes episode breakdowns, news, announcements)
   return 'NEWS';
 }
 
