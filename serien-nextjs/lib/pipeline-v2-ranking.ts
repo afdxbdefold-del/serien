@@ -421,7 +421,7 @@ ${generatedItems.join('\n\n')}
       try {
         const imageUrl = `https://image.tmdb.org/t/p/original${primarySeries.backdropPath}`;
         console.log(`📥 Fetching hero image from TMDB...`);
-        const storedPath = await storeImage(imageUrl, 'series', primarySeries.tmdbId, 'hero', 1600, 900);
+        const storedPath = await storeHeroImage(imageUrl, 'series', primarySeries.tmdbId);
         heroImagePath = storedPath;
         console.log(`✅ Hero image stored: ${storedPath}`);
       } catch (error: any) {
