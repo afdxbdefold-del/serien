@@ -58,7 +58,12 @@ const QUALITY_THRESHOLDS = {
   }
 };
 
-function detectArticleType(wordCount: number): ArticleType {
+function detectArticleType(wordCount: number, isRankingList?: boolean): ArticleType {
+  // EMERGENT_RULESET_UPDATE: Detect RANKING_LIST first
+  if (isRankingList) {
+    return 'RANKING_LIST';
+  }
+  
   // If article is short (under 320 words), classify as SHORT_NEWS
   // Otherwise, FULL_NEWS
   return wordCount < QUALITY_THRESHOLDS.FULL_NEWS.WORDS_MIN ? 'SHORT_NEWS' : 'FULL_NEWS';
