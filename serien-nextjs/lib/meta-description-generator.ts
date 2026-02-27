@@ -35,17 +35,13 @@ export async function generateMetaDescription(input: MetaDescriptionInput): Prom
       facts: sentences
     });
     
-    // Trim to 155 characters for meta description
+    // Trim to 155 characters for meta description with smart truncation
     let description = uniqueLead.trim();
     
     if (description.length > 155) {
-      // Smart truncation at sentence boundary if possible
-      const lastPeriod = description.substring(0, 152).lastIndexOf('.');
-      if (lastPeriod > 100) {
-        description = description.substring(0, lastPeriod + 1);
-      } else {
-        description = description.substring(0, 152) + '...';
-      }
+      // Import smart truncate
+      const { smartTruncate } = await import('./smart-truncate');
+      description = smartTruncate(description, 155);
     }
     
     console.log(`   ✅ Meta description length: ${description.length} chars`);
