@@ -110,6 +110,11 @@ model Article {
   publishMode        String                   @default("DISCOVER")
   wasBedeutetDasText String?
   trailerLocalUrl    String?
+  isRankingArticle   Boolean                  @default(false)
+  heroImagePath      String?
+  cardImagePath      String?
+  ogImagePath        String?
+  metaDescription    String?
   articleSeries      ArticleSeries[]
   author             User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   primarySeries      Series                   @relation("PrimarySeries", fields: [primarySeriesId], references: [tmdbId])
