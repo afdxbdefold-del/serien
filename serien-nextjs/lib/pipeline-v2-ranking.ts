@@ -218,7 +218,7 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
       return { skipped: true, reason: 'multi_series_ranking' };
     }
     
-    const resolution = await resolveSeries(classification, input.sourceText);
+    const resolution = await resolveTmdbSeries(classification);
     
     if (!resolution.primarySeries) {
       console.log('❌ Could not resolve primary series');
