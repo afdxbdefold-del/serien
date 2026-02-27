@@ -361,13 +361,16 @@ test_plan:
     implemented: true
     working: false
     file: "/app/serien-nextjs/app/[slug]/page.tsx"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: false
           agent: "testing"
           comment: "❌ CRITICAL BUG (2026-02-27): Series Infobox NOT rendering on Gray House article page (/die-wahre-geschichte-von-the-gray-house-erklaert). ROOT CAUSE IDENTIFIED: Prisma relation name mismatch in article page query. Line 92 uses `primarySeries: true` but schema line 84 shows relation is named `series` not `primarySeries`. Lines 274-280, 295-302 reference `article.primarySeries` which is undefined, causing both SeriesInfobox and WhereToStreamBox to never render. DATABASE VERIFIED: Article has primarySeriesId=211178, series exists (The Gray House, tmdbId 211178, networks: Prime Video), article_qa has 3 questions. TESTING AGENT FIX APPLIED: Changed line 92 to `series: true`, line 93 to `article_qa: true`, updated all references from `article.primarySeries` to `article.series` and `article.articleQA` to `article.article_qa`. SECONDARY ISSUE: API endpoint /api/series/211178/infobox-data times out on production (ERR_ABORTED in console). Component tries to fetch but API fails, causing component to return null. Fix requires: (1) Deploy corrected code to production, (2) Investigate API timeout issue."
+        - working: false
+          agent: "testing"
+          comment: "❌ CRITICAL BUG FOUND (2026-02-27): ENTIRE APPLICATION DOWN. During testing after fixing Next.js routing conflict (conflicting [id] vs [tmdbId] dynamic routes), discovered GLOBAL Prisma model naming mismatch. ALL pages showing Runtime TypeError: 'Cannot read properties of undefined (reading findUnique)'. ROOT CAUSE: Prisma schema uses PLURAL model names ('articles', 'users', 'comments') but application code uses SINGULAR names ('article', 'user', 'comment'). TypeScript compilation shows 30+ errors: 'Property article does not exist on PrismaClient. Did you mean articles?'. TESTING AGENT FIXES APPLIED: (1) Fixed routing conflict by consolidating /app/img/hero/[type]/[id], /app/img/card/[type]/[id], /app/img/og/[type]/[id] routes to handle 'article' type, removed conflicting article-specific routes. (2) Fixed /app/api/series/[id]/infobox-data route conflict by renaming to [tmdbId]. APPLICATION STILL BROKEN due to Prisma model naming. Cannot test article page components until this is resolved."
 
   - task: "Gray House Article - WhereToStreamBox Component"
     implemented: true
