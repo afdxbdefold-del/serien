@@ -26,6 +26,7 @@ import { preserveHeadline } from '../lib/headline-preserver'; // NEW: Headline p
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader'; // NEW: Trailer downloader
 import { routeContentType } from '../lib/content-type-router'; // NEW: Content type router
 import { runRankingPipeline } from '../lib/pipeline-v2-ranking'; // NEW: Ranking pipeline
+import { smartTruncate } from '../lib/smart-truncate'; // NEW: Smart text truncation
 
 
 const prisma = new PrismaClient();
@@ -1352,7 +1353,7 @@ export async function runContentPipeline(source: CrawledSource) {
           id: `pipeline-${Date.now()}`,
           slug,
           title: articleTitle,
-          excerpt: metaDescription, // Google Discover optimized (120-155 chars)
+          excerpt: smartTruncate(metaDescription, 200), // Smart truncation at sentence boundary
           contentHtml: generatedContent,
           contentType: classification.content_type,
           authorId: randomAuthor.id,
