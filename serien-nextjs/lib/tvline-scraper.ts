@@ -37,9 +37,9 @@ export async function scrapeTVLineStreaming(): Promise<TVLineArticle[]> {
     // Extract articles using h3/h2 with article links
     const articles: TVLineArticle[] = [];
     
-    // Pattern: <h3 class="post-title">...<a href="URL">TITLE</a>...
-    // or <h2 class="post-title">...<a href="URL">TITLE</a>...
-    const titleRegex = /<h[23][^>]*class="[^"]*post-title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gi;
+    // Pattern: <h3><a href="/path/">TITLE</a></h3>
+    // The links are relative paths, we need to convert them to full URLs
+    const titleRegex = /<h[23][^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gi;
     const matches = Array.from(html.matchAll(titleRegex));
     
     console.log(`   Found ${matches.length} article links`);
