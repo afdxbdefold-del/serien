@@ -233,10 +233,11 @@ Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeil
 export async function generateGermanArticle(
   facts: ExtractedFacts,
   primarySeriesName: string,
-  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE',
+  contentType: 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL' | 'FULL_ARTICLE' | 'RANKING_LIST',
   allSeriesNames?: string[],
   sourceUrl?: string, // NEW: For adding "Quelle" block
-  targetWordCount?: number // NEW: Dynamic word count target based on source
+  targetWordCount?: number, // NEW: Dynamic word count target based on source
+  rankingItemCount?: number // NEW: For RANKING_LIST mode
 ): Promise<string> {
   const apiKey = process.env.EMERGENT_LLM_KEY;
   
