@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
 import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
-import InlineVideoPlayer from '@/components/SimpleVideoPlayer';
+import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 
 interface PageProps {
