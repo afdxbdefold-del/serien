@@ -208,7 +208,7 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
     console.log('STEP 1: SERIES CLASSIFICATION & TMDB RESOLUTION');
     console.log('━'.repeat(70));
     
-    const classification = await classifyContent(input.sourceTitle, input.sourceText);
+    const classification = await classifyContent(input.sourceTitle, input.sourceUrl, input.sourceText);
     console.log(`📊 Classification: ${classification.content_type}`);
     console.log(`   Confidence: ${classification.confidence}%`);
     
