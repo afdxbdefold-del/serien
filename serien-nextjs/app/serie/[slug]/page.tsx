@@ -54,6 +54,17 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const crew = (series.crew as any[]) || [];
   const trailers = (series.trailers as any[]) || [];
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
+  
+  // Generate Series Q&A (5 evergreen questions)
+  const seasons = series.seasons as any[] || [];
+  const seriesQA = await getSeriesQA(
+    series.name || series.title,
+    series.overview || '',
+    series.currentStatus || series.status || 'UNKNOWN',
+    seasons.length,
+    series.firstAirDate,
+    null // TODO: Extract last season date from seasons array
+  );
 
   return (
     <main className="min-h-screen bg-gray-50">
