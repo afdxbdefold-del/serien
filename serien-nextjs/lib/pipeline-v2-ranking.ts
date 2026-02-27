@@ -16,7 +16,7 @@ import { classifyContent } from './content-classifier';
 import { resolveSingleSeries } from './tmdb-resolver';
 import { extractFacts } from './fact-extractor';
 import { generateMetaDescription } from './meta-description-generator';
-import { storeImage } from './image-storage';
+import { storeHeroImage } from './image-storage';
 import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
