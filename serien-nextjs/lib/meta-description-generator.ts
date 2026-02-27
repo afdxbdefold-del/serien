@@ -123,8 +123,10 @@ async function generateTemplateDescription(
   
   switch (type) {
     case 'NEWS':
-      const coreFact = extractCoreFact(content, title);
-      description = `Aktuelle Entwicklungen zu ${seriesName}. Neue Informationen zu ${coreFact}, offiziell bekannt und verständlich zusammengefasst.`;
+      const coreFact = extractCoreFact(content, title, seriesName);
+      const safeSeries = seriesName || 'die Serie';
+      const safeFact = coreFact || 'aktuelle Entwicklungen';
+      description = `Aktuelle Entwicklungen zu ${safeSeries}. Neue Informationen zu ${safeFact}, offiziell bekannt und verständlich zusammengefasst.`;
       break;
       
     case 'THEORY':
