@@ -218,18 +218,32 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
       return { skipped: true, reason: 'multi_series_ranking' };
     }
     
-    const resolution = await resolveTmdbSeries(classification);
+    // Extract series name from classification
+    const seriesName = classification.series_found[0] || input.primarySeriesName || 'Unknown';
+    console.log(`🔍 Resolving series: ${seriesName}`);
     
-    if (!resolution.primarySeries) {
+    const resolvedSeries = await resolveSingleSeries(seriesName);
+    
+    if (!resolvedSeries) {
       console.log('❌ Could not resolve primary series');
       return { skipped: true, reason: 'series_not_found' };
     }
     
-    console.log(`✅ Primary Series: ${resolution.primarySeries.name} (TMDB: ${resolution.primarySeries.tmdbId})`);
+    console.log(`✅ Primary Series: ${seriesName} (TMDB: ${resolvedSeries.tmdbId})`);
+    
+    // Fetch full series details from DB
+    const primarySeries = await prisma.series.findUnique({
+      where: { tmdbId: resolvedSeries.tmdbId },
+    });
+    
+    if (!primarySeries) {
+      console.log('❌ Series not found in database');
+      return { skipped: true, reason: 'series_not_in_db' };
+    }
     
     // Update input with resolved series
-    input.primarySeriesName = resolution.primarySeries.name;
-    input.primarySeriesId = resolution.primarySeries.tmdbId;
+    input.primarySeriesName = primarySeries.name || primarySeries.title;
+    input.primarySeriesId = primarySeries.tmdbId;
     
     // ========== STEP 2: EXTRACT FACTS ==========
     console.log('\n' + '━'.repeat(70));
