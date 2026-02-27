@@ -45,8 +45,18 @@ export async function scrapeTVLineStreaming(): Promise<TVLineArticle[]> {
     console.log(`   Found ${matches.length} article links`);
     
     for (const match of matches) {
-      const url = match[1];
+      let url = match[1];
       const title = match[2].replace(/<[^>]*>/g, '').trim();
+      
+      // Convert relative URLs to absolute
+      if (url.startsWith('/')) {
+        url = `https://tvline.com${url}`;
+      }
+      
+      // Only include tvline.com URLs
+      if (!url.includes('tvline.com')) {
+        continue;
+      }
       
       // Skip if URL contains movie/box-office
       if (url.includes('/movie/') || url.includes('/box-office/')) {
