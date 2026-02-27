@@ -99,8 +99,47 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`   Range: ${Math.max(350, targetWordCount - 150)} - ${Math.min(1200, targetWordCount + 150)} words`);
     }
 
-    // ========== STEP 1: CLASSIFY ==========
+    // ========== STEP 0.8: RANKING/LIST DETECTION (EMERGENT_RULESET_UPDATE) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 0.8: RANKING/LIST DETECTION');
     console.log('━'.repeat(70));
+    
+    let isRankingList = false;
+    let rankingItemCount = 0;
+    
+    // Detection rules
+    const titleLower = source.title.toLowerCase();
+    const textLower = fullSourceText.toLowerCase();
+    
+    // Pattern 1: Title contains ranking keywords
+    const titleHasRanking = /\b(top\s+\d+|best\s+\d+|ranked|ranking|episodes?\s+ranked)\b/i.test(titleLower);
+    
+    // Pattern 2: Ordered list pattern (1., 2., 3., or #1, #2, #3)
+    const orderedListMatches = fullSourceText.match(/(?:^|\n)\s*(?:\d+\.|#\d+|Episode\s+\d+)/gmi);
+    const hasOrderedList = orderedListMatches && orderedListMatches.length >= 5;
+    
+    // Pattern 3: Repeating item pattern
+    const episodePatternMatches = fullSourceText.match(/(?:Episode|Season|Chapter|Part)\s+\d+/gi);
+    const hasRepeatingPattern = episodePatternMatches && episodePatternMatches.length >= 5;
+    
+    if (titleHasRanking || hasOrderedList || hasRepeatingPattern) {
+      isRankingList = true;
+      rankingItemCount = Math.max(
+        orderedListMatches?.length || 0,
+        episodePatternMatches?.length || 0
+      );
+      
+      console.log('✅ RANKING/LIST detected!');
+      console.log(`   Title keyword: ${titleHasRanking ? 'YES' : 'NO'}`);
+      console.log(`   Ordered list: ${hasOrderedList ? 'YES' : 'NO'} (${orderedListMatches?.length || 0} items)`);
+      console.log(`   Repeating pattern: ${hasRepeatingPattern ? 'YES' : 'NO'} (${episodePatternMatches?.length || 0} items)`);
+      console.log(`   Estimated items: ${rankingItemCount}`);
+    } else {
+      console.log('⊘  Standard article (not a ranking/list)');
+    }
+
+    // ========== STEP 1: CLASSIFY ==========
+    console.log('\n' + '━'.repeat(70));
     console.log('STEP 1: CONTENT CLASSIFICATION');
     console.log('━'.repeat(70));
     
