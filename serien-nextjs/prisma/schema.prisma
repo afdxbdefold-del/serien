@@ -7,28 +7,216 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                  String         @id @default(cuid())
-  name                String?
-  email               String         @unique
-  password            String?
-  createdAt           DateTime       @default(now())
-  image               String?
-  role                String         @default("user")
-  favoriteStreamers   String[]       @default([])
-  onboardingCompleted Boolean        @default(false)
-  articles            Article[]
-  comments            Comment[]
-  follows             Follow[]
-  notifications       Notification[]
+model article_persons {
+  articleId String
+  personId  String
+  articles  articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  persons   persons  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  @@map("users")
+  @@id([articleId, personId])
 }
 
-model Series {
-  tmdbId              Int             @id @unique
+model article_qa {
+  id            String   @id
+  articleId     String   @unique
+  questions     Json
+  schemaEnabled Boolean  @default(true)
+  generatedAt   DateTime @default(now())
+  updatedAt     DateTime
+  articles      articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+model article_series {
+  articleId String
+  seriesId  Int
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  articles  articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  series    series   @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
+
+  @@id([articleId, seriesId])
+  @@index([articleId])
+  @@index([seriesId])
+}
+
+model articles {
+  id                        String                      @id
+  slug                      String                      @unique
+  title                     String
+  excerpt                   String?
+  contentHtml               String
+  heroLocalUrl              String?
+  heroVideoUrl              String?
+  tmdbId                    Int?
+  tmdbType                  String                      @default("tv")
+  tmdbBackdropPath          String?
+  tmdbPosterPath            String?
+  heroImageUrl              String?
+  ogImageUrl                String?
+  cardImageUrl              String?
+  imageAttribution          String                      @default("TMDB")
+  streamer                  String?
+  category                  String?
+  tags                      String[]
+  authorId                  String
+  publishedAt               DateTime?
+  updatedAt                 DateTime
+  createdAt                 DateTime                    @default(now())
+  status                    String                      @default("draft")
+  readingTime               Int?
+  confidence                Float?
+  sourceUrl                 String?                     @unique
+  sourcePublishedAt         DateTime?
+  contentType               String?
+  primarySeriesId           Int                         @default(119051)
+  publishMode               String                      @default("DISCOVER")
+  wasBedeutetDasText        String?
+  trailerLocalUrl           String?
+  cardImagePath             String?
+  heroImagePath             String?
+  isRankingArticle          Boolean                     @default(false)
+  metaDescription           String?
+  ogImagePath               String?
+  article_persons           article_persons[]
+  article_qa                article_qa?
+  article_series            article_series[]
+  users                     users                       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  series                    series                      @relation(fields: [primarySeriesId], references: [tmdbId])
+  comments                  comments[]
+  discover_audits           discover_audits?
+  discover_score_dashboards discover_score_dashboards[]
+  headline_comparisons      headline_comparisons?
+
+  @@index([primarySeriesId])
+  @@index([publishedAt])
+  @@index([slug])
+}
+
+model comments {
+  id             String     @id
+  articleId      String
+  userId         String
+  parentId       String?
+  content        String
+  status         String     @default("pending")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime
+  articles       articles   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  comments       comments?  @relation("commentsTocomments", fields: [parentId], references: [id], onDelete: Cascade)
+  other_comments comments[] @relation("commentsTocomments")
+  users          users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+}
+
+model discover_audits {
+  id             String   @id
+  articleId      String   @unique
+  discoverScore  Int
+  discoverMode   String
+  passed         Boolean
+  breakdownJson  Json
+  wordCount      Int
+  hasHero        Boolean
+  hasByline      Boolean
+  freshnessHours Int
+  aiRiskScore    Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  articles       articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([discoverScore])
+  @@index([passed])
+}
+
+model discover_score_dashboards {
+  id               String   @id
+  articleId        String
+  timestamp        DateTime @default(now())
+  pipelineVersion  String   @default("serien_pipeline_v1")
+  headlineMetrics  Json
+  contentMetrics   Json
+  freshnessMetrics Json
+  imageMetrics     Json
+  trustMetrics     Json
+  discoverScore    Float
+  finalVerdict     String
+  primaryBlockers  String[]
+  improvementHints String[]
+  articles         articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([timestamp])
+}
+
+model follows {
+  userId       String
+  tmdbSeriesId Int
+  createdAt    DateTime @default(now())
+  series       series   @relation(fields: [tmdbSeriesId], references: [tmdbId], onDelete: Cascade)
+  users        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tmdbSeriesId])
+}
+
+model headline_comparisons {
+  id                    String   @id
+  articleId             String   @unique
+  headline_original     String
+  headline_rewritten    String?
+  antiAiScore_original  Int?
+  antiAiScore_rewritten Int?
+  headline_delta        Int?
+  status                String   @default("NO_REWRITE")
+  createdAt             DateTime @default(now())
+  articles              articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model notifications {
+  id          String   @id
+  userId      String
+  type        String
+  entityId    String
+  payloadJson Json?
+  seen        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  users       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, seen])
+}
+
+model persons {
+  id              String            @id
+  tmdbId          Int               @unique
+  slug            String            @unique
+  name            String
+  biography       String?
+  profilePath     String?
+  knownFor        String?
+  birthDate       DateTime?
+  birthPlace      String?
+  popularity      Float?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  article_persons article_persons[]
+}
+
+model redirects {
+  fromPath  String   @id @unique
+  toPath    String
+  type      Int      @default(301)
+  createdAt DateTime @default(now())
+}
+
+model series {
+  tmdbId              Int              @id @unique
   title               String
-  slug                String          @unique
+  slug                String           @unique
   overview            String?
   posterLocalUrl      String?
   backdropLocalUrl    String?
@@ -37,15 +225,15 @@ model Series {
   genres              String[]
   networks            String[]
   tmdbData            Json?
-  updatedAt           DateTime        @updatedAt
-  createdAt           DateTime        @default(now())
+  updatedAt           DateTime
+  createdAt           DateTime         @default(now())
   backdropPath        String?
   genresJson          Json?
   name                String?
   networksJson        Json?
   originalName        String?
   posterPath          String?
-  tmdbType            String          @default("tv")
+  tmdbType            String           @default("tv")
   cast                Json?
   crew                Json?
   episodeRunTime      Int[]
@@ -70,232 +258,23 @@ model Series {
   lastSeasonNumber    Int?
   statusDescription   String?
   statusLastUpdate    DateTime?
-  articleSeries       ArticleSeries[]
-  primaryArticles     Article[]       @relation("PrimarySeries")
-  follows             Follow[]
-
-  @@map("series")
+  article_series      article_series[]
+  articles            articles[]
+  follows             follows[]
 }
 
-model Article {
-  id                 String                   @id @default(cuid())
-  slug               String                   @unique
-  title              String
-  excerpt            String?
-  contentHtml        String
-  heroLocalUrl       String?
-  heroVideoUrl       String?
-  tmdbId             Int?
-  tmdbType           String                   @default("tv")
-  tmdbBackdropPath   String?
-  tmdbPosterPath     String?
-  heroImageUrl       String?
-  ogImageUrl         String?
-  cardImageUrl       String?
-  imageAttribution   String                   @default("TMDB")
-  streamer           String?
-  category           String?
-  tags               String[]
-  authorId           String
-  publishedAt        DateTime?
-  updatedAt          DateTime                 @updatedAt
-  createdAt          DateTime                 @default(now())
-  status             String                   @default("draft")
-  readingTime        Int?
-  confidence         Float?
-  sourceUrl          String?                  @unique
-  sourcePublishedAt  DateTime?
-  contentType        String?
-  primarySeriesId    Int                      @default(119051)
-  publishMode        String                   @default("DISCOVER")
-  wasBedeutetDasText String?
-  trailerLocalUrl    String?
-  isRankingArticle   Boolean                  @default(false)
-  heroImagePath      String?
-  cardImagePath      String?
-  ogImagePath        String?
-  metaDescription    String?
-  articleSeries      ArticleSeries[]
-  author             User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  primarySeries      Series                   @relation("PrimarySeries", fields: [primarySeriesId], references: [tmdbId])
-  comments           Comment[]
-  discoverAudit      DiscoverAudit?
-  discoverDashboards DiscoverScoreDashboard[]
-  headlineComparison HeadlineComparison?
-
-  @@index([slug])
-  @@index([publishedAt])
-  @@index([primarySeriesId])
-  @@map("articles")
-  articleQA          ArticleQA?
-  persons            ArticlePerson[]
-}
-
-model ArticleQA {
-  id             String   @id @default(cuid())
-  articleId      String   @unique
-  questions      Json     // [{question: string, answer: string, factual: boolean}]
-  schemaEnabled  Boolean  @default(true)
-  generatedAt    DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@map("article_qa")
-}
-
-model Person {
-  id             String   @id // person-{tmdbId}
-  tmdbId         Int      @unique
-  slug           String   @unique
-  name           String
-  biography      String?  @db.Text
-  profilePath    String?
-  knownFor       String?
-  birthDate      DateTime?
-  birthPlace     String?
-  popularity     Float?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  articles       ArticlePerson[]
-  
-  @@map("persons")
-}
-
-model ArticlePerson {
-  articleId      String
-  personId       String
-  
-  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  
-  @@id([articleId, personId])
-  @@map("article_persons")
-}
-
-model DiscoverScoreDashboard {
-  id               String   @id @default(cuid())
-  articleId        String
-  timestamp        DateTime @default(now())
-  pipelineVersion  String   @default("serien_pipeline_v1")
-  headlineMetrics  Json
-  contentMetrics   Json
-  freshnessMetrics Json
-  imageMetrics     Json
-  trustMetrics     Json
-  discoverScore    Float
-  finalVerdict     String
-  primaryBlockers  String[]
-  improvementHints String[]
-  article          Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@index([articleId])
-  @@index([timestamp])
-  @@map("discover_score_dashboards")
-}
-
-model HeadlineComparison {
-  id                    String   @id @default(cuid())
-  articleId             String   @unique
-  headline_original     String
-  headline_rewritten    String?
-  antiAiScore_original  Int?
-  antiAiScore_rewritten Int?
-  headline_delta        Int?
-  status                String   @default("NO_REWRITE")
-  createdAt             DateTime @default(now())
-  article               Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@index([articleId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("headline_comparisons")
-}
-
-model ArticleSeries {
-  articleId String
-  seriesId  Int
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  series    Series   @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
-
-  @@id([articleId, seriesId])
-  @@index([articleId])
-  @@index([seriesId])
-  @@map("article_series")
-}
-
-model Comment {
-  id        String    @id @default(cuid())
-  articleId String
-  userId    String
-  parentId  String?
-  content   String
-  status    String    @default("pending")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  parent    Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Comment[] @relation("CommentThread")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([articleId])
-  @@map("comments")
-}
-
-model Follow {
-  userId       String
-  tmdbSeriesId Int
-  createdAt    DateTime @default(now())
-  series       Series   @relation(fields: [tmdbSeriesId], references: [tmdbId], onDelete: Cascade)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, tmdbSeriesId])
-  @@map("follows")
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  type        String
-  entityId    String
-  payloadJson Json?
-  seen        Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, seen])
-  @@map("notifications")
-}
-
-model Redirect {
-  fromPath  String   @id @unique
-  toPath    String
-  type      Int      @default(301)
-  createdAt DateTime @default(now())
-
-  @@map("redirects")
-}
-
-model DiscoverAudit {
-  id             String   @id @default(cuid())
-  articleId      String   @unique
-  discoverScore  Int
-  discoverMode   String
-  passed         Boolean
-  breakdownJson  Json
-  wordCount      Int
-  hasHero        Boolean
-  hasByline      Boolean
-  freshnessHours Int
-  aiRiskScore    Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@index([passed])
-  @@index([discoverScore])
-  @@index([createdAt])
-  @@map("discover_audits")
+model users {
+  id                  String          @id
+  name                String?
+  email               String          @unique
+  password            String?
+  createdAt           DateTime        @default(now())
+  image               String?
+  role                String          @default("user")
+  favoriteStreamers   String[]        @default([])
+  onboardingCompleted Boolean         @default(false)
+  articles            articles[]
+  comments            comments[]
+  follows             follows[]
+  notifications       notifications[]
 }
