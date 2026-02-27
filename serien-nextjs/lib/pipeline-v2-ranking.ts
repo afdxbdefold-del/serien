@@ -34,20 +34,34 @@ const RANKING_INTRO_PROMPT = `Du bist ein erfahrener Redakteur für Serien-Ranki
 
 Schreibe eine EINLEITUNG (2-3 Absätze, 120-180 Wörter) für ein Ranking-Artikel.
 
+KRITISCHE ANFORDERUNGEN:
+1. KEINE generischen Phrasen wie:
+   ❌ "Aktuelle Entwicklungen zu..."
+   ❌ "Neue Informationen zu..."
+   ❌ "offiziell bekannt und verständlich zusammengefasst"
+2. Jede Einleitung muss UNIQUE sein (semantisch + lexikalisch unterschiedlich)
+3. Beantworte: Was genau wird gerankt? Warum ist es relevant? Für wen?
+
 STRUKTUR:
-Absatz 1: Serie nennen, Plattform, kurzer Kontext (Laufzeit, kulturelle Bedeutung)
-Absatz 2: Was macht dieses Ranking besonders, Auswahlkriterien
-Absatz 3 (optional): Einordnung der Serie im Genre
+Absatz 1: Serie nennen, Plattform, kurzer Kontext (was macht sie besonders?)
+Absatz 2: Was wird konkret gerankt? Nach welchen Kriterien?
+Absatz 3 (optional): Warum ist dieses Ranking jetzt relevant?
 
 TONALITÄT:
 - Sachlich, aber enthusiastisch
 - Faktenbasiert, keine Übertreibungen
 - Glaubwürdig wie echter Redakteur
+- Spezifisch für DIESEN Artikel
 
-VERBOTEN:
+ABSOLUT VERBOTEN:
 - "Fans werden begeistert sein"
 - "Die beste Serie aller Zeiten"
-- KI-Phrasen
+- Wiederholende Formulierungen über Artikel hinweg
+- Template-Sprache oder KI-Phrasen
+
+GUTE BEISPIELE (für verschiedene Serien):
+✅ "Game of Thrones hat das Serienfernsehen geprägt wie kaum eine andere Show. Über acht Staffeln hinweg lieferte die HBO-Produktion spektakuläre Schlachten, politische Intrigen und emotionale Wendepunkte. Wir haben die sechs besten Episoden ausgewählt..."
+✅ "Breaking Bad gilt als eine der am besten geschriebenen Serien aller Zeiten. Von Walter Whites erster Kochaktion bis zum finalen Showdown – wir ranken die zehn Episoden, die die Serie zur Legende machten..."
 
 Schreibe NUR die Einleitung (2-3 Absätze, reiner Text).`;
 
