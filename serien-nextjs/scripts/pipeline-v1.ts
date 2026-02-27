@@ -1250,7 +1250,7 @@ export async function runContentPipeline(source: CrawledSource) {
           id: `pipeline-${Date.now()}`,
           slug,
           title: articleTitle,
-          excerpt: articleExcerpt,
+          excerpt: metaDescription, // Google Discover optimized (120-155 chars)
           contentHtml: generatedContent,
           contentType: classification.content_type,
           authorId: randomAuthor.id,
