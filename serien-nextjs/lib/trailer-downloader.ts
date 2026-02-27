@@ -607,7 +607,10 @@ export async function downloadVideoTrailer(
           const execAsync = promisify(exec);
           
           // Use H.264 Baseline profile for maximum browser compatibility
-          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v baseline -level 3.0 -c:a aac -b:a 128k -movflags +faststart -y "${webCompatiblePath}"`, {
+          // -movflags +faststart: Move moov atom to beginning (critical for web streaming)
+          // -pix_fmt yuv420p: Ensure compatible pixel format
+          // -preset fast: Balance speed and compression
+          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart -preset fast -y "${webCompatiblePath}"`, {
             timeout: 120000
           });
           

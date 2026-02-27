@@ -105,6 +105,9 @@ export async function GET(
           'Content-Range': `bytes ${start}-${end}/${totalSize}`,
           'Accept-Ranges': 'bytes',
           'Cache-Control': 'public, max-age=31536000, immutable',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Range',
         },
       });
     }
@@ -117,6 +120,9 @@ export async function GET(
         'Content-Length': totalSize.toString(),
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range',
       },
     });
 
