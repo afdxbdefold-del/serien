@@ -123,6 +123,7 @@ model Article {
   @@index([primarySeriesId])
   @@map("articles")
   articleQA          ArticleQA?
+  persons            ArticlePerson[]
 }
 
 model ArticleQA {
