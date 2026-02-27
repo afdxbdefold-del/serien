@@ -218,8 +218,11 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
       return { skipped: true, reason: 'multi_series_ranking' };
     }
     
-    // Extract series name from classification
-    const seriesName = classification.series_found[0] || input.primarySeriesName || 'Unknown';
+    // Extract series name from classification or title
+    const seriesName = (classification.series_found && classification.series_found[0]) 
+      || input.primarySeriesName 
+      || input.sourceTitle.split(':')[0].trim(); // Fallback: extract from title
+      
     console.log(`🔍 Resolving series: ${seriesName}`);
     
     const resolvedSeries = await resolveSingleSeries(seriesName);
