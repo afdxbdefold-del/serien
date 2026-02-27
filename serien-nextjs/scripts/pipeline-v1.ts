@@ -1175,6 +1175,12 @@ export async function runContentPipeline(source: CrawledSource) {
         throw new Error(`Duplicate slug: ${slug}`);
       }
 
+      // Debug logging before article creation
+      console.log(`📝 Creating article with:`);
+      console.log(`   Title: "${articleTitle}" (${articleTitle.length} chars)`);
+      console.log(`   Slug: "${slug}" (${slug.length} chars)`);
+      console.log(`   Content length: ${generatedContent.length} chars`);
+
       // Create article
       const article = await tx.article.create({
         data: {
