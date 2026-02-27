@@ -253,7 +253,9 @@ export async function generateGermanArticle(
   // Choose prompt based on content type
   let systemPrompt = CONTENT_GENERATION_PROMPT_NEWS;
   
-  if (contentType === 'FULL_ARTICLE') {
+  if (contentType === 'RANKING_LIST') {
+    systemPrompt = CONTENT_GENERATION_PROMPT_RANKING;
+  } else if (contentType === 'FULL_ARTICLE') {
     systemPrompt = CONTENT_GENERATION_PROMPT_FULL;
   } else if (contentType === 'MULTI_SERIES_EDITORIAL') {
     systemPrompt = CONTENT_GENERATION_PROMPT_EDITORIAL;
