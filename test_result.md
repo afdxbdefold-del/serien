@@ -252,12 +252,8 @@ metadata:
 
 test_plan:
   current_focus: 
-    - "Gray House Article - Series Infobox Component"
-    - "Gray House Article - WhereToStreamBox Component"
-    - "CRITICAL: Fix Prisma Model Naming Mismatch"
-  stuck_tasks:
-    - "Gray House Article - Series Infobox Component"
-    - "Gray House Article - WhereToStreamBox Component"
+    - "All Prisma fixes verified and complete"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
   completed_tests:
@@ -275,6 +271,9 @@ test_plan:
     - "Article content sanitizer - artificial heading removal (2026-02-26)"
     - "Gray House Article - Q&A Section (2026-02-27)"
     - "Gray House Article - DirectVideoPlayer Hero and Trailer (2026-02-27)"
+    - "Gray House Article - Series Infobox (2026-02-27 FINAL)"
+    - "Gray House Article - WhereToStreamBox (2026-02-27 FINAL)"
+    - "Gray House Article - Complete feature verification after ALL Prisma fixes (2026-02-27 FINAL)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
