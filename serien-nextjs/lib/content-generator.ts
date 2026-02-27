@@ -264,7 +264,38 @@ export async function generateGermanArticle(
   // Build facts prompt differently for each type
   let factsPrompt = '';
   
-  if (contentType === 'FULL_ARTICLE') {
+  if (contentType === 'RANKING_LIST') {
+    // RANKING_LIST mode - expanded format
+    const minWords = targetWordCount ? Math.max(800, targetWordCount - 200) : 800;
+    const maxWords = targetWordCount ? Math.min(1800, targetWordCount + 200) : 1800;
+    const targetWords = targetWordCount || 1200;
+    const itemCount = rankingItemCount || 15;
+    const wordsPerItem = Math.floor(targetWords / (itemCount + 2)); // +2 for intro/outro
+    
+    factsPrompt = `
+FAKTEN FÜR DEN RANKING-ARTIKEL:
+Serie: ${primarySeriesName}
+${facts.season_numbers.length > 0 ? `Staffeln: ${facts.season_numbers.join(', ')}` : ''}
+${facts.networks_platforms.length > 0 ? `Plattform: ${facts.networks_platforms.join(', ')}` : ''}
+Anzahl Items im Ranking: ${itemCount}
+
+KEY STATEMENTS (Details zu Episoden/Items):
+${facts.key_statements.slice(0, Math.min(20, itemCount * 2)).map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+ARTIKEL-TYP: Ranking/Liste der besten Episoden
+ZIEL-LÄNGE: ${targetWords} Wörter (Range: ${minWords}-${maxWords} Wörter)
+Wörter pro Item: ca. ${wordsPerItem} Wörter
+
+WICHTIG:
+- Einleitung: 80-120 Wörter
+- JEDES der ${itemCount} Items: ${Math.max(80, wordsPerItem)} Wörter
+- Jedes Item mit konkreten Plot-Details
+- KEINE generischen Zusammenfassungen
+- Nutze ALLE verfügbaren Details aus den KEY STATEMENTS
+
+Schreibe jetzt den vollständigen Ranking-Artikel (${minWords}-${maxWords} Wörter).
+`.trim();
+  } else if (contentType === 'FULL_ARTICLE') {
     // FULL ARTICLE mode - use dynamic word count if provided
     const minWords = targetWordCount ? Math.max(350, targetWordCount - 150) : 450;
     const maxWords = targetWordCount ? Math.min(1200, targetWordCount + 150) : 900;
