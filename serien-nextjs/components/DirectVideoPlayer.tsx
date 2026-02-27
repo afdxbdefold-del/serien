@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Play } from 'lucide-react';
+import { Play, AlertCircle } from 'lucide-react';
 
 interface DirectVideoPlayerProps {
   heroImageUrl: string;
@@ -12,6 +12,7 @@ interface DirectVideoPlayerProps {
 
 export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: DirectVideoPlayerProps) {
   const [showVideo, setShowVideo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!trailerUrl) {
     return (
@@ -39,6 +40,21 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
             </div>
           </div>
         </>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-white text-center">
+          <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
+          <h3 className="text-xl font-semibold mb-2">Trailer nicht verfügbar</h3>
+          <p className="text-sm text-gray-400 mb-4">Das Video konnte nicht geladen werden.</p>
+          <button 
+            onClick={() => {
+              setError(null);
+              setShowVideo(false);
+            }}
+            className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            Zurück
+          </button>
+        </div>
       ) : (
         <video
           className="w-full h-full"
@@ -47,6 +63,11 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
           muted
           playsInline
           preload="auto"
+          onError={(e) => {
+            console.error('Video error:', e);
+            setError('Video konnte nicht geladen werden');
+          }}
+          onLoadedData={() => console.log('Video loaded successfully')}
         >
           <source src={videoSrc} type="video/mp4" />
           Dein Browser unterstützt HTML5 Video nicht.
