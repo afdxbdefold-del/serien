@@ -544,7 +544,7 @@ ${generatedItems.join('\n\n')}
         id: articleId,
         slug,
         title: finalHeadline,
-        excerpt: metaDescription.substring(0, 200),
+        excerpt: smartTruncate(metaDescription, 200),
         metaDescription,
         contentHtml: fullContent,
         sourceUrl: input.sourceUrl,
