@@ -404,7 +404,12 @@ ${generatedItems.join('\n\n')}
         metaDescription,
         contentHtml: fullContent,
         sourceUrl: input.sourceUrl,
-        primarySeriesId: primarySeries.tmdbId,
+        primarySeries: {
+          connect: { tmdbId: primarySeries.tmdbId }
+        },
+        author: {
+          connect: { email: 'admin@emergent.de' }
+        },
         heroImagePath: heroImagePath,
         heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
         cardImageUrl: heroImagePath ? `/img/card/article/${articleId}` : null,
