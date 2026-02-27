@@ -77,7 +77,26 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
 
     const lead = response.choices[0]?.message?.content?.trim() || '';
     
-    // Validate: Lead should not contain exact phrases from first paragraph
+    // QUALITY CHECK 1: Reject generic phrases
+    const forbiddenPhrases = [
+      'aktuelle entwicklungen zu',
+      'neue informationen zu',
+      'offiziell bekannt und verständlich zusammengefasst',
+      'offiziell bekannt und zusammengefasst',
+      'verständlich zusammengefasst',
+      'die neueste episode',
+      'spannende entwicklungen'
+    ];
+    
+    const leadLower = lead.toLowerCase();
+    for (const phrase of forbiddenPhrases) {
+      if (leadLower.includes(phrase)) {
+        console.error(`❌ Lead contains forbidden phrase: "${phrase}"`);
+        throw new Error(`Lead quality check failed: Contains forbidden phrase "${phrase}"`);
+      }
+    }
+    
+    // QUALITY CHECK 2: Validate lead is not too similar to article opening
     const firstParagraphWords = firstParagraph.toLowerCase().split(/\s+/).slice(0, 15);
     const leadWords = lead.toLowerCase().split(/\s+/);
     
@@ -92,10 +111,11 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
     }
     
     if (hasOverlap) {
-      console.log('⚠️  Lead has overlap with article opening, regenerating...');
-      // Could add retry logic here
+      console.error('❌ Lead has significant overlap with article opening');
+      throw new Error('Lead quality check failed: Too similar to article opening');
     }
     
+    console.log(`✅ Lead quality checks passed`);
     return lead;
     
   } catch (error: any) {
