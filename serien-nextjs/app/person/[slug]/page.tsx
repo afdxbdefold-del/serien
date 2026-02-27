@@ -205,10 +205,10 @@ export default async function PersonPage({ params }: PersonPageProps) {
                   href={`/${article.slug}`}
                   className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden"
                 >
-                  {article.heroImage && (
+                  {article.heroImageUrl && (
                     <div className="aspect-video bg-gray-200 overflow-hidden">
                       <Image
-                        src={article.heroImage}
+                        src={article.heroImageUrl}
                         alt={article.title}
                         width={600}
                         height={338}
