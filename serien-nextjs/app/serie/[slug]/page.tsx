@@ -196,6 +196,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           )}
         </div>
 
+        {/* Series Q&A Section (Mobile) */}
+        {seriesQA && seriesQA.length > 0 && (
+          <div className="mt-8 px-6">
+            <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
+          </div>
+        )}
+
         {/* Mobile: Series Info Box (AFTER News) */}
         <section className="mt-8 px-6" aria-labelledby="series-info-mobile">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
