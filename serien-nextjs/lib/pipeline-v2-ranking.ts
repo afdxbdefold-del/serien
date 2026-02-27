@@ -369,10 +369,10 @@ ${generatedItems.join('\n\n')}
     // Fetch series hero image from TMDB
     let heroImagePath = null;
     
-    if (resolution.primarySeries.backdropUrl) {
+    if (primarySeries.backdropPath) {
       try {
-        const imageUrl = resolution.primarySeries.backdropUrl;
-        const storedPath = await storeImage(imageUrl, 'series', resolution.primarySeries.tmdbId, 'hero', 1600, 900);
+        const imageUrl = `https://image.tmdb.org/t/p/original${primarySeries.backdropPath}`;
+        const storedPath = await storeImage(imageUrl, 'series', primarySeries.tmdbId, 'hero', 1600, 900);
         heroImagePath = storedPath;
         console.log(`✅ Hero image stored: ${storedPath}`);
       } catch (error: any) {
