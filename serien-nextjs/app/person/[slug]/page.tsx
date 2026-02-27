@@ -7,14 +7,15 @@ import prisma from '@/lib/prisma';
 import { getTMDBProfileImageUrl } from '@/lib/tmdb-person';
 
 interface PersonPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: PersonPageProps): Promise<Metadata> {
+  const { slug } = await params;
   const person = await prisma.person.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
   });
 
   if (!person) {
