@@ -12,6 +12,7 @@ interface InlineVideoPlayerProps {
 
 export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   // If no trailer, just show the image
   if (!trailerUrl) {
@@ -27,6 +28,10 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
       </div>
     );
   }
+
+  // Build absolute video URL
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const videoUrl = `${baseUrl}/trailer/${trailerUrl}`;
 
   // With trailer: Show image with play button, then video
   return (
@@ -52,27 +57,44 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
         </>
       ) : (
         <>
-          {/* Video Player - Simplified for maximum compatibility */}
-          <video
-            className="w-full h-full"
-            controls
-            playsInline
-            muted
-            preload="auto"
-            crossOrigin="anonymous"
-            onError={(e) => {
-              console.error('❌ Video error:', e);
-              const video = e.currentTarget;
-              console.error('Error code:', video.error?.code);
-              console.error('Error message:', video.error?.message);
-            }}
-          >
-            <source 
-              src={`/trailer/${trailerUrl}`} 
-              type="video/mp4" 
-            />
-            <p>Dein Browser unterstützt HTML5 Video nicht.</p>
-          </video>
+          {hasError ? (
+            <div className="flex items-center justify-center h-full bg-gray-900 text-white p-8 text-center">
+              <div>
+                <p className="text-lg mb-4">⚠️ Video kann nicht geladen werden</p>
+                <button 
+                  onClick={() => {
+                    setHasError(false);
+                    setIsPlaying(false);
+                  }}
+                  className="px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100"
+                >
+                  Zurück
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Video Player - Maximum compatibility */
+            <video
+              className="w-full h-full"
+              controls
+              playsInline
+              muted
+              autoPlay
+              preload="auto"
+              onError={(e) => {
+                console.error('❌ Video error:', e);
+                const video = e.currentTarget;
+                console.error('Error code:', video.error?.code);
+                console.error('Error message:', video.error?.message);
+                console.error('Video URL:', videoUrl);
+                setHasError(true);
+              }}
+              onLoadedData={() => console.log('✅ Video loaded')}
+            >
+              <source src={videoUrl} type="video/mp4" />
+              Dein Browser unterstützt HTML5 Video nicht.
+            </video>
+          )}
         </>
       )}
     </div>
