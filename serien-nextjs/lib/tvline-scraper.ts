@@ -34,53 +34,48 @@ export async function scrapeTVLineStreaming(): Promise<TVLineArticle[]> {
     
     const html = await response.text();
     
-    // Extract articles (first page only, no pagination)
+    // Extract articles using h3/h2 with article links
     const articles: TVLineArticle[] = [];
     
-    // TVLine uses article tags with specific classes
-    // Match article blocks: <article class="post-...">
-    const articleRegex = /<article[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
-    const articleMatches = Array.from(html.matchAll(articleRegex));
+    // Pattern: <h3 class="post-title">...<a href="URL">TITLE</a>...
+    // or <h2 class="post-title">...<a href="URL">TITLE</a>...
+    const titleRegex = /<h[23][^>]*class="[^"]*post-title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gi;
+    const matches = Array.from(html.matchAll(titleRegex));
     
-    console.log(`   Found ${articleMatches.length} articles on first page`);
+    console.log(`   Found ${matches.length} article links`);
     
-    for (const match of articleMatches) {
-      const articleHtml = match[1];
+    for (const match of matches) {
+      const url = match[1];
+      const title = match[2].replace(/<[^>]*>/g, '').trim();
       
-      // Extract URL from <a href="..." class="post-title-link">
-      const urlMatch = articleHtml.match(/<a[^>]*href="([^"]+)"[^>]*class="[^"]*post-title-link[^"]*"/i);
-      
-      // Extract title from <h2 class="post-title">
-      const titleMatch = articleHtml.match(/<h2[^>]*class="[^"]*post-title[^"]*"[^>]*>(.*?)<\/h2>/i);
-      
-      // Extract date from <time datetime="...">
-      const dateMatch = articleHtml.match(/<time[^>]*datetime="([^"]+)"/i);
-      
-      if (urlMatch && titleMatch) {
-        const url = urlMatch[1];
-        const title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
-        const date = dateMatch ? dateMatch[1] : new Date().toISOString();
-        
-        // Only add TV series articles (skip movie-only posts)
-        if (!url.includes('/movie/') && !url.includes('/box-office/')) {
-          articles.push({
-            url,
-            title,
-            date,
-          });
-        }
+      // Skip if URL contains movie/box-office
+      if (url.includes('/movie/') || url.includes('/box-office/')) {
+        continue;
       }
+      
+      // Extract date from surrounding context (if available)
+      const date = new Date().toISOString();
+      
+      articles.push({
+        url,
+        title,
+        date,
+      });
     }
     
-    // Sort by date (newest first)
-    articles.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Remove duplicates by URL
+    const uniqueArticles = Array.from(
+      new Map(articles.map(a => [a.url, a])).values()
+    );
     
     // Limit to first 15 articles (freshest news)
-    const freshArticles = articles.slice(0, 15);
+    const freshArticles = uniqueArticles.slice(0, 15);
     
     console.log(`✅ Scraped ${freshArticles.length} fresh articles from TVLine`);
-    console.log('   Newest:', freshArticles[0]?.title.substring(0, 60) + '...');
-    console.log('   Oldest:', freshArticles[freshArticles.length - 1]?.title.substring(0, 60) + '...');
+    if (freshArticles.length > 0) {
+      console.log('   Newest:', freshArticles[0]?.title.substring(0, 60) + '...');
+      console.log('   Oldest:', freshArticles[freshArticles.length - 1]?.title.substring(0, 60) + '...');
+    }
     
     return freshArticles;
     
