@@ -272,6 +272,14 @@ export default async function ArticlePage({ params }: PageProps) {
           />
         </section>
 
+        {/* Q&A Section */}
+        {article.articleQA && article.articleQA.questions && (
+          <ArticleQA 
+            questions={article.articleQA.questions as any[]}
+            schemaEnabled={article.articleQA.schemaEnabled}
+          />
+        )}
+
         {/* Sidebar/Related Content */}
         <aside aria-labelledby="related-content">
           <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
