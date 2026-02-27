@@ -423,6 +423,33 @@ ${generatedItems.join('\n\n')}
     console.log('STEP 10: DATABASE SAVE');
     console.log('━'.repeat(70));
     
+    // Select random author from database
+    const authors = await prisma.user.findMany({
+      where: {
+        email: {
+          contains: '@serien.de',
+        },
+        NOT: {
+          OR: [
+            { email: 'redaktion@serien.de' },
+            { email: 'admin@serien.de' },
+          ],
+        },
+      },
+      select: { id: true, email: true, name: true },
+    });
+    
+    // Filter to only real authors (author_XXX IDs)
+    const realAuthors = authors.filter(a => 
+      a.id.startsWith('author_') || a.id === 'author-julia'
+    );
+    
+    const selectedAuthor = realAuthors.length > 0
+      ? realAuthors[Math.floor(Math.random() * realAuthors.length)]
+      : authors[0]; // Fallback to first author
+    
+    console.log(`✍️  Selected author: ${selectedAuthor.name || selectedAuthor.email}`);
+    
     const slug = finalHeadline
       .toLowerCase()
       .replace(/[^a-z0-9äöüß]+/g, '-')
