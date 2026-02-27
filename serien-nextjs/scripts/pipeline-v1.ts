@@ -866,6 +866,7 @@ export async function runContentPipeline(source: CrawledSource) {
         articleHtml: generatedContent,
         headline: articleTitle,
         seriesName: resolution.primarySeries.name,
+        isRankingList: isRankingList, // EMERGENT_RULESET_UPDATE
       });
 
       console.log(`📊 Re-check: Quality ${qualityResult.status}, Anti-AI ${antiAiResult.antiAiScore}/100`);
