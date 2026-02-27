@@ -271,11 +271,11 @@ export default async function ArticlePage({ params }: PageProps) {
         </section>
 
         {/* Series Infobox: AFTER content, BEFORE Q&A (Discover-optimized) */}
-        {article.primarySeriesId && article.primarySeries && (
+        {article.primarySeriesId && article.series && (
           <SeriesInfobox
             seriesId={article.primarySeriesId}
-            seriesName={article.primarySeries.title || article.primarySeries.name || ''}
-            seriesSlug={article.primarySeries.slug}
+            seriesName={article.series.title || article.series.name || ''}
+            seriesSlug={article.series.slug}
           />
         )}
 
