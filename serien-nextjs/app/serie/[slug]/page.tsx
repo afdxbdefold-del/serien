@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Tv } from 'lucide-react';
+import { Metadata } from 'next';
 import FollowButtonLocal from '@/components/FollowButtonLocal';
 import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
@@ -11,6 +12,74 @@ import { getSeriesQA } from '@/lib/series-qa-action';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const tmdbId = parseInt(slug.split('-')[0]);
+  
+  if (isNaN(tmdbId)) {
+    return {
+      title: 'Serie nicht gefunden | serien.de',
+    };
+  }
+
+  const series = await prisma.series.findUnique({
+    where: { tmdbId },
+    select: {
+      name: true,
+      title: true,
+      overview: true,
+      backdropPath: true,
+      tmdbType: true,
+    },
+  });
+
+  if (!series) {
+    return {
+      title: 'Serie nicht gefunden | serien.de',
+    };
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const seriesName = series.name || series.title;
+  const ogImage = `/img/og/${series.tmdbType}/${tmdbId}`;
+
+  return {
+    title: `${seriesName} - Alle News, Trailer & Updates | serien.de`,
+    description: series.overview || `Alle Neuigkeiten, Trailer und Updates zu ${seriesName}`,
+    metadataBase: new URL(baseUrl),
+    robots: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+    alternates: {
+      canonical: `/serie/${slug}`,
+    },
+    openGraph: {
+      title: `${seriesName} | serien.de`,
+      description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
+      type: 'website',
+      url: `/serie/${slug}`,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: seriesName,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${seriesName} | serien.de`,
+      description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function SeriesDetailPage({ params }: PageProps) {
