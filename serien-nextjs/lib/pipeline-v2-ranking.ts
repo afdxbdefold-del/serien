@@ -414,9 +414,22 @@ ${generatedItems.join('\n\n')}
     console.log('STEP 9: IMAGE PROCESSING');
     console.log('━'.repeat(70));
     
-    // Skip image processing for now (optional feature)
+    // Fetch series hero image from TMDB
     let heroImagePath = null;
-    console.log('⚠️  Image processing skipped (optional feature)');
+    
+    if (primarySeries.backdropPath) {
+      try {
+        const imageUrl = `https://image.tmdb.org/t/p/original${primarySeries.backdropPath}`;
+        console.log(`📥 Fetching hero image from TMDB...`);
+        const storedPath = await storeImage(imageUrl, 'series', primarySeries.tmdbId, 'hero', 1600, 900);
+        heroImagePath = storedPath;
+        console.log(`✅ Hero image stored: ${storedPath}`);
+      } catch (error: any) {
+        console.log(`⚠️  Hero image failed: ${error.message}`);
+      }
+    } else {
+      console.log('⚠️  No backdrop image available for series');
+    }
     
     // ========== STEP 10: SAVE TO DATABASE ==========
     console.log('\n' + '━'.repeat(70));
