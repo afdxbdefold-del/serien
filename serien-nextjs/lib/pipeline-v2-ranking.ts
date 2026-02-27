@@ -231,7 +231,7 @@ function extractRankingItems(sourceText: string, itemCount: number): Array<{ ran
       items.push({
         rank: i,
         title: `Episode/Item ${i}`,
-        context: 'Details aus dem Original-Artikel',
+        context: 'Weitere Details zur Episode',
       });
     }
   }
