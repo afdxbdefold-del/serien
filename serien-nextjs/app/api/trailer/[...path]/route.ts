@@ -51,12 +51,14 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
 ) {
+  let storagePath = '';
+  
   try {
     // Await params (Next.js 15 requirement)
     const params = await context.params;
     
     // Reconstruct the full storage path
-    const storagePath = params.path.join('/');
+    storagePath = params.path.join('/');
     
     if (!storagePath) {
       return NextResponse.json(
