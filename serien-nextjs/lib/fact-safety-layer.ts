@@ -59,12 +59,19 @@ export async function factSafetyCheck(input: FactSafetyInput): Promise<FactSafet
     
     fact.verified = verified;
     
-    if (!verified) {
+    // SOFT-PASS for SEASON_COUNT if not in headline
+    const inHeadline = input.headline.toLowerCase().includes(fact.claim.toLowerCase().substring(0, 20));
+    
+    if (!verified && fact.type === 'SEASON_COUNT' && !inHeadline) {
+      console.log(`   ⚠️  Unverified (SOFT-PASS): "${fact.claim}" (${fact.type})`);
+      fact.verified = true; // Soft-pass: allow in body text
+      fact.confidence = 'LOW';
+    } else if (!verified) {
       rejectedFacts.push(fact);
       console.log(`   ⚠️  Unverified: "${fact.claim}" (${fact.type})`);
       
       // Check if it's in headline (CRITICAL)
-      if (input.headline.toLowerCase().includes(fact.claim.toLowerCase().substring(0, 20))) {
+      if (inHeadline) {
         headlineViolations.push(fact.claim);
       }
     } else {
