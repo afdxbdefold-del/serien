@@ -88,7 +88,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const article = await prisma.articles.findUnique({
     where: { slug },
     include: {
-      author: true,
+      users: true, // Fixed: use 'users' not 'author' (relation name in schema)
       series: true, // Fixed: use 'series' not 'primarySeries'
       article_qa: true, // Fixed: use 'article_qa' not 'articleQA'
     },
