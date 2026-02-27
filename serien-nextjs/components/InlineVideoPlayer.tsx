@@ -31,7 +31,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
 
   // Build absolute video URL
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const videoUrl = `${baseUrl}/trailer/${trailerUrl}`;
+  const videoUrl = `${baseUrl}/api/trailer/${trailerUrl}`;
 
   // With trailer: Show image with play button, then video
   return (
