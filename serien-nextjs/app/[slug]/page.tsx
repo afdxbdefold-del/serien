@@ -5,7 +5,7 @@ import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
-import { SeriesStatusBox } from '@/components/SeriesStatusBox';
+import { SeriesInfobox } from '@/components/SeriesInfobox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
