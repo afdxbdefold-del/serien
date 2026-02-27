@@ -22,6 +22,7 @@ interface AntiAiFilterInput {
   articleHtml: string;
   headline: string;
   seriesName: string;
+  isRankingList?: boolean; // NEW: For RANKING_LIST override
 }
 
 interface AntiAiFilterResult {
