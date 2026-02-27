@@ -1158,6 +1158,12 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`✍️  Selected random author: ${randomAuthor.name}`);
       console.log(`🔑 Generated slug: ${slug}`);
 
+      // Final slug validation before DB insert
+      if (!slug || slug.length < 5) {
+        console.log(`❌ Generated slug is too short: "${slug}"`);
+        throw new Error(`Invalid slug generated: "${slug}" from title: "${articleTitle}"`);
+      }
+
       // Check if article already exists
       const existingArticle = await tx.article.findUnique({
         where: { slug },
