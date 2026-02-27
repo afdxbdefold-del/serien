@@ -84,25 +84,71 @@ async function uploadToStorage(
 
 /**
  * Find trailer YouTube ID from series trailers JSON
+ * Priority: German trailer > English trailer
  */
 export function findTrailerYouTubeId(trailersJson: any): string | null {
   if (!trailersJson || !Array.isArray(trailersJson)) {
     return null;
   }
 
-  // Look for official trailer
-  const officialTrailer = trailersJson.find((t: any) => 
-    t.type === 'Trailer' && t.site === 'YouTube' && t.name?.toLowerCase().includes('official')
+  // Priority 1: German official trailer
+  const germanOfficialTrailer = trailersJson.find((t: any) => 
+    t.type === 'Trailer' && 
+    t.site === 'YouTube' && 
+    t.name?.toLowerCase().includes('official') &&
+    (t.iso_639_1 === 'de' || t.name?.toLowerCase().includes('deutsch'))
   );
 
-  if (officialTrailer) {
-    return officialTrailer.key;
+  if (germanOfficialTrailer) {
+    console.log('✅ Found German official trailer');
+    return germanOfficialTrailer.key;
   }
 
-  // Fallback: any trailer
+  // Priority 2: Any German trailer
+  const germanTrailer = trailersJson.find((t: any) => 
+    t.type === 'Trailer' && 
+    t.site === 'YouTube' &&
+    (t.iso_639_1 === 'de' || t.name?.toLowerCase().includes('deutsch'))
+  );
+
+  if (germanTrailer) {
+    console.log('✅ Found German trailer');
+    return germanTrailer.key;
+  }
+
+  // Priority 3: English official trailer (fallback)
+  const englishOfficialTrailer = trailersJson.find((t: any) => 
+    t.type === 'Trailer' && 
+    t.site === 'YouTube' && 
+    t.name?.toLowerCase().includes('official') &&
+    (t.iso_639_1 === 'en' || !t.iso_639_1)
+  );
+
+  if (englishOfficialTrailer) {
+    console.log('⚠️ Using English official trailer (no German found)');
+    return englishOfficialTrailer.key;
+  }
+
+  // Priority 4: Any English trailer
+  const englishTrailer = trailersJson.find((t: any) => 
+    t.type === 'Trailer' && 
+    t.site === 'YouTube' &&
+    (t.iso_639_1 === 'en' || !t.iso_639_1)
+  );
+
+  if (englishTrailer) {
+    console.log('⚠️ Using English trailer (no German found)');
+    return englishTrailer.key;
+  }
+
+  // Priority 5: Any trailer as last resort
   const anyTrailer = trailersJson.find((t: any) => 
     t.type === 'Trailer' && t.site === 'YouTube'
   );
+
+  if (anyTrailer) {
+    console.log('⚠️ Using trailer in other language');
+  }
 
   return anyTrailer?.key || null;
 }
