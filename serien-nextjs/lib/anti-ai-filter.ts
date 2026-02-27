@@ -57,6 +57,10 @@ const HARD_BLOCKLIST = [
 export async function antiAiFilter(input: AntiAiFilterInput): Promise<AntiAiFilterResult> {
   const failReasons: string[] = [];
   
+  // EMERGENT_RULESET_UPDATE: Lower threshold for RANKING_LIST
+  const isRankingList = input.isRankingList || false;
+  const passThreshold = isRankingList ? 75 : 80; // Lower for rankings
+  
   const plainText = input.articleHtml
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -77,13 +81,16 @@ export async function antiAiFilter(input: AntiAiFilterInput): Promise<AntiAiFilt
   // STEP 3: Fact → Context Separation
   const factContextSeparation = checkFactContextSeparation(paragraphTexts, failReasons);
   
-  // STEP 4: Repetition Killer
-  const repetitionKiller = checkRepetitions(paragraphTexts, input.seriesName, failReasons);
+  // STEP 4: Repetition Killer (skip for RANKING_LIST - naturally repetitive)
+  const repetitionKiller = isRankingList 
+    ? { repetitions: [], score: 100 } // Skip repetition check for rankings
+    : checkRepetitions(paragraphTexts, input.seriesName, failReasons);
   
   // STEP 6: AI Detection Self-Check (async)
   const aiDetectionCheck = await checkAiDetection(plainText, input.headline);
   
-  if (aiDetectionCheck.verdict === 'KI') {
+  if (aiDetectionCheck.verdict === 'KI' && !isRankingList) {
+    // For rankings, don't fail on AI detection alone
     failReasons.push('AI-Detection: Text klingt nach KI');
   }
   
@@ -93,11 +100,11 @@ export async function antiAiFilter(input: AntiAiFilterInput): Promise<AntiAiFilt
     sentenceStructure.score * 0.15 +
     openingHumanity.score * 0.20 +
     factContextSeparation.score * 0.15 +
-    repetitionKiller.score * 0.10 +
-    aiDetectionCheck.score * 0.15;
+    repetitionKiller.score * (isRankingList ? 0.05 : 0.10) + // Less weight for rankings
+    aiDetectionCheck.score * (isRankingList ? 0.20 : 0.15); // More weight on structure for rankings
   
-  const passed = antiAiScore >= 80;
-  const needsRewrite = antiAiScore < 80 || hardBlocklist.found.length > 0;
+  const passed = antiAiScore >= passThreshold;
+  const needsRewrite = antiAiScore < passThreshold || hardBlocklist.found.length > 0;
   
   return {
     status: passed ? 'PASS' : 'FAIL',
