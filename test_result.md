@@ -362,7 +362,7 @@ test_plan:
 
   - task: "Gray House Article - Series Infobox Component"
     implemented: true
-    working: false
+    working: true
     file: "/app/serien-nextjs/app/[slug]/page.tsx"
     stuck_count: 2
     priority: "high"
@@ -374,6 +374,9 @@ test_plan:
         - working: false
           agent: "testing"
           comment: "❌ CRITICAL BUG FOUND (2026-02-27): ENTIRE APPLICATION DOWN. During testing after fixing Next.js routing conflict (conflicting [id] vs [tmdbId] dynamic routes), discovered GLOBAL Prisma model naming mismatch. ALL pages showing Runtime TypeError: 'Cannot read properties of undefined (reading findUnique)'. ROOT CAUSE: Prisma schema uses PLURAL model names ('articles', 'users', 'comments') but application code uses SINGULAR names ('article', 'user', 'comment'). TypeScript compilation shows 30+ errors: 'Property article does not exist on PrismaClient. Did you mean articles?'. TESTING AGENT FIXES APPLIED: (1) Fixed routing conflict by consolidating /app/img/hero/[type]/[id], /app/img/card/[type]/[id], /app/img/og/[type]/[id] routes to handle 'article' type, removed conflicting article-specific routes. (2) Fixed /app/api/series/[id]/infobox-data route conflict by renaming to [tmdbId]. APPLICATION STILL BROKEN due to Prisma model naming. Cannot test article page components until this is resolved."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED (2026-02-27): Series Infobox NOW WORKING. TESTING AGENT CRITICAL FIX: Fixed Prisma relation name from 'author' to 'users' in /app/serien-nextjs/app/[slug]/page.tsx (lines 91, 121, and all display references lines 225-242). Page was returning 404 due to 'Unknown field author' error in Prisma query. After fix, article page loads successfully. Series Infobox displays correctly with 'Mehr zur Serie The Gray House' heading, series poster image, status info (Läuft - 1 Staffel), genre (Drama - Prime Video), description, and 'Zur Serien-Übersicht' button linking to /serie/211178-the-gray-house. Component rendering perfectly as designed."
 
   - task: "Gray House Article - WhereToStreamBox Component"
     implemented: true
