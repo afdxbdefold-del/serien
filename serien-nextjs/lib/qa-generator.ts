@@ -53,45 +53,7 @@ export interface SeriesQAInput {
  * Returns 3-6 questions
  */
 export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]> {
-  const prompt = `Du bist Redakteur bei einem deutschen Serien-Magazin. Erstelle 4-5 Fragen & Antworten zum folgenden Artikel.
-
-STRENGE REGELN:
-- Nur Deutsch, neutraler journalistischer Ton (wie Serienjunkies/TVLine)
-- KEINE Anrede ("du", "ihr")
-- KEINE Marketing-Sprache
-- Antworten: max 90 Wörter, nur Fakten aus dem Artikel
-- Bei Unsicherheit EXPLIZIT sagen: "Stand jetzt nicht bestätigt"
-- KEINE Duplikate mit Artikel-Text
-- KEINE Spekulation
-
-FRAGETYPEN (wähle 4-5):
-1) Status: "Kommt Staffel X von ${input.seriesName}?"
-2) Bedeutung: "Was bedeutet diese Entscheidung für die Serie?"
-3) Timing: "Wann könnte die nächste Staffel starten?"
-4) Kontext: "Warum verzögert sich die Produktion?"
-5) Scope: "Betrifft das auch andere Serien?"
-
-ARTIKEL:
-Titel: ${input.title}
-Serie: ${input.seriesName}
-Inhalt: ${input.contentHtml.replace(/<[^>]*>/g, '').substring(0, 2000)}
-
-Antworte NUR mit JSON:
-{
-  "questions": [
-    {
-      "question": "Frage hier",
-      "answer": "Antwort hier (max 90 Wörter)",
-      "factual": true
-    }
-  ]
-}
-
-WICHTIG:
-- Setze "factual" auf false, wenn Antwort spekulativ ist
-- Antworten müssen aus Artikel-Fakten stammen
-- Keine optimistische Verzerrung`;
-
+  // Try OpenAI first
   try {
     const openai = getOpenAIClient();
     
@@ -118,15 +80,25 @@ WICHTIG:
     const questions: QAItem[] = parsed.questions || [];
     
     // Filter out questions that are too short or too long
-    return questions.filter((q: QAItem) => {
+    const validQuestions = questions.filter((q: QAItem) => {
       const wordCount = q.answer.split(/\s+/).length;
       return wordCount >= 30 && wordCount <= 90 && q.question.length > 10;
     });
 
+    if (validQuestions.length > 0) {
+      console.log('✅ OpenAI Q&A generated:', validQuestions.length, 'questions');
+      return validQuestions;
+    }
+
   } catch (error: any) {
-    console.error('❌ Q&A generation failed:', error.message);
-    return [];
+    console.log('⚠️  OpenAI Q&A failed, using fallback:', error.message);
   }
+
+  // Fallback to rule-based generation
+  const { generateFallbackArticleQA } = await import('./qa-generator-fallback');
+  const fallbackQuestions = generateFallbackArticleQA(input);
+  console.log('✅ Fallback Q&A generated:', fallbackQuestions.length, 'questions');
+  return fallbackQuestions;
 }
 
 /**
