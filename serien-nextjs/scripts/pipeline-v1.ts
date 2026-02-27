@@ -24,6 +24,8 @@ import { translateHeadlineOnly } from '../lib/headline-translator'; // NEW: TRAN
 import { generateDistinctLead } from '../lib/distinct-lead-generator'; // NEW: Distinct lead generator
 import { preserveHeadline } from '../lib/headline-preserver'; // NEW: Headline preserver
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader'; // NEW: Trailer downloader
+import { routeContentType } from '../lib/content-type-router'; // NEW: Content type router
+import { runRankingPipeline } from '../lib/pipeline-v2-ranking'; // NEW: Ranking pipeline
 
 
 const prisma = new PrismaClient();
