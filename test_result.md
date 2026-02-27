@@ -254,7 +254,10 @@ test_plan:
   current_focus: 
     - "Gray House Article - Series Infobox Component"
     - "Gray House Article - WhereToStreamBox Component"
-  stuck_tasks: []
+    - "CRITICAL: Fix Prisma Model Naming Mismatch"
+  stuck_tasks:
+    - "Gray House Article - Series Infobox Component"
+    - "Gray House Article - WhereToStreamBox Component"
   test_all: false
   test_priority: "high_first"
   completed_tests:
