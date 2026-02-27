@@ -85,7 +85,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   
   // Fetch article with related data
-  const article = await prisma.article.findUnique({
+  const article = await prisma.articles.findUnique({
     where: { slug },
     include: {
       author: true,
@@ -99,7 +99,7 @@ export default async function ArticlePage({ params }: PageProps) {
   }
 
   // Fetch related news (same category or same series)
-  const relatedNews = await prisma.article.findMany({
+  const relatedNews = await prisma.articles.findMany({
     where: {
       status: 'published',
       id: { not: article.id },
