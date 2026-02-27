@@ -55,20 +55,35 @@ const RANKING_BATCH_PROMPT = `Du bist ein erfahrener Redakteur für Serien-Ranki
 
 Schreibe detaillierte Beschreibungen für eine BATCH von Ranking-Items.
 
-FÜR JEDES ITEM:
-- ÜBERSCHRIFT: [Platzierung]. [Episode/Item-Titel]
-- KONTEXT: In welcher Staffel, welcher Handlungsbogen? (1 Satz)
-- HIGHLIGHT: Was passiert konkret? (3-4 Sätze mit Details)
-- WARUM TOP: Warum gehört es zum Ranking? (1-2 Sätze)
+WICHTIG: Die Ausgabe MUSS diese exakte HTML-Struktur pro Item haben:
 
-Länge pro Item: 80-140 Wörter
+<h2>{Platzierung}. {Episode/Item-Titel}</h2>
+<p><strong>Staffel/Episode:</strong> [Falls bekannt: "Staffel X, Episode Y" ODER "Unbekannt"]</p>
+<p><strong>Kontext:</strong> [2-4 Sätze: In welchem Handlungsbogen? Was ist die Situation?]</p>
+<p><strong>Highlight:</strong> [3-4 Sätze: Was passiert konkret? Welche Szenen/Momente?]</p>
+<p><strong>Warum Top:</strong> [2-3 Sätze: Warum gehört es zum Ranking? Regie? Twist? Emotion?]</p>
+
+BEISPIEL:
+<h2>1. The Rains of Castamere</h2>
+<p><strong>Staffel/Episode:</strong> Staffel 3, Episode 9</p>
+<p><strong>Kontext:</strong> Robb Stark reist zur Hochzeit der Freys. Die Starks hoffen auf eine neue Allianz im Krieg gegen die Lannisters.</p>
+<p><strong>Highlight:</strong> Die Red Wedding schockierte Millionen Zuschauer. In einer brutalen Wendung werden Robb, Catelyn und fast die gesamte Stark-Armee während der Hochzeitsfeier massakriert. Die Szene ist bekannt für ihre emotionale Intensität.</p>
+<p><strong>Warum Top:</strong> Diese Episode bewies, dass kein Charakter sicher ist. Sie zeigte Game of Thrones' Bereitschaft, etablierte Regeln zu brechen und Erwartungen zu zerstören.</p>
+
+Länge pro Item: 120-180 Wörter (für N<=10) ODER 80-140 Wörter (für N>10)
 
 TONALITÄT:
 - Konkret, mit Plot-Details
 - Sachlich, aber wertschätzend
-- Keine leeren Phrasen
+- Keine Marketing-Phrasen
 
-Schreibe die Items nacheinander (ein Item pro Block, durch Leerzeile getrennt).`;
+ABSOLUT VERBOTEN:
+- Inline-Labels wie "KONTEXT: HIGHLIGHT: WARUM TOP:" in einem Absatz
+- ALL CAPS außer in <strong> Tags
+- Run-on Paragraphen ohne Struktur
+
+Schreibe jetzt die Items mit exakter HTML-Struktur.`;
+
 
 /**
  * Generate ranking intro
