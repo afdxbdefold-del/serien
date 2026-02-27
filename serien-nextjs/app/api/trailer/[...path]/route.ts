@@ -20,9 +20,12 @@ async function initStorage(): Promise<string> {
 
   const emergentKey = process.env.EMERGENT_LLM_KEY;
   if (!emergentKey) {
-    throw new Error('EMERGENT_LLM_KEY not found');
+    console.error('❌ EMERGENT_LLM_KEY not found in environment');
+    throw new Error('EMERGENT_LLM_KEY not configured. Please set it in Vercel environment variables.');
   }
 
+  console.log('🔑 Initializing storage with key...');
+  
   const response = await fetch(`${STORAGE_URL}/init`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,7 +33,9 @@ async function initStorage(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`Storage init failed: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('❌ Storage init failed:', response.status, errorText);
+    throw new Error(`Storage init failed: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
@@ -38,7 +43,7 @@ async function initStorage(): Promise<string> {
   // Cache for 50 minutes (10 min buffer before 1 hour expiry)
   storageKeyExpiry = now + (50 * 60 * 1000);
   
-  console.log('✅ Storage key refreshed');
+  console.log('✅ Storage key refreshed successfully');
   return storageKey;
 }
 
@@ -201,10 +206,22 @@ export async function GET(
     });
 
   } catch (error: any) {
-    console.error('Trailer proxy error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch video' },
-      { status: 500 }
+    console.error('❌ Trailer proxy error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      storagePath: params?.path?.join('/'),
+    });
+    
+    // Return plain text error for debugging
+    return new NextResponse(
+      `Video Error: ${error.message}\nPlease check server logs for details.`,
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'text/plain',
+        }
+      }
     );
   }
 }
