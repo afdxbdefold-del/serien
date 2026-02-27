@@ -29,11 +29,10 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
     );
   }
 
-  // Build video URL
-  // Use direct public URL for testing
+  // Build video URL with cache busting
   const videoUrl = trailerUrl.startsWith('http') 
     ? trailerUrl 
-    : `/api/trailer/${trailerUrl}`;
+    : `/api/trailer/${trailerUrl}?v=3`; // Increment version to bust cache
 
   // With trailer: Show image with play button, then video
   return (
