@@ -271,7 +271,7 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
     
     const intro = await generateRankingIntro(
       input.primarySeriesName!,
-      resolution.primarySeries.networks?.[0] || 'Streaming',
+      primarySeries.networks?.[0] || 'Streaming',
       input.itemCount,
       facts.key_statements
     );
