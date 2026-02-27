@@ -1,6 +1,7 @@
 import { ExternalLink, Tv, ShoppingCart, Film, TvMinimal } from 'lucide-react';
 import Image from 'next/image';
 import { getTVWatchProviders, getTMDBLogoUrl, getProviderDisplayName, type WatchProvider } from '@/lib/tmdb-watch-providers';
+import { getStreamerURL, hasDirectLink } from '@/lib/streamer-urls';
 
 interface WhereToStreamBoxProps {
   seriesId: number;
@@ -23,6 +24,10 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
     const displayName = getProviderDisplayName(provider.provider_name);
     const logoUrl = getTMDBLogoUrl(provider.logo_path, 'w92');
     
+    // Get direct streamer URL (with search if possible, otherwise homepage)
+    const streamerURL = getStreamerURL(provider.provider_name, seriesName);
+    const hasDirectStreamerLink = hasDirectLink(provider.provider_name);
+    
     const typeLabels = {
       flatrate: 'Jetzt streamen',
       buy: 'Kaufen',
@@ -34,10 +39,11 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
     return (
       <a
         key={`${type}-${provider.provider_id}`}
-        href={providers.link}
+        href={streamerURL}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
+        title={hasDirectStreamerLink ? `${displayName} öffnen` : `${displayName} - Link nicht verfügbar`}
       >
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
