@@ -1,9 +1,11 @@
 /**
  * Card Image API - Serves from Emergent Object Storage
+ * Supports: tv, movie, article types
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeAllImagesForItem } from '@/lib/image-storage';
+import prisma from '@/lib/prisma';
 
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
 let storageKey: string | null = null;
