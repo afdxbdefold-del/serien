@@ -83,17 +83,18 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
               muted
               autoPlay
               preload="auto"
+              src={videoUrl}
               onError={(e) => {
                 console.error('❌ Video error:', e);
                 const video = e.currentTarget;
                 console.error('Error code:', video.error?.code);
                 console.error('Error message:', video.error?.message);
                 console.error('Video URL:', videoUrl);
-                setHasError(true);
+                // Wait a bit before showing error to allow retries
+                setTimeout(() => setHasError(true), 2000);
               }}
               onLoadedData={() => console.log('✅ Video loaded')}
             >
-              <source src={videoUrl} type="video/mp4" />
               Dein Browser unterstützt HTML5 Video nicht.
             </video>
           )}
