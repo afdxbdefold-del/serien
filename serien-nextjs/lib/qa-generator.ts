@@ -106,40 +106,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
  * Returns exactly 5 questions
  */
 export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> {
-  const prompt = `Du bist Redakteur. Erstelle 5 Evergreen-Fragen für die Serie "${input.seriesName}".
-
-PFLICHT-FRAGEN (genau diese 5):
-1) "Worum geht es in ${input.seriesName}?"
-2) "Wie viele Staffeln gibt es von ${input.seriesName}?"
-3) "Ist ${input.seriesName} verlängert oder abgesetzt?"
-4) "Wann startete die letzte Staffel?"
-5) "Wann ist mit neuen Folgen zu rechnen?"
-
-SERIE:
-Name: ${input.seriesName}
-Übersicht: ${input.overview}
-Status: ${input.status}
-Staffeln: ${input.numberOfSeasons}
-Start: ${input.firstAirDate}
-Letzte Staffel: ${input.lastSeasonDate || 'Unbekannt'}
-
-REGELN:
-- Antworten: max 90 Wörter
-- Nur Fakten, keine Spekulation
-- Bei Unsicherheit: "Stand jetzt nicht bestätigt"
-- Neutral, journalistisch
-
-Antworte NUR mit JSON:
-{
-  "questions": [
-    {
-      "question": "Worum geht es in ${input.seriesName}?",
-      "answer": "Antwort hier",
-      "factual": true
-    }
-  ]
-}`;
-
+  // Try OpenAI first
   try {
     const openai = getOpenAIClient();
     
@@ -161,13 +128,22 @@ Antworte NUR mit JSON:
 
     const content = response.choices[0].message.content?.trim() || '{}';
     const parsed = JSON.parse(content);
+    const questions = parsed.questions || [];
 
-    return parsed.questions || [];
+    if (questions.length > 0) {
+      console.log('✅ OpenAI Series Q&A generated:', questions.length, 'questions');
+      return questions;
+    }
 
   } catch (error: any) {
-    console.error('❌ Series Q&A generation failed:', error.message);
-    return [];
+    console.log('⚠️  OpenAI Series Q&A failed, using fallback:', error.message);
   }
+
+  // Fallback to rule-based generation
+  const { generateFallbackSeriesQA } = await import('./qa-generator-fallback');
+  const fallbackQuestions = generateFallbackSeriesQA(input);
+  console.log('✅ Fallback Series Q&A generated:', fallbackQuestions.length, 'questions');
+  return fallbackQuestions;
 }
 
 /**
