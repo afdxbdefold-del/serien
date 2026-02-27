@@ -1,6 +1,6 @@
 /**
  * Generate Google Discover optimized Meta Description
- * Strict validation: 120-155 chars, no clickbait, no questions/exclamations
+ * Uses strict templates based on article type
  */
 
 import OpenAI from 'openai';
@@ -15,82 +15,143 @@ interface MetaDescriptionInput {
   content: string;
   primarySeries: string;
   wasBedeutetDas?: string;
+  articleType?: string; // From classification
+}
+
+/**
+ * Determine article type from title and content
+ */
+function detectArticleType(title: string, content: string): 'NEWS' | 'THEORY' | 'REVIEW' {
+  const titleLower = title.toLowerCase();
+  const contentStart = content.substring(0, 500).toLowerCase();
+  
+  // THEORY indicators
+  if (
+    /theorie|spekulation|könnte|möglich|denkbar|vielleicht/i.test(titleLower) ||
+    /theorie|spekulation|könnte passieren|möglicherweise|denkbar/i.test(contentStart)
+  ) {
+    return 'THEORY';
+  }
+  
+  // REVIEW indicators
+  if (
+    /review|kritik|einordnung|bewertung|fazit|einschätzung/i.test(titleLower) ||
+    /stärken|schwächen|einordnung|bewertung/i.test(contentStart)
+  ) {
+    return 'REVIEW';
+  }
+  
+  // Default: NEWS
+  return 'NEWS';
+}
+
+/**
+ * Extract core fact from content (for NEWS template)
+ */
+function extractCoreFact(content: string, title: string): string {
+  const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+  
+  // Look for key patterns
+  if (/neue staffel|staffel \d+|weitere staffel/i.test(plainText)) {
+    return 'neue Staffel';
+  }
+  if (/besetzung|cast|schauspieler|rolle/i.test(plainText)) {
+    return 'Besetzung';
+  }
+  if (/fortsetzung|verlängert|erneuert|renewed/i.test(plainText)) {
+    return 'Fortsetzung';
+  }
+  if (/produktion|dreh|filming|production/i.test(plainText)) {
+    return 'Produktion';
+  }
+  if (/zukunft|ausblick|was kommt/i.test(plainText)) {
+    return 'Zukunft der Serie';
+  }
+  if (/handlung|story|plot/i.test(plainText)) {
+    return 'Handlung';
+  }
+  
+  // Default
+  return 'aktuelle Entwicklungen';
+}
+
+/**
+ * Extract theme from content (for THEORY template)
+ */
+function extractTheme(content: string): string {
+  const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+  
+  if (/handlung|story|plot|geschehen/i.test(plainText)) {
+    return 'Handlung';
+  }
+  if (/figuren|charaktere|personen/i.test(plainText)) {
+    return 'Figuren';
+  }
+  if (/staffel|season|fortsetzung/i.test(plainText)) {
+    return 'Zukunft der Serie';
+  }
+  
+  return 'mögliche Entwicklungen';
+}
+
+/**
+ * Generate template-based meta description
+ */
+async function generateTemplateDescription(
+  type: 'NEWS' | 'THEORY' | 'REVIEW',
+  seriesName: string,
+  content: string,
+  title: string
+): Promise<string> {
+  let description = '';
+  
+  switch (type) {
+    case 'NEWS':
+      const coreFact = extractCoreFact(content, title);
+      description = `Aktuelle Entwicklungen zu ${seriesName}. Neue Informationen zu ${coreFact}, offiziell bekannt und verständlich zusammengefasst.`;
+      break;
+      
+    case 'THEORY':
+      const theme = extractTheme(content);
+      description = `Was bei ${seriesName} als Nächstes passieren könnte. Plausible Theorien zur ${theme}, basierend auf bekannten Informationen.`;
+      break;
+      
+    case 'REVIEW':
+      description = `Eine sachliche Einordnung zu ${seriesName}. Stärken, Schwächen und was die Serie für Fans wirklich bietet.`;
+      break;
+  }
+  
+  // Ensure length is within bounds
+  if (description.length > 155) {
+    // Try to shorten by removing last part
+    const parts = description.split('.');
+    if (parts.length > 2) {
+      description = parts.slice(0, 2).join('.') + '.';
+    } else {
+      description = description.substring(0, 152) + '...';
+    }
+  }
+  
+  return description;
 }
 
 export async function generateMetaDescription(input: MetaDescriptionInput): Promise<string> {
   const plainText = input.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  const firstParagraph = plainText.split('\n')[0] || plainText.substring(0, 300);
-
-  const systemPrompt = `Du bist ein SEO-Experte für Google Discover Meta Descriptions.
-
-STRIKTE REGELN:
-- Länge: 120-150 Zeichen (MAXIMAL 155)
-- Natürlicher, informativer Teaser
-- KEINE Fragezeichen (?)
-- KEINE Ausrufezeichen (!)
-- KEINE Emojis
-- KEINE Jahreszahlen
-- KEINE Clickbait-Wörter: "musst du wissen", "schockierend", "unglaublich", "absolut"
-- KEINE Titel-Wiederholung
-- KEINE URLs oder Markennamen
-
-ERLAUBT:
-- Informationssignale: bekannt, geplant, bestätigt, möglich, aktuell, offiziell
-- Konkreter Nutzen: neue Staffel, Handlung, Besetzung, Zukunft der Serie
-
-STIL:
-- Sachlich und vertrauenswürdig
-- Neugier ohne falsche Versprechen
-- Google Discover optimiert`;
-
-  const userPrompt = `Erstelle eine Google Discover Meta Description für:
-
-Titel: ${input.title}
-Serie: ${input.primarySeries}
-
-Erster Absatz:
-${firstParagraph}
-
-Was bedeutet das (optional):
-${input.wasBedeutetDas || 'N/A'}
-
-AUFGABE:
-Schreibe EINE Meta Description (120-150 Zeichen) die:
-- Den Artikel-Inhalt zusammenfasst
-- Neugier erzeugt
-- Sachlich und glaubwürdig klingt
-- ALLE obigen Regeln einhält
-
-Antworte NUR mit der Meta Description, nichts anderes.`;
-
-  try {
-    const completion = await client.chat.completions.create({
-      model: 'openai/gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 100,
-    });
-
-    let metaDescription = completion.choices[0]?.message?.content?.trim() || '';
-    
-    // Remove quotes if present
-    metaDescription = metaDescription.replace(/^["']|["']$/g, '');
-    
-    return metaDescription;
-  } catch (error) {
-    console.error('Meta Description generation failed:', error);
-    
-    // Fallback: Extract from first paragraph
-    const fallback = firstParagraph
-      .substring(0, 145)
-      .trim()
-      .split(' ')
-      .slice(0, -1)
-      .join(' ');
-    
-    return fallback.length >= 120 ? fallback : firstParagraph.substring(0, 150);
-  }
+  
+  // Detect article type
+  const articleType = detectArticleType(input.title, plainText);
+  
+  console.log(`   📋 Detected Article Type: ${articleType}`);
+  
+  // Generate template-based description
+  const templateDescription = await generateTemplateDescription(
+    articleType,
+    input.primarySeries,
+    plainText,
+    input.title
+  );
+  
+  console.log(`   📝 Template used: ${articleType}`);
+  
+  return templateDescription;
 }
