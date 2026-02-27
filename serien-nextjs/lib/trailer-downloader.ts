@@ -606,11 +606,14 @@ export async function downloadVideoTrailer(
           const { promisify } = require('util');
           const execAsync = promisify(exec);
           
-          // Use H.264 Baseline profile for maximum browser compatibility
-          // -movflags +faststart: Move moov atom to beginning (critical for web streaming)
+          // Use H.264 Main profile for maximum mobile browser compatibility (2025+)
+          // Constrained Baseline has known issues with mobile Chrome despite being theoretically more compatible
+          // -profile:v main: Modern mobile browsers have excellent Main profile support
+          // -level 4.0: Supports up to 1080p @ 30fps
           // -pix_fmt yuv420p: Ensure compatible pixel format
+          // -movflags +faststart: Move moov atom to beginning (critical for web streaming)
           // -preset fast: Balance speed and compression
-          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart -preset fast -y "${webCompatiblePath}"`, {
+          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v main -level 4.0 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart -preset fast -y "${webCompatiblePath}"`, {
             timeout: 120000
           });
           
