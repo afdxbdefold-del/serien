@@ -1,10 +1,23 @@
 /**
  * PIPELINE_V2: RANKING/LISTICLE PIPELINE
  * Specialized pipeline for ranking/list articles with chunked processing
+ * 
+ * Features:
+ * - TMDB Resolution
+ * - Chunked content generation (5 items/batch)
+ * - SEO optimization (Meta Description)
+ * - Relaxed quality checks
+ * - Database save
  */
 
 import { PrismaClient } from '@prisma/client';
 import OpenAI from 'openai';
+import { classifyContent } from './content-classifier';
+import { resolveSeries } from './tmdb-resolver';
+import { extractFacts } from './fact-extractor';
+import { generateMetaDescription } from './meta-description-generator';
+import { storeImage } from './image-storage';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
