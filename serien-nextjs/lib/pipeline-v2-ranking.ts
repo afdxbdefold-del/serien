@@ -416,7 +416,6 @@ ${generatedItems.join('\n\n')}
         ogImageUrl: heroImagePath ? `/img/og/article/${articleId}` : null,
         status: 'published',
         publishMode: wordCount >= 900 ? 'DISCOVER' : 'SEARCH_ONLY',
-        author: 'Redaktion',
         publishedAt: new Date(),
         isRankingArticle: true, // Flag for ranking articles
       },
