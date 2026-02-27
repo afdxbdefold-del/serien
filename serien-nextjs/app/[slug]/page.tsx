@@ -280,10 +280,10 @@ export default async function ArticlePage({ params }: PageProps) {
         )}
 
         {/* Q&A Section */}
-        {article.articleQA && article.articleQA.questions && (
+        {article.article_qa && article.article_qa.questions && (
           <ArticleQA 
-            questions={article.articleQA.questions as any[]}
-            schemaEnabled={article.articleQA.schemaEnabled}
+            questions={article.article_qa.questions as any[]}
+            schemaEnabled={article.article_qa.schemaEnabled}
           />
         )}
 
