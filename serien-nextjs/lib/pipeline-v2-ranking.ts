@@ -368,19 +368,9 @@ ${generatedItems.join('\n\n')}
     console.log('STEP 9: IMAGE PROCESSING');
     console.log('━'.repeat(70));
     
-    // Fetch series hero image from TMDB
+    // Skip image processing for now (optional feature)
     let heroImagePath = null;
-    
-    if (primarySeries.backdropPath) {
-      try {
-        const imageUrl = `https://image.tmdb.org/t/p/original${primarySeries.backdropPath}`;
-        const storedPath = await storeImage(imageUrl, 'series', primarySeries.tmdbId, 'hero', 1600, 900);
-        heroImagePath = storedPath;
-        console.log(`✅ Hero image stored: ${storedPath}`);
-      } catch (error: any) {
-        console.log(`⚠️  Hero image failed: ${error.message}`);
-      }
-    }
+    console.log('⚠️  Image processing skipped (optional feature)');
     
     // ========== STEP 10: SAVE TO DATABASE ==========
     console.log('\n' + '━'.repeat(70));
