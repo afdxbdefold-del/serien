@@ -253,17 +253,6 @@ export default async function ArticlePage({ params }: PageProps) {
           <ShareButton title={article.title} />
         </div>
 
-        {/* Series Status Box (if primary series exists) */}
-        {article.primarySeriesId && article.primarySeries && (
-          <SeriesStatusBox 
-            seriesId={article.primarySeriesId} 
-            seriesName={article.primarySeries.title || article.primarySeries.name || ''} 
-            seriesSlug={article.primarySeries.slug}
-            posterUrl={article.primarySeries.posterLocalUrl}
-            posterPath={article.primarySeries.posterPath}
-          />
-        )}
-
         {/* Excerpt/Lead */}
         {article.excerpt && (
           <p className="text-xl text-gray-700 leading-relaxed font-medium">
@@ -280,6 +269,15 @@ export default async function ArticlePage({ params }: PageProps) {
             dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
           />
         </section>
+
+        {/* Series Infobox: AFTER content, BEFORE Q&A (Discover-optimized) */}
+        {article.primarySeriesId && article.primarySeries && (
+          <SeriesInfobox
+            seriesId={article.primarySeriesId}
+            seriesName={article.primarySeries.title || article.primarySeries.name || ''}
+            seriesSlug={article.primarySeries.slug}
+          />
+        )}
 
         {/* Q&A Section */}
         {article.articleQA && article.articleQA.questions && (
