@@ -221,7 +221,11 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
     // Extract series name from classification or title
     const seriesName = (classification.series_found && classification.series_found[0]) 
       || input.primarySeriesName 
-      || input.sourceTitle.split(':')[0].trim(); // Fallback: extract from title
+      || input.sourceTitle
+          .split(':')[0]  // Take part before colon
+          .replace(/\b(top|best|worst|ranked|ranking|episodes?|staffel|die besten|greatest)\b/gi, '') // Remove ranking keywords
+          .replace(/['']s?\s+\d+/g, '') // Remove possessive + numbers
+          .trim();
       
     console.log(`🔍 Resolving series: ${seriesName}`);
     
