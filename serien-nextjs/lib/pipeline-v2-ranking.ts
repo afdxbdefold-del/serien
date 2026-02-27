@@ -343,11 +343,11 @@ ${generatedItems.join('\n\n')}
     console.log('STEP 7: META DESCRIPTION');
     console.log('━'.repeat(70));
     
-    const metaDescription = await generateMetaDescription(
-      fullContent,
-      input.sourceTitle,
-      input.primarySeriesName!
-    );
+    const metaDescription = await generateMetaDescription({
+      content: fullContent,
+      title: input.sourceTitle,
+      seriesName: input.primarySeriesName!,
+    });
     
     console.log(`✅ Meta description generated (${metaDescription.length} chars)`);
     
