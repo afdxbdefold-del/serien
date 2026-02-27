@@ -137,6 +137,36 @@ model ArticleQA {
   @@map("article_qa")
 }
 
+model Person {
+  id             String   @id // person-{tmdbId}
+  tmdbId         Int      @unique
+  slug           String   @unique
+  name           String
+  biography      String?  @db.Text
+  profilePath    String?
+  knownFor       String?
+  birthDate      DateTime?
+  birthPlace     String?
+  popularity     Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  articles       ArticlePerson[]
+  
+  @@map("persons")
+}
+
+model ArticlePerson {
+  articleId      String
+  personId       String
+  
+  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@id([articleId, personId])
+  @@map("article_persons")
+}
+
 model DiscoverScoreDashboard {
   id               String   @id @default(cuid())
   articleId        String
