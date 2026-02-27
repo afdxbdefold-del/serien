@@ -402,7 +402,7 @@ ${generatedItems.join('\n\n')}
         metaDescription,
         contentHtml: fullContent,
         sourceUrl: input.sourceUrl,
-        primarySeriesId: resolution.primarySeries.tmdbId,
+        primarySeriesId: primarySeries.tmdbId,
         heroImagePath: heroImagePath,
         heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
         cardImageUrl: heroImagePath ? `/img/card/article/${articleId}` : null,
