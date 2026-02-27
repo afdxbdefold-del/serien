@@ -22,7 +22,7 @@ export async function generateDistinctLead(input: LeadGeneratorInput): Promise<s
   
   const prompt = `Du bist ein professioneller Texter für eine TV-Serien-News-Website.
 
-AUFGABE: Schreibe einen EIGENSTÄNDIGEN Lead-Absatz (2-3 Sätze) für diesen Artikel.
+AUFGABE: Schreibe einen EIGENSTÄNDIGEN, UNIQUE Lead-Absatz (2-3 Sätze) für diesen Artikel.
 
 ARTIKEL-HEADLINE: "${headline}"
 SERIE: ${seriesName}
@@ -33,18 +33,24 @@ ${facts.slice(0, 5).join('\n')}
 ARTIKEL-BEGINN (NICHT VERWENDEN):
 ${firstParagraph.substring(0, 300)}
 
-ANFORDERUNGEN:
+KRITISCHE ANFORDERUNGEN:
 1. Der Lead muss KOMPLETT ANDERS sein als der Artikel-Beginn
-2. Verwende KEINE Sätze oder Formulierungen aus dem Artikel-Beginn
-3. 2-3 prägnante Sätze, die das Wichtigste zusammenfassen
-4. Neugierig machen, aber keine Clickbait-Sprache
-5. Professioneller, journalistischer Ton
+2. Beantworte: Was ist NEU? Warum ist es JETZT wichtig? Für wen ist es relevant?
+3. Verwende KEINE generischen Phrasen wie:
+   ❌ "Aktuelle Entwicklungen zu..."
+   ❌ "Neue Informationen zu..."
+   ❌ "offiziell bekannt und verständlich zusammengefasst"
+   ❌ "Aktuelle Entwicklungen zu die Serie"
+4. Jeder Lead muss semantisch UND lexikalisch unterschiedlich sein
+5. Professioneller, journalistischer Ton - wie ein echter Redakteur
 6. NUR der Lead-Text, keine zusätzlichen Erklärungen
 
-BEISPIEL eines guten Leads (für andere Serie):
-"Netflix bestätigt das Ende einer Ära: Die beliebte Fantasy-Serie erhält keine weitere Staffel. Nach drei erfolgreichen Jahren verkündet der Streaming-Dienst die Einstellung der Produktion."
+GUTE BEISPIELE (für verschiedene Serien):
+✅ "Netflix bestätigt das Ende einer Ära: Die beliebte Fantasy-Serie erhält keine weitere Staffel. Nach drei erfolgreichen Jahren verkündet der Streaming-Dienst die Einstellung der Produktion."
+✅ "HBO veröffentlicht erste Details zur kommenden Staffel. Die Produktion startet im Frühjahr mit neuen Gesichtern im Cast."
+✅ "Der Streaming-Dienst überrascht Fans mit einer unerwarteten Ankündigung: Die bereits abgesetzte Serie kehrt für ein finales Special zurück."
 
-Schreibe jetzt den EIGENSTÄNDIGEN Lead für "${headline}":`;
+Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
 
   try {
     const { default: OpenAI } = await import('openai');
@@ -94,8 +100,7 @@ Schreibe jetzt den EIGENSTÄNDIGEN Lead für "${headline}":`;
     
   } catch (error: any) {
     console.error(`Lead generation failed: ${error.message}`);
-    // Fallback: Generate from headline and series name
-    const shortFact = facts[0] ? facts[0].substring(0, 100) : 'Die neueste Episode bringt spannende Entwicklungen.';
-    return `${seriesName}: ${shortFact}`;
+    // NO GENERIC FALLBACK - Throw error to prevent generic content
+    throw new Error(`Failed to generate unique lead: ${error.message}. Cannot publish with generic fallback.`);
   }
 }
