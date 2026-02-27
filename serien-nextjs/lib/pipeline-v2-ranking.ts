@@ -137,7 +137,27 @@ Schreibe jetzt die Einleitung (120-180 Wörter).
     max_tokens: 400,
   });
   
-  return response.choices[0]?.message?.content?.trim() || '';
+  const intro = response.choices[0]?.message?.content?.trim() || '';
+  
+  // QUALITY CHECK: Reject generic phrases
+  const forbiddenPhrases = [
+    'aktuelle entwicklungen zu',
+    'neue informationen zu',
+    'offiziell bekannt und verständlich zusammengefasst',
+    'offiziell bekannt und zusammengefasst',
+    'verständlich zusammengefasst'
+  ];
+  
+  const introLower = intro.toLowerCase();
+  for (const phrase of forbiddenPhrases) {
+    if (introLower.includes(phrase)) {
+      console.error(`❌ Intro contains forbidden phrase: "${phrase}"`);
+      throw new Error(`Intro quality check failed: Contains forbidden phrase "${phrase}"`);
+    }
+  }
+  
+  console.log(`✅ Intro quality check passed`);
+  return intro;
 }
 
 /**
