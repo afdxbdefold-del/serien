@@ -13,7 +13,7 @@
 import { PrismaClient } from '@prisma/client';
 import OpenAI from 'openai';
 import { classifyContent } from './content-classifier';
-import { resolveTmdbSeries } from './tmdb-resolver';
+import { resolveSingleSeries } from './tmdb-resolver';
 import { extractFacts } from './fact-extractor';
 import { generateMetaDescription } from './meta-description-generator';
 import { storeImage } from './image-storage';
