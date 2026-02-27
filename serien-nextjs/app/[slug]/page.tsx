@@ -48,6 +48,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${article.title} | serien.de`,
     description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
     metadataBase: new URL(baseUrl),
+    robots: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
     alternates: {
       canonical: `/${slug}`,
     },
@@ -69,6 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: 'summary_large_image',
       title: `${article.title} | serien.de`,
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
+      images: ogImage ? [ogImage] : undefined,
     },
   };
 }
