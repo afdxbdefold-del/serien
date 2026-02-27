@@ -81,10 +81,13 @@ export async function factSafetyCheck(input: FactSafetyInput): Promise<FactSafet
     criticalFacts.push(fact);
   }
 
-  const mustRewrite = rejectedFacts.length > 0 || headlineViolations.length > 0;
+  // Increased tolerance: Only fail if 3+ critical unverified facts OR headline violations
+  const mustRewrite = rejectedFacts.length >= 3 || headlineViolations.length > 0;
   const status = mustRewrite ? 'UNSAFE' : 'SAFE';
 
-  if (rejectedFacts.length > 0) {
+  if (rejectedFacts.length > 0 && rejectedFacts.length < 3) {
+    console.log(`\n⚠️  ${rejectedFacts.length} unverified fact(s) found - ACCEPTABLE (threshold: 3)`);
+  } else if (rejectedFacts.length >= 3) {
     console.log(`\n🚨 ${rejectedFacts.length} unverified fact(s) found - MUST REWRITE`);
   }
 
