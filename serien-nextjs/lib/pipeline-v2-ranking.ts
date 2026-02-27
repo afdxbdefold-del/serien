@@ -255,9 +255,9 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
     
     const facts = await extractFacts(input.sourceTitle, input.sourceText);
     console.log(`✅ Facts extracted:`);
-    console.log(`   Series: ${facts.series.length}`);
-    console.log(`   People: ${facts.people.length}`);
-    console.log(`   Key statements: ${facts.key_statements.length}`);
+    console.log(`   Series: ${facts.series_names?.length || 0}`);
+    console.log(`   People: ${facts.people_names?.length || 0}`);
+    console.log(`   Key statements: ${facts.key_statements?.length || 0}`);
     
     // ========== STEP 3: EXTRACT ITEMS ==========
     console.log('\n' + '━'.repeat(70));
