@@ -81,6 +81,7 @@ export default async function ArticlePage({ params }: PageProps) {
     include: {
       author: true,
       primarySeries: true,
+      articleQA: true, // Include Q&A
     },
   });
 
