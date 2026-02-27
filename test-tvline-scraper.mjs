@@ -62,11 +62,28 @@ async function testScraper() {
       
     } else {
       console.log('✅ Articles found:\n');
-      matches.slice(0, 10).forEach((match, i) => {
-        const url = match[1];
+      
+      // Filter and convert to full URLs
+      const articles = [];
+      matches.forEach((match) => {
+        let url = match[1];
         const title = match[2].replace(/<[^>]*>/g, '').trim();
-        console.log(`${i + 1}. ${title}`);
-        console.log(`   ${url}\n`);
+        
+        // Convert relative URLs to absolute
+        if (url.startsWith('/')) {
+          url = `https://tvline.com${url}`;
+        }
+        
+        // Only include tvline.com URLs
+        if (url.includes('tvline.com') && !url.includes('/movie/') && !url.includes('/box-office/')) {
+          articles.push({ url, title });
+        }
+      });
+      
+      console.log(`Filtered to ${articles.length} relevant streaming articles:\n`);
+      articles.slice(0, 10).forEach((article, i) => {
+        console.log(`${i + 1}. ${article.title}`);
+        console.log(`   ${article.url}\n`);
       });
     }
     
