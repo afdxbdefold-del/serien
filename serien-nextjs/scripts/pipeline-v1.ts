@@ -527,6 +527,7 @@ export async function runContentPipeline(source: CrawledSource) {
         primarySeriesName: resolution.primarySeries.name,
         platform: resolution.primarySeries.networks?.[0],
         extractedFacts: facts.key_statements.join('\n'),
+        isRankingList: isRankingList, // EMERGENT_RULESET_UPDATE
       });
 
       console.log(`📊 Quality Scores:`);
