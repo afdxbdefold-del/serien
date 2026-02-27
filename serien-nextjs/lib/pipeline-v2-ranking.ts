@@ -408,7 +408,7 @@ ${generatedItems.join('\n\n')}
           connect: { tmdbId: primarySeries.tmdbId }
         },
         author: {
-          connect: { email: 'admin@emergent.de' }
+          connect: { email: 'redaktion@serien.de' }
         },
         heroImagePath: heroImagePath,
         heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
