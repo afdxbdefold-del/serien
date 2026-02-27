@@ -5,7 +5,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://serien.de';
 
   // Fetch all published articles
-  const articles = await prisma.article.findMany({
+  const articles = await prisma.articles.findMany({
     where: { status: 'published' },
     select: {
       slug: true,

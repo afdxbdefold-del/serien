@@ -197,7 +197,7 @@ async function reencodeVideo(storagePath: string): Promise<void> {
 async function main() {
   try {
     // Find articles with trailers
-    const articles = await prisma.article.findMany({
+    const articles = await prisma.articles.findMany({
       where: {
         trailerLocalUrl: { not: null }
       },

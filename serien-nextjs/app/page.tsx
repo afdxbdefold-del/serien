@@ -42,7 +42,7 @@ export const revalidate = 60; // Revalidate every 60 seconds
 export default async function Page() {
   // Fetch news, series, and stats from database
   const [articles, series, seriesCount, articlesCount] = await Promise.all([
-    prisma.article.findMany({
+    prisma.articles.findMany({
       where: { status: 'published' },
       include: {
         author: { 
@@ -67,7 +67,7 @@ export default async function Page() {
       take: 20
     }),
     prisma.series.count(),
-    prisma.article.count({ where: { status: 'published' } })
+    prisma.articles.count({ where: { status: 'published' } })
   ]);
 
   const stats = {

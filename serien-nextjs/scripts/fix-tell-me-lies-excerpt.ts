@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 async function fixTellMeLiesExcerpt() {
   const distinctLead = 'Hulu zieht nach drei Staffeln den Stecker: „Tell Me Lies" wird nicht fortgesetzt. Die toxische Drama-Serie um Lucy und Stephen endet ohne weitere Fortsetzung – trotz offener Fragen und Spekulationen der Fans.';
   
-  await prisma.article.updateMany({
+  await prisma.articles.updateMany({
     where: { slug: 'tell-me-lies-staffel-4' },
     data: { excerpt: distinctLead }
   });

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { streamers, seriesIds } = await request.json();
 
     // Update user with streamers and onboarding complete
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: user.id },
       data: {
         favoriteStreamers: streamers || [],

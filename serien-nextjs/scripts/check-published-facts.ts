@@ -14,7 +14,7 @@ async function checkPublishedArticle(slug: string) {
   console.log('='.repeat(70));
   console.log(`Article: ${slug}\n`);
 
-  const article = await prisma.article.findUnique({
+  const article = await prisma.articles.findUnique({
     where: { slug },
     select: {
       id: true,

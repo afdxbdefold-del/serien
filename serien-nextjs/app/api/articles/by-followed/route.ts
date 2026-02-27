@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     // Get articles for the followed series
-    const articles = await prisma.article.findMany({
+    const articles = await prisma.articles.findMany({
       where: {
         status: 'published',
         primarySeriesId: {

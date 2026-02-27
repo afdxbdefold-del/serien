@@ -623,7 +623,7 @@ export async function runContentPipeline(source: CrawledSource) {
       qualityResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
       
       // Get author for draft
-      const authors = await prisma.user.findMany({
+      const authors = await prisma.users.findMany({
         where: { role: 'author' },
         select: { id: true }
       });
@@ -635,7 +635,7 @@ export async function runContentPipeline(source: CrawledSource) {
       const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
       
-      const draftArticle = await prisma.article.create({
+      const draftArticle = await prisma.articles.create({
         data: {
           id: `draft-${Date.now()}`,
           slug: `${slug}-draft`,
@@ -702,7 +702,7 @@ export async function runContentPipeline(source: CrawledSource) {
         console.log(`\n🚫 HEADLINE contains unverified facts - SAVING AS DRAFT`);
         
         // Save as DRAFT with fact safety violations
-        const authors = await prisma.user.findMany({
+        const authors = await prisma.users.findMany({
           where: { role: 'author' },
           take: 10,
           select: { id: true }
@@ -713,7 +713,7 @@ export async function runContentPipeline(source: CrawledSource) {
         const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
         
-        const draftArticle = await prisma.article.create({
+        const draftArticle = await prisma.articles.create({
           data: {
             id: `draft-fact-safety-${Date.now()}`,
             slug: `${slug}-draft-fact`,
@@ -768,7 +768,7 @@ export async function runContentPipeline(source: CrawledSource) {
         if (recheckResult.status === 'UNSAFE') {
           console.log('❌ Rewrite still contains unverified facts - SAVING AS DRAFT');
           
-          const authors = await prisma.user.findMany({
+          const authors = await prisma.users.findMany({
             where: { role: 'author' },
             take: 10,
             select: { id: true }
@@ -779,7 +779,7 @@ export async function runContentPipeline(source: CrawledSource) {
           const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
           
-          const draftArticle = await prisma.article.create({
+          const draftArticle = await prisma.articles.create({
             data: {
               id: `draft-fact-retry-${Date.now()}`,
               slug: `${slug}-draft-fact2`,
@@ -892,7 +892,7 @@ export async function runContentPipeline(source: CrawledSource) {
       antiAiResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
       
       // Save as DRAFT (same logic as quality fail)
-      const authors = await prisma.user.findMany({
+      const authors = await prisma.users.findMany({
         where: { role: 'author' },
         select: { id: true }
       });
@@ -902,7 +902,7 @@ export async function runContentPipeline(source: CrawledSource) {
       const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
       
-      const draftArticle = await prisma.article.create({
+      const draftArticle = await prisma.articles.create({
         data: {
           id: `draft-ai-${Date.now()}`,
           slug: `${slug}-draft-ai`,
@@ -1129,7 +1129,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
     try {
       // FIRST: Check if we already have a trailer for this series in DB
-      const existingTrailer = await prisma.article.findFirst({
+      const existingTrailer = await prisma.articles.findFirst({
         where: {
           primarySeriesId: resolution.primarySeries.tmdbId,
           trailerLocalUrl: { not: null }
@@ -1255,7 +1255,7 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('━'.repeat(70));
 
     // Check for duplicate
-    const existingArticle = await prisma.article.findUnique({
+    const existingArticle = await prisma.articles.findUnique({
       where: { sourceUrl: source.url }
     });
 

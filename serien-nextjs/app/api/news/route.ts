@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const skip = parseInt(searchParams.get('skip') || '0');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const articles = await prisma.article.findMany({
+    const articles = await prisma.articles.findMany({
       where: { status: 'published' },
       include: {
         author: {

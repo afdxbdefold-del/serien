@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma';
 
 async function checkLinks() {
-  const article = await prisma.article.findFirst({
+  const article = await prisma.articles.findFirst({
     where: { slug: 'a-knight-of-the-seven-kingdoms-episode-4-recap' },
     select: { contentHtml: true }
   });

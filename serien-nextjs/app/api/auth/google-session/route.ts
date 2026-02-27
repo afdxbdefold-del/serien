@@ -36,12 +36,12 @@ export async function POST(request: NextRequest) {
     const { email, name, picture } = authData;
 
     // Find or create user
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email },
     });
 
     if (!user) {
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
           email,
           name: name || email.split('@')[0],
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       });
     } else if (picture && user.image !== picture) {
       // Update image if changed
-      user = await prisma.user.update({
+      user = await prisma.users.update({
         where: { id: user.id },
         data: { image: picture },
       });

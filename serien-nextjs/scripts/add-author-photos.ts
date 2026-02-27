@@ -62,7 +62,7 @@ async function addPhotos() {
   
   for (const author of AUTHOR_PHOTOS) {
     try {
-      await prisma.user.update({
+      await prisma.users.update({
         where: { email: author.email },
         data: { image: author.image }
       });

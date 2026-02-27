@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { slug } = await params;
     
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { slug },
       select: { id: true }
     });
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
 
-    const comments = await prisma.comment.findMany({
+    const comments = await prisma.comments.findMany({
       where: {
         articleId: article.id,
         parentId: null, // Only top-level comments
@@ -72,7 +72,7 @@ export async function POST(
       );
     }
 
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { slug },
       select: { id: true }
     });
@@ -87,7 +87,7 @@ export async function POST(
       return NextResponse.json({ error: 'Content required' }, { status: 400 });
     }
 
-    const comment = await prisma.comment.create({
+    const comment = await prisma.comments.create({
       data: {
         articleId: article.id,
         userId: user.id,

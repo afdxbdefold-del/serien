@@ -56,7 +56,7 @@ export async function calculateSeriesStatus(
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const recentArticles = await prisma.article.findMany({
+  const recentArticles = await prisma.articles.findMany({
     where: {
       primarySeriesId: seriesId,
       publishedAt: {

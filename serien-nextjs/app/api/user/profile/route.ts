@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user with follow and article counts
-    const userData = await prisma.user.findUnique({
+    const userData = await prisma.users.findUnique({
       where: { id: user.id },
       include: {
         _count: {
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
 
     const { name, image } = await request.json();
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.users.update({
       where: { id: user.id },
       data: {
         ...(name && { name }),

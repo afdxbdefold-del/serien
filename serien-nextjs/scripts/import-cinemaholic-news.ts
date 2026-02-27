@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function importNews() {
   try {
     // Get or create author
-    const author = await prisma.user.upsert({
+    const author = await prisma.users.upsert({
       where: { email: 'import@serien.de' },
       update: {},
       create: {
@@ -17,7 +17,7 @@ async function importNews() {
     });
 
     // Create article
-    const article = await prisma.article.create({
+    const article = await prisma.articles.create({
       data: {
         id: 'ella-morgan-news-' + Date.now(),
         slug: 'dakota-fanning-ella-morgan-dreht-in-new-york',

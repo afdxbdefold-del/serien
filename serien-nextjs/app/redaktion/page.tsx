@@ -21,7 +21,7 @@ function getRandomGradient() {
 }
 
 export default async function RedaktionPage() {
-  const authors = await prisma.user.findMany({
+  const authors = await prisma.users.findMany({
     where: { role: 'author' },
     select: {
       id: true,

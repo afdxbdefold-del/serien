@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { email, name, picture } = userData;
 
     // Find or create user
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email },
     });
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Create new user from Google OAuth
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
           email,
           name: name || email.split('@')[0],
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Update existing user's image if changed
       if (picture && user.image !== picture) {
-        user = await prisma.user.update({
+        user = await prisma.users.update({
           where: { email },
           data: { image: picture },
         });

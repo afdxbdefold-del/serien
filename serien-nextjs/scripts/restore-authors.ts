@@ -89,7 +89,7 @@ async function restoreAuthors() {
 
   for (const author of AUTHORS_DATA) {
     try {
-      await prisma.user.upsert({
+      await prisma.users.upsert({
         where: { email: author.email },
         update: {
           name: author.name,
@@ -116,14 +116,14 @@ async function restoreAuthors() {
   console.log('\n🗑️  Removing test authors...');
   for (const email of testAuthors) {
     try {
-      await prisma.user.delete({ where: { email } });
+      await prisma.users.delete({ where: { email } });
       console.log(`❌ Removed: ${email}`);
     } catch (error) {
       // Ignore if not found
     }
   }
 
-  const totalAuthors = await prisma.user.count({ where: { role: 'author' } });
+  const totalAuthors = await prisma.users.count({ where: { role: 'author' } });
   
   console.log(`\n📊 Summary:`);
   console.log(`   Created: ${created}`);

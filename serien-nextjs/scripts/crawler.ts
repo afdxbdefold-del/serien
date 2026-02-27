@@ -54,7 +54,7 @@ async function importNewsArticle(article: NewsArticle) {
     console.log('\n🔍 Starte Import für:', article.title);
 
     // 1. Get or create author
-    const author = await prisma.user.upsert({
+    const author = await prisma.users.upsert({
       where: { email: 'crawler@serien.de' },
       update: {},
       create: {
@@ -109,7 +109,7 @@ async function importNewsArticle(article: NewsArticle) {
 
     // 4. Create article
     const slug = generateSlug(article.title);
-    const articleData = await prisma.article.create({
+    const articleData = await prisma.articles.create({
       data: {
         id: `crawler-${Date.now()}`,
         slug,
