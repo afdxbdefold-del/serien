@@ -24,8 +24,8 @@ async function testScraper() {
     const html = await response.text();
     console.log(`✅ HTML fetched (${html.length} bytes)\n`);
     
-    // Test the regex pattern
-    const titleRegex = /<h[23][^>]*class="[^"]*post-title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gi;
+    // Test the regex pattern (UPDATED PATTERN)
+    const titleRegex = /<h[23][^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gi;
     const matches = Array.from(html.matchAll(titleRegex));
     
     console.log(`📊 Found ${matches.length} article links\n`);
