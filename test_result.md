@@ -354,6 +354,42 @@ test_plan:
           agent: "testing"
           comment: "✅ TESTED (2026-02-27): Gray House article (/die-wahre-geschichte-von-the-gray-house-erklaert) DirectVideoPlayer component UI working correctly. FINDINGS: (1) ✅ Hero image displays properly with correct alt text 'Die wahre Geschichte von The Gray House, erklärt' and loads successfully (not broken). Image served via /img/hero/tv/211178 (TMDB pipeline). (2) ✅ Play button overlay is visible, centered (x=920, y=330, size 80x80px), and clickable. (3) ✅ Clicking play button correctly triggers video player state change. (4) ✅ Error handling works correctly - displays 'Trailer nicht verfügbar' message with red alert icon and 'Zurück' button when video fails to load. (5) ❌ Video file 'serien-nextjs/trailers/the-gray-house-------s-0y-.mp4' fails to play in Playwright (codec limitation - consistent with previous InlineVideoPlayer tests). API endpoint verified working (HTTP 200, 4.4MB file, proper headers, accept-ranges support). (6) CONCLUSION: UI implementation is correct. All components (hero image, play button, error state) work as designed. Video playback failure is Playwright/containerized environment limitation, not a code issue."
 
+  - task: "Gray House Article - Series Infobox Component"
+    implemented: true
+    working: false
+    file: "/app/serien-nextjs/app/[slug]/page.tsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "❌ CRITICAL BUG (2026-02-27): Series Infobox NOT rendering on Gray House article page (/die-wahre-geschichte-von-the-gray-house-erklaert). ROOT CAUSE IDENTIFIED: Prisma relation name mismatch in article page query. Line 92 uses `primarySeries: true` but schema line 84 shows relation is named `series` not `primarySeries`. Lines 274-280, 295-302 reference `article.primarySeries` which is undefined, causing both SeriesInfobox and WhereToStreamBox to never render. DATABASE VERIFIED: Article has primarySeriesId=211178, series exists (The Gray House, tmdbId 211178, networks: Prime Video), article_qa has 3 questions. TESTING AGENT FIX APPLIED: Changed line 92 to `series: true`, line 93 to `article_qa: true`, updated all references from `article.primarySeries` to `article.series` and `article.articleQA` to `article.article_qa`. SECONDARY ISSUE: API endpoint /api/series/211178/infobox-data times out on production (ERR_ABORTED in console). Component tries to fetch but API fails, causing component to return null. Fix requires: (1) Deploy corrected code to production, (2) Investigate API timeout issue."
+
+  - task: "Gray House Article - WhereToStreamBox Component"
+    implemented: true
+    working: false
+    file: "/app/serien-nextjs/app/[slug]/page.tsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "❌ CRITICAL BUG (2026-02-27): WhereToStreamBox NOT rendering on Gray House article page. Same root cause as Series Infobox - Prisma relation mismatch. Lines 295-302 check `article.primarySeriesId && article.primarySeries` but `article.primarySeries` is undefined because query uses wrong relation name. Should be `article.series`. TESTING AGENT FIX APPLIED: Updated references to use `article.series`. Component should show Prime Video as streaming platform (verified in database: series.networks = ['Prime Video']). Requires deployment to production."
+
+  - task: "Gray House Article - Q&A Section"
+    implemented: true
+    working: true
+    file: "/app/serien-nextjs/components/ArticleQA.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED (2026-02-27): Q&A Section working perfectly on Gray House article (/die-wahre-geschichte-von-the-gray-house-erklaert). FINDINGS: (1) ✅ 'Fragen & Antworten' heading displays correctly. (2) ✅ All 3 Q&A items render with proper gray background (bg-gray-50). (3) ✅ Questions are bold/semibold as designed. (4) ✅ Questions verified: 'Was macht The Gray House historisch besonders?', 'Wie authentisch ist die Darstellung von Mary Jane Richards?', 'Welche Bedeutung hat die Serie für das Genre?'. (5) ✅ Answers display below each question with proper text-gray-700 styling. Component working as specified."
+
 agent_communication:
     - agent: "testing"
       message: "CRITICAL ISSUE FOUND AND RESOLVED: The application is using React 19.0.0 which has built-in metadata support that fundamentally conflicts with react-helmet-async. All pages were showing red error screens with 'Helmet expects a string as a child of <title>' errors. Solution: Replaced react-helmet-async with custom usePageMeta hook that directly manipulates document.title and meta tags. This is the recommended approach for React 19 according to GitHub issue #239."
