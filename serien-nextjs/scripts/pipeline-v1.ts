@@ -779,6 +779,32 @@ export async function runContentPipeline(source: CrawledSource) {
 
     console.log('✅ Anti-AI Filter PASSED');
 
+    // ========== STEP 6.5: ACTOR EXTRACTION ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 6.5: ACTOR EXTRACTION & TMDB LINKING');
+    console.log('━'.repeat(70));
+
+    let linkedActorsCount = 0;
+    
+    try {
+      const { processArticleActors } = await import('../lib/actor-extraction.js');
+      
+      linkedActorsCount = await processArticleActors(
+        result.id,
+        result.contentHtml,
+        result.primarySeries.title
+      );
+      
+      if (linkedActorsCount > 0) {
+        console.log(`✅ ${linkedActorsCount} actors linked to article`);
+      } else {
+        console.log('⚠️  No actors linked (extraction or TMDB match failed)');
+      }
+      
+    } catch (error: any) {
+      console.log(`⚠️  Actor extraction skipped: ${error.message}`);
+    }
+
     // ========== STEP 7: DISCOVER GATE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7: DISCOVER GATE');
