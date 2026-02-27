@@ -346,8 +346,7 @@ ${generatedItems.join('\n\n')}
     const metaDescription = await generateMetaDescription(
       fullContent,
       input.sourceTitle,
-      input.primarySeriesName!,
-      false // isRankingList handled internally
+      input.primarySeriesName!
     );
     
     console.log(`✅ Meta description generated (${metaDescription.length} chars)`);
