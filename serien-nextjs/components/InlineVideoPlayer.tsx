@@ -54,10 +54,19 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
         <>
           {/* Video Player */}
           <video
-            className="w-full h-full object-contain"
+            className="w-full h-full"
             controls
             autoPlay
+            playsInline
+            preload="auto"
             src={`/trailer/${trailerUrl}`}
+            onError={(e) => {
+              console.error('Video error:', e);
+              const video = e.currentTarget;
+              console.error('Error code:', video.error?.code, 'Message:', video.error?.message);
+            }}
+            onLoadedMetadata={() => console.log('Video metadata loaded')}
+            onCanPlay={() => console.log('Video can play')}
           >
             Ihr Browser unterstützt das Video-Tag nicht.
           </video>
