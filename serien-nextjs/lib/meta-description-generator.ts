@@ -112,6 +112,8 @@ function extractTheme(content: string): string {
 
 /**
  * Generate template-based meta description
+ * REMOVED: Generic templates with forbidden phrases
+ * NOW: Uses distinct-lead-generator for unique descriptions
  */
 async function generateTemplateDescription(
   type: 'NEWS' | 'THEORY' | 'REVIEW',
@@ -119,25 +121,29 @@ async function generateTemplateDescription(
   content: string,
   title: string
 ): Promise<string> {
-  let description = '';
+  // Import distinct lead generator
+  const { generateDistinctLead } = await import('./distinct-lead-generator');
   
-  switch (type) {
-    case 'NEWS':
-      const coreFact = extractCoreFact(content, title, seriesName);
-      const safeSeries = seriesName || 'die Serie';
-      const safeFact = coreFact || 'aktuelle Entwicklungen';
-      description = `Aktuelle Entwicklungen zu ${safeSeries}. Neue Informationen zu ${safeFact}, offiziell bekannt und verständlich zusammengefasst.`;
-      break;
-      
-    case 'THEORY':
-      const theme = extractTheme(content);
-      const safeSeriesTheory = seriesName || 'die Serie';
-      description = `Was bei ${safeSeriesTheory} als Nächstes passieren könnte. Plausible Theorien zur ${theme}, basierend auf bekannten Informationen.`;
-      break;
-      
-    case 'REVIEW':
-      const safeSeriesReview = seriesName || 'die Serie';
-      description = `Eine sachliche Einordnung zu ${safeSeriesReview}. Stärken, Schwächen und was die Serie für Fans wirklich bietet.`;
+  // Extract key facts from content
+  const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+  const sentences = plainText.split(/[.!?]+/).filter(s => s.trim().length > 20).slice(0, 5);
+  
+  // Generate unique lead using the same system as articles
+  try {
+    const uniqueLead = await generateDistinctLead({
+      articleHtml: content,
+      headline: title,
+      seriesName: seriesName || 'die Serie',
+      facts: sentences
+    });
+    
+    // Trim to 155 characters for meta description
+    return uniqueLead.substring(0, 155).trim();
+  } catch (error: any) {
+    console.error(`Meta description generation failed: ${error.message}`);
+    throw new Error(`Cannot generate meta description: ${error.message}`);
+  }
+}
       break;
   }
   
