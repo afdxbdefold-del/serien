@@ -1279,6 +1279,31 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('🎉 PIPELINE COMPLETE');
     console.log('='.repeat(70) + '\n');
 
+    // ========== STEP 10: GENERATE Q&A (AUTO) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 10: GENERATE Q&A');
+    console.log('━'.repeat(70));
+
+    try {
+      console.log('🤔 Generating Q&A for article...');
+      
+      const qaResponse = await fetch('http://localhost:3000/api/qa/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId: result.id }),
+      });
+
+      if (qaResponse.ok) {
+        const qaData = await qaResponse.json();
+        console.log(`✅ Q&A generated: ${qaData.questionCount} questions`);
+        console.log(`   Schema enabled: ${qaData.schemaEnabled ? 'YES' : 'NO'}`);
+      } else {
+        console.log('⚠️  Q&A generation failed (non-critical)');
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Q&A generation skipped: ${error.message}`);
+    }
+
     return {
       success: true,
       article: result,
