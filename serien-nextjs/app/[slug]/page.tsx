@@ -89,8 +89,8 @@ export default async function ArticlePage({ params }: PageProps) {
     where: { slug },
     include: {
       author: true,
-      primarySeries: true,
-      articleQA: true, // Include Q&A
+      series: true, // Fixed: use 'series' not 'primarySeries'
+      article_qa: true, // Fixed: use 'article_qa' not 'articleQA'
     },
   });
 
