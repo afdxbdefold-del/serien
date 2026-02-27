@@ -392,6 +392,9 @@ test_plan:
         - working: false
           agent: "testing"
           comment: "❌ BLOCKED (2026-02-27): Cannot test due to global Prisma model naming issue. See Series Infobox task for details."
+        - working: false
+          agent: "testing"
+          comment: "❌ NOT RENDERING (2026-02-27): TESTING AGENT FIX: Fixed Prisma 'author' to 'users' relation issue. Article page NOW loads. However, WhereToStreamBox component still NOT visible on page. ROOT CAUSE: WhereToStreamBox component returns null when TMDB API (getTVWatchProviders) returns no streaming providers for tmdbId 211178. Condition on line 295 `article.primarySeriesId && article.series` evaluates true, component IS called with correct props (seriesId=211178, seriesName='The Gray House', networks=['Prime Video'], slug='211178-the-gray-house'), BUT component internally returns null because TMDB API has no watch provider data for this series. This is NOT a code bug - it's TMDB API data availability issue. Component works as designed (returns null when no providers found). Series does show 'Prime Video' in networks field in database, but TMDB doesn't have streaming/watch provider data for this specific series ID. NOTE: 'Prime Video' text visible in Series Infobox as part of genre display ('Drama - Prime Video'), not from WhereToStreamBox. CONCLUSION: WhereToStreamBox implementation is CORRECT, but cannot display without TMDB watch provider data."
 
   - task: "Gray House Article - Q&A Section"
     implemented: true
