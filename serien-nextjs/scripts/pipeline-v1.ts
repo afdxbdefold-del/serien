@@ -805,6 +805,28 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`⚠️  Actor extraction skipped: ${error.message}`);
     }
 
+    // ========== STEP 6.6: AUTO-LINKING ACTORS ==========
+    if (linkedActorsCount > 0) {
+      console.log('\n' + '━'.repeat(70));
+      console.log('STEP 6.6: AUTO-LINKING ACTORS IN CONTENT');
+      console.log('━'.repeat(70));
+
+      try {
+        const { applyAutoLinking } = await import('../lib/actor-auto-linking.js');
+        
+        const linked = await applyAutoLinking(result.id);
+        
+        if (linked) {
+          console.log('✅ Auto-linking complete');
+        } else {
+          console.log('⚠️  No changes made (no matches found)');
+        }
+        
+      } catch (error: any) {
+        console.log(`⚠️  Auto-linking skipped: ${error.message}`);
+      }
+    }
+
     // ========== STEP 7: DISCOVER GATE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7: DISCOVER GATE');
