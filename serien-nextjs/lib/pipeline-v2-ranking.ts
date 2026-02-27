@@ -370,17 +370,44 @@ ${generatedItems.join('\n\n')}
     
     console.log(`✅ Meta description generated (${metaDescription.length} chars)`);
     
-    // ========== STEP 8: TRANSLATE HEADLINE ==========
+    // ========== STEP 8: TRANSLATE HEADLINE (PRESERVE ORIGINAL) ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 8: HEADLINE');
+    console.log('STEP 8: HEADLINE TRANSLATION');
     console.log('━'.repeat(70));
     
-    // For rankings, keep original headline (just translate if needed)
-    const finalHeadline = input.sourceTitle.includes('Game of Thrones') 
-      ? input.sourceTitle.replace(/Game of Thrones/gi, 'Game of Thrones')
-      : input.sourceTitle;
+    // For rankings, translate to German but preserve original wording/intent
+    const isEnglish = /[a-z]/i.test(input.sourceTitle) && !/[äöüß]/i.test(input.sourceTitle);
     
-    console.log(`✅ Headline: ${finalHeadline}`);
+    let finalHeadline = input.sourceTitle;
+    
+    if (isEnglish) {
+      // Simple translation mapping for rankings
+      finalHeadline = input.sourceTitle
+        .replace(/Best Episodes/gi, 'Beste Episoden')
+        .replace(/Top Episodes/gi, 'Top-Episoden')
+        .replace(/Ranked/gi, '')
+        .replace(/Episodes/gi, 'Episoden')
+        .replace(/Must-Watch/gi, 'Muss man sehen')
+        .replace(/Greatest/gi, 'Größte')
+        .replace(/Worst/gi, 'Schlechteste')
+        .replace(/\s*,\s*$/,'') // Remove trailing comma
+        .trim()
+        .replace(/\s+/g, ' ');
+      
+      console.log(`   Original: ${input.sourceTitle}`);
+      console.log(`   Translated: ${finalHeadline}`);
+      console.log(`   Mode: TRANSLATED_PRESERVED`);
+    } else {
+      console.log(`   Already German: ${finalHeadline}`);
+    }
+    
+    // Fallback if translation failed
+    if (!finalHeadline || finalHeadline.length < 10) {
+      finalHeadline = input.sourceTitle;
+      console.log(`   ⚠️  Translation failed, using original`);
+    }
+    
+    console.log(`✅ Final Headline: ${finalHeadline}`);
     
     // ========== STEP 9: PROCESS IMAGES ==========
     console.log('\n' + '━'.repeat(70));
