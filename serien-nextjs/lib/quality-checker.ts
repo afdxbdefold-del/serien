@@ -8,7 +8,7 @@
 
 const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
 
-type ArticleType = 'SHORT_NEWS' | 'FULL_NEWS';
+type ArticleType = 'SHORT_NEWS' | 'FULL_NEWS' | 'RANKING_LIST';
 
 interface QualityCheckInput {
   generatedArticleHtml: string;
