@@ -60,8 +60,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
             muted
             playsInline
             preload="metadata"
-            src={`/trailer/${trailerUrl}?v=2`}
-            key={trailerUrl}
+            src={`/trailer/${trailerUrl}?v=${Date.now()}`}
+            key={Date.now()}
             onError={(e) => {
               console.error('❌ Video error:', e);
               const video = e.currentTarget;
