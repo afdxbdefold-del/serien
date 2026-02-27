@@ -75,13 +75,6 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
           </div>
         ))}
       </div>
-
-      {/* Single disclaimer at the end (only if some answers are non-factual) */}
-      {questions.some(q => !q.factual) && (
-        <p className="text-sm text-gray-600 mt-6 pt-4 border-t border-gray-200 italic">
-          <strong>Hinweis:</strong> Einige Antworten basieren auf aktuellen Einschätzungen, da noch keine offiziellen Bestätigungen vorliegen.
-        </p>
-      )}
     </section>
   );
 }
