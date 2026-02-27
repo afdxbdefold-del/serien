@@ -377,6 +377,9 @@ test_plan:
         - working: true
           agent: "testing"
           comment: "✅ VERIFIED (2026-02-27): Series Infobox NOW WORKING. TESTING AGENT CRITICAL FIX: Fixed Prisma relation name from 'author' to 'users' in /app/serien-nextjs/app/[slug]/page.tsx (lines 91, 121, and all display references lines 225-242). Page was returning 404 due to 'Unknown field author' error in Prisma query. After fix, article page loads successfully. Series Infobox displays correctly with 'Mehr zur Serie The Gray House' heading, series poster image, status info (Läuft - 1 Staffel), genre (Drama - Prime Video), description, and 'Zur Serien-Übersicht' button linking to /serie/211178-the-gray-house. Component rendering perfectly as designed."
+        - working: true
+          agent: "testing"
+          comment: "✅ FINAL COMPREHENSIVE TEST COMPLETE (2026-02-27): Tested Gray House article after ALL Prisma fixes (prisma.articles, prisma.users, prisma.comments). VERIFICATION RESULTS: (1) ✅ Page loads without errors - no Prisma relation errors detected. (2) ✅ Series Infobox renders correctly with heading 'Mehr zu The Gray House', series description content, status info, and 'Zur Serien-Übersicht' button (href: /serie/211178). (3) ✅ All series info markers present: 'Mehr zur Serie', 'The Gray House', 'Läuft', 'Prime Video', button link. (4) ✅ Component displays at correct position (after article content, before Q&A section at scroll Y=1500-2000). API endpoint /api/series/211178/infobox-data working correctly. Component fully functional as designed."
 
   - task: "Gray House Article - WhereToStreamBox Component"
     implemented: true
