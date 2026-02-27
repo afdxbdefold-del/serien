@@ -53,9 +53,14 @@ function detectArticleType(title: string, content: string): 'NEWS' | 'THEORY' | 
 /**
  * Extract core fact from content (for NEWS template)
  */
-function extractCoreFact(content: string, title: string): string {
+function extractCoreFact(content: string, title: string, seriesName?: string): string {
   const plainText = content.replace(/<[^>]*>/g, ' ').trim();
   const titleLower = title.toLowerCase();
+  
+  // RANKING_LIST: Use generic teaser without series variable
+  if (/\b(best|top|ranking|ranked|episodes|moments|must-watch|list)\b/i.test(titleLower)) {
+    return 'Top-Episoden und wichtige Highlights';
+  }
   
   // Episode breakdown/explanation
   if (/episode|staffel.*episode|folge|erklärt|analysiert|breakdown|breaks down/i.test(titleLower)) {
