@@ -463,6 +463,40 @@ ${generatedItems.join('\n\n')}
     
     console.log(`✍️  Selected author: ${selectedAuthor.name || selectedAuthor.email}`);
     
+    // ========== STEP: TRAILER DOWNLOAD ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP: TRAILER DOWNLOAD');
+    console.log('━'.repeat(70));
+    
+    let trailerLocalPath: string | null = null;
+    
+    try {
+      // Check if we already have a trailer for this series in DB
+      const existingTrailer = await prisma.article.findFirst({
+        where: {
+          primarySeriesId: primarySeries.tmdbId,
+          trailerLocalUrl: { not: null }
+        },
+        select: { 
+          trailerLocalUrl: true,
+          title: true
+        }
+      });
+      
+      if (existingTrailer?.trailerLocalUrl) {
+        console.log(`✅ Reusing existing trailer from DB`);
+        console.log(`   Source: "${existingTrailer.title}"`);
+        console.log(`   Path: ${existingTrailer.trailerLocalUrl}`);
+        trailerLocalPath = existingTrailer.trailerLocalUrl;
+      } else {
+        console.log('⊘  No existing trailer in DB for this series');
+        console.log('   → Continuing without trailer (can be added later)');
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Trailer check error: ${error.message}`);
+      console.log('   → Continuing without trailer');
+    }
+    
     const slug = finalHeadline
       .toLowerCase()
       .replace(/[^a-z0-9äöüß]+/g, '-')
@@ -490,6 +524,7 @@ ${generatedItems.join('\n\n')}
         heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
         cardImageUrl: heroImagePath ? `/img/card/article/${articleId}` : null,
         ogImageUrl: heroImagePath ? `/img/og/article/${articleId}` : null,
+        trailerLocalUrl: trailerLocalPath, // Add trailer support
         status: 'published',
         publishMode: wordCount >= 900 ? 'DISCOVER' : 'SEARCH_ONLY',
         publishedAt: new Date(),
