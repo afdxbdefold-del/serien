@@ -16,6 +16,7 @@ interface QualityCheckInput {
   primarySeriesName: string;
   platform?: string;
   extractedFacts?: string;
+  isRankingList?: boolean; // NEW: For RANKING_LIST override
 }
 
 interface QualityScores {
