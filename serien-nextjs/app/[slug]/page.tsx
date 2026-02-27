@@ -277,7 +277,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
           <div 
             className="prose prose-lg max-w-none mb-12"
-            dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '') }}
+            dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
           />
         </section>
 
