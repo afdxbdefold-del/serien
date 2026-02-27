@@ -471,7 +471,7 @@ ${generatedItems.join('\n\n')}
           connect: { tmdbId: primarySeries.tmdbId }
         },
         author: {
-          connect: { email: 'redaktion@serien.de' }
+          connect: { id: selectedAuthor.id }
         },
         heroImagePath: heroImagePath,
         heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
