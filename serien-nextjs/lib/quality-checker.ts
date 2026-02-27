@@ -83,7 +83,7 @@ export async function qualityCheck(input: QualityCheckInput): Promise<QualityChe
   const wordCount = plainText.split(/\s+/).length;
   
   // Detect article type
-  const articleType = detectArticleType(wordCount);
+  const articleType = detectArticleType(wordCount, input.isRankingList);
   const thresholds = QUALITY_THRESHOLDS[articleType];
   
   console.log(`📏 Article Type: ${articleType} (${wordCount} words)`);
