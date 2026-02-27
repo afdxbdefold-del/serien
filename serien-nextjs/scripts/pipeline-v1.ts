@@ -805,6 +805,7 @@ export async function runContentPipeline(source: CrawledSource) {
       articleHtml: generatedContent,
       headline: articleTitle,
       seriesName: resolution.primarySeries.name,
+      isRankingList: isRankingList, // EMERGENT_RULESET_UPDATE
     });
 
     const antiAiScoreBeforeRewrite = antiAiResult.antiAiScore; // Store for comparison
