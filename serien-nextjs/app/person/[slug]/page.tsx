@@ -168,7 +168,7 @@ export default async function PersonPage({ params }: PersonPageProps) {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {relatedSeries.map((series) => (
                 <Link
-                  key={series.id}
+                  key={series.tmdbId}
                   href={`/serie/${series.slug}`}
                   className="group"
                 >
