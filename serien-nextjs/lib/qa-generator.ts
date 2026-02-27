@@ -10,10 +10,19 @@
 
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.EMERGENT_LLM_KEY,
-  baseURL: 'https://integrations.emergentagent.com/openai/v1',
-});
+// Initialize OpenAI with Emergent LLM integration
+const getOpenAIClient = () => {
+  const apiKey = process.env.EMERGENT_LLM_KEY;
+  
+  if (!apiKey) {
+    throw new Error('EMERGENT_LLM_KEY not found in environment');
+  }
+
+  return new OpenAI({
+    apiKey: apiKey,
+    baseURL: 'https://integrations.emergentagent.com/openai/v1',
+  });
+};
 
 export interface QAItem {
   question: string;
@@ -84,6 +93,8 @@ WICHTIG:
 - Keine optimistische Verzerrung`;
 
   try {
+    const openai = getOpenAIClient();
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -158,6 +169,8 @@ Antworte NUR mit JSON:
 }`;
 
   try {
+    const openai = getOpenAIClient();
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
