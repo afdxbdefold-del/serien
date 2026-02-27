@@ -7,6 +7,53 @@ import OpenAI from 'openai';
 import { ExtractedFacts } from './fact-extractor';
 import { generateNaturalArticleHTML, validateArticleHTML } from './article-formatter';
 
+
+// EMERGENT_RULESET_UPDATE: RANKING_LIST Prompt
+const CONTENT_GENERATION_PROMPT_RANKING = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
+
+AUFGABE: Erstelle einen deutschen Ranking-Artikel über die besten Episoden einer TV-Serie.
+
+ZIEL-LÄNGE: 800-1800 Wörter (abhängig von Anzahl der Items)
+
+STRUKTUR:
+
+EINLEITUNG (80-120 Wörter):
+- Nenne die Serie und Plattform
+- Kurzer Kontext zur Serie (Laufzeit, Staffeln, kulturelle Bedeutung)
+- Was macht diese Auswahl besonders
+- 2-3 Absätze
+
+RANKING-LISTE:
+Für JEDES der Top-Episoden/Items:
+
+**[Platzierung]. [Episode-Titel oder Nummer]**
+- KONTEXT: In welcher Staffel, welcher Handlungsbogen? (1 Satz)
+- HIGHLIGHT: Was passiert in dieser Episode? (2-3 Sätze mit konkreten Details)
+- WARUM TOP: Warum gehört sie zu den Besten? (1-2 Sätze)
+
+Länge pro Item: 80-150 Wörter
+
+WICHTIGE REGELN:
+- KEINE Meta-Zusammenfassung ("Die folgenden Episoden...")
+- JEDES Item einzeln ausformulieren
+- Konkrete Plot-Details verwenden
+- Keine Platzhalter oder generische Beschreibungen
+- Absätze klar trennen
+
+TONALITÄT:
+- Sachlich, aber enthusiastisch
+- Faktenbasiert
+- Keine Übertreibungen
+- Glaubwürdig
+
+ABSOLUT VERBOTEN:
+- "Fans werden begeistert sein"
+- "Eine der besten Serien aller Zeiten"
+- Leere Superlative
+- KI-Phrasen
+
+Schreibe jetzt den vollständigen Ranking-Artikel (reiner Text, Absätze durch Leerzeilen getrennt).`;
+
 const CONTENT_GENERATION_PROMPT_NEWS = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
 
 SCHREIBREGELN:
