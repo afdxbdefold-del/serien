@@ -48,6 +48,13 @@ const QUALITY_THRESHOLDS = {
     HEADLINE_MIN: 75,
     CONTENT_MIN: 70,
     STRUCTURE_MIN: 65,
+  },
+  RANKING_LIST: {
+    WORDS_MIN: 800,    // EMERGENT_RULESET_UPDATE
+    HEADLINE_MIN: 70,
+    CONTENT_MIN: 65,
+    STRUCTURE_MIN: 60,
+    ALLOW_REPETITION: true, // Rankings naturally repeat structure
   }
 };
 
