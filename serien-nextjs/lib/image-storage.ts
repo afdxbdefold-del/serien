@@ -78,6 +78,7 @@ async function uploadToStorage(buffer: Buffer, storagePath: string): Promise<voi
 
 /**
  * Process and store hero image
+ * Google Discover optimized: 1600x900 (16:9), min 1200px width
  */
 export async function storeHeroImage(
   tmdbPath: string,
@@ -88,20 +89,20 @@ export async function storeHeroImage(
     // Download from TMDB
     const imageBuffer = await downloadTMDBImage(tmdbPath, 'original');
     
-    // Transform to Hero format (1280x720, 16:9)
+    // Transform to Hero format (1600x900, 16:9) - Google Discover optimized
     const processedImage = await sharp(imageBuffer)
-      .resize(1280, 720, {
+      .resize(1600, 900, {
         fit: 'cover',
         position: 'center',
       })
-      .webp({ quality: 85 })
+      .webp({ quality: 90 }) // Higher quality for Discover
       .toBuffer();
 
     // Upload to storage
     const storagePath = `serien-nextjs/images/hero/${type}/${id}.webp`;
     await uploadToStorage(processedImage, storagePath);
     
-    console.log(`✅ Hero image stored: ${storagePath}`);
+    console.log(`✅ Hero image stored: ${storagePath} (1600x900 - Google Discover ready)`);
     return storagePath;
   } catch (error) {
     console.error(`❌ Failed to store hero image:`, error);
