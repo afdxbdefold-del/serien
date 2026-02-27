@@ -130,8 +130,8 @@ async function reencodeVideo(storagePath: string): Promise<void> {
   
   // Re-encode with correct settings
   console.log('\n🔄 Re-encoding with web-optimized settings...');
-  console.log('   Profile: H.264 Constrained Baseline');
-  console.log('   Level: 3.0');
+  console.log('   Profile: H.264 Main (best mobile compatibility)');
+  console.log('   Level: 4.0');
   console.log('   Pixel Format: yuv420p');
   console.log('   Audio: AAC 128k');
   console.log('   Flags: +faststart (moov at beginning)');
@@ -139,7 +139,7 @@ async function reencodeVideo(storagePath: string): Promise<void> {
   try {
     await execAsync(
       `ffmpeg -i "${inputPath}" ` +
-      `-c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p ` +
+      `-c:v libx264 -profile:v main -level 4.0 -pix_fmt yuv420p ` +
       `-c:a aac -b:a 128k ` +
       `-movflags +faststart ` +
       `-preset fast ` +
