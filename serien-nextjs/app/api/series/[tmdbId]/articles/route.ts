@@ -13,10 +13,11 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tmdbId: string } }
+  { params }: { params: Promise<{ tmdbId: string }> }
 ) {
   try {
-    const seriesId = parseInt(params.tmdbId);
+    const { tmdbId } = await params;
+    const seriesId = parseInt(tmdbId);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '7', 10);
 

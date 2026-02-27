@@ -13,10 +13,11 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tmdbId: string } }
+  { params }: { params: Promise<{ tmdbId: string }> }
 ) {
   try {
-    const seriesId = parseInt(params.tmdbId);
+    const { tmdbId } = await params;
+    const seriesId = parseInt(tmdbId);
 
     if (isNaN(seriesId)) {
       return NextResponse.json(
