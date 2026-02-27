@@ -88,7 +88,7 @@ class TestQAAPIRoutes:
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
         data = response.json()
         assert "error" in data
-        assert "articleId" in data["error"].lower()
+        assert "articleid" in data["error"].lower()
         print(f"✓ POST without articleId returns 400 with error message")
     
     def test_qa_generate_get_requires_article_id(self):
