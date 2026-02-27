@@ -52,42 +52,26 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
         </>
       ) : (
         <>
-          {/* Video Player */}
+          {/* Video Player - Simplified for maximum compatibility */}
           <video
             className="w-full h-full"
             controls
-            autoPlay
-            muted
             playsInline
-            preload="metadata"
-            src={`/trailer/${trailerUrl}?v=${Date.now()}`}
-            key={Date.now()}
+            muted
+            preload="auto"
+            crossOrigin="anonymous"
             onError={(e) => {
               console.error('❌ Video error:', e);
               const video = e.currentTarget;
               console.error('Error code:', video.error?.code);
               console.error('Error message:', video.error?.message);
-              console.error('Video src:', video.src);
-              console.error('Network state:', video.networkState);
-              console.error('Ready state:', video.readyState);
             }}
-            onLoadStart={() => console.log('📡 Video load started')}
-            onLoadedMetadata={(e) => {
-              const video = e.currentTarget;
-              console.log('✅ Video metadata loaded:', {
-                duration: video.duration,
-                videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight
-              });
-            }}
-            onLoadedData={() => console.log('✅ Video data loaded')}
-            onCanPlay={() => console.log('✅ Video can play')}
-            onCanPlayThrough={() => console.log('✅ Video can play through')}
-            onPlaying={() => console.log('▶️ Video is playing')}
-            onWaiting={() => console.log('⏳ Video waiting for data')}
-            onStalled={() => console.log('⚠️ Video stalled')}
           >
-            Ihr Browser unterstützt das Video-Tag nicht.
+            <source 
+              src={`/trailer/${trailerUrl}`} 
+              type="video/mp4" 
+            />
+            <p>Dein Browser unterstützt HTML5 Video nicht.</p>
           </video>
         </>
       )}
