@@ -9,6 +9,7 @@ import { SeriesStatusBox } from '@/components/SeriesStatusBox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
+import ArticleQA from '@/components/ArticleQA';
 
 interface PageProps {
   params: Promise<{
