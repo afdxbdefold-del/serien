@@ -118,7 +118,7 @@ export default async function ArticlePage({ params }: PageProps) {
       heroLocalUrl: true,
       publishedAt: true,
       category: true,
-      author: {
+      users: {
         select: { name: true },
       },
     },
