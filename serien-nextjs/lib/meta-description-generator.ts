@@ -131,11 +131,13 @@ async function generateTemplateDescription(
       
     case 'THEORY':
       const theme = extractTheme(content);
-      description = `Was bei ${seriesName} als Nächstes passieren könnte. Plausible Theorien zur ${theme}, basierend auf bekannten Informationen.`;
+      const safeSeriesTheory = seriesName || 'die Serie';
+      description = `Was bei ${safeSeriesTheory} als Nächstes passieren könnte. Plausible Theorien zur ${theme}, basierend auf bekannten Informationen.`;
       break;
       
     case 'REVIEW':
-      description = `Eine sachliche Einordnung zu ${seriesName}. Stärken, Schwächen und was die Serie für Fans wirklich bietet.`;
+      const safeSeriesReview = seriesName || 'die Serie';
+      description = `Eine sachliche Einordnung zu ${safeSeriesReview}. Stärken, Schwächen und was die Serie für Fans wirklich bietet.`;
       break;
   }
   
