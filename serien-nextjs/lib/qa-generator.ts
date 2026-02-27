@@ -1,23 +1,26 @@
 /**
- * Q&A Generator for Articles and Series Pages
+ * Q&A Generator V2: Editorial Override
  * 
- * RULES:
- * - German only, neutral journalistic tone
- * - Factual answers only (max 90 words)
- * - No duplication with article body
- * - FAQPage schema only if factual
+ * RULE: Q&A behaves like editorial interpretation, NOT a helpdesk.
+ * 
+ * GLOBAL HARD BLOCK (DO NOT GENERATE):
+ * - "Wird [Serie] fortgesetzt?"
+ * - "Wo läuft / Wo kann ich streamen?"
+ * - "Worum geht es?"
+ * - "Wer spielt mit?"
+ * - Any question answerable via streaming availability, metadata, TMDB fields, sidebar boxes
+ * 
+ * ALLOWED: Interpretation, signal analysis, fan impact
+ * QUALITY GATE: If no strong editorial Q&A → OMIT entirely
  */
 
 import OpenAI from 'openai';
 
-// Initialize OpenAI with Emergent LLM integration
 const getOpenAIClient = () => {
   const apiKey = process.env.EMERGENT_LLM_KEY;
-  
   if (!apiKey) {
     throw new Error('EMERGENT_LLM_KEY not found in environment');
   }
-
   return new OpenAI({
     apiKey: apiKey,
     baseURL: 'https://integrations.emergentagent.com/openai/v1',
@@ -27,7 +30,7 @@ const getOpenAIClient = () => {
 export interface QAItem {
   question: string;
   answer: string;
-  factual: boolean; // true = include in schema, false = visual only
+  factual: boolean;
 }
 
 export interface ArticleQAInput {
@@ -35,145 +38,152 @@ export interface ArticleQAInput {
   contentHtml: string;
   seriesName: string;
   seriesStatus?: string;
-  facts?: any; // From pipeline extraction
+  facts?: any;
 }
 
-export interface SeriesQAInput {
-  seriesName: string;
-  overview: string;
-  status: string;
-  numberOfSeasons: number;
-  firstAirDate: string;
-  lastSeasonDate?: string;
-  latestNews?: string;
+const EDITORIAL_QA_PROMPT = `Du bist ein erfahrener Serien-Redakteur. Generiere 2-3 REDAKTIONELLE Q&A-Paare für einen Artikel.
+
+KRITISCHE REGELN - NIEMALS GENERIEREN:
+❌ "Wird [Serie] fortgesetzt?"
+❌ "Wo läuft / Wo kann ich streamen?"
+❌ "Worum geht es?"
+❌ "Wer spielt mit?"
+❌ Fragen, die mit Streaming, Metadata oder TMDB beantwortet werden können
+
+ERLAUBTE FRAGETYPEN (wähle 2-3):
+
+A) INTERPRETATION
+- "Was sagt die aktuelle Situation über die Zukunft der Serie aus?"
+- "Warum ist die Lage ungewöhnlich im Vergleich zu ähnlichen Serien?"
+
+B) SIGNAL-ANALYSE
+- "Welche Hinweise liefern bisherige Aussagen oder Entscheidungen?"
+- "Was lässt sich aus dem bisherigen Schweigen ableiten?"
+
+C) FAN-IMPACT
+- "Was bedeutet das konkret für Fans in den kommenden Monaten?"
+- "Welche realistischen Szenarien sind jetzt denkbar?"
+
+ANTWORT-REGELN:
+- 3-6 Sätze
+- Kein "offiziell bestätigt"-Disclaimer-Ton
+- Erklärend, analytisch
+- Darf Unsicherheit, Wahrscheinlichkeiten, Vergleiche enthalten
+- Darf NICHT Artikel-Sätze wiederholen
+
+QUALITY GATE:
+Wenn die Antwort auf einen Satz reduzierbar ist → OMIT Q&A
+Wenn nur bekannte Fakten → OMIT Q&A
+Wenn Google direkt antworten könnte → OMIT Q&A
+
+OUTPUT FORMAT (JSON):
+{
+  "questions": [
+    {
+      "question": "[Interpretative Frage]",
+      "answer": "[3-6 Sätze, editorial-style]",
+      "factual": false
+    }
+  ],
+  "omit": false // true = kein gutes Q&A möglich
 }
+
+Wenn kein gutes Q&A möglich ist, setze "omit": true und "questions": [].`;
 
 /**
- * Generate Q&A for an article
- * Returns 3-6 questions
+ * Generate editorial Q&A for articles
  */
 export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]> {
-  // Try OpenAI first
   try {
     const openai = getOpenAIClient();
     
+    // Extract plain text from HTML
+    const plainText = input.contentHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    const userPrompt = `ARTIKEL:
+Titel: ${input.title}
+Serie: ${input.seriesName}
+Content (erste 1000 Zeichen): ${plainText.substring(0, 1000)}
+
+Generiere 2-3 REDAKTIONELLE Q&A-Paare, die echten Editorial-Mehrwert bieten.
+KEINE generischen FAQ-Fragen.`;
+
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-5.1',
       messages: [
-        {
-          role: 'system',
-          content: 'Du bist ein präziser Redakteur. Antworte NUR mit JSON, keine Erklärungen.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
+        { role: 'system', content: EDITORIAL_QA_PROMPT },
+        { role: 'user', content: userPrompt },
       ],
-      temperature: 0.3,
-      max_tokens: 1500,
+      temperature: 0.4,
+      max_tokens: 1000,
     });
 
     const content = response.choices[0].message.content?.trim() || '{}';
     const parsed = JSON.parse(content);
 
-    // Validate and return
+    // Check if Q&A should be omitted
+    if (parsed.omit === true || !parsed.questions || parsed.questions.length === 0) {
+      console.log('   ⊘  No editorial Q&A possible - omitting section');
+      return [];
+    }
+
+    // Validate questions
     const questions: QAItem[] = parsed.questions || [];
     
-    // Filter out questions that are too short or too long
-    const validQuestions = questions.filter((q: QAItem) => {
-      const wordCount = q.answer.split(/\s+/).length;
-      return wordCount >= 30 && wordCount <= 90 && q.question.length > 10;
-    });
-
-    if (validQuestions.length > 0) {
-      console.log('✅ OpenAI Q&A generated:', validQuestions.length, 'questions');
-      return validQuestions;
-    }
-
-  } catch (error: any) {
-    console.log('⚠️  OpenAI Q&A failed, using fallback:', error.message);
-  }
-
-  // Fallback to rule-based generation
-  const { generateFallbackArticleQA } = await import('./qa-generator-fallback');
-  const fallbackQuestions = generateFallbackArticleQA(input);
-  console.log('✅ Fallback Q&A generated:', fallbackQuestions.length, 'questions');
-  return fallbackQuestions;
-}
-
-/**
- * Generate evergreen Q&A for series page
- * Returns exactly 5 questions
- */
-export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> {
-  // Try OpenAI first
-  try {
-    const openai = getOpenAIClient();
+    // Quality check: Block forbidden questions
+    const forbiddenPatterns = [
+      /wird.*fortgesetzt/i,
+      /wo l[aä]uft/i,
+      /wo kann.*streamen/i,
+      /worum geht es/i,
+      /wer spielt/i,
+      /wie viele staffeln/i,
+      /wann kommt.*staffel/i
+    ];
     
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'Du bist ein präziser Redakteur. Antworte NUR mit JSON.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 1200,
+    const validQuestions = questions.filter(q => {
+      for (const pattern of forbiddenPatterns) {
+        if (pattern.test(q.question)) {
+          console.log(`   ❌ Blocked forbidden question: "${q.question}"`);
+          return false;
+        }
+      }
+      
+      // Check answer length (must be 3-6 sentences)
+      const sentences = q.answer.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      if (sentences.length < 3) {
+        console.log(`   ❌ Answer too short (${sentences.length} sentences): "${q.question}"`);
+        return false;
+      }
+      
+      return true;
     });
 
-    const content = response.choices[0].message.content?.trim() || '{}';
-    const parsed = JSON.parse(content);
-    const questions = parsed.questions || [];
-
-    if (questions.length > 0) {
-      console.log('✅ OpenAI Series Q&A generated:', questions.length, 'questions');
-      return questions;
+    if (validQuestions.length === 0) {
+      console.log('   ⊘  All Q&A rejected by quality gate - omitting section');
+      return [];
     }
 
-  } catch (error: any) {
-    console.log('⚠️  OpenAI Series Q&A failed, using fallback:', error.message);
-  }
+    console.log(`   ✅ Generated ${validQuestions.length} editorial Q&A pair(s)`);
+    return validQuestions.slice(0, 3);
 
-  // Fallback to rule-based generation
-  const { generateFallbackSeriesQA } = await import('./qa-generator-fallback');
-  const fallbackQuestions = generateFallbackSeriesQA(input);
-  console.log('✅ Fallback Series Q&A generated:', fallbackQuestions.length, 'questions');
-  return fallbackQuestions;
+  } catch (error: any) {
+    console.error(`   ❌ Q&A generation failed: ${error.message}`);
+    // If generation fails, OMIT Q&A (better than fallback)
+    return [];
+  }
 }
 
 /**
- * Generate status-specific Q&A
+ * NO FALLBACK Q&A
+ * Better to have no Q&A than generic helpdesk Q&A
  */
-export async function generateStatusQA(
-  seriesName: string,
-  status: 'RENEWED' | 'CANCELLED' | 'UNKNOWN'
-): Promise<QAItem[]> {
-  const questionMap = {
-    RENEWED: [
-      `Warum wurde ${seriesName} verlängert?`,
-      `Was ist über die nächste Staffel von ${seriesName} bekannt?`,
-    ],
-    CANCELLED: [
-      `Warum wurde ${seriesName} abgesetzt?`,
-      `Gibt es Chancen auf eine Fortsetzung von ${seriesName}?`,
-    ],
-    UNKNOWN: [
-      `Warum ist die Zukunft von ${seriesName} unklar?`,
-      `Wann könnte eine Entscheidung über ${seriesName} fallen?`,
-    ],
-  };
+export function generateFallbackArticleQA(_input: ArticleQAInput): QAItem[] {
+  console.log('   ⊘  Fallback Q&A disabled - omitting Q&A section');
+  return [];
+}
 
-  const questions = questionMap[status] || [];
-  
-  // Return placeholder structure (would need real data to generate proper answers)
-  return questions.map((q) => ({
-    question: q,
-    answer: 'Stand jetzt gibt es keine offiziellen Informationen dazu.',
-    factual: false,
-  }));
+export function generateFallbackSeriesQA(_input: any): QAItem[] {
+  console.log('   ⊘  Fallback Q&A disabled - omitting Q&A section');
+  return [];
 }
