@@ -261,7 +261,19 @@ export async function runContentPipeline(source: CrawledSource) {
     const isFullArticleMode = source.useFullTextMode === true;
     let targetWordCount: number | undefined;
     
-    if (isFullArticleMode && sourceWordCount > 0) {
+    // EMERGENT_RULESET_UPDATE: Override for RANKING_LIST
+    if (isRankingList) {
+      // Calculate based on item count
+      const wordsPerItem = Math.min(150, Math.max(80, Math.floor(sourceWordCount / rankingItemCount)));
+      targetWordCount = Math.max(800, Math.min(1800, rankingItemCount * wordsPerItem));
+      
+      console.log('   🎯 RANKING_LIST mode detected!');
+      console.log(`   📊 Source: ${sourceWordCount} words`);
+      console.log(`   📊 Items: ${rankingItemCount}`);
+      console.log(`   📊 Target: ${targetWordCount} words (${wordsPerItem} words/item)`);
+      console.log(`   ⚠️  DISABLE proportional compression`);
+      
+    } else if (isFullArticleMode && sourceWordCount > 0) {
       targetWordCount = Math.max(350, Math.min(1200, Math.round(sourceWordCount * 0.6)));
       console.log('   🔹 Using FULL_ARTICLE mode');
       console.log(`   📊 Target: ${targetWordCount} words (60% of ${sourceWordCount} source words)`);
