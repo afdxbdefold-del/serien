@@ -376,13 +376,16 @@ test_plan:
     implemented: true
     working: false
     file: "/app/serien-nextjs/app/[slug]/page.tsx"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: false
           agent: "testing"
           comment: "❌ CRITICAL BUG (2026-02-27): WhereToStreamBox NOT rendering on Gray House article page. Same root cause as Series Infobox - Prisma relation mismatch. Lines 295-302 check `article.primarySeriesId && article.primarySeries` but `article.primarySeries` is undefined because query uses wrong relation name. Should be `article.series`. TESTING AGENT FIX APPLIED: Updated references to use `article.series`. Component should show Prime Video as streaming platform (verified in database: series.networks = ['Prime Video']). Requires deployment to production."
+        - working: false
+          agent: "testing"
+          comment: "❌ BLOCKED (2026-02-27): Cannot test due to global Prisma model naming issue. See Series Infobox task for details."
 
   - task: "Gray House Article - Q&A Section"
     implemented: true
