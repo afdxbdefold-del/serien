@@ -20,7 +20,7 @@ interface PageProps {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await prisma.article.findUnique({
+  const article = await prisma.articles.findUnique({
     where: { slug },
     select: {
       title: true,
