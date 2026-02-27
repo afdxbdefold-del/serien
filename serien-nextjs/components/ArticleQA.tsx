@@ -72,22 +72,9 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
                 {qa.answer}
               </p>
             </div>
-
-            {/* Visual indicator for non-factual answers */}
-            {!qa.factual && (
-              <p className="text-xs text-gray-500 mt-2 italic">
-                Diese Antwort enthält Einschätzungen und keine bestätigten Fakten.
-              </p>
-            )}
           </div>
         ))}
       </div>
-
-      {!schemaEnabled && (
-        <p className="text-xs text-gray-500 mt-4">
-          * Einige Antworten basieren auf Einschätzungen, nicht auf bestätigten Fakten.
-        </p>
-      )}
     </section>
   );
 }
