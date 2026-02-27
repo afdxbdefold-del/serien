@@ -282,10 +282,11 @@ export async function runContentPipeline(source: CrawledSource) {
     let generatedContent = await generateGermanArticle(
       facts,
       resolution.primarySeries.name,
-      isFullArticleMode ? 'FULL_ARTICLE' : (classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL'),
+      isRankingList ? 'RANKING_LIST' : (isFullArticleMode ? 'FULL_ARTICLE' : (classification.content_type as 'SINGLE_SERIES_NEWS' | 'MULTI_SERIES_EDITORIAL')),
       allSeriesNames,
       source.url, // For Quelle block
-      targetWordCount // Dynamic target based on source length
+      targetWordCount, // Dynamic target based on source length
+      isRankingList ? rankingItemCount : undefined // Item count for rankings
     );
 
     let articleTitle = source.title;
