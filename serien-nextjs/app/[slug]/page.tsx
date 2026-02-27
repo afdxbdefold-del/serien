@@ -292,12 +292,12 @@ export default async function ArticlePage({ params }: PageProps) {
           <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
 
           {/* Where to Stream Box */}
-          {article.primarySeriesId && article.primarySeries && (
+          {article.primarySeriesId && article.series && (
           <WhereToStreamBox
             seriesId={article.primarySeriesId}
-            seriesName={article.primarySeries.title || article.primarySeries.name || ''}
-            networks={article.primarySeries.networks}
-            slug={article.primarySeries.slug}
+            seriesName={article.series.title || article.series.name || ''}
+            networks={article.series.networks}
+            slug={article.series.slug}
           />
         )}
 
