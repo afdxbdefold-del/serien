@@ -252,7 +252,8 @@ metadata:
 
 test_plan:
   current_focus: 
-    - "WhereToStreamBox Component - Series Detail Page"
+    - "Gray House Article - Series Infobox Component"
+    - "Gray House Article - WhereToStreamBox Component"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -269,6 +270,8 @@ test_plan:
     - "Video autoplay and controls verification (2026-02-26)"
     - "WhereToStreamBox visibility test on Young Sheldon series page (2026-02-26)"
     - "Article content sanitizer - artificial heading removal (2026-02-26)"
+    - "Gray House Article - Q&A Section (2026-02-27)"
+    - "Gray House Article - DirectVideoPlayer Hero and Trailer (2026-02-27)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
