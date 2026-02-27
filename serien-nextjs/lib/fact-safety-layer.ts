@@ -194,10 +194,19 @@ function verifyFactAgainstTMDB(
       return tmdbData.status === 'Canceled';
 
     case 'SEASON_COUNT':
-      // Extract number from claim
-      const seasonMatch = fact.claim.match(/\b(\d+)\s*(Staffel|Season|Season)/i);
+      // Extract number from claim (improved regex)
+      const seasonMatch = fact.claim.match(/\b(\d+)\s*\.?\s*(Staffel|Season|Seasons)/i);
       if (seasonMatch && tmdbData.numberOfSeasons) {
-        return parseInt(seasonMatch[1]) === tmdbData.numberOfSeasons;
+        const claimedSeasons = parseInt(seasonMatch[1]);
+        const actualSeasons = tmdbData.numberOfSeasons;
+        
+        // Allow ±1 tolerance for ongoing series
+        if (tmdbData.status === 'Returning Series') {
+          return Math.abs(claimedSeasons - actualSeasons) <= 1;
+        }
+        
+        // Exact match required for ended series
+        return claimedSeasons === actualSeasons;
       }
       return false;
 
