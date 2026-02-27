@@ -55,6 +55,12 @@ function detectArticleType(title: string, content: string): 'NEWS' | 'THEORY' | 
  */
 function extractCoreFact(content: string, title: string): string {
   const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+  const titleLower = title.toLowerCase();
+  
+  // Episode breakdown/explanation
+  if (/episode|staffel.*episode|folge|erklärt|analysiert|breakdown|breaks down/i.test(titleLower)) {
+    return 'Episode-Details';
+  }
   
   // Look for key patterns
   if (/neue staffel|staffel \d+|weitere staffel/i.test(plainText)) {
