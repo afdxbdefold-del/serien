@@ -212,7 +212,7 @@ export async function GET(
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      storagePath: params?.path?.join('/'),
+      storagePath: storagePath || 'unknown',
     });
     
     // Return plain text error for debugging
