@@ -9,9 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
 let storageKey: string | null = null;
+let storageKeyExpiry: number = 0;
 
 async function initStorage(): Promise<string> {
-  if (storageKey) {
+  // Re-initialize if key is expired (valid for 1 hour)
+  const now = Date.now();
+  if (storageKey && storageKeyExpiry > now) {
     return storageKey;
   }
 
@@ -32,6 +35,10 @@ async function initStorage(): Promise<string> {
 
   const data = await response.json();
   storageKey = data.storage_key;
+  // Cache for 50 minutes (10 min buffer before 1 hour expiry)
+  storageKeyExpiry = now + (50 * 60 * 1000);
+  
+  console.log('✅ Storage key refreshed');
   return storageKey;
 }
 
@@ -64,10 +71,77 @@ export async function GET(
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Video not found' },
-        { status: 404 }
-      );
+      // Try refreshing storage key once if request fails
+      console.log('⚠️ Storage request failed, refreshing key...');
+      storageKey = null; // Force re-init
+      const newKey = await initStorage();
+      
+      const retryResponse = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
+        method: 'GET',
+        headers: {
+          'X-Storage-Key': newKey,
+        },
+      });
+      
+      if (!retryResponse.ok) {
+        console.error('❌ Video fetch failed even after key refresh:', retryResponse.status);
+        return NextResponse.json(
+          { error: 'Video not found' },
+          { status: 404 }
+        );
+      }
+      
+      // Use retry response
+      const videoBuffer = await retryResponse.arrayBuffer();
+      const totalSize = videoBuffer.byteLength;
+      
+      // Parse Range header
+      const rangeHeader = request.headers.get('range');
+      
+      if (rangeHeader) {
+        const ranges = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(ranges[0], 10);
+        const end = ranges[1] ? parseInt(ranges[1], 10) : totalSize - 1;
+        
+        if (start >= totalSize || end >= totalSize || start > end) {
+          return new NextResponse('Range Not Satisfiable', {
+            status: 416,
+            headers: {
+              'Content-Range': `bytes */${totalSize}`,
+            },
+          });
+        }
+        
+        const chunkSize = end - start + 1;
+        const chunk = videoBuffer.slice(start, end + 1);
+        
+        return new NextResponse(chunk, {
+          status: 206,
+          headers: {
+            'Content-Type': 'video/mp4',
+            'Content-Length': chunkSize.toString(),
+            'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Range',
+          },
+        });
+      }
+      
+      return new NextResponse(videoBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': totalSize.toString(),
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Range',
+        },
+      });
     }
 
     // Get video buffer
