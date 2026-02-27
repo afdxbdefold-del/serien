@@ -203,31 +203,70 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
   console.log('');
   
   try {
-    // Extract items from source
+    // ========== STEP 1: CLASSIFY & RESOLVE SERIES ==========
     console.log('━'.repeat(70));
-    console.log('STEP 1: EXTRACT ITEMS');
+    console.log('STEP 1: SERIES CLASSIFICATION & TMDB RESOLUTION');
+    console.log('━'.repeat(70));
+    
+    const classification = await classifyContent(input.sourceTitle, input.sourceText);
+    console.log(`📊 Classification: ${classification.content_type}`);
+    console.log(`   Confidence: ${classification.confidence}%`);
+    
+    if (classification.content_type !== 'SINGLE_SERIES_NEWS' && 
+        classification.content_type !== 'SINGLE_SERIES_EDITORIAL') {
+      console.log('⚠️  Multi-series rankings not yet supported');
+      return { skipped: true, reason: 'multi_series_ranking' };
+    }
+    
+    const resolution = await resolveSeries(classification, input.sourceText);
+    
+    if (!resolution.primarySeries) {
+      console.log('❌ Could not resolve primary series');
+      return { skipped: true, reason: 'series_not_found' };
+    }
+    
+    console.log(`✅ Primary Series: ${resolution.primarySeries.name} (TMDB: ${resolution.primarySeries.tmdbId})`);
+    
+    // Update input with resolved series
+    input.primarySeriesName = resolution.primarySeries.name;
+    input.primarySeriesId = resolution.primarySeries.tmdbId;
+    
+    // ========== STEP 2: EXTRACT FACTS ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 2: FACT EXTRACTION');
+    console.log('━'.repeat(70));
+    
+    const facts = await extractFacts(input.sourceText);
+    console.log(`✅ Facts extracted:`);
+    console.log(`   Series: ${facts.series.length}`);
+    console.log(`   People: ${facts.people.length}`);
+    console.log(`   Key statements: ${facts.key_statements.length}`);
+    
+    // ========== STEP 3: EXTRACT ITEMS ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 3: EXTRACT RANKING ITEMS');
     console.log('━'.repeat(70));
     
     const items = extractRankingItems(input.sourceText, input.itemCount);
     console.log(`✅ Extracted ${items.length} items`);
     
-    // Generate intro
+    // ========== STEP 4: GENERATE INTRO ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 2: GENERATE INTRO');
+    console.log('STEP 4: GENERATE INTRO');
     console.log('━'.repeat(70));
     
     const intro = await generateRankingIntro(
-      input.primarySeriesName || 'Serie',
-      'Streaming',
+      input.primarySeriesName!,
+      resolution.primarySeries.networks?.[0] || 'Streaming',
       input.itemCount,
-      [] // Facts would come from fact extractor
+      facts.key_statements
     );
     
     console.log(`✅ Intro generated (${intro.length} chars)`);
     
-    // Generate items in batches
+    // ========== STEP 5: GENERATE ITEMS IN BATCHES ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 3: GENERATE ITEMS (BATCHED)');
+    console.log('STEP 5: GENERATE ITEMS (BATCHED)');
     console.log('━'.repeat(70));
     
     const batchSize = 5;
@@ -235,39 +274,44 @@ export async function runRankingPipeline(input: RankingPipelineInput): Promise<a
     
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, Math.min(i + batchSize, items.length));
-      console.log(`\n🔄 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)} (${batch.length} items)...`);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(items.length / batchSize);
+      
+      console.log(`\n🔄 Batch ${batchNum}/${totalBatches} (${batch.length} items)...`);
       
       const batchContent = await generateRankingBatch(
-        input.primarySeriesName || 'Serie',
+        input.primarySeriesName!,
         batch,
-        []
+        facts.key_statements
       );
       
       generatedItems.push(batchContent);
-      console.log(`✅ Batch generated (${batchContent.length} chars)`);
+      console.log(`✅ Batch ${batchNum} generated (${batchContent.length} chars)`);
       
-      // Small delay between batches
+      // Small delay between batches to avoid rate limits
       if (i + batchSize < items.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    // Combine all content
+    // ========== STEP 6: COMBINE CONTENT ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 6: COMBINE & FORMAT');
+    console.log('━'.repeat(70));
+    
     const fullContent = `
-<p>${intro}</p>
+<p>${intro.split('\n\n').join('</p>\n\n<p>')}</p>
 
 ${generatedItems.join('\n\n')}
 
-<p>Diese Auswahl zeigt, warum ${input.primarySeriesName || 'die Serie'} zu den besten ihrer Art gehört.</p>
+<p>Diese Auswahl zeigt, warum ${input.primarySeriesName} zu den besten Serien ihrer Art gehört und ein Muss für alle Fans des Genres ist.</p>
     `.trim();
     
     const wordCount = fullContent.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(w => w.length > 0).length;
     
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4: COMBINE & VALIDATE');
-    console.log('━'.repeat(70));
-    console.log(`✅ Total word count: ${wordCount}`);
-    console.log(`✅ Target range: 900-1800 words`);
+    console.log(`✅ Combined content`);
+    console.log(`   Word count: ${wordCount}`);
+    console.log(`   Target: 900-1800 words`);
     
     if (wordCount < 900) {
       console.log(`⚠️  Below target (${wordCount} < 900)`);
@@ -277,19 +321,118 @@ ${generatedItems.join('\n\n')}
       console.log(`✅ Within target range!`);
     }
     
+    // ========== STEP 7: GENERATE META DESCRIPTION ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7: META DESCRIPTION');
+    console.log('━'.repeat(70));
+    
+    const metaDescription = await generateMetaDescription(
+      fullContent,
+      input.sourceTitle,
+      input.primarySeriesName!,
+      false // isRankingList handled internally
+    );
+    
+    console.log(`✅ Meta description generated (${metaDescription.length} chars)`);
+    
+    // ========== STEP 8: TRANSLATE HEADLINE ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 8: HEADLINE');
+    console.log('━'.repeat(70));
+    
+    // For rankings, keep original headline (just translate if needed)
+    const finalHeadline = input.sourceTitle.includes('Game of Thrones') 
+      ? input.sourceTitle.replace(/Game of Thrones/gi, 'Game of Thrones')
+      : input.sourceTitle;
+    
+    console.log(`✅ Headline: ${finalHeadline}`);
+    
+    // ========== STEP 9: PROCESS IMAGES ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 9: IMAGE PROCESSING');
+    console.log('━'.repeat(70));
+    
+    // Fetch series hero image from TMDB
+    let heroImagePath = null;
+    
+    if (resolution.primarySeries.backdropUrl) {
+      try {
+        const imageUrl = resolution.primarySeries.backdropUrl;
+        const storedPath = await storeImage(imageUrl, 'series', resolution.primarySeries.tmdbId, 'hero', 1600, 900);
+        heroImagePath = storedPath;
+        console.log(`✅ Hero image stored: ${storedPath}`);
+      } catch (error: any) {
+        console.log(`⚠️  Hero image failed: ${error.message}`);
+      }
+    }
+    
+    // ========== STEP 10: SAVE TO DATABASE ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 10: DATABASE SAVE');
+    console.log('━'.repeat(70));
+    
+    const slug = finalHeadline
+      .toLowerCase()
+      .replace(/[^a-z0-9äöüß]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 100);
+    
+    const articleId = `ranking-${Date.now()}`;
+    
+    const article = await prisma.article.create({
+      data: {
+        id: articleId,
+        slug,
+        title: finalHeadline,
+        excerpt: metaDescription.substring(0, 200),
+        metaDescription,
+        contentHtml: fullContent,
+        sourceUrl: input.sourceUrl,
+        primarySeriesId: resolution.primarySeries.tmdbId,
+        heroImagePath: heroImagePath,
+        heroImageUrl: heroImagePath ? `/img/hero/article/${articleId}` : null,
+        cardImageUrl: heroImagePath ? `/img/card/article/${articleId}` : null,
+        ogImageUrl: heroImagePath ? `/img/og/article/${articleId}` : null,
+        status: 'published',
+        publishMode: wordCount >= 900 ? 'DISCOVER' : 'SEARCH_ONLY',
+        author: 'Redaktion',
+        publishedAt: new Date(),
+        isRankingArticle: true, // Flag for ranking articles
+      },
+    });
+    
+    console.log(`✅ Article saved to database`);
+    console.log(`   ID: ${article.id}`);
+    console.log(`   Slug: ${article.slug}`);
+    console.log(`   Status: ${article.status}`);
+    console.log(`   Publish Mode: ${article.publishMode}`);
+    
+    // ========== SUCCESS ==========
     console.log('\n' + '='.repeat(70));
-    console.log('🎉 PIPELINE_V2 COMPLETE');
+    console.log('🎉 PIPELINE_V2 COMPLETE: SUCCESS');
     console.log('='.repeat(70));
     
     return {
       success: true,
-      contentHtml: fullContent,
+      article: {
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        status: article.status,
+        publishMode: article.publishMode,
+        contentHtml: fullContent,
+      },
       wordCount,
-      headline: input.sourceTitle, // Keep original headline (translated)
+      headline: finalHeadline,
     };
     
   } catch (error: any) {
-    console.error('\n❌ PIPELINE_V2 FAILED:', error.message);
+    console.error('\n' + '='.repeat(70));
+    console.error('❌ PIPELINE_V2 FAILED');
+    console.error('='.repeat(70));
+    console.error(`Error: ${error.message}`);
+    console.error(error.stack);
+    
     return {
       success: false,
       error: error.message,
