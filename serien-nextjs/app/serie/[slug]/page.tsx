@@ -149,7 +149,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       {/* Mobile: Hero at top */}
       <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
         <h1 id="series-hero" className="sr-only">{series.name}</h1>
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden mb-6">
           {/* Hero Image with Video Player (if trailer exists) */}
           <MobileHeroWithVideo
             backdropPath={series.backdropPath}
