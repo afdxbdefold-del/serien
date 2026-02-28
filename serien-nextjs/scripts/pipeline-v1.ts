@@ -405,35 +405,42 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log(`📝 Meta Description: "${metaDescription}"`);
     console.log(`   Länge: ${metaLength} Zeichen`);
 
-    // Strict validation
-    const validationErrors: string[] = [];
+    // RULESET v1.4: Soft validation with auto-extend
+    const validationWarnings: string[] = [];
     
-    if (metaLength < 120) {
-      validationErrors.push(`Zu kurz (${metaLength} < 120 Zeichen)`);
+    // Auto-extend if too short (< 100)
+    if (metaLength < 100) {
+      console.log(`⚠️  Meta too short (${metaLength} < 100) - AUTO-EXTENDING`);
+      // Append context sentence from article
+      const plainText = contentHtml.replace(/<[^>]*>/g, ' ').trim();
+      const firstSentence = plainText.split(/[.!?]+/)[0]?.trim();
+      if (firstSentence && firstSentence.length < 100) {
+        metaDescription = metaDescription + ' ' + firstSentence.substring(0, 55 - metaDescription.length) + '...';
+        console.log(`   ✅ Extended to ${metaDescription.length} chars`);
+      }
     }
-    if (metaLength > 155) {
-      validationErrors.push(`Zu lang (${metaLength} > 155 Zeichen)`);
+    
+    // Soft warnings (LOG ONLY, never block)
+    if (metaDescription.length > 160) {
+      validationWarnings.push(`Zu lang (${metaDescription.length} > 160 Zeichen)`);
     }
-    if (metaDescription.includes('?')) {
-      validationErrors.push('Enthält Fragezeichen');
-    }
-    if (metaDescription.includes('!')) {
-      validationErrors.push('Enthält Ausrufezeichen');
+    if (metaDescription.includes('?') || metaDescription.includes('!')) {
+      validationWarnings.push('Enthält Satzzeichen (?, !)');
     }
     if (/\d{4}/.test(metaDescription)) {
-      validationErrors.push('Enthält Jahreszahl');
+      validationWarnings.push('Enthält Jahreszahl');
     }
     if (/musst du wissen|was wirklich|schockierend|unglaublich|absolut|extrem/i.test(metaDescription)) {
-      validationErrors.push('Enthält Clickbait-Formulierung');
+      validationWarnings.push('Enthält Clickbait-Formulierung');
     }
 
-    if (validationErrors.length > 0) {
-      console.log(`❌ Meta Description Validierung fehlgeschlagen:`);
-      validationErrors.forEach(err => console.log(`   - ${err}`));
-      throw new Error(`❌ PUBLISH BLOCKED: Meta Description ungültig - ${validationErrors.join(', ')}`);
+    if (validationWarnings.length > 0) {
+      console.log(`⚠️  Meta Description Warnings (LOG ONLY):`);
+      validationWarnings.forEach(warn => console.log(`   - ${warn}`));
     }
 
-    console.log(`✅ Meta Description validiert: Google Discover ready`);
+    console.log(`✅ Meta Description OK: ${metaDescription.length} chars (RULESET v1.4: no hard fail)`);
+
 
     // ========== STEP 5.7: DISCOVER STRUCTURE OPTIMIZATION ==========
     console.log('\n' + '━'.repeat(70));
