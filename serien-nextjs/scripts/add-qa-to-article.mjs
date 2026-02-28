@@ -30,21 +30,17 @@ async function main() {
       where: { articleId: article.id }
     });
     
-    // Insert new Q&A
-    for (let i = 0; i < qaItems.length; i++) {
-      const qa = qaItems[i];
-      await prisma.article_qa.create({
-        data: {
-          id: `${article.id}-qa-${i + 1}`,
-          articleId: article.id,
-          question: qa.question,
-          answer: qa.answer,
-          factual: qa.factual,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      });
-    }
+    // Insert new Q&A as JSON array
+    await prisma.article_qa.create({
+      data: {
+        id: `${article.id}-qa`,
+        articleId: article.id,
+        questions: qaItems,
+        schemaEnabled: true,
+        generatedAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
     
     console.log('✅ Q&A in Datenbank gespeichert!');
     console.log(`\n📍 Artikel URL: http://localhost:3000/${article.slug}`);
