@@ -25,40 +25,50 @@ export async function fetchWikipediaSummary(
 
     for (const searchTerm of searchTerms) {
       try {
-        // Wikipedia API - search for the article
-        const searchUrl = `https://de.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(searchTerm + ' Fernsehserie')}&limit=1&format=json`;
-        
-        const searchResponse = await fetch(searchUrl);
-        const searchData = await searchResponse.json();
+        // Try multiple search variations
+        const searchVariations = [
+          `${searchTerm} Fernsehserie`,
+          `${searchTerm} Serie`,
+          searchTerm,
+        ];
 
-        if (!searchData[1] || searchData[1].length === 0) {
-          continue; // Try next search term
-        }
+        for (const variation of searchVariations) {
+          // Wikipedia API - search for the article
+          const searchUrl = `https://de.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(variation)}&limit=1&format=json`;
+          
+          const searchResponse = await fetch(searchUrl);
+          const searchData = await searchResponse.json();
 
-        const pageTitle = searchData[1][0];
-        const pageUrl = searchData[3][0];
+          if (!searchData[1] || searchData[1].length === 0) {
+            continue; // Try next variation
+          }
 
-        // Fetch the page extract
-        const extractUrl = `https://de.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(pageTitle)}&format=json`;
-        
-        const extractResponse = await fetch(extractUrl);
-        const extractData = await extractResponse.json();
+          const pageTitle = searchData[1][0];
+          const pageUrl = searchData[3][0];
 
-        const pages = extractData.query.pages;
-        const pageId = Object.keys(pages)[0];
-        
-        if (pageId === '-1') {
-          continue; // Page not found, try next search term
-        }
+          // Fetch the page extract
+          const extractUrl = `https://de.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(pageTitle)}&format=json`;
+          
+          const extractResponse = await fetch(extractUrl);
+          const extractData = await extractResponse.json();
 
-        const extract = pages[pageId].extract;
+          const pages = extractData.query.pages;
+          const pageId = Object.keys(pages)[0];
+          
+          if (pageId === '-1') {
+            continue; // Page not found, try next variation
+          }
 
-        if (extract && extract.length > 100) {
-          return {
-            summary: extract,
-            fullUrl: pageUrl,
-            success: true,
-          };
+          const extract = pages[pageId].extract;
+
+          if (extract && extract.length > 100) {
+            console.log(`   ✓ Wikipedia gefunden via: "${variation}"`);
+            return {
+              summary: extract,
+              fullUrl: pageUrl,
+              success: true,
+            };
+          }
         }
       } catch (error) {
         console.error(`Wikipedia fetch failed for "${searchTerm}":`, error);
