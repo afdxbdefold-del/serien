@@ -30,6 +30,19 @@ function validateParagraph(text: string): { valid: boolean; error?: string } {
 }
 
 /**
+ * Convert Markdown formatting to HTML
+ */
+function convertMarkdownToHTML(text: string): string {
+  return text
+    // Bold: **text** or __text__ -> <strong>text</strong>
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_ -> <em>text</em>
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>');
+}
+
+/**
  * Split text into natural paragraphs
  */
 function splitIntoNaturalParagraphs(text: string): string[] {
