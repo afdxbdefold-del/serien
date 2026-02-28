@@ -31,7 +31,7 @@ export default function SeasonsStatus({ seriesName, seasons, status, numberOfSea
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Staffeln & Serienstatus
       </h2>

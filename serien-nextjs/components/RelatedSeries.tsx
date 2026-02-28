@@ -52,7 +52,7 @@ export default async function RelatedSeries({ currentSeriesId, genres, networks 
   if (relatedSeries.length === 0) return null;
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Ähnliche Serien
       </h2>
