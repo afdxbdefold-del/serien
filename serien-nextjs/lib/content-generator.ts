@@ -388,8 +388,11 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
     console.log('✅ Raw content generated');
     console.log(`   Length: ${rawContent.length} characters`);
 
+    // AGGRESSIVE CLEANUP: Remove ALL HTML tags that LLM might have added
+    let cleanedContent = rawContent.replace(/<[^>]+>/g, '');
+    
     // Clean up LLM artifacts and hallucinations
-    const cleanedContent = rawContent
+    cleanedContent = cleanedContent
       // Remove generic filler sentences - MORE FLEXIBLE PATTERN
       .replace(/Die\s+[\w\s-]+(Serie|Plattform)\s+[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
       // Also catch simpler variations
