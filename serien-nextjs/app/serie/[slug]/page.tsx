@@ -211,14 +211,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
         {/* NEW: Where to Stream Box - Standalone Section */}
         <div className="px-6">
-          <section className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
-            <WhereToStreamBox 
-              seriesId={series.tmdbId}
-              seriesName={series.name || ''}
-              networks={series.networks as string[] | undefined}
-              slug={slug}
-            />
-          </section>
+          <WhereToStreamBox 
+            seriesId={series.tmdbId}
+            seriesName={series.name || ''}
+            networks={series.networks as string[] | undefined}
+            slug={slug}
+          />
         </div>
 
         {/* NEW: Quick Facts Box */}
@@ -422,14 +420,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           <div className="lg:col-span-7">
             
             {/* NEW: Where to Stream Box - Standalone Section (Desktop) */}
-            <section className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
-              <WhereToStreamBox 
-                seriesId={series.tmdbId}
-                seriesName={series.name || ''}
-                networks={series.networks as string[] | undefined}
-                slug={slug}
-              />
-            </section>
+            <WhereToStreamBox 
+              seriesId={series.tmdbId}
+              seriesName={series.name || ''}
+              networks={series.networks as string[] | undefined}
+              slug={slug}
+            />
 
             {/* NEW: Quick Facts Box (Desktop) */}
             <QuickFactsBox

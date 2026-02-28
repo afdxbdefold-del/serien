@@ -70,7 +70,7 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
   };
 
   return (
-    <div className="border-2 border-blue-100 rounded-xl p-6 mb-8 bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
       <div className="flex items-start gap-3 mb-4">
         <div className="p-2 bg-blue-500 rounded-lg">
           <Tv className="h-5 w-5 text-white" />
@@ -97,7 +97,7 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
         {providers.rent && providers.rent.slice(0, 3).map(p => renderProvider(p, 'rent'))}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-blue-100">
+      <div className="mt-4 pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
           Streaming-Verfügbarkeit für Deutschland • Daten von TMDB
         </p>
