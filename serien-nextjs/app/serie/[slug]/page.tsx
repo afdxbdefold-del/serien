@@ -240,7 +240,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Seasons & Status */}
-        <div className="px-6 mb-6">
+        <div className="sm:px-6 mb-6">
           <SeasonsStatus
             seriesName={series.name || series.title}
             seasons={seasons}
