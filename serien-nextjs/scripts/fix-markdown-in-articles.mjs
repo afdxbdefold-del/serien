@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-function convertMarkdownToHTML(text: string): string {
+function convertMarkdownToHTML(text) {
   return text
     // Bold: **text** or __text__ -> <strong>text</strong>
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
