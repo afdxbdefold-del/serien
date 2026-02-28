@@ -624,50 +624,16 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`   Status: ${qualityResult.status}`);
     }
 
-    // If STILL FAIL after rewrite → SKIP_PUBLISH (save as DRAFT)
+    // RULESET v1.4: Quality Check NO LONGER BLOCKS
+    // Score < 65 → DRAFT, 65-79 → SEARCH_ONLY, 80+ → DISCOVER
     if (qualityResult.status === 'FAIL') {
-      console.log('❌ Quality Check FAILED after rewrite → SKIP_PUBLISH');
+      console.log('⚠️  Quality Check FAILED after rewrite → CONTINUE AS DRAFT');
+      console.log('   RULESET v1.4: Quality issues downgrade visibility, never block');
       qualityResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
-      
-      // Get author for draft
-      const authors = await prisma.users.findMany({
-        where: { role: 'author' },
-        select: { id: true }
-      });
-      
-      const authorId = authors.length > 0 ? authors[0].id : 'system';
-      
-      // Save as DRAFT
-      const slug = generateSlug(articleTitle);
-      const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
-      
-      const draftArticle = await prisma.articles.create({
-        data: {
-          id: `draft-${Date.now()}`,
-          slug: `${slug}-draft`,
-          title: articleTitle,
-          excerpt: articleExcerpt,
-          contentHtml: generatedContent,
-          contentType: classification.content_type,
-          authorId,
-          status: 'draft',
-          publishMode: 'DRAFT',
-          publishedAt: null,
-          sourcePublishedAt: now,
-          sourceUrl: source.url,
-          readingTime: Math.ceil(generatedContent.split(' ').length / 200),
-          confidence: classification.confidence,
-          primarySeriesId: resolution.primarySeries.tmdbId,
-        },
-      });
-
-      console.log(`📝 Saved as DRAFT: ${draftArticle.id}`);
-      
-      return { skipped: true, reason: 'quality_check_failed', draft: draftArticle };
+      // Continue pipeline, will be published as DRAFT
+    } else {
+      console.log('✅ Quality Check PASSED');
     }
-
-    console.log('✅ Quality Check PASSED');
 
     // ========== STEP 6.3: FACT SAFETY LAYER ==========
     console.log('\n' + '━'.repeat(70));
