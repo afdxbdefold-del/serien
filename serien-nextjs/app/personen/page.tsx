@@ -3,12 +3,10 @@
  * Route: /personen
  */
 
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
-
-const prisma = new PrismaClient();
 
 export const metadata: Metadata = {
   title: 'Schauspieler & Stars - Alle Serien-Darsteller | serien.de',
