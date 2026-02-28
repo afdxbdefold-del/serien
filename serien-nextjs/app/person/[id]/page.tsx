@@ -15,9 +15,9 @@ const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -30,7 +30,8 @@ function parsePersonId(id: string): number | null {
 }
 
 export default async function PersonPage({ params }: PageProps) {
-  const tmdbId = parsePersonId(params.id);
+  const { id } = await params;
+  const tmdbId = parsePersonId(id);
   
   if (!tmdbId) {
     notFound();
@@ -54,7 +55,7 @@ export default async function PersonPage({ params }: PageProps) {
     where: {
       article_persons: {
         some: {
-          person: {
+          persons: {
             tmdbId: tmdbId
           }
         }
