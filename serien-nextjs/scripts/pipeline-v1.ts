@@ -1256,7 +1256,7 @@ export async function runContentPipeline(source: CrawledSource) {
       }
 
       // Check if article already exists
-      const existingArticle = await tx.article.findUnique({
+      const existingArticle = await tx.articles.findUnique({
         where: { slug },
         select: { id: true, title: true }
       });
