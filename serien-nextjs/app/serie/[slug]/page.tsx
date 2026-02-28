@@ -222,6 +222,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           />
         </div>
 
+        {/* NEW: Series Overview (Extended AI-generated description) */}
+        <SeriesOverview
+          seriesName={series.name || series.title}
+          extendedOverview={series.extendedOverview}
+          shortOverview={series.overview}
+        />
+
         {/* NEW: Quick Facts Box */}
         <div className="mb-6">
           <QuickFactsBox
