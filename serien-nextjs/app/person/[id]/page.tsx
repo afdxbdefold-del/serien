@@ -135,14 +135,15 @@ export default async function PersonPage({ params }: PageProps) {
                   Serien mit {person.name}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                  {tvCredits.map(credit => (
-                    <div key={credit.id} className="group">
+                  {tvCredits.map((credit, idx) => (
+                    <div key={`${credit.id}-${idx}`} className="group">
                       <div className="relative aspect-[2/3] mb-3 rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition">
                         {credit.poster_path ? (
                           <Image
                             src={`https://image.tmdb.org/t/p/w342${credit.poster_path}`}
                             alt={credit.name || credit.title || ''}
                             fill
+                            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
                             className="object-cover"
                           />
                         ) : (
