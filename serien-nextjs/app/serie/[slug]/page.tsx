@@ -312,7 +312,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Related Series (Mobile) */}
-        <div className="mt-8 px-6">
+        <div className="mt-8 sm:px-6">
           <RelatedSeries
             currentSeriesId={series.tmdbId}
             genres={series.genres as string[]}
