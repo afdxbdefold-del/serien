@@ -85,10 +85,10 @@ export function getProviderDisplayName(providerName: string): string {
   
   // Then, translate common English phrases to German
   const translations: Record<string, string> = {
-    'Standard with Ads': 'Standard mit Werbung',
-    'with Ads': 'mit Werbung',
-    'Basic with Ads': 'Basis mit Werbung',
     'Free with Ads': 'Kostenlos mit Werbung',
+    'Standard with Ads': 'Standard mit Werbung',
+    'Basic with Ads': 'Basis mit Werbung',
+    'with Ads': 'mit Werbung',
     'Premium': 'Premium',
     'Standard': 'Standard',
     'Basic': 'Basis',
