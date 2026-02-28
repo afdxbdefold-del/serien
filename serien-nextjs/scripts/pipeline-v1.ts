@@ -1346,6 +1346,7 @@ export async function runContentPipeline(source: CrawledSource) {
       // Store dashboard metrics
       await tx.discover_score_dashboards.create({
         data: {
+          id: `discover-${Date.now()}`, // Required ID
           articleId: article.id,
           pipelineVersion: 'serien_pipeline_v1',
           headlineMetrics: discoverResult.dashboard.headline,
