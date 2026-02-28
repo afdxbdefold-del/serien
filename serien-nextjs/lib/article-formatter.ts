@@ -54,12 +54,14 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   const cleanText = text.replace(/<[^>]+>/g, '').trim();
   
   // Split by sentence - use a simpler, safer approach
-  // Replace common abbreviations and initials temporarily, then split, then restore
+  // Replace common abbreviations, initials, AND dates temporarily, then split, then restore
   const textWithProtectedDots = cleanText
     // Multi-letter initials: R.R., J.K., etc.
     .replace(/([A-Z])\.\s*([A-Z])\./g, '$1Â·$2Â·')
     // Single initials: S., J., etc. (when followed by uppercase letter - likely a name)
     .replace(/\s([A-Z])\.\s+([A-Z])/g, ' $1· $2')
+    // CRITICAL: Protect dates like "6. April", "30. Juli"
+    .replace(/(\d+)\.\s+(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)/gi, '$1· $2')
     // Common titles
     .replace(/\bDr\./g, 'DrÂ·')
     .replace(/\bProf\./g, 'ProfÂ·')
