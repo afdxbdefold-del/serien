@@ -9,6 +9,11 @@ import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesQA from '@/components/SeriesQA';
 import { getSeriesQA } from '@/lib/series-qa-action';
+import SeriesOverview from '@/components/SeriesOverview';
+import QuickFactsBox from '@/components/QuickFactsBox';
+import SeriesCast from '@/components/SeriesCast';
+import SeasonsStatus from '@/components/SeasonsStatus';
+import RelatedSeries from '@/components/RelatedSeries';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
