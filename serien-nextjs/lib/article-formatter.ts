@@ -13,19 +13,22 @@ interface ParsedArticle {
 
 /**
  * Validate paragraph structure
+ * RULESET v1.4: More lenient validation, warnings instead of hard fails
  */
 function validateParagraph(text: string): { valid: boolean; error?: string } {
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
   const wordCount = text.split(/\s+/).length;
 
-  if (sentences.length > 4) {
-    return { valid: false, error: 'Paragraph exceeds 4 sentences' };
+  // RULESET v1.4: Increased limits, warnings only
+  if (sentences.length > 6) {
+    console.log(`   ⚠️  Paragraph has ${sentences.length} sentences (recommended: max 4)`);
   }
 
-  if (wordCount > 100) {
-    return { valid: false, error: 'Paragraph exceeds 100 words' };
+  if (wordCount > 150) {
+    console.log(`   ⚠️  Paragraph has ${wordCount} words (recommended: max 100)`);
   }
 
+  // Always return valid - let content through
   return { valid: true };
 }
 
