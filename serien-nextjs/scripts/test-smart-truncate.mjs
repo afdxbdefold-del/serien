@@ -1,6 +1,6 @@
 import { smartTruncate } from '../lib/smart-truncate.ts';
 
-const testText = "Joel dürfte in Staffel 2 von „The Last of Us" noch tiefer in moralische Abgründe rutschen: Pedro Pascal lässt in einem Interview anklingen, dass die neuen Episoden deutlich düsterer werden.";
+const testText = 'Joel dürfte in Staffel 2 von "The Last of Us" noch tiefer in moralische Abgründe rutschen: Pedro Pascal lässt in einem Interview anklingen, dass die neuen Episoden deutlich düsterer werden.';
 
 console.log('=== ORIGINAL ===');
 console.log(testText);
