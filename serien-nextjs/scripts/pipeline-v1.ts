@@ -1510,6 +1510,40 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`⚠️  Q&A generation skipped: ${error.message}`);
     }
 
+    // ========== STEP 11: ACTOR LINKING (OPTIONAL) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 11: ACTOR LINKING');
+    console.log('━'.repeat(70));
+
+    try {
+      console.log('🎭 Linking actors to article...');
+      
+      // Dynamically import to avoid breaking if module has issues
+      const { processArticle } = await import('./link-actors-to-articles');
+      
+      // Get the article with contentHtml
+      const articleForLinking = await prisma.articles.findUnique({
+        where: { id: result.id },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          contentHtml: true
+        }
+      });
+      
+      if (articleForLinking) {
+        await processArticle(articleForLinking, false);
+        console.log('✅ Actor linking completed');
+      } else {
+        console.log('⚠️  Article not found for actor linking');
+      }
+    } catch (error: any) {
+      // CRITICAL: Actor linking failure should NOT break the pipeline
+      console.log(`⚠️  Actor linking skipped: ${error.message}`);
+      console.log('   → Article published successfully despite actor linking failure');
+    }
+
     return {
       success: true,
       article: result,
