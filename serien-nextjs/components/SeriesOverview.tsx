@@ -14,6 +14,10 @@ export default function SeriesOverview({
   extendedOverview,
   shortOverview,
 }: SeriesOverviewProps) {
+  // Debug logging
+  console.log('[SeriesOverview] Extended:', extendedOverview ? `${extendedOverview.length} chars` : 'null');
+  console.log('[SeriesOverview] Short:', shortOverview ? `${shortOverview.length} chars` : 'null');
+  
   // Use extended overview if available, otherwise fall back to short overview
   const displayText = extendedOverview || shortOverview;
 
