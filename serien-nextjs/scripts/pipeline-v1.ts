@@ -1483,7 +1483,7 @@ export async function runContentPipeline(source: CrawledSource) {
       // Call Q&A generator directly (no HTTP request needed)
       const qaItems = await generateArticleQA({
         title: result.title,
-        contentHtml: formattedHTML,
+        contentHtml: result.contentHtml,
         seriesName: primarySeries.title
       });
 
