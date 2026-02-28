@@ -71,6 +71,7 @@ async function bulkGenerateOverviews() {
 
         const input = {
           seriesName: seriesName,
+          originalTitle: series.originalName || series.originalTitle,
           originalOverview: series.overview || '',
           genres: (series.genres as string[]) || [],
           firstAirYear: series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null,
