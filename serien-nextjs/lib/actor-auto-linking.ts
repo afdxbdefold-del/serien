@@ -17,7 +17,7 @@ export async function autoLinkActors(
 ): Promise<string> {
   try {
     // Get linked persons for this article
-    const articlePersons = await prisma.articlePerson.findMany({
+    const articlePersons = await prisma.article_persons.findMany({
       where: { articleId },
       include: {
         person: true,

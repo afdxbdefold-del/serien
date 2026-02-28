@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already following
-    const existing = await prisma.follow.findUnique({
+    const existing = await prisma.follows.findUnique({
       where: {
         userId_tmdbSeriesId: {
           userId: user.id,
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create follow
-    await prisma.follow.create({
+    await prisma.follows.create({
       data: {
         userId: user.id,
         tmdbSeriesId: seriesId
@@ -77,7 +77,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete follow
-    await prisma.follow.delete({
+    await prisma.follows.delete({
       where: {
         userId_tmdbSeriesId: {
           userId: user.id,

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's followed series
-    const follows = await prisma.follow.findMany({
+    const follows = await prisma.follows.findMany({
       where: { userId: user.id },
       select: { tmdbSeriesId: true },
     });

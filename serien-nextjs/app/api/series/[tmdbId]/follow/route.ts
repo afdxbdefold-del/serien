@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ following: false, requiresAuth: true });
     }
 
-    const follow = await prisma.follow.findUnique({
+    const follow = await prisma.follows.findUnique({
       where: {
         userId_tmdbSeriesId: {
           userId: user.id,
@@ -52,7 +52,7 @@ export async function POST(
     const seriesId = parseInt(tmdbId);
 
     // Check if already following
-    const existing = await prisma.follow.findUnique({
+    const existing = await prisma.follows.findUnique({
       where: {
         userId_tmdbSeriesId: {
           userId: user.id,
@@ -63,7 +63,7 @@ export async function POST(
 
     if (existing) {
       // Unfollow
-      await prisma.follow.delete({
+      await prisma.follows.delete({
         where: {
           userId_tmdbSeriesId: {
             userId: user.id,
@@ -74,7 +74,7 @@ export async function POST(
       return NextResponse.json({ following: false, message: 'Unfollowed' });
     } else {
       // Follow
-      await prisma.follow.create({
+      await prisma.follows.create({
         data: {
           userId: user.id,
           tmdbSeriesId: seriesId

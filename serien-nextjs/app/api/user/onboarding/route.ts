@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       }));
 
       // Use createMany with skipDuplicates to avoid conflicts
-      await prisma.follow.createMany({
+      await prisma.follows.createMany({
         data: followsData,
         skipDuplicates: true,
       });

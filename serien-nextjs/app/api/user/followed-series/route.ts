@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get followed series
-    const follows = await prisma.follow.findMany({
+    const follows = await prisma.follows.findMany({
       where: { userId: user.id },
       include: {
         series: true

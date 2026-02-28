@@ -14,7 +14,7 @@ interface PersonPageProps {
 
 export async function generateMetadata({ params }: PersonPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const person = await prisma.person.findUnique({
+  const person = await prisma.persons.findUnique({
     where: { slug },
   });
 
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: PersonPageProps): Promise<Met
 
 export default async function PersonPage({ params }: PersonPageProps) {
   const { slug } = await params;
-  const person = await prisma.person.findUnique({
+  const person = await prisma.persons.findUnique({
     where: { slug },
     include: {
       articles: {
