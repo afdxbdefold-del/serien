@@ -368,7 +368,7 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-5.1',
+      model: 'gpt-5.2',  // Upgraded to GPT-5.2
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: factsPrompt }
