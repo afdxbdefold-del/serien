@@ -1314,7 +1314,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
       // Create many-to-many relations for related series
       if (resolution.relatedSeries.length > 0) {
-        await tx.articleSeries.createMany({
+        await tx.article_series.createMany({
           data: resolution.relatedSeries.map((series, index) => ({
             articleId: article.id,
             seriesId: series.tmdbId,
