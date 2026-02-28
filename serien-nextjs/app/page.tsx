@@ -45,13 +45,13 @@ export default async function Page() {
     prisma.articles.findMany({
       where: { status: 'published' },
       include: {
-        author: { 
+        users: { 
           select: { 
             name: true,
             id: true
           } 
         },
-        primarySeries: {
+        series: {
           select: {
             title: true,
             slug: true,
