@@ -6,10 +6,14 @@
  * - SEO-optimized
  * - Spoiler-free
  * - Engaging tone
+ * - Uses TMDB + Wikipedia data when available
  */
+
+import { fetchWikipediaSummary, isTMDBOverviewInsufficient } from './wikipedia-fetcher';
 
 interface SeriesOverviewInput {
   seriesName: string;
+  originalTitle?: string;
   originalOverview: string;
   genres: string[];
   firstAirYear: number | null;
@@ -28,6 +32,7 @@ export async function generateSeriesExtendedOverview(
 ): Promise<string> {
   const {
     seriesName,
+    originalTitle,
     originalOverview,
     genres,
     firstAirYear,
@@ -37,6 +42,20 @@ export async function generateSeriesExtendedOverview(
     creators,
     networks,
   } = input;
+
+  // Check if we should fetch Wikipedia data
+  const needsWikipedia = isTMDBOverviewInsufficient(originalOverview);
+  let wikipediaData = null;
+  let sources = 'TMDB';
+
+  if (needsWikipedia) {
+    console.log('   📚 TMDB-Overview unzureichend, hole Wikipedia-Daten...');
+    wikipediaData = await fetchWikipediaSummary(seriesName, originalTitle);
+    if (wikipediaData.success) {
+      console.log(`   ✓ Wikipedia-Daten gefunden (${wikipediaData.summary.length} Zeichen)`);
+      sources = 'TMDB + Wikipedia';
+    }
+  }
 
   // Build context for the LLM
   const genreText = genres.length > 0 ? genres.join(', ') : 'Drama';
