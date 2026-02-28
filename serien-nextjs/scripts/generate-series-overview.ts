@@ -33,6 +33,7 @@ async function generateOverviewForSeries(tmdbId: number) {
 
     const input = {
       seriesName: series.name || series.title,
+      originalTitle: series.originalName || series.originalTitle,
       originalOverview: series.overview || '',
       genres: series.genres || [],
       firstAirYear: series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null,
