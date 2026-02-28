@@ -258,6 +258,7 @@ model series {
   lastSeasonNumber    Int?
   statusDescription   String?
   statusLastUpdate    DateTime?
+  extendedOverview    String?
   article_series      article_series[]
   articles            articles[]
   follows             follows[]
