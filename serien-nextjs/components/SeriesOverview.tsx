@@ -14,10 +14,6 @@ export default function SeriesOverview({
   extendedOverview,
   shortOverview,
 }: SeriesOverviewProps) {
-  // Debug logging
-  console.log('[SeriesOverview] Extended:', extendedOverview ? `${extendedOverview.length} chars` : 'null');
-  console.log('[SeriesOverview] Short:', shortOverview ? `${shortOverview.length} chars` : 'null');
-  
   // Use extended overview if available, otherwise fall back to short overview
   const displayText = extendedOverview || shortOverview;
 
@@ -37,14 +33,6 @@ export default function SeriesOverview({
           {displayText}
         </div>
       </div>
-
-      {extendedOverview && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500 italic">
-            Diese Beschreibung wurde von unserer KI erstellt, um dir einen umfassenden Überblick zu geben.
-          </p>
-        </div>
-      )}
     </section>
   );
 }
