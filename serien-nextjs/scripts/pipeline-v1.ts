@@ -1385,6 +1385,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
       await tx.headline_comparisons.create({
         data: {
+          id: `headline-${Date.now()}`, // Required ID
           articleId: article.id,
           headline_original: originalHeadline,
           headline_rewritten: headlineChanged ? articleTitle : null,
