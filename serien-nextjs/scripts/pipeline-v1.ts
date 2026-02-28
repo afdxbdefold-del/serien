@@ -859,48 +859,16 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`📊 Re-check: Quality ${qualityResult.status}, Anti-AI ${antiAiResult.antiAiScore}/100`);
     }
 
-    // If STILL FAIL after rewrite → SKIP_PUBLISH (save as DRAFT)
+    // RULESET v1.4: Anti-AI Filter NO LONGER BLOCKS
+    // Failed Anti-AI → DRAFT (like quality fails)
     if (antiAiResult.status === 'FAIL') {
-      console.log('❌ Anti-AI Filter FAILED after rewrite → SKIP_PUBLISH');
+      console.log('⚠️  Anti-AI Filter FAILED after rewrite → CONTINUE AS DRAFT');
+      console.log('   RULESET v1.4: AI-smell downgrade visibility, never block');
       antiAiResult.failReasons.forEach(reason => console.log(`   - ${reason}`));
-      
-      // Save as DRAFT (same logic as quality fail)
-      const authors = await prisma.users.findMany({
-        where: { role: 'author' },
-        select: { id: true }
-      });
-      
-      const authorId = authors.length > 0 ? authors[0].id : 'system';
-      const slug = generateSlug(articleTitle);
-      const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
-      
-      const draftArticle = await prisma.articles.create({
-        data: {
-          id: `draft-ai-${Date.now()}`,
-          slug: `${slug}-draft-ai`,
-          title: articleTitle,
-          excerpt: articleExcerpt,
-          contentHtml: generatedContent,
-          contentType: classification.content_type,
-          authorId,
-          status: 'draft',
-          publishMode: 'DRAFT',
-          publishedAt: null,
-          sourcePublishedAt: now,
-          sourceUrl: source.url + '-draft-ai',
-          readingTime: Math.ceil(generatedContent.split(' ').length / 200),
-          confidence: classification.confidence,
-          primarySeriesId: resolution.primarySeries.tmdbId,
-        },
-      });
-
-      console.log(`📝 Saved as DRAFT (AI-Smell): ${draftArticle.id}`);
-      
-      return { skipped: true, reason: 'anti_ai_filter_failed', draft: draftArticle };
+      // Continue pipeline, will be published as DRAFT
+    } else {
+      console.log('✅ Anti-AI Filter PASSED');
     }
-
-    console.log('✅ Anti-AI Filter PASSED');
 
     // ========== STEP 7: DISCOVER GATE ==========
     console.log('\n' + '━'.repeat(70));
