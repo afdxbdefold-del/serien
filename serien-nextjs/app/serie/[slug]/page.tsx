@@ -96,7 +96,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const series = await prisma.series.findUnique({
     where: { tmdbId },
     include: {
-      primaryArticles: {
+      articles: {
         where: { status: 'published' },
         orderBy: { publishedAt: 'desc' },
         take: 10,
