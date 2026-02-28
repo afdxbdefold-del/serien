@@ -388,14 +388,26 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
     console.log('✅ Raw content generated');
     console.log(`   Length: ${rawContent.length} characters`);
 
+    // Clean up LLM artifacts and hallucinations
+    const cleanedContent = rawContent
+      // Remove generic filler sentences that make no sense
+      .replace(/Die\s+[A-Z][\w-]+-(Serie|Plattform)\s+[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
+      // Remove standalone "Inhaltlich steht" that sometimes appears orphaned
+      .replace(/^\s*Inhaltlich steht\s*/gm, '')
+      // Clean up double spaces
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    console.log('🧹 Cleaned LLM artifacts');
+
     // Apply Natural Paragraph Formatter (STEP 4 + Natural Paragraphs Feature!)
     console.log('📝 Applying natural paragraph structure...');
     
     const formattedHTML = generateNaturalArticleHTML(
-      rawContent,
+      cleanedContent,
       primarySeriesName,
       {
-        includeSubheading: rawContent.split(/\s+/).length > 500,
+        includeSubheading: cleanedContent.split(/\s+/).length > 500,
         subheadingText: contentType === 'MULTI_SERIES_EDITORIAL' 
           ? `Alle Serien im Überblick`
           : `Mehr zu ${primarySeriesName}`
