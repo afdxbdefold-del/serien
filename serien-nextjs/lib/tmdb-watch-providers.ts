@@ -80,5 +80,26 @@ export function getProviderDisplayName(providerName: string): string {
     'RTL Plus': 'RTL+',
   };
   
-  return nameMap[providerName] || providerName;
+  // First, apply name mapping
+  let displayName = nameMap[providerName] || providerName;
+  
+  // Then, translate common English phrases to German
+  const translations: Record<string, string> = {
+    'Standard with Ads': 'Standard mit Werbung',
+    'with Ads': 'mit Werbung',
+    'Basic with Ads': 'Basis mit Werbung',
+    'Free with Ads': 'Kostenlos mit Werbung',
+    'Premium': 'Premium',
+    'Standard': 'Standard',
+    'Basic': 'Basis',
+  };
+  
+  // Apply translations
+  for (const [english, german] of Object.entries(translations)) {
+    if (displayName.includes(english)) {
+      displayName = displayName.replace(english, german);
+    }
+  }
+  
+  return displayName;
 }
