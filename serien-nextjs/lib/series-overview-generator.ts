@@ -65,6 +65,12 @@ export async function generateSeriesExtendedOverview(
   const seasonsText = numberOfSeasons ? `${numberOfSeasons} Staffel${numberOfSeasons > 1 ? 'n' : ''}` : '';
   const yearText = firstAirYear ? `seit ${firstAirYear}` : '';
 
+  // Build information sources text
+  let informationSources = `- TMDB Overview: "${originalOverview}"`;
+  if (wikipediaData && wikipediaData.success) {
+    informationSources += `\n- Wikipedia-Zusammenfassung: "${wikipediaData.summary.substring(0, 800)}${wikipediaData.summary.length > 800 ? '...' : ''}"`;
+  }
+
   const prompt = `Du bist ein professioneller TV-Serien-Redakteur für eine deutsche Entertainment-Website.
 
 Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}".
@@ -80,7 +86,7 @@ Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}
 - Struktur in 3-4 Absätze
 
 **Verfügbare Informationen:**
-- Original-Overview: "${originalOverview}"
+${informationSources}
 - Genre: ${genreText}
 - Jahr: ${yearText}
 - Staffeln: ${seasonsText}
@@ -88,6 +94,8 @@ Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}
 - Hauptdarsteller: ${mainCast || 'diverse'}
 - Schöpfer: ${creatorText}
 - Sender/Plattform: ${networkText}
+
+**Datenquellen: ${sources}**
 
 **Struktur:**
 1. Paragraph: Hook & Prämisse (Was macht die Serie besonders?)
@@ -98,6 +106,7 @@ Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}
 **Wichtig:**
 - Keine Spoiler über Staffel 1 hinaus
 - Keine erfundenen Details - nur basierend auf gegebenen Infos
+- Nutze Wikipedia-Infos wenn vorhanden, aber bleibe spoilerfrei
 - Natürlicher, fließender Schreibstil
 - SEO-freundlich aber nicht künstlich
 - KEIN Markdown - nur reiner Text mit Absätzen
