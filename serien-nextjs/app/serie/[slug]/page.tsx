@@ -443,7 +443,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             {/* NEW: Series Overview (Extended AI-generated description) */}
             <SeriesOverview
               seriesName={series.name || series.title}
-              extendedOverview={extendedOverview}
+              extendedOverview={series.extendedOverview}
               shortOverview={series.overview}
             />
 
