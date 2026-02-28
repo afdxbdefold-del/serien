@@ -223,7 +223,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Quick Facts Box */}
-        <div className="sm:px-6 mb-6">
+        <div className="px-6 mb-6">
           <QuickFactsBox
             originalTitle={series.originalName || series.originalTitle}
             firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
