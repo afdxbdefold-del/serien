@@ -21,7 +21,7 @@ interface PageProps {
  * Extract tmdbId from route param
  * Format: {tmdb_id}-{slug}
  */
-function parsePerson Id(id: string): number | null {
+function parsePersonId(id: string): number | null {
   const match = id.match(/^(\d+)-/);
   return match ? parseInt(match[1], 10) : null;
 }
