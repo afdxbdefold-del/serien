@@ -209,6 +209,46 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* NEW: Series Overview */}
+        <div className="mt-8 px-6">
+          <SeriesOverview 
+            overview={series.overview || ''}
+            seriesName={series.name || series.title}
+            status={series.status}
+            firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
+          />
+        </div>
+
+        {/* NEW: Quick Facts Box */}
+        <div className="px-6">
+          <QuickFactsBox
+            originalTitle={series.originalName || series.originalTitle}
+            firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
+            creators={creators.map(c => c.name)}
+            mainGenre={series.genres && series.genres.length > 0 ? series.genres[0] : null}
+            platform={series.networks && series.networks.length > 0 ? series.networks[0] : null}
+            status={series.status}
+          />
+        </div>
+
+        {/* NEW: Cast Section */}
+        <div className="px-6">
+          <SeriesCast 
+            seriesName={series.name || series.title}
+            cast={cast}
+          />
+        </div>
+
+        {/* NEW: Seasons & Status */}
+        <div className="px-6">
+          <SeasonsStatus
+            seriesName={series.name || series.title}
+            seasons={seasons}
+            status={series.status}
+            numberOfSeasons={series.numberOfSeasons}
+          />
+        </div>
+
         {/* Mobile: News Section */}
         <div className="mt-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4 px-6">
@@ -266,9 +306,18 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center mx-6">
-              <p className="text-gray-500 text-sm">Noch keine News zu dieser Serie verfügbar.</p>
+              <p className="text-gray-500 text-sm">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
             </div>
           )}
+        </div>
+
+        {/* NEW: Related Series (Mobile) */}
+        <div className="mt-8 px-6">
+          <RelatedSeries
+            currentSeriesId={series.tmdbId}
+            genres={series.genres as string[]}
+            networks={series.networks as string[]}
+          />
         </div>
 
         {/* Series Q&A Section (Mobile) */}
@@ -375,6 +424,39 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           
           {/* LEFT: News Feed (Main Content) */}
           <div className="lg:col-span-7">
+            
+            {/* NEW: Series Overview (Desktop) */}
+            <SeriesOverview 
+              overview={series.overview || ''}
+              seriesName={series.name || series.title}
+              status={series.status}
+              firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
+            />
+
+            {/* NEW: Quick Facts Box (Desktop) */}
+            <QuickFactsBox
+              originalTitle={series.originalName || series.originalTitle}
+              firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
+              creators={creators.map(c => c.name)}
+              mainGenre={series.genres && series.genres.length > 0 ? series.genres[0] : null}
+              platform={series.networks && series.networks.length > 0 ? series.networks[0] : null}
+              status={series.status}
+            />
+
+            {/* NEW: Cast Section (Desktop) */}
+            <SeriesCast 
+              seriesName={series.name || series.title}
+              cast={cast}
+            />
+
+            {/* NEW: Seasons & Status (Desktop) */}
+            <SeasonsStatus
+              seriesName={series.name || series.title}
+              seasons={seasons}
+              status={series.status}
+              numberOfSeasons={series.numberOfSeasons}
+            />
+
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 📰 News zu {series.name}
@@ -444,9 +526,18 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                <p className="text-gray-500">Noch keine News zu dieser Serie verfügbar.</p>
+                <p className="text-gray-500">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
               </div>
             )}
+
+            {/* NEW: Related Series (Desktop) */}
+            <div className="mt-8">
+              <RelatedSeries
+                currentSeriesId={series.tmdbId}
+                genres={series.genres as string[]}
+                networks={series.networks as string[]}
+              />
+            </div>
           </div>
 
           {/* Series Q&A Section (Desktop) */}
