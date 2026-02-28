@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent dashboard entries
-    const dashboards = await prisma.discoverScoreDashboard.findMany({
+    const dashboards = await prisma.discover_score_dashboards.findMany({
       take: limit,
       orderBy: { timestamp: 'desc' },
       include: {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Statistics
-    const total = await prisma.discoverScoreDashboard.count();
+    const total = await prisma.discover_score_dashboards.count();
     const discoverOk = dashboards.filter(d => d.finalVerdict === 'DISCOVER_OK').length;
     const searchOnly = dashboards.filter(d => d.finalVerdict === 'SEARCH_ONLY').length;
     const avgDiscoverScore = dashboards.reduce((sum, d) => sum + d.discoverScore, 0) / dashboards.length;

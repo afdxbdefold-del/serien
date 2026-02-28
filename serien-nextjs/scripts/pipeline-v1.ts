@@ -1326,17 +1326,17 @@ export async function runContentPipeline(source: CrawledSource) {
 
       // === STORE DISCOVER DASHBOARD ===
       // Auto-cleanup: Keep only last 1000 results
-      const dashboardCount = await tx.discoverScoreDashboard.count();
+      const dashboardCount = await tx.discover_score_dashboards.count();
       if (dashboardCount >= 1000) {
         // Delete oldest entries
         const toDelete = dashboardCount - 999;
-        const oldestEntries = await tx.discoverScoreDashboard.findMany({
+        const oldestEntries = await tx.discover_score_dashboards.findMany({
           orderBy: { timestamp: 'asc' },
           take: toDelete,
           select: { id: true },
         });
         
-        await tx.discoverScoreDashboard.deleteMany({
+        await tx.discover_score_dashboards.deleteMany({
           where: {
             id: { in: oldestEntries.map(e => e.id) },
           },
@@ -1344,7 +1344,7 @@ export async function runContentPipeline(source: CrawledSource) {
       }
 
       // Store dashboard metrics
-      await tx.discoverScoreDashboard.create({
+      await tx.discover_score_dashboards.create({
         data: {
           articleId: article.id,
           pipelineVersion: 'serien_pipeline_v1',
