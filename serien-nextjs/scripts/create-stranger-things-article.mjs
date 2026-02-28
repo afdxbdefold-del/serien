@@ -5,23 +5,23 @@
 import { runContentPipeline } from './pipeline-v1.ts';
 
 async function createArticle() {
-  console.log('🎬 Erstelle neuen Artikel: Stranger Things Season 5...\n');
+  console.log('🎬 Erstelle neuen Artikel: The Last of Us Season 2...\n');
   
   const testArticle = {
-    title: "Stranger Things Season 5: Duffer Brothers Reveal Episode Titles and Production Update",
-    url: "https://tvline.com/test-stranger-things-s5",
+    title: "The Last of Us Season 2: Pedro Pascal Teases Darker Storyline for Joel",
+    url: "https://tvline.com/test-tlou-s2",
     text: `
-The Duffer Brothers have officially revealed the episode titles for the fifth and final season of Stranger Things on Netflix. The announcement was made via the show's official social media accounts, giving fans their first glimpse into what's to come.
+Pedro Pascal has given fans a glimpse into what to expect from his character Joel in The Last of Us Season 2. In a recent interview, the actor revealed that the upcoming season will explore much darker territory for the beloved character.
 
-Season 5 will consist of eight episodes, matching the episode count of the first season. The titles suggest a darker, more intense final chapter for the beloved series. Filming began in January 2024 and is expected to continue through the end of 2024.
+Season 2 is currently in production in Vancouver, with filming expected to wrap in June 2024. HBO has confirmed that the new season will premiere in early 2025, adapting the events of the second video game.
 
-Netflix has confirmed that Season 5 will premiere in 2025, though an exact date has not been announced. The streaming giant has indicated that this final season will be the longest yet, with each episode running significantly longer than previous seasons.
+Pascal described Season 2 as "emotionally devastating" and hinted that Joel's journey will take unexpected turns. The actor emphasized that the show will stay faithful to the game's story while adding new dimensions to the characters.
 
-The main cast, including Millie Bobby Brown, Finn Wolfhard, Gaten Matarazzo, Caleb McLaughlin, Noah Schnapp, and Sadie Sink, will all return for the final season. Winona Ryder and David Harbour will also reprise their roles as Joyce Byers and Jim Hopper.
+Bella Ramsey will return as Ellie, with their relationship at the center of the season's narrative. New cast members include Kaitlyn Dever as Abby and Isabela Merced as Dina, both crucial characters from the game.
 
-The Duffer Brothers have promised that Season 5 will provide closure to all the storylines that have been building since the show's debut in 2016. They've described it as "the beginning of the end" and have teased major character deaths and shocking revelations.
+Co-creators Craig Mazin and Neil Druckmann have stated that Season 2 will be more action-packed than the first, while maintaining the emotional depth that made the show a critical success. The season is expected to consist of eight to ten episodes.
 
-Production has been taking place in Atlanta, Georgia, with the Duffers stating that the final season will return to the show's roots while also pushing the story forward in unexpected ways.
+HBO has already greenlit Season 3, ensuring that the complete story from the games will be told on screen. The show has become one of HBO's biggest hits, earning multiple Emmy Awards and critical acclaim.
     `,
     useFullTextMode: true,
   };
