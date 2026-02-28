@@ -322,13 +322,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
         {/* Series Q&A Section (Mobile) */}
         {seriesQA && seriesQA.length > 0 && (
-          <div className="mt-8 px-6">
+          <div className="mt-8 sm:px-6">
             <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
           </div>
         )}
 
         {/* Mobile: Series Info Box (AFTER News) */}
-        <section className="mt-8 px-6" aria-labelledby="series-info-mobile">
+        <section className="mt-8 sm:px-6" aria-labelledby="series-info-mobile">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 id="series-info-mobile" className="text-lg font-bold text-gray-900 mb-6">📊 Serien-Infos</h2>
             <div className="space-y-6">
