@@ -308,7 +308,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center sm:mx-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center mx-6">
               <p className="text-gray-500 text-sm">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
             </div>
           )}
