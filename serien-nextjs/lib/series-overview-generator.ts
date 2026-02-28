@@ -55,6 +55,8 @@ Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}
 - Ton: Informativ, engagierend, professionell
 - Zielgruppe: Deutsche TV-Serien-Fans
 - KEINE Spoiler
+- KEINE Markdown-Formatierung (kein **, keine #, keine _)
+- Nur reiner Text mit natürlichen Absätzen
 - Natürliche Integration von Keywords: "${seriesName}", "${genreText}", "Serie", "Staffel"
 - Struktur in 3-4 Absätze
 
@@ -79,6 +81,7 @@ Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}
 - Keine erfundenen Details - nur basierend auf gegebenen Infos
 - Natürlicher, fließender Schreibstil
 - SEO-freundlich aber nicht künstlich
+- KEIN Markdown - nur reiner Text mit Absätzen
 
 Schreibe jetzt die erweiterte Beschreibung:`;
 
