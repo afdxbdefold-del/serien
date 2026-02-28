@@ -9,7 +9,10 @@ import { PrismaClient } from '@prisma/client';
 import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
 import Image from 'next/image';
 
-const prisma = new PrismaClient();
+// Use global prisma instance for Next.js (avoid connection issues)
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const prisma = globalForPrisma.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 interface PageProps {
   params: {
