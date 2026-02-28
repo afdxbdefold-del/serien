@@ -28,32 +28,43 @@ export function smartTruncate(text: string, maxLength: number = 200): string {
     return text.substring(0, lastSentenceEnd + 1).trim();
   }
   
-  // Look for last colon or semicolon (natural pause points)
+  // Look for last colon (natural pause point - perfect for "dass" clauses)
   const lastColon = truncated.lastIndexOf(':');
-  const lastSemicolon = truncated.lastIndexOf(';');
-  const lastNaturalPause = Math.max(lastColon, lastSemicolon);
   
-  if (lastNaturalPause > maxLength * 0.6) {
-    return text.substring(0, lastNaturalPause + 1).trim();
+  if (lastColon > maxLength * 0.5) {
+    return text.substring(0, lastColon + 1).trim();
   }
   
-  // If no good sentence boundary, look for the last complete word
-  // But ensure we don't cut off in the middle of a critical phrase
+  // If no good boundary, look for the last complete word
   const lastSpace = truncated.lastIndexOf(' ');
   if (lastSpace > maxLength * 0.7) {
-    // Check if we're cutting mid-phrase (words like "dass", "die", "der" etc.)
-    const lastWords = truncated.substring(lastSpace - 30, lastSpace).trim().split(' ');
-    const lastWord = lastWords[lastWords.length - 1]?.toLowerCase();
+    // Check if we're cutting mid-phrase
+    const afterLastSpace = truncated.substring(lastSpace + 1).trim().toLowerCase();
     
-    // Common German function words that shouldn't end an excerpt
-    const functionWords = ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'eines', 
-                          'und', 'oder', 'aber', 'dass', 'wenn', 'weil', 'als', 'wie', 'von', 'zu', 'mit',
-                          'für', 'auf', 'in', 'an', 'bei', 'nach', 'vor', 'über', 'unter'];
+    // Common German function words/articles that shouldn't end an excerpt
+    const badEndings = ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'eines', 
+                        'und', 'oder', 'aber', 'dass', 'wenn', 'weil', 'als', 'wie', 'von', 'zu', 'mit',
+                        'für', 'auf', 'in', 'an', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'ohne'];
     
-    if (functionWords.includes(lastWord)) {
-      // Back up to previous word boundary
+    // Check if ending with a function word
+    const endsWithBadWord = badEndings.some(word => 
+      afterLastSpace === word || afterLastSpace.startsWith(word + ' ')
+    );
+    
+    if (endsWithBadWord) {
+      // Try to find a better break point - go back to colon or comma
+      const betterBreak = Math.max(
+        truncated.lastIndexOf(':', lastSpace),
+        truncated.lastIndexOf(',', lastSpace)
+      );
+      
+      if (betterBreak > maxLength * 0.4) {
+        return text.substring(0, betterBreak + 1).trim();
+      }
+      
+      // Otherwise back up one more word
       const previousSpace = truncated.lastIndexOf(' ', lastSpace - 1);
-      if (previousSpace > maxLength * 0.6) {
+      if (previousSpace > maxLength * 0.5) {
         return text.substring(0, previousSpace).trim() + '…';
       }
     }
