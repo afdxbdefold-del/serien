@@ -107,7 +107,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           publishedAt: true,
           heroLocalUrl: true,
           cardImageUrl: true,
-          author: {
+          authorId: true,
+          users: {
             select: { name: true, image: true }
           }
         }
