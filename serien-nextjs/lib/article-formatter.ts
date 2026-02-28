@@ -46,8 +46,11 @@ function convertMarkdownToHTML(text: string): string {
  * Split text into natural paragraphs
  */
 function splitIntoNaturalParagraphs(text: string): string[] {
-  // Remove HTML tags for processing
-  const cleanText = text.replace(/<[^>]+>/g, '').trim();
+  // FIRST: Convert Markdown to HTML BEFORE processing
+  const htmlText = convertMarkdownToHTML(text);
+  
+  // Remove HTML tags for processing (but preserve content)
+  const cleanText = htmlText.replace(/<[^>]+>/g, '').trim();
   
   // Split by sentence
   const sentences = cleanText
