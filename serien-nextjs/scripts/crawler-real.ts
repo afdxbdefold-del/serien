@@ -31,7 +31,7 @@ async function processArticleWithTMDB(article: CrawledArticle) {
   return await prisma.$transaction(async (tx) => {
     // Step 0: Check if article already exists (Idempotency)
     console.log('\n🔍 Step 0: Checking for existing article...');
-    const existingArticle = await tx.article.findUnique({
+    const existingArticle = await tx.articles.findUnique({
       where: { sourceUrl: article.url }
     });
     
@@ -123,7 +123,7 @@ async function processArticleWithTMDB(article: CrawledArticle) {
     console.log('\n📄 Step D: Creating Article...');
     const slug = generateSlug(article.title);
     
-    const author = await tx.user.upsert({
+    const author = await tx.users.upsert({
       where: { email: 'crawler@serien.de' },
       update: {},
       create: {
@@ -137,7 +137,7 @@ async function processArticleWithTMDB(article: CrawledArticle) {
     // CRITICAL: Use current time for publishedAt (Google News compliance)
     const now = new Date();
     
-    const articleData = await tx.article.create({
+    const articleData = await tx.articles.create({
       data: {
         id: `crawler-${Date.now()}`,
         slug,

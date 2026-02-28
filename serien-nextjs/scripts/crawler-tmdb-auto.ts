@@ -110,7 +110,7 @@ async function processArticleWithTMDB(article: NewsArticle) {
     const slug = generateSlug(article.title);
     
     // Get or create author
-    const author = await tx.user.upsert({
+    const author = await tx.users.upsert({
       where: { email: 'crawler@serien.de' },
       update: {},
       create: {
@@ -121,7 +121,7 @@ async function processArticleWithTMDB(article: NewsArticle) {
       },
     });
 
-    const articleData = await tx.article.create({
+    const articleData = await tx.articles.create({
       data: {
         id: `crawler-${Date.now()}`,
         slug,
