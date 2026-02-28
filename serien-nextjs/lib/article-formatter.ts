@@ -47,11 +47,11 @@ function convertMarkdownToHTML(text: string): string {
 
 /**
  * Split text into natural paragraphs
- * Input: Raw text from LLM (may contain Markdown)
+ * Input: Raw text from LLM (may contain Markdown but should NOT contain HTML tags)
  */
 function splitIntoNaturalParagraphs(text: string): string[] {
-  // Don't remove anything - keep the text as-is including markdown
-  const cleanText = text.trim();
+  // CRITICAL: Remove any HTML tags that might have leaked in
+  const cleanText = text.replace(/<[^>]+>/g, '').trim();
   
   // Split by sentence - use a simpler, safer approach
   // Replace common abbreviations and initials temporarily, then split, then restore
