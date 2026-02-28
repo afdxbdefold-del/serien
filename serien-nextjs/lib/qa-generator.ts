@@ -41,7 +41,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.2',  // Upgraded to GPT-5.2
         messages: [
           {
             role: 'system',
