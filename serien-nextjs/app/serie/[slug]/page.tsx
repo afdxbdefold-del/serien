@@ -254,12 +254,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
         {/* Mobile: News Section */}
         <div className="mt-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 sm:px-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 px-6">
             📰 News zu {series.name}
           </h2>
 
           {series.primaryArticles && series.primaryArticles.length > 0 ? (
-            <div className="space-y-4 sm:px-6">
+            <div className="space-y-4 px-6">
               {series.primaryArticles.slice(0, 3).map((article) => (
                 <Link
                   key={article.slug}
