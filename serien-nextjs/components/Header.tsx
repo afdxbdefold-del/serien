@@ -81,6 +81,9 @@ export default function Header() {
                 <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   SERIENFINDER
                 </Link>
+                <Link href="/personen" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
+                  PERSONEN
+                </Link>
                 <Link href="/redaktion" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   REDAKTION
                 </Link>
@@ -212,6 +215,13 @@ export default function Header() {
                 onClick={() => setShowMobileMenu(false)}
               >
                 SERIENFINDER
+              </Link>
+              <Link 
+                href="/personen" 
+                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                PERSONEN
               </Link>
               <Link 
                 href="/redaktion" 
