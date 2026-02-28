@@ -64,11 +64,11 @@ export async function searchTMDBPerson(name: string): Promise<TMDBPersonSearchRe
     const data = await response.json();
     const results = data.results || [];
 
-    // Find first valid actor
+    // Find first valid actor (lowered popularity threshold for better coverage)
     const validActor = results.find((person: TMDBPersonSearchResult) => {
       return (
         person.known_for_department === 'Acting' &&
-        person.popularity > 5
+        person.popularity > 2
       );
     });
 
