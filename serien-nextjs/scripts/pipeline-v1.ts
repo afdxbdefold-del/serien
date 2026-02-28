@@ -1309,6 +1309,7 @@ export async function runContentPipeline(source: CrawledSource) {
           wasBedeutetDasText,
           trailerLocalUrl: trailerLocalPath, // NEW: Trailer video path
           ...imageData,
+          updatedAt: now, // Required field
         },
       });
 
