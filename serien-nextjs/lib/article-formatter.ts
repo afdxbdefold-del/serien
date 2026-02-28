@@ -50,9 +50,9 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   // Don't remove anything - keep the text as-is including markdown
   const cleanText = text.trim();
   
-  // Split by sentence
+  // Split by sentence (but avoid splitting on abbreviations like R.R., Dr., etc.)
   const sentences = cleanText
-    .split(/(?<=[.!?])\s+/)
+    .split(/(?<=[.!?])(?<!\b[A-Z]\.)(?<!\b[A-Z]\.[A-Z]\.)\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 0);
 
