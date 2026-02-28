@@ -20,7 +20,7 @@ export async function autoLinkActors(
     const articlePersons = await prisma.article_persons.findMany({
       where: { articleId },
       include: {
-        person: true,
+        persons: true,
       },
     });
 
@@ -33,10 +33,10 @@ export async function autoLinkActors(
 
     // Sort by name length (longest first to avoid partial matches)
     const sortedPersons = articlePersons.sort(
-      (a, b) => b.person.name.length - a.person.name.length
+      (a, b) => b.persons.name.length - a.persons.name.length
     );
 
-    for (const { person } of sortedPersons) {
+    for (const { persons: person } of sortedPersons) {
       // Create regex for exact name match (case-insensitive, word boundaries)
       const nameRegex = new RegExp(
         `\\b(${escapeRegex(person.name)})\\b`,
