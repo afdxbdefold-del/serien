@@ -24,6 +24,27 @@ export interface TMDBPersonDetails {
   profile_path: string | null;
   known_for_department: string;
   popularity: number;
+  combined_credits?: {
+    cast: Array<{
+      id: number;
+      name?: string;
+      title?: string;
+      media_type: 'tv' | 'movie';
+      character?: string;
+      poster_path?: string | null;
+      popularity: number;
+      vote_average?: number;
+      first_air_date?: string;
+    }>;
+    crew: Array<{
+      id: number;
+      name?: string;
+      title?: string;
+      media_type: 'tv' | 'movie';
+      job?: string;
+      department?: string;
+    }>;
+  };
 }
 
 /**
