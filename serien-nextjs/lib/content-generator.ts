@@ -393,14 +393,16 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
     
     // Clean up LLM artifacts and hallucinations
     cleanedContent = cleanedContent
-      // Remove generic filler sentences - MORE FLEXIBLE PATTERN
-      .replace(/Die\s+[\w\s-]+(Serie|Plattform)\s+[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
-      // Also catch simpler variations
-      .replace(/[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
+      // Remove generic filler sentences - MOST FLEXIBLE PATTERN
+      // Matches: "Die [anything]-Serie "[anything]" berichtet über die neue staffel"
+      .replace(/Die\s+.+?(Serie|Plattform)\s+[„"].+?[""]?\s+berichtet\s+über\s+die\s+neue\s+staffel\.?/gi, '')
+      // Simpler variation without "Die"
+      .replace(/[„"].+?[""]?\s+berichtet\s+über\s+die\s+neue\s+staffel\.?/gi, '')
       // Remove standalone "Inhaltlich steht" that sometimes appears orphaned
       .replace(/^\s*Inhaltlich steht\s*/gm, '')
-      // Clean up double spaces
+      // Clean up double spaces and empty lines
       .replace(/\s{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
     console.log('🧹 Cleaned LLM artifacts');
