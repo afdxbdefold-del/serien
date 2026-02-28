@@ -213,7 +213,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Where to Stream Box - Standalone Section */}
-        <div className="sm:px-6 mb-6">
+        <div className="px-6 mb-6">
           <WhereToStreamBox 
             seriesId={series.tmdbId}
             seriesName={series.name || ''}
