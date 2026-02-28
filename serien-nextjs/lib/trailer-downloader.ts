@@ -449,8 +449,8 @@ async function downloadViaYtDlp(
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         proc.kill();
-        reject(new Error('Download timeout after 3 minutes'));
-      }, 180000);
+        reject(new Error('Download timeout after 5 minutes'));
+      }, 300000); // 5 minutes
 
       proc.on('close', (code) => {
         clearTimeout(timeout);
