@@ -72,7 +72,7 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   const sentences = textWithProtectedDots
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
-    .map(s => s.replace(/Â·/g, '.')) // Restore dots
+    .map(s => s.replace(/Â·/g, '.').replace(/·/g, '.')) // Restore BOTH dot variants
     .filter(s => s.length > 0);
 
   const paragraphs: string[] = [];
