@@ -1484,7 +1484,7 @@ export async function runContentPipeline(source: CrawledSource) {
       const qaItems = await generateArticleQA({
         title: result.title,
         contentHtml: result.contentHtml,
-        seriesName: primarySeries.title
+        seriesName: resolution.primarySeries.title
       });
 
       if (qaItems && qaItems.length > 0) {
