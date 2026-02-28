@@ -185,6 +185,7 @@ export default async function PersonPage({ params }: PageProps) {
                             src={article.heroImageUrl}
                             alt={article.title}
                             fill
+                            sizes="96px"
                             className="object-cover"
                           />
                         </div>
