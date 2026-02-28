@@ -54,13 +54,18 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   const cleanText = text.trim();
   
   // Split by sentence - use a simpler, safer approach
-  // Replace common abbreviations temporarily, then split, then restore
+  // Replace common abbreviations and initials temporarily, then split, then restore
   const textWithProtectedDots = cleanText
-    .replace(/([A-Z])\.\s*([A-Z])\./g, '$1Â·$2Â·') // R.R. -> RÂ·RÂ·
+    // Multi-letter initials: R.R., J.K., etc.
+    .replace(/([A-Z])\.\s*([A-Z])\./g, '$1Â·$2Â·')
+    // Single initials: S., J., etc. (when followed by uppercase letter - likely a name)
+    .replace(/\s([A-Z])\.\s+([A-Z])/g, ' $1· $2')
+    // Common titles
     .replace(/\bDr\./g, 'DrÂ·')
     .replace(/\bProf\./g, 'ProfÂ·')
     .replace(/\bMr\./g, 'MrÂ·')
-    .replace(/\bMrs\./g, 'MrsÂ·');
+    .replace(/\bMrs\./g, 'MrsÂ·')
+    .replace(/\bMs\./g, 'MsÂ·');
   
   const sentences = textWithProtectedDots
     .split(/(?<=[.!?])\s+/)
