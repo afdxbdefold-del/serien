@@ -66,14 +66,19 @@ Create 2-3 Q&A pairs in German. Return only the JSON, no explanation.`
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    
+    // Claude uses different response format
+    const content = data.content?.[0]?.text || data.choices?.[0]?.message?.content;
 
     if (!content) {
       console.log('   ⚠️  No content in response');
       return [];
     }
 
-    const parsed = JSON.parse(content);
+    // Extract JSON from response (Claude might wrap it in markdown)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : content;
+    const parsed = JSON.parse(jsonStr);
     const questions = (parsed.questions || []).slice(0, 3);
 
     if (questions.length > 0) {
