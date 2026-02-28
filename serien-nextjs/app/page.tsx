@@ -51,7 +51,6 @@ export default async function Page() {
             id: true
           } 
         },
-        series: {
           select: {
             title: true,
             slug: true,
