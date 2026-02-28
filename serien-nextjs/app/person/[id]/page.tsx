@@ -247,6 +247,29 @@ export default async function PersonPage({ params }: PageProps) {
           </aside>
         </div>
       </div>
+
+      {/* Schema.org Person Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Person',
+            name: person.name,
+            image: person.profile_path ? getTMDBProfileImageUrl(person.profile_path, 'h632') : undefined,
+            birthDate: person.birthday,
+            birthPlace: person.place_of_birth,
+            jobTitle: person.known_for_department,
+            description: person.biography ? person.biography.substring(0, 200) + '...' : undefined,
+            sameAs: `https://www.themoviedb.org/person/${tmdbId}`,
+            url: `https://serien.de/person/${id}`,
+            mainEntityOfPage: {
+              '@type': 'WebPage',
+              '@id': `https://serien.de/person/${id}`
+            }
+          })
+        }}
+      />
     </div>
   );
 }
