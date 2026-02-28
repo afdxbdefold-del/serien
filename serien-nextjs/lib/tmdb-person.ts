@@ -80,19 +80,37 @@ export async function searchTMDBPerson(name: string): Promise<TMDBPersonSearchRe
 }
 
 /**
- * Get detailed person info
+ * Get detailed person info with combined credits
  */
-export async function getTMDBPersonDetails(tmdbId: number): Promise<TMDBPersonDetails | null> {
+export async function getTMDBPersonDetails(tmdbId: number, includeCredits: boolean = false): Promise<TMDBPersonDetails | null> {
   try {
-    const response = await fetch(
-      `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=de-DE`
-    );
+    let url = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=de-DE`;
+    
+    if (includeCredits) {
+      url += '&append_to_response=combined_credits';
+    }
+    
+    const response = await fetch(url);
 
     if (!response.ok) {
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // If no German biography, fallback to English
+    if ((!data.biography || data.biography.trim() === '') && includeCredits) {
+      console.log(`  ℹ️  No German biography for ${data.name}, trying English...`);
+      const enUrl = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+      const enResponse = await fetch(enUrl);
+      
+      if (enResponse.ok) {
+        const enData = await enResponse.json();
+        data.biography = enData.biography;
+      }
+    }
+
+    return data;
   } catch (error) {
     console.error(`TMDB person details failed for ID ${tmdbId}:`, error);
     return null;
