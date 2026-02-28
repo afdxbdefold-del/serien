@@ -254,7 +254,7 @@ metadata:
 
 test_plan:
   current_focus: 
-    - "All Prisma fixes verified and complete"
+    - "Series Infobox verification complete on multiple articles"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -276,6 +276,7 @@ test_plan:
     - "Gray House Article - Series Infobox (2026-02-27 FINAL)"
     - "Gray House Article - WhereToStreamBox (2026-02-27 FINAL)"
     - "Gray House Article - Complete feature verification after ALL Prisma fixes (2026-02-27 FINAL)"
+    - "Night Agent Article - Series Infobox and WhereToStreamBox verification (2026-02-28 FINAL)"
 
   - task: "VideoPlayerModal Component - Article Trailer Display"
     implemented: true
