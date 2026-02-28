@@ -31,9 +31,11 @@ async function main() {
     });
     
     // Insert new Q&A
-    for (const qa of qaItems) {
+    for (let i = 0; i < qaItems.length; i++) {
+      const qa = qaItems[i];
       await prisma.article_qa.create({
         data: {
+          id: `${article.id}-qa-${i + 1}`,
           articleId: article.id,
           question: qa.question,
           answer: qa.answer,
