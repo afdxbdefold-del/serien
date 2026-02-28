@@ -213,7 +213,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Where to Stream Box - Standalone Section */}
-        <div className="px-6 mb-6">
+        <div className="mb-6">
           <WhereToStreamBox 
             seriesId={series.tmdbId}
             seriesName={series.name || ''}
@@ -223,7 +223,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Quick Facts Box */}
-        <div className="px-6 mb-6">
+        <div className="mb-6">
           <QuickFactsBox
             originalTitle={series.originalName || series.originalTitle}
             firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
@@ -235,7 +235,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Cast Section */}
-        <div className="px-6 mb-6">
+        <div className="mb-6">
           <SeriesCast 
             seriesName={series.name || series.title}
             cast={cast}
@@ -243,7 +243,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Seasons & Status */}
-        <div className="px-6 mb-6">
+        <div className="mb-6">
           <SeasonsStatus
             seriesName={series.name || series.title}
             seasons={seasons}
