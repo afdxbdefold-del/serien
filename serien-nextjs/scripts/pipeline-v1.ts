@@ -1480,18 +1480,31 @@ export async function runContentPipeline(source: CrawledSource) {
     try {
       console.log('🤔 Generating Q&A for article...');
       
-      const qaResponse = await fetch('http://localhost:3000/api/qa/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId: result.id }),
+      // Call Q&A generator directly (no HTTP request needed)
+      const qaItems = await generateArticleQA({
+        title: result.title,
+        contentHtml: formattedHTML,
+        seriesName: primarySeries.title
       });
 
-      if (qaResponse.ok) {
-        const qaData = await qaResponse.json();
-        console.log(`✅ Q&A generated: ${qaData.questionCount} questions`);
-        console.log(`   Schema enabled: ${qaData.schemaEnabled ? 'YES' : 'NO'}`);
+      if (qaItems && qaItems.length > 0) {
+        console.log(`✅ Q&A generated: ${qaItems.length} questions`);
+        
+        // Save to database
+        await prisma.article_qa.create({
+          data: {
+            id: `${result.id}-qa`,
+            articleId: result.id,
+            questions: qaItems,
+            schemaEnabled: true,
+            generatedAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+        
+        console.log(`   ✅ Q&A saved to database`);
       } else {
-        console.log('⚠️  Q&A generation failed (non-critical)');
+        console.log('⚠️  No Q&A generated (LLM returned empty)');
       }
     } catch (error: any) {
       console.log(`⚠️  Q&A generation skipped: ${error.message}`);
