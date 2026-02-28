@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const article = await prisma.articles.findUnique({
       where: { id: articleId },
       include: {
-        primarySeries: true,
+        series: true, // Fixed: use 'series' not 'primarySeries'
       },
     });
 
@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
     const questions = await generateArticleQA({
       title: article.title,
       contentHtml: article.contentHtml,
-      seriesName: article.primarySeries.title,
-      seriesStatus: article.primarySeries.status || undefined,
+      seriesName: article.series?.title || article.series?.name || 'Unknown',
+      seriesStatus: article.series?.status || undefined,
     });
 
     if (questions.length === 0) {
@@ -54,14 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Q&A already exists
-    const existing = await prisma.articleQA.findUnique({
+    const existing = await prisma.article_qa.findUnique({
       where: { articleId },
     });
 
     let result;
     if (existing) {
       // Update
-      result = await prisma.articleQA.update({
+      result = await prisma.article_qa.update({
         where: { articleId },
         data: {
           questions: questions,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Q&A updated: ${questions.length} questions`);
     } else {
       // Create
-      result = await prisma.articleQA.create({
+      result = await prisma.article_qa.create({
         data: {
           articleId,
           questions: questions,
