@@ -28,47 +28,43 @@ interface ActorMention {
 
 /**
  * Extract potential actor names from article HTML
- * Uses common patterns like "mit [Name]", "Darsteller [Name]", etc.
+ * Focuses on <strong> tags which typically contain important names
  */
 function extractActorNames(html: string, title: string): string[] {
   const actors = new Set<string>();
   
-  // Pattern 1: "mit [Name]" or "mit [Name] und [Name]"
-  const mitPattern = /mit\s+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+){1,3})/g;
+  // PRIMARY: Extract names from <strong> tags (most reliable)
+  const strongPattern = /<strong>([^<]+)<\/strong>/g;
   let match;
-  while ((match = mitPattern.exec(html)) !== null) {
-    actors.add(match[1].trim());
-  }
   
-  // Pattern 2: Names in parentheses after roles (e.g., "Eleven (Millie Bobby Brown)")
-  const parenthesesPattern = /\(([A-ZÄÖÜ][a-zäöüß]+\s+[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?)\)/g;
-  while ((match = parenthesesPattern.exec(html)) !== null) {
-    const name = match[1].trim();
-    // Only if it looks like a full name (2-3 parts)
-    if (name.split(' ').length >= 2 && name.split(' ').length <= 3) {
-      actors.add(name);
-    }
-  }
-  
-  // Pattern 3: "Darsteller:in [Name]" or "Schauspieler [Name]"
-  const darstellerPattern = /(?:Darsteller(?::in)?|Schauspieler(?:in)?)\s+([A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+){1,2})/g;
-  while ((match = darstellerPattern.exec(html)) !== null) {
-    actors.add(match[1].trim());
-  }
-  
-  // Pattern 4: Common full names in text (2-3 capitalized words)
-  const fullNamePattern = /\b([A-ZÄÖÜ][a-zäöüß]+\s+[A-ZÄÖÜ][a-zäöüß]+(?:\s+[A-ZÄÖÜ][a-zäöüß]+)?)\b/g;
-  const text = html.replace(/<[^>]+>/g, ' '); // Remove HTML tags
-  while ((match = fullNamePattern.exec(text)) !== null) {
-    const name = match[1].trim();
-    const parts = name.split(' ');
+  while ((match = strongPattern.exec(html)) !== null) {
+    const text = match[1].trim();
     
-    // Only if 2-3 parts and looks like a person name
-    if (parts.length >= 2 && parts.length <= 3) {
-      // Exclude common German words that might be capitalized
-      const excludeWords = ['Staffel', 'Netflix', 'Serie', 'Diese', 'Das', 'Die', 'Der'];
-      if (!excludeWords.some(word => name.includes(word))) {
-        actors.add(name);
+    // Check if it's a person name (2-4 words, properly capitalized)
+    const words = text.split(/\s+/);
+    
+    if (words.length >= 2 && words.length <= 4) {
+      // Check if all words start with capital letter
+      const isProperName = words.every(word => /^[A-ZÄÖÜ]/.test(word));
+      
+      if (isProperName) {
+        // Exclude obvious non-names
+        const excludePatterns = [
+          /^\d+/,                    // Starts with number
+          /Staffel|Season/i,         // Season references
+          /Netflix|HBO|Amazon/i,     // Company names
+          /Academy|School|University/i, // Institutions
+          /Addams$/,                 // Character surnames without first name context
+          /^Mai|Juni|Juli|Januar/i,  // Months
+          /^Ende|Anfang|Weitere/i,   // German common words
+          /Ireland|Irland|Rumänien/i // Places
+        ];
+        
+        const shouldExclude = excludePatterns.some(pattern => pattern.test(text));
+        
+        if (!shouldExclude) {
+          actors.add(text);
+        }
       }
     }
   }
