@@ -235,7 +235,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Cast Section */}
-        <div className="sm:px-6 mb-6">
+        <div className="px-6 mb-6">
           <SeriesCast 
             seriesName={series.name || series.title}
             cast={cast}
