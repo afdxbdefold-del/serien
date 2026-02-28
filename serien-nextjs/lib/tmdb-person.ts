@@ -3,7 +3,7 @@
  * For actor pages and auto-linking
  */
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
+const TMDB_API_KEY = process.env.TMDB_API_KEY || 'c0e0553140b7bd5f982df64c86319c1b';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 export interface TMDBPersonSearchResult {
