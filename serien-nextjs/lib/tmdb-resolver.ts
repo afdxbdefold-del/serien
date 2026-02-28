@@ -132,6 +132,9 @@ export async function resolveSingleSeries(
       
       // Full backup
       tmdbData: completeDetails.tmdbData,
+      
+      // Required timestamps
+      updatedAt: new Date(),
     }
   });
 
