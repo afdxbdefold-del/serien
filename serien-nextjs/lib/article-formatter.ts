@@ -52,14 +52,14 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   
   // Split by sentence - use a simpler, safer approach
   // Replace common abbreviations temporarily, then split, then restore
-  const protected = cleanText
+  const textWithProtectedDots = cleanText
     .replace(/([A-Z])\.\s*([A-Z])\./g, '$1Â·$2Â·') // R.R. -> RÂ·RÂ·
     .replace(/\bDr\./g, 'DrÂ·')
     .replace(/\bProf\./g, 'ProfÂ·')
     .replace(/\bMr\./g, 'MrÂ·')
     .replace(/\bMrs\./g, 'MrsÂ·');
   
-  const sentences = protected
+  const sentences = textWithProtectedDots
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .map(s => s.replace(/Â·/g, '.')) // Restore dots
