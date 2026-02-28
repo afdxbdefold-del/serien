@@ -139,8 +139,8 @@ export function generateNaturalArticleHTML(
   // Build HTML
   let html = '';
 
-  // Lead paragraph with class
-  html += `<p class="lead">${leadParagraph}</p>\n\n`;
+  // Lead paragraph with class (convert markdown)
+  html += `<p class="lead">${convertMarkdownToHTML(leadParagraph)}</p>\n\n`;
 
   // Optional subheading (if > 500 words)
   const totalWords = rawContent.split(/\s+/).length;
@@ -151,12 +151,12 @@ export function generateNaturalArticleHTML(
       if (i === insertAfter) {
         html += `<h2>${options.subheadingText}</h2>\n\n`;
       }
-      html += `<p>${p}</p>\n\n`;
+      html += `<p>${convertMarkdownToHTML(p)}</p>\n\n`;
     });
   } else {
     // No subheading
     bodyParagraphs.forEach(p => {
-      html += `<p>${p}</p>\n\n`;
+      html += `<p>${convertMarkdownToHTML(p)}</p>\n\n`;
     });
   }
 
