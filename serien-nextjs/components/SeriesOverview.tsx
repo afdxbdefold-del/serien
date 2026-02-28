@@ -1,55 +1,46 @@
 /**
- * Series Overview Component
- * Editorial overview section (120-180 words)
- * Factual, neutral tone, SEO-optimized
+ * SeriesOverview Component
+ * Displays AI-generated extended overview for a series
  */
 
 interface SeriesOverviewProps {
-  overview: string;
   seriesName: string;
-  status?: string | null;
-  firstAirYear?: number | null;
+  extendedOverview: string | null;
+  shortOverview: string | null;
 }
 
-export default function SeriesOverview({ overview, seriesName, status, firstAirYear }: SeriesOverviewProps) {
-  // Generate editorial overview (120-180 words)
-  // Rewrite TMDB overview into editorial style
-  const generateEditorialOverview = () => {
-    if (!overview || overview.length < 50) {
-      return `${seriesName} ist eine Fernsehserie${firstAirYear ? ` aus dem Jahr ${firstAirYear}` : ''}. Die Serie hat sich${status === 'Ended' || status === 'Beendet' ? ' zu ihrer Zeit' : ''} zu einem${status === 'Returning Series' || status === 'Running' || status === 'Läuft' ? ' aktuellen' : ''} Serien-Highlight entwickelt und begeistert Zuschauer mit ihrer${overview.includes('comedy') || overview.includes('lustig') ? ' humorvollen' : overview.includes('thriller') || overview.includes('spannung') ? ' spannenden' : overview.includes('drama') ? ' emotionalen' : ''} Erzählweise.`;
-    }
+export default function SeriesOverview({
+  seriesName,
+  extendedOverview,
+  shortOverview,
+}: SeriesOverviewProps) {
+  // Use extended overview if available, otherwise fall back to short overview
+  const displayText = extendedOverview || shortOverview;
 
-    // Use TMDB overview as base, add editorial context
-    let editorial = overview;
-
-    // Add context about status
-    if (status === 'Returning Series' || status === 'Running' || status === 'Läuft') {
-      editorial += ` Die Serie wird aktuell fortgesetzt und begeistert weiterhin ihr Publikum.`;
-    } else if (status === 'Ended' || status === 'Beendet') {
-      editorial += ` Die Serie wurde abgeschlossen und hat sich als${firstAirYear ? ` wegweisende Produktion der ${firstAirYear}er Jahre` : ' bedeutende Fernsehproduktion'} etabliert.`;
-    }
-
-    // Ensure length is within 120-180 words
-    const words = editorial.split(' ');
-    if (words.length > 180) {
-      editorial = words.slice(0, 175).join(' ') + '...';
-    }
-
-    return editorial;
-  };
-
-  const editorialText = generateEditorialOverview();
+  if (!displayText) {
+    return null;
+  }
 
   return (
-    <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-      <h2 className="text-lg font-bold text-gray-900 mb-3">
-        Über {seriesName}
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
+      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <span className="text-2xl">📖</span>
+        <span>Über {seriesName}</span>
       </h2>
+      
       <div className="prose prose-sm max-w-none">
-        <p className="text-gray-700 leading-relaxed">
-          {editorialText}
-        </p>
+        <div className="text-gray-700 leading-relaxed space-y-4 whitespace-pre-line">
+          {displayText}
+        </div>
       </div>
+
+      {extendedOverview && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs text-gray-500 italic">
+            Diese Beschreibung wurde von unserer KI erstellt, um dir einen umfassenden Überblick zu geben.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
