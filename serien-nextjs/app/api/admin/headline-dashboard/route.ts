@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get headline comparison for specific article
-    const comparison = await prisma.headlineComparison.findUnique({
+    const comparison = await prisma.headline_comparisons.findUnique({
       where: { articleId },
       include: {
         article: {

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent comparisons
-    const comparisons = await prisma.headlineComparison.findMany({
+    const comparisons = await prisma.headline_comparisons.findMany({
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate statistics
-    const total = await prisma.headlineComparison.count();
+    const total = await prisma.headline_comparisons.count();
     const improved = comparisons.filter(c => c.status === 'IMPROVED').length;
     const neutral = comparisons.filter(c => c.status === 'NEUTRAL').length;
     const worse = comparisons.filter(c => c.status === 'WORSE').length;

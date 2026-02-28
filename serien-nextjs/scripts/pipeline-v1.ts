@@ -1383,7 +1383,7 @@ export async function runContentPipeline(source: CrawledSource) {
         comparisonStatus = 'NEUTRAL';
       }
 
-      await tx.headlineComparison.create({
+      await tx.headline_comparisons.create({
         data: {
           articleId: article.id,
           headline_original: originalHeadline,
