@@ -50,10 +50,19 @@ function splitIntoNaturalParagraphs(text: string): string[] {
   // Don't remove anything - keep the text as-is including markdown
   const cleanText = text.trim();
   
-  // Split by sentence (but avoid splitting on abbreviations like R.R., Dr., etc.)
-  const sentences = cleanText
-    .split(/(?<=[.!?])(?<!\b[A-Z]\.)(?<!\b[A-Z]\.[A-Z]\.)\s+/)
+  // Split by sentence - use a simpler, safer approach
+  // Replace common abbreviations temporarily, then split, then restore
+  const protected = cleanText
+    .replace(/([A-Z])\.\s*([A-Z])\./g, '$1Â·$2Â·') // R.R. -> RÂ·RÂ·
+    .replace(/\bDr\./g, 'DrÂ·')
+    .replace(/\bProf\./g, 'ProfÂ·')
+    .replace(/\bMr\./g, 'MrÂ·')
+    .replace(/\bMrs\./g, 'MrsÂ·');
+  
+  const sentences = protected
+    .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
+    .map(s => s.replace(/Â·/g, '.')) // Restore dots
     .filter(s => s.length > 0);
 
   const paragraphs: string[] = [];
