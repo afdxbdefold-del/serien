@@ -121,7 +121,7 @@ export async function upsertPersons(actors: ExtractedActor[]): Promise<string[]>
     try {
       const personId = `person-${actor.tmdbId}`;
       
-      await prisma.person.upsert({
+      await prisma.persons.upsert({
         where: { tmdbId: actor.tmdbId },
         create: {
           id: personId,
@@ -166,13 +166,13 @@ export async function linkPersonsToArticle(
 ): Promise<void> {
   try {
     // Delete existing relations
-    await prisma.articlePerson.deleteMany({
+    await prisma.article_persons.deleteMany({
       where: { articleId },
     });
     
     // Create new relations
     for (const personId of personIds) {
-      await prisma.articlePerson.create({
+      await prisma.article_persons.create({
         data: {
           articleId,
           personId,
