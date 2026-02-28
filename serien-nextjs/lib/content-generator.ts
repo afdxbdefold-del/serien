@@ -390,8 +390,10 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
 
     // Clean up LLM artifacts and hallucinations
     const cleanedContent = rawContent
-      // Remove generic filler sentences that make no sense
-      .replace(/Die\s+[A-Z][\w-]+-(Serie|Plattform)\s+[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
+      // Remove generic filler sentences - MORE FLEXIBLE PATTERN
+      .replace(/Die\s+[\w\s-]+(Serie|Plattform)\s+[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
+      // Also catch simpler variations
+      .replace(/[„"][\w\s:]+[""]\s+berichtet über die neue staffel\./gi, '')
       // Remove standalone "Inhaltlich steht" that sometimes appears orphaned
       .replace(/^\s*Inhaltlich steht\s*/gm, '')
       // Clean up double spaces
