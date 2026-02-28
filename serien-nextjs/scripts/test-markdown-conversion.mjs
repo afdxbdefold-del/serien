@@ -4,7 +4,11 @@
 
 import { generateNaturalArticleHTML } from '../lib/article-formatter.ts';
 
-const testText = `Die HBO-Serie **House of the Dragon** startet in **Staffel 3**. Autor **George R.R. Martin** gibt neue Hinweise. Die Produktion läuft in **Großbritannien**. **HBO** bestätigt **2026** als Release. Die Serie setzt den **Targaryen-Bürgerkrieg** fort.`;
+const testText = `Die HBO-Serie **House of the Dragon** startet in **Staffel 3**. Autor **George R.R. Martin** gibt neue Hinweise. Die Produktion läuft in **Großbritannien**.
+
+**HBO** bestätigt **2026** als Release. Die Serie setzt den **Targaryen-Bürgerkrieg** fort. Es werden mehrere Episoden gedreht.
+
+Die Dreharbeiten sind im Gange. Weitere Details folgen bald. Die Fans sind gespannt.`;
 
 console.log('=== INPUT ===\n');
 console.log(testText);
