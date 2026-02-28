@@ -129,11 +129,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const crew = (series.crew as any[]) || [];
   const trailers = (series.trailers as any[]) || [];
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
+  const seasons = series.seasons as any[] || [];
   
   // Generate Series Q&A (5 evergreen questions)
   // TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
   /*
-  const seasons = series.seasons as any[] || [];
   const seriesQA = await getSeriesQA(
     series.name || series.title,
     series.overview || '',
