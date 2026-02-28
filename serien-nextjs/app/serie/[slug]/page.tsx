@@ -118,7 +118,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           }
         }
       }
-    }
+    },
+    // Select all series fields including extendedOverview
   });
 
   if (!series) {
