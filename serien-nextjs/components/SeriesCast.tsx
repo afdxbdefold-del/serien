@@ -44,7 +44,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
   if (actorsToShow.length === 0) return null;
 
   return (
-    <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Besetzung von {seriesName}
       </h2>
@@ -52,7 +52,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
         {actorsToShow.map((actor) => {
           const ActorCard = (
             <div className="group cursor-pointer">
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
                 {actor.profile_path ? (
                   <Image
                     src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}

@@ -31,7 +31,7 @@ export default function SeasonsStatus({ seriesName, seasons, status, numberOfSea
   };
 
   return (
-    <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Staffeln & Serienstatus
       </h2>
@@ -57,7 +57,7 @@ export default function SeasonsStatus({ seriesName, seasons, status, numberOfSea
         {/* Status */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Produktionsstatus</h3>
-          <div className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm ${
+          <div className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm shadow-sm ${
             status === 'Returning Series' || status === 'Running' || status === 'In Production'
               ? 'bg-green-50 text-green-700 border border-green-200'
               : status === 'Ended'

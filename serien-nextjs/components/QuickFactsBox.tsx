@@ -38,7 +38,7 @@ export default function QuickFactsBox({
   if (facts.length === 0) return null;
 
   return (
-    <section className="bg-gray-50 rounded-lg border border-gray-200 p-5 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
       <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
         Schnelle Fakten
       </h3>

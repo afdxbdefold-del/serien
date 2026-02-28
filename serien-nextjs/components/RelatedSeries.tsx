@@ -52,7 +52,7 @@ export default async function RelatedSeries({ currentSeriesId, genres, networks 
   if (relatedSeries.length === 0) return null;
 
   return (
-    <section className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Ähnliche Serien
       </h2>
@@ -63,7 +63,7 @@ export default async function RelatedSeries({ currentSeriesId, genres, networks 
             href={`/serie/${series.tmdbId}-${series.slug}`}
             className="group"
           >
-            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2">
+            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
               {series.posterPath ? (
                 <Image
                   src={`https://image.tmdb.org/t/p/w342${series.posterPath}`}
