@@ -1235,7 +1235,7 @@ export async function runContentPipeline(source: CrawledSource) {
     // Create article with transaction
     const result = await prisma.$transaction(async (tx) => {
       // Get random author from database
-      const authors = await tx.user.findMany({
+      const authors = await tx.users.findMany({
         where: { role: 'author' },
         select: { id: true, name: true }
       });
