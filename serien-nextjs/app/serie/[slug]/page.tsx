@@ -132,13 +132,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
   const seasons = series.seasons as any[] || [];
   
-  // Fetch extended overview separately (since we're using include above)
-  const seriesWithExtended = await prisma.series.findUnique({
-    where: { tmdbId },
-    select: { extendedOverview: true }
-  });
-  const extendedOverview = seriesWithExtended?.extendedOverview || null;
-  
   // Generate Series Q&A (5 evergreen questions)
   // TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
   /*
