@@ -221,16 +221,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </section>
         </div>
 
-        {/* NEW: Series Overview */}
-        <div className="mt-8 px-6">
-          <SeriesOverview 
-            overview={series.overview || ''}
-            seriesName={series.name || series.title}
-            status={series.status}
-            firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
-          />
-        </div>
-
         {/* NEW: Quick Facts Box */}
         <div className="px-6">
           <QuickFactsBox
@@ -440,14 +430,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 slug={slug}
               />
             </section>
-
-            {/* NEW: Series Overview (Desktop) */}
-            <SeriesOverview 
-              overview={series.overview || ''}
-              seriesName={series.name || series.title}
-              status={series.status}
-              firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
-            />
 
             {/* NEW: Quick Facts Box (Desktop) */}
             <QuickFactsBox
