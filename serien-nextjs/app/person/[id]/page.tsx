@@ -251,7 +251,8 @@ export default async function PersonPage({ params }: PageProps) {
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps) {
-  const tmdbId = parsePersonId(params.id);
+  const { id } = await params;
+  const tmdbId = parsePersonId(id);
   
   if (!tmdbId) {
     return {
