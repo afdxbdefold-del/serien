@@ -439,6 +439,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               slug={slug}
             />
 
+            {/* NEW: Series Overview (Extended AI-generated description) */}
+            <SeriesOverview
+              seriesName={series.name || series.title}
+              extendedOverview={series.extendedOverview}
+              shortOverview={series.overview}
+            />
+
             {/* NEW: Quick Facts Box (Desktop) */}
             <QuickFactsBox
               originalTitle={series.originalName || series.originalTitle}
