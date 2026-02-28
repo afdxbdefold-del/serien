@@ -209,6 +209,18 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* NEW: Where to Stream Box - Standalone Section */}
+        <div className="px-6">
+          <section className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
+            <WhereToStreamBox 
+              seriesId={series.tmdbId}
+              seriesName={series.name || ''}
+              networks={series.networks as string[] | undefined}
+              slug={slug}
+            />
+          </section>
+        </div>
+
         {/* NEW: Series Overview */}
         <div className="mt-8 px-6">
           <SeriesOverview 
@@ -346,13 +358,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* Streaming Availability */}
-              <WhereToStreamBox 
-                seriesId={series.tmdbId}
-                seriesName={series.name || ''}
-                networks={series.networks as string[] | undefined}
-                slug={slug}
-              />
+              {/* Removed WhereToStreamBox from here - now standalone */}
 
               {/* Networks */}
               {series.networks && series.networks.length > 0 && (
@@ -425,6 +431,16 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           {/* LEFT: News Feed (Main Content) */}
           <div className="lg:col-span-7">
             
+            {/* NEW: Where to Stream Box - Standalone Section (Desktop) */}
+            <section className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
+              <WhereToStreamBox 
+                seriesId={series.tmdbId}
+                seriesName={series.name || ''}
+                networks={series.networks as string[] | undefined}
+                slug={slug}
+              />
+            </section>
+
             {/* NEW: Series Overview (Desktop) */}
             <SeriesOverview 
               overview={series.overview || ''}
@@ -634,13 +650,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 
                 {/* Additional Info */}
                 <div className="border-t border-gray-200 p-6 space-y-4">
-                  {/* Streaming Availability */}
-                  <WhereToStreamBox 
-                    seriesId={series.tmdbId}
-                    seriesName={series.name || ''}
-                    networks={series.networks as string[] | undefined}
-                    slug={slug}
-                  />
+                  {/* Removed WhereToStreamBox from here - now standalone */}
 
                   {series.networks && series.networks.length > 0 && (
                     <div>
