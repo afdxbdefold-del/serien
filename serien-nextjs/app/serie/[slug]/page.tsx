@@ -540,11 +540,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
 
           {/* Series Q&A Section (Desktop) */}
+          {/* TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
           {seriesQA && seriesQA.length > 0 && (
             <div className="lg:col-span-7 mt-8">
               <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
             </div>
           )}
+          */}
 
           {/* RIGHT: Hero Box (Sticky on Desktop) */}
           <div className="hidden lg:block lg:col-span-5">
