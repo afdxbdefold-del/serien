@@ -1289,7 +1289,7 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`   ✅ Google Discover ready: min. 1200px Breite garantiert`);
 
       // Create article
-      const article = await tx.article.create({
+      const article = await tx.articles.create({
         data: {
           id: `pipeline-${Date.now()}`,
           slug,
