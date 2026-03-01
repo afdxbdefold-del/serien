@@ -1221,12 +1221,12 @@ export async function runContentPipeline(source: CrawledSource) {
 
     // Generate image data
     // Get article count for this series (for backdrop rotation)
-    const articleCount = await tx.articles.count({
+    const articleCount = await prisma.articles.count({
       where: { primarySeriesId: primaryTmdbId }
     });
     
     // Fetch series to get backdrops
-    const seriesData = await tx.series.findUnique({
+    const seriesData = await prisma.series.findUnique({
       where: { tmdbId: primaryTmdbId },
       select: { backdrops: true, backdropPath: true }
     });
