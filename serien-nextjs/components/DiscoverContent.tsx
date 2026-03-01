@@ -58,9 +58,17 @@ export function EditorialHook({ seriesName, hook, lastUpdated }: EditorialHookPr
 interface DiscoverIntroProps {
   seriesName: string;
   content: string;
+  hasExtendedOverview?: boolean; // NEW: Flag to prevent duplication
 }
 
-export function DiscoverIntro({ seriesName, content }: DiscoverIntroProps) {
+export function DiscoverIntro({ seriesName, content, hasExtendedOverview = false }: DiscoverIntroProps) {
+  // DEDUPLICATION RULE: If "Über [Serie]" (SeriesOverview) already exists,
+  // DO NOT render "Worum geht es in [Serie]?" (DiscoverIntro)
+  // to prevent redundant content that Google Discover penalizes
+  if (hasExtendedOverview) {
+    return null;
+  }
+  
   if (!content) return null;
 
   // Remove duplicate heading from content
