@@ -88,15 +88,110 @@ async function autoLinkActors(articleId: string): Promise<boolean> {
 }
 
 /**
- * Import characters and apply character linking
+ * STEP 10: Generate Q&A
  */
-export async function processCharacters(
+async function generateQA(
+  prisma: PrismaClient,
+  articleId: string,
+  articleTitle: string,
+  articleContent: string,
+  seriesName: string
+): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 10: GENERATE Q&A');
+  console.log('━'.repeat(70));
+  
+  try {
+    console.log('🤔 Generating Q&A for article...');
+    
+    const { generateArticleQA } = await import('../qa-generator');
+    const qaItems = await generateArticleQA({
+      title: articleTitle,
+      contentHtml: articleContent,
+      seriesName
+    });
+
+    if (qaItems && qaItems.length > 0) {
+      console.log(`✅ Q&A generated: ${qaItems.length} questions`);
+      
+      await prisma.article_qa.create({
+        data: {
+          id: `${articleId}-qa`,
+          articleId,
+          questions: qaItems,
+          schemaEnabled: true,
+          generatedAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+      
+      console.log(`   ✅ Q&A saved to database`);
+      return true;
+    } else {
+      console.log('⚠️  No Q&A generated (LLM returned empty)');
+      return false;
+    }
+  } catch (error: any) {
+    console.log(`⚠️  Q&A generation skipped: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * STEP 11: Link Actors to Articles (Alternative method)
+ */
+async function linkActorsAlternative(
+  prisma: PrismaClient,
+  articleId: string
+): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 11: ACTOR LINKING');
+  console.log('━'.repeat(70));
+  
+  try {
+    console.log('🎭 Linking actors to article...');
+    
+    const { processArticle } = await import('../../scripts/link-actors-to-articles');
+    
+    const articleForLinking = await prisma.articles.findUnique({
+      where: { id: articleId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        contentHtml: true
+      }
+    });
+    
+    if (articleForLinking) {
+      await processArticle(articleForLinking, false);
+      console.log('✅ Actor linking completed');
+      return true;
+    } else {
+      console.log('⚠️  Article not found for actor linking');
+      return false;
+    }
+  } catch (error: any) {
+    console.log(`⚠️  Actor linking skipped: ${error.message}`);
+    console.log('   → Article published successfully despite actor linking failure');
+    return false;
+  }
+}
+
+/**
+ * STEP 11.5: Auto Character Import & Linking
+ */
+async function processCharacters(
   prisma: PrismaClient,
   articleId: string,
   seriesTmdbId: number
 ): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 11.5: AUTO CHARACTER IMPORT');
+  console.log('━'.repeat(70));
+  console.log('');
+  
   try {
-    // Check if characters exist
     const existingCharacters = await prisma.characters.count({
       where: {
         seriesTmdbId,
@@ -115,6 +210,7 @@ export async function processCharacters(
         console.log('✅ Characters imported successfully');
       } catch (importError: any) {
         console.log('⚠️  Character import failed:', importError.message);
+        console.log('   Continuing without character links...');
         return false;
       }
     } else {
@@ -147,46 +243,65 @@ export async function processCharacters(
     
     return false;
   } catch (error: any) {
-    console.error('⚠️  Character processing failed:', error.message);
+    console.error('⚠️  Character import check failed:', error.message);
     return false;
   }
 }
 
 /**
- * Process image for uniqueness (optional, based on env)
+ * STEP 11.6: Image Processing for Uniqueness (Optional)
  */
-export async function processImage(
+async function processImageForUniqueness(
   prisma: PrismaClient,
   articleId: string,
-  seriesTmdbId: number,
-  articleCountForRotation: number,
+  articleSlug: string,
   articleTitle: string,
-  articleSlug: string
+  seriesTmdbId: number
 ): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 11.6: IMAGE PROCESSING');
+  console.log('━'.repeat(70));
+  console.log('');
+  
+  if (process.env.USE_PROCESSED_IMAGES !== 'true') {
+    console.log('⊘ Image processing disabled (USE_PROCESSED_IMAGES=false)');
+    return false;
+  }
+  
   try {
-    // Get series with backdrops
+    console.log('🖼️  Processing article image for uniqueness...');
+    
     const seriesWithBackdrop = await prisma.series.findUnique({
       where: { tmdbId: seriesTmdbId },
       select: { 
-        name: true, 
-        title: true,
-        backdrops: true 
+        backdrops: true, 
+        backdropPath: true,
+        name: true,
+        title: true
       }
     });
     
-    if (seriesWithBackdrop?.backdrops && seriesWithBackdrop.backdrops.length > 0) {
-      const backdropIndex = articleCountForRotation % seriesWithBackdrop.backdrops.length;
-      const backdropPath = seriesWithBackdrop.backdrops[backdropIndex];
-      
-      console.log(`   Using backdrop ${backdropIndex + 1}/${seriesWithBackdrop.backdrops.length}: ${backdropPath}`);
-      
-      const { processImageForUniqueness } = await import('../image-processor');
+    let backdropPath = seriesWithBackdrop?.backdropPath;
+    
+    if (seriesWithBackdrop?.backdrops && Array.isArray(seriesWithBackdrop.backdrops) && seriesWithBackdrop.backdrops.length > 0) {
+      const { selectBackdropForArticle } = await import('../tmdb-backdrops');
+      const articleCount = await prisma.articles.count({
+        where: { primarySeriesId: seriesTmdbId }
+      });
+      backdropPath = selectBackdropForArticle(seriesWithBackdrop.backdrops as any[], articleCount - 1);
+    }
+    
+    if (backdropPath) {
+      const { processImageForUniqueness: processImage } = await import('../image-processor');
       const path = await import('path');
       
       const sourceUrl = `https://image.tmdb.org/t/p/original${backdropPath}`;
       const outputDir = path.join(process.cwd(), 'public', 'img', 'processed');
       
-      // Gradient variations for uniqueness
+      const articleCountForRotation = await prisma.articles.count({
+        where: { primarySeriesId: seriesTmdbId }
+      });
+      
       const gradientVariations = [
         { height: 13, opacity: 0.12 },
         { height: 15, opacity: 0.15 },
@@ -198,7 +313,7 @@ export async function processImage(
       
       console.log(`   Using gradient variant ${variantIndex + 1}/3: ${Math.round(gradient.opacity * 100)}% opacity, ${gradient.height}% height`);
       
-      const processResult = await processImageForUniqueness(sourceUrl, outputDir, {
+      const processResult = await processImage(sourceUrl, outputDir, {
         articleTitle,
         articleSlug,
         seriesName: seriesWithBackdrop.name || seriesWithBackdrop.title || 'Series',
@@ -234,9 +349,13 @@ export async function processImage(
 }
 
 /**
- * Import cast members for the series
+ * STEP 12: Cast Import
  */
-export async function importCast(seriesTmdbId: number): Promise<number> {
+async function importCast(seriesTmdbId: number): Promise<number> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 12: CAST IMPORT');
+  console.log('━'.repeat(70));
+  
   try {
     const { importSeriesCast } = await import('../cast-importer');
     const importedCount = await importSeriesCast(seriesTmdbId);
@@ -256,56 +375,79 @@ export async function importCast(seriesTmdbId: number): Promise<number> {
 }
 
 /**
- * Run all post-processing steps
+ * Main Post-Processing Orchestrator
+ * Runs all post-processing steps in sequence
  */
 export async function runPostProcessing(
   prisma: PrismaClient,
   config: PostProcessingConfig
-): Promise<void> {
-  console.log('\n' + '━'.repeat(70));
-  console.log('POST-PROCESSING');
-  console.log('━'.repeat(70));
+): Promise<PostProcessingResult> {
+  console.log('\n' + '='.repeat(70));
+  console.log('🔄 POST-PROCESSING');
+  console.log('='.repeat(70));
 
-  // Step 1: Actor Extraction
-  console.log('\n📌 Step 1: Actor Extraction & Linking');
-  const linkedActorsCount = await processActors(
+  const result: PostProcessingResult = {
+    actorsExtracted: 0,
+    actorsLinked: false,
+    charactersProcessed: false,
+    imageProcessed: false,
+    castImported: 0,
+    qaGenerated: false
+  };
+
+  // Step 8.5: Actor Extraction
+  result.actorsExtracted = await extractAndLinkActors(
     config.articleId,
     config.articleContent,
     config.seriesName
   );
 
-  // Step 2: Actor Auto-linking
-  if (linkedActorsCount > 0) {
-    console.log('\n📌 Step 2: Actor Auto-Linking');
-    await applyActorAutoLinking(config.articleId);
+  // Step 8.6: Actor Auto-linking (only if actors were extracted)
+  if (result.actorsExtracted > 0) {
+    result.actorsLinked = await autoLinkActors(config.articleId);
   }
 
-  // Step 3: Character Import & Linking
-  console.log('\n📌 Step 3: Character Import & Linking');
-  await processCharacters(
+  // Step 10: Q&A Generation
+  result.qaGenerated = await generateQA(
+    prisma,
+    config.articleId,
+    config.articleTitle,
+    config.articleContent,
+    config.seriesName
+  );
+
+  // Step 11: Alternative Actor Linking
+  await linkActorsAlternative(prisma, config.articleId);
+
+  // Step 11.5: Character Import & Linking
+  result.charactersProcessed = await processCharacters(
     prisma,
     config.articleId,
     config.seriesTmdbId
   );
 
-  // Step 4: Image Processing (optional)
-  if (config.useProcessedImages) {
-    console.log('\n📌 Step 4: Image Processing');
-    await processImage(
-      prisma,
-      config.articleId,
-      config.seriesTmdbId,
-      config.articleCountForRotation,
-      '', // articleTitle - can be passed if needed
-      ''  // articleSlug - can be passed if needed
-    );
-  } else {
-    console.log('\n⊘ Image processing disabled (USE_PROCESSED_IMAGES=false)');
-  }
+  // Step 11.6: Image Processing
+  result.imageProcessed = await processImageForUniqueness(
+    prisma,
+    config.articleId,
+    config.articleSlug,
+    config.articleTitle,
+    config.seriesTmdbId
+  );
 
-  // Step 5: Cast Import
-  console.log('\n📌 Step 5: Cast Import');
-  await importCast(config.seriesTmdbId);
+  // Step 12: Cast Import
+  result.castImported = await importCast(config.seriesTmdbId);
 
-  console.log('\n✅ Post-processing completed');
+  console.log('\n' + '='.repeat(70));
+  console.log('✅ POST-PROCESSING COMPLETE');
+  console.log('='.repeat(70));
+  console.log(`   Actors Extracted: ${result.actorsExtracted}`);
+  console.log(`   Actors Linked: ${result.actorsLinked ? 'Yes' : 'No'}`);
+  console.log(`   Characters Processed: ${result.charactersProcessed ? 'Yes' : 'No'}`);
+  console.log(`   Image Processed: ${result.imageProcessed ? 'Yes' : 'No'}`);
+  console.log(`   Cast Imported: ${result.castImported}`);
+  console.log(`   Q&A Generated: ${result.qaGenerated ? 'Yes' : 'No'}`);
+  console.log('='.repeat(70) + '\n');
+
+  return result;
 }
