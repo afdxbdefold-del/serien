@@ -1544,6 +1544,27 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log('   → Article published successfully despite actor linking failure');
     }
 
+    // ========== STEP 12: CAST IMPORT (AUTO) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 12: CAST IMPORT');
+    console.log('━'.repeat(70));
+
+    try {
+      // Import cast members for the primary series
+      const { importSeriesCast } = await import('../lib/cast-importer');
+      const importedCount = await importSeriesCast(resolution.primarySeries.tmdbId);
+      
+      if (importedCount > 0) {
+        console.log(`✅ Cast import completed: ${importedCount} new persons added`);
+      } else {
+        console.log(`ℹ️  Cast import completed: All cast members already exist`);
+      }
+    } catch (error: any) {
+      // CRITICAL: Cast import failure should NOT break the pipeline
+      console.log(`⚠️  Cast import skipped: ${error.message}`);
+      console.log('   → Article published successfully despite cast import failure');
+    }
+
     return {
       success: true,
       article: result,
