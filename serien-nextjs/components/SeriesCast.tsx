@@ -28,7 +28,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
         return {
           ...actor,
           hasInternalPage: false,
-          internalSlug: `unknown-${createPersonSlug(actor.name || 'actor')}`
+          internalSlug: null
         };
       }
 
@@ -40,7 +40,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
       return {
         ...actor,
         hasInternalPage: !!person,
-        internalSlug: person?.slug || `${actor.id}-${createPersonSlug(actor.name)}`
+        internalSlug: person?.slug || null
       };
     })
   );
