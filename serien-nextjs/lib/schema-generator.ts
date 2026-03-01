@@ -193,3 +193,43 @@ export function generateSeriesSchema(data: {
     ...(data.genres && data.genres.length > 0 && { genre: data.genres }),
   };
 }
+
+/**
+ * Generate Person schema with profile image (for character pages)
+ */
+export function generatePersonSchema(data: {
+  name: string;
+  description: string;
+  imageUrl: string;
+  characterName?: string;
+  seriesName?: string;
+  url: string;
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
+  const schema: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: data.name,
+    description: data.description,
+    image: generateImageObject(
+      data.imageUrl,
+      data.name,
+      { width: 500, height: 750 }, // TMDB profile dimensions
+      { representativeOfPage: true }
+    ),
+    url: `${baseUrl}${data.url}`,
+  };
+
+  // If this is a character page, add character information
+  if (data.characterName && data.seriesName) {
+    schema['@type'] = 'PerformanceRole';
+    schema.characterName = data.characterName;
+    schema.inProduction = {
+      '@type': 'TVSeries',
+      name: data.seriesName,
+    };
+  }
+
+  return schema;
+}
