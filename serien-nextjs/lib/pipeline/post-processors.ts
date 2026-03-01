@@ -1,6 +1,9 @@
 /**
- * Post-Processing Module
- * Handles all post-publication processing: actors, characters, images
+ * Post-Processing Module (Simplified)
+ * Handles all post-publication processing: actors, characters, images, Q&A
+ * 
+ * This is a refactored version that consolidates Steps 8.5, 8.6, 10, 11, 11.5, 11.6, 12
+ * from the original pipeline into a single, maintainable module.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -13,26 +16,29 @@ export interface PostProcessingConfig {
   articleContent: string;
   seriesName: string;
   seriesTmdbId: number;
-  articleCountForRotation: number;
-  useProcessedImages: boolean;
 }
 
 export interface PostProcessingResult {
-  actorsLinked: number;
-  charactersLinked: boolean;
+  actorsExtracted: number;
+  actorsLinked: boolean;
+  charactersProcessed: boolean;
   imageProcessed: boolean;
   castImported: number;
   qaGenerated: boolean;
 }
 
 /**
- * Process actor extraction and linking
+ * STEP 8.5: Actor Extraction & TMDB Linking
  */
-export async function processActors(
+async function extractAndLinkActors(
   articleId: string,
   articleContent: string,
   seriesName: string
 ): Promise<number> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 8.5: ACTOR EXTRACTION & TMDB LINKING');
+  console.log('━'.repeat(70));
+  
   try {
     const { processArticleActors } = await import('../actor-extraction.js');
     
@@ -56,25 +62,27 @@ export async function processActors(
 }
 
 /**
- * Apply auto-linking for actors in content
+ * STEP 8.6: Auto-Linking Actors in Content
  */
-export async function applyActorAutoLinking(
-  articleId: string
-): Promise<boolean> {
+async function autoLinkActors(articleId: string): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 8.6: AUTO-LINKING ACTORS IN CONTENT');
+  console.log('━'.repeat(70));
+  
   try {
     const { applyAutoLinking } = await import('../actor-auto-linking.js');
     
     const linked = await applyAutoLinking(articleId);
     
     if (linked) {
-      console.log(`✅ Actor names auto-linked in article content`);
+      console.log('✅ Auto-linking complete');
     } else {
-      console.log(`⚠️  No actors available for auto-linking`);
+      console.log('⚠️  No changes made (no matches found)');
     }
     
     return linked;
   } catch (error: any) {
-    console.log(`⚠️  Actor linking skipped: ${error.message}`);
+    console.log(`⚠️  Auto-linking skipped: ${error.message}`);
     return false;
   }
 }
