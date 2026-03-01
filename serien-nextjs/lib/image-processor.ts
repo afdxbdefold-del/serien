@@ -68,11 +68,11 @@ export async function processImageForUniqueness(
 
     const imageBuffer = Buffer.from(await response.arrayBuffer());
 
-    // Generate unique filename
+    // Generate unique filename with WebP extension
     const uniqueId = randomBytes(4).toString('hex');
     const timestamp = Date.now();
-    const filename = `${articleSlug}-${timestamp}-${uniqueId}.jpg`;
-    const originalFilename = `${articleSlug}-${timestamp}-${uniqueId}-original.jpg`;
+    const filename = `${articleSlug}-${timestamp}-${uniqueId}.webp`;
+    const originalFilename = `${articleSlug}-${timestamp}-${uniqueId}-original.webp`;
 
     const processedPath = path.join(outputDir, filename);
     const originalPath = path.join(outputDir, originalFilename);
@@ -164,11 +164,11 @@ export async function processImageForUniqueness(
       ]);
     }
 
-    // Save with metadata
+    // Save with metadata as WebP
     await processedImage
-      .jpeg({
+      .webp({
         quality,
-        mozjpeg: true, // Better compression
+        effort: 6, // 0-6, higher = better compression but slower
       })
       .withMetadata({
         exif: {
