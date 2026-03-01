@@ -118,19 +118,94 @@ export async function generateEditorialHook(
 }
 
 /**
- * Generate status context (MODUL 1)
- * One sentence explaining what status means for fans
+ * Generate status context (MODUL 1) - OPTIMIZED
+ * Only returns context if it adds REAL VALUE beyond the status itself
+ * 
+ * Requirements:
+ * - Must add NEW information (timeframe, production context, platform pattern, or fan implication)
+ * - NO repetition of status field
+ * - NO filler text
+ * - Editorial tone, 1-2 sentences max
+ * - If no insight possible, returns NULL (box not rendered)
  */
-export function generateStatusContext(status: string | null, seriesName: string): string | null {
+export function generateStatusContext(
+  status: string | null, 
+  seriesName: string,
+  platform?: string,
+  lastAirDate?: Date | null,
+  numberOfSeasons?: number | null
+): string | null {
   if (!status) return null;
 
-  const contexts: Record<string, string> = {
-    'Returning Series': `Für Fans von ${seriesName} bedeutet das: Die Serie läuft weiter, aber wann genau neue Episoden erscheinen, bleibt vorerst offen.`,
-    'Ended': `${seriesName} ist damit abgeschlossen – ob die Serie ihr Potenzial voll ausschöpfen konnte, bleibt Ansichtssache.`,
-    'Canceled': `Die Absetzung von ${seriesName} wirft die Frage auf, ob die Serie ihre Geschichte zu Ende erzählen konnte, oder ob offene Fäden bleiben.`,
-    'In Production': `${seriesName} befindet sich in Produktion – das lässt Raum für Spekulationen, in welche Richtung die neue Staffel gehen wird.`,
-    'Planned': `Die Serie ist angekündigt, aber noch nicht in Produktion. Ob und wann ${seriesName} tatsächlich kommt, bleibt abzuwarten.`,
+  // Calculate days since last episode (if available)
+  const daysSinceLastEpisode = lastAirDate 
+    ? Math.floor((Date.now() - new Date(lastAirDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // Platform-specific release patterns
+  const platformPatterns: Record<string, string> = {
+    'Apple TV+': 'Apple TV+ veröffentlicht neue Staffeln vergleichbarer Serien meist rund ein Jahr nach der vorherigen Staffel',
+    'Netflix': 'Netflix entscheidet bei vergleichbaren Produktionen oft innerhalb von 6–12 Monaten nach Staffelstart über eine Fortsetzung',
+    'HBO': 'HBO nimmt sich für hochwertige Produktionen dieser Art typischerweise 18–24 Monate Zeit',
+    'Amazon Prime': 'Amazon Prime Video kündigt Verlängerungen oft erst Monate nach Veröffentlichung an',
+    'Disney+': 'Disney+ erneuert erfolgreiche Eigenproduktionen meist zeitnah, die Produktion dauert dann aber 12–18 Monate',
   };
 
-  return contexts[status] || `Der Status "${status}" lässt offen, wie es mit ${seriesName} weitergeht.`;
+  const platformContext = platform ? platformPatterns[platform] : null;
+
+  // Status-specific contexts (only with REAL insight)
+  switch (status.toLowerCase()) {
+    case 'returning series':
+      // Only show if we can add timeframe or production context
+      if (platformContext) {
+        return `Für Fans heißt das: Die Serie ist offiziell nicht beendet. ${platformContext}.`;
+      }
+      if (daysSinceLastEpisode && daysSinceLastEpisode > 365 && daysSinceLastEpisode < 730) {
+        return `Die letzte Staffel liegt über ein Jahr zurück – ein typisches Intervall für Premium-Serien, aber ohne offizielle Ankündigung bleibt die Wartezeit unklar.`;
+      }
+      if (daysSinceLastEpisode && daysSinceLastEpisode > 730) {
+        return `Mit mehr als zwei Jahren seit der letzten Staffel wächst die Unsicherheit bei Fans – selbst bei offiziell laufenden Serien kann eine solche Pause auf Produktionsprobleme hindeuten.`;
+      }
+      // If no additional context: return null (no box)
+      return null;
+
+    case 'ended':
+      // Only show if there's something meaningful to say
+      if (numberOfSeasons && numberOfSeasons < 2) {
+        return `${seriesName} wurde nach nur ${numberOfSeasons} Staffel${numberOfSeasons === 1 ? '' : 'n'} beendet – eine Entscheidung, die oft auf Zuschauerzahlen oder strategische Neuausrichtungen zurückgeht.`;
+      }
+      if (numberOfSeasons && numberOfSeasons >= 5) {
+        return `Mit ${numberOfSeasons} Staffeln gehört ${seriesName} zu den langlebigeren Produktionen – ob die Serie ihre Geschichte vollständig erzählen konnte, bleibt Diskussionssache.`;
+      }
+      // Generic ended status: no additional value
+      return null;
+
+    case 'canceled':
+      // Always add context for cancellations (high fan interest)
+      if (numberOfSeasons === 1) {
+        return `Die Absetzung nach nur einer Staffel deutet darauf hin, dass ${seriesName} die Erwartungen nicht erfüllt hat – ob narrative Bögen offen bleiben, hängt davon ab, wie die Macher mit der Unsicherheit umgingen.`;
+      }
+      if (numberOfSeasons && numberOfSeasons >= 3) {
+        return `Nach ${numberOfSeasons} Staffeln abgesetzt zu werden wirft die Frage auf, ob ${seriesName} seine Geschichte zu Ende bringen konnte – ein häufiges Dilemma bei Serien mit komplexen Handlungsbögen.`;
+      }
+      return `Die Absetzung von ${seriesName} lässt offen, ob offene Handlungsstränge unbeantwortet bleiben – ein Risiko, das Fans bei der Investition in neue Serien zunehmend einkalkulieren müssen.`;
+
+    case 'in production':
+      // Add production timeline context
+      if (platformContext) {
+        return `Die Serie befindet sich in Produktion. ${platformContext}, was Fans einen groben Zeitrahmen gibt.`;
+      }
+      return `${seriesName} ist in Produktion – die Phase zwischen Drehschluss und Veröffentlichung dauert bei vergleichbaren Produktionen oft 6–12 Monate, je nach Umfang der Postproduktion.`;
+
+    case 'planned':
+      // Only show if we can add uncertainty/skepticism
+      return `Die Serie ist angekündigt, aber noch nicht in Produktion – bei Projekten in diesem Stadium kann es zu Verzögerungen oder sogar zur Absage kommen, bevor eine einzige Szene gedreht wurde.`;
+
+    case 'pilot':
+      return `Nur ein Pilot wurde produziert – ein Stadium, in dem die meisten Projekte scheitern. Ob ${seriesName} tatsächlich zur Serie wird, ist völlig offen.`;
+
+    default:
+      // Unknown status or no meaningful context: return null
+      return null;
+  }
 }
