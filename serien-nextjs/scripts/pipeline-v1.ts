@@ -1276,7 +1276,7 @@ export async function runContentPipeline(source: CrawledSource) {
       // ========== HERO IMAGE VALIDATION (Google Discover) ==========
       console.log(`\n🖼️  Validating Hero Image for Google Discover...`);
       
-      const heroImageUrl = `/img/hero/${resolution.primarySeries.tmdbType}/${resolution.primarySeries.tmdbId}`;
+      const heroImageUrl = `/img/hero/tv/${resolution.primarySeries.tmdbId}`;
       
       // Hero image is mandatory - must exist and be >= 1200px wide
       if (!heroImageUrl) {
