@@ -120,14 +120,26 @@ Antworte NUR mit dem JSON, keine Einleitung."""
 
 async def main():
     if len(sys.argv) < 3:
-        print("Usage: python3 generate-character-content.py <character_name> <series_name> [actor_name]", file=sys.stderr)
+        print("Usage: python3 generate-character-content.py <character_name> <series_name> [actor_name] [--fandom-context <context>]", file=sys.stderr)
         sys.exit(1)
 
     character_name = sys.argv[1]
     series_name = sys.argv[2]
-    actor_name = sys.argv[3] if len(sys.argv) > 3 else None
+    actor_name = None
+    fandom_context = None
+    
+    # Parse arguments
+    i = 3
+    while i < len(sys.argv):
+        if sys.argv[i] == '--fandom-context' and i + 1 < len(sys.argv):
+            fandom_context = sys.argv[i + 1]
+            i += 2
+        else:
+            if not actor_name:
+                actor_name = sys.argv[i]
+            i += 1
 
-    result = await generate_character_content(character_name, series_name, actor_name)
+    result = await generate_character_content(character_name, series_name, actor_name, fandom_context)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
