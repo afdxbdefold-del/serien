@@ -11,6 +11,9 @@ interface DiscoverIntroProps {
 export function DiscoverIntro({ seriesName, content }: DiscoverIntroProps) {
   if (!content) return null;
 
+  // Remove duplicate heading from content
+  const cleanContent = content.replace(/^Worum geht es in .+?\?\s*/i, '').trim();
+
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-md p-6 mb-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -18,7 +21,7 @@ export function DiscoverIntro({ seriesName, content }: DiscoverIntroProps) {
       </h2>
       <div className="prose prose-sm max-w-none">
         <div className="text-gray-700 leading-relaxed space-y-4 whitespace-pre-line">
-          {content}
+          {cleanContent}
         </div>
       </div>
     </section>
