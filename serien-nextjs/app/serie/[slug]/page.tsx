@@ -10,6 +10,7 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 // import SeriesQA from '@/components/SeriesQA';
 // import { getSeriesQA } from '@/lib/series-qa-action';
 import SeriesOverview from '@/components/SeriesOverview';
+import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
 import SeriesCast from '@/components/SeriesCast';
 import SeasonsStatus from '@/components/SeasonsStatus';
