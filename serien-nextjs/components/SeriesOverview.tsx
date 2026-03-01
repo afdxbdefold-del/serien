@@ -1,6 +1,9 @@
 /**
  * SeriesOverview Component
  * Displays AI-generated extended overview for a series
+ * 
+ * DEDUPLICATION RULE: Only renders when extendedOverview exists.
+ * When extendedOverview is absent, DiscoverIntro handles the description.
  */
 
 interface SeriesOverviewProps {
@@ -14,10 +17,9 @@ export default function SeriesOverview({
   extendedOverview,
   shortOverview,
 }: SeriesOverviewProps) {
-  // Use extended overview if available, otherwise fall back to short overview
-  const displayText = extendedOverview || shortOverview;
-
-  if (!displayText) {
+  // DEDUPLICATION: Only render when we have EXTENDED overview
+  // If we only have shortOverview, DiscoverIntro will handle it
+  if (!extendedOverview) {
     return null;
   }
 
@@ -30,7 +32,7 @@ export default function SeriesOverview({
       
       <div className="prose prose-sm max-w-none">
         <div className="text-gray-700 leading-relaxed space-y-4 whitespace-pre-line">
-          {displayText}
+          {extendedOverview}
         </div>
       </div>
     </section>
