@@ -433,9 +433,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               />
             </div>
 
-            {series.primaryArticles && series.primaryArticles.length > 0 ? (
+            {series.articles && series.articles.length > 0 ? (
               <div className="space-y-6">
-                {series.primaryArticles.map((article, index) => (
+                {series.articles.map((article, index) => (
                   <Link
                     key={article.slug}
                     href={`/${article.slug}`}
