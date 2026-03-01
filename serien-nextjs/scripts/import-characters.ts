@@ -8,6 +8,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { generateCharacterContent, createCharacterSlug } from '../lib/character-content-generator';
+import { searchFandomCharacter, formatFandomDataForContent } from '../lib/fandom-scraper';
 
 const prisma = new PrismaClient();
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -150,14 +151,39 @@ async function importSeriesCharacters(seriesTmdbId: number) {
 
       console.log(`🎬 Actor: ${actor?.name || member.name} ${actor ? '(in DB)' : '(not in DB)'}`);
 
-      // Generate AI content
-      console.log(`🤖 Generating AI content...`);
-      const content = await generateCharacterContent({
-        name: characterName,
-        seriesName,
-        tmdbSeriesData: seriesDetails,
-        actorName: actor?.name || member.name,
-      });
+      // HYBRID APPROACH: Try Fandom first, fallback to AI
+      console.log(`\n📚 Trying Fandom.com for character data...`);
+      const fandomData = await searchFandomCharacter(characterName, seriesName);
+      
+      let content;
+      
+      if (fandomData.found && fandomData.description && fandomData.description.length > 100) {
+        console.log(`✅ Found character on Fandom!`);
+        console.log(`   Source: ${fandomData.source_url}`);
+        console.log(`   Description length: ${fandomData.description.length} chars`);
+        
+        // Generate content using Fandom data as context
+        console.log(`🤖 Generating content with Fandom context...`);
+        const fandomContext = formatFandomDataForContent(fandomData);
+        
+        content = await generateCharacterContent({
+          name: characterName,
+          seriesName,
+          tmdbSeriesData: seriesDetails,
+          actorName: actor?.name || member.name,
+          fandomContext, // Pass Fandom data as additional context
+        });
+      } else {
+        console.log(`⚠️  Fandom data not found or insufficient`);
+        console.log(`🤖 Generating AI content (fallback)...`);
+        
+        content = await generateCharacterContent({
+          name: characterName,
+          seriesName,
+          tmdbSeriesData: seriesDetails,
+          actorName: actor?.name || member.name,
+        });
+      }
 
       console.log(`✓ Content generated`);
       console.log(`   - Short description: ${content.shortDescription.substring(0, 80)}...`);
