@@ -1674,8 +1674,11 @@ export async function runContentPipeline(source: CrawledSource) {
             articleTitle: result.title,
             articleSlug: result.slug,
             seriesName: seriesWithBackdrop.name || seriesWithBackdrop.title || 'Series',
-            cropPercent: 5,
+            cropPercent: 0, // EDITORIAL: No crop
             quality: 90,
+            addGradient: true, // EDITORIAL: Subtle bottom fade
+            gradientHeight: 15, // EDITORIAL: 15% height
+            gradientOpacity: 0.15, // EDITORIAL: 15% opacity (very subtle)
           });
           
           if (processResult.success) {
