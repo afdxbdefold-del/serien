@@ -418,13 +418,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
               numberOfSeasons={series.numberOfSeasons}
             />
 
+            {/* Desktop: News Section */}
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                📰 News zu {series.name}
-              </h2>
-              <p className="text-gray-600 mt-1">
-                Alle aktuellen Nachrichten und Updates zur Serie
-              </p>
+              {/* NEW: Discover Content - News Context (Desktop) */}
+              <DiscoverNewsContext
+                seriesName={series.name || series.title}
+                content={series.discoverNewsContext || ''}
+              />
             </div>
 
             {series.primaryArticles && series.primaryArticles.length > 0 ? (
