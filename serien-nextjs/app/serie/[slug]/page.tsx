@@ -510,6 +510,14 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           )}
           */}
 
+          {/* NEW: Discover Content - Series Status (Desktop - moved to end) */}
+          <div className="lg:col-span-7">
+            <DiscoverStatus
+              seriesName={series.name || series.title}
+              content={series.discoverStatus || ''}
+            />
+          </div>
+
           {/* NEW: Discover Content - Mini Q&A (Desktop) */}
           <div className="lg:col-span-7">
             <MiniQA qa={series.discoverQA as any || []} />
