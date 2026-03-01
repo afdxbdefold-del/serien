@@ -749,11 +749,35 @@ export async function downloadVideoTrailer(
     // Special handling for YouTube: Try RapidAPI first (more reliable)
     if (source === 'YouTube') {
       console.log('   🚀 Attempting YouTube download via RapidAPI...');
+      
+      // Try API #1 first
       const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
       
       if (rapidResult.success) {
-        console.log('   ✅ RapidAPI download successful!');
+        console.log('   ✅ RapidAPI #1 download successful!');
+      } else {
+        console.log(`   ⚠️  RapidAPI #1 failed: ${rapidResult.error}`);
+        console.log('   🔄 Trying RapidAPI #2 (Fast Downloader)...');
         
+        // Try API #2 as backup
+        const rapidResult2 = await downloadYouTubeViaRapidAPI2(videoId, tempFilePath);
+        
+        if (rapidResult2.success) {
+          console.log('   ✅ RapidAPI #2 download successful!');
+        } else {
+          console.log(`   ⚠️  RapidAPI #2 failed: ${rapidResult2.error}`);
+          console.log('   🔄 Falling back to yt-dlp...');
+          
+          // Fallback to yt-dlp (already downloads in compatible format)
+          const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
+          if (!ytdlpResult.success) {
+            throw new Error(ytdlpResult.error || 'All download methods failed');
+          }
+        }
+      }
+      
+      // Re-encode with ffmpeg for web compatibility if RapidAPI was used
+      if (rapidResult.success || (rapidResult2 && rapidResult2.success)) {
         // Re-encode with ffmpeg for web compatibility (H.264 Baseline Profile)
         const webCompatiblePath = tempFilePath.replace('.mp4', '-web.mp4');
         console.log('   🔄 Re-encoding for web compatibility (H.264 Baseline Profile)...');
