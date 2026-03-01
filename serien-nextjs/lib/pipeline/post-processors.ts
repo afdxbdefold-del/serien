@@ -8,11 +8,21 @@ import { execSync } from 'child_process';
 
 export interface PostProcessingConfig {
   articleId: string;
+  articleSlug: string;
+  articleTitle: string;
   articleContent: string;
   seriesName: string;
   seriesTmdbId: number;
   articleCountForRotation: number;
   useProcessedImages: boolean;
+}
+
+export interface PostProcessingResult {
+  actorsLinked: number;
+  charactersLinked: boolean;
+  imageProcessed: boolean;
+  castImported: number;
+  qaGenerated: boolean;
 }
 
 /**
