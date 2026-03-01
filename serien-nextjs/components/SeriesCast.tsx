@@ -23,6 +23,15 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
   // Check which actors have internal pages (for linking)
   const castWithPages = await Promise.all(
     topCast.map(async (actor) => {
+      // Skip if actor doesn't have an ID
+      if (!actor.id) {
+        return {
+          ...actor,
+          hasInternalPage: false,
+          internalSlug: `unknown-${createPersonSlug(actor.name || 'actor')}`
+        };
+      }
+
       const person = await prisma.persons.findUnique({
         where: { tmdbId: actor.id },
         select: { slug: true, name: true }
