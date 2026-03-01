@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { searchTv, getTvDetails, getTvDetailsComplete } from './tmdb';
+import { fetchTopBackdrops } from './tmdb-backdrops';
 
 const prisma = new PrismaClient();
 
