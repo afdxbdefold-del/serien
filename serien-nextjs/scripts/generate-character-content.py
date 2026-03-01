@@ -9,8 +9,17 @@ import json
 import asyncio
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
-async def generate_character_content(character_name: str, series_name: str, actor_name: str = None):
+async def generate_character_content(character_name: str, series_name: str, actor_name: str = None, fandom_context: str = None):
     """Generate all content sections for a character page"""
+    
+    # Build context section
+    context_parts = []
+    if actor_name:
+        context_parts.append(f"Darsteller: {actor_name}")
+    if fandom_context:
+        context_parts.append(f"\nZUSÄTZLICHER KONTEXT VON FANDOM.COM:\n{fandom_context[:1500]}")  # Limit to avoid token overflow
+    
+    context_str = "\n".join(context_parts) if context_parts else "Darsteller unbekannt"
     
     prompt = f"""Du bist ein Serien-Redakteur und erstellst eine Autoritätsseite über die fiktive Figur "{character_name}" aus der Serie "{series_name}".
 
@@ -21,9 +30,10 @@ WICHTIGE REGELN:
 - Keine generischen KI-Phrasen
 - Keine Marketing-Sprache
 - Faktenbasiert, keine Spekulationen
+- Nutze die Fandom-Informationen als Basis, formuliere aber journalistisch um
 
 KONTEXT:
-{f"Darsteller: {actor_name}" if actor_name else "Darsteller unbekannt"}
+{context_str}
 
 AUFGABE: Erstelle folgende Abschnitte:
 
