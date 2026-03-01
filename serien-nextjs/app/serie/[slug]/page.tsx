@@ -355,6 +355,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         )}
         */}
 
+        {/* NEW: Discover Content - Series Status (moved to end) */}
+        <DiscoverStatus
+          seriesName={series.name || series.title}
+          content={series.discoverStatus || ''}
+        />
+
         {/* NEW: Discover Content - Mini Q&A */}
         <MiniQA qa={series.discoverQA as any || []} />
       </section>
