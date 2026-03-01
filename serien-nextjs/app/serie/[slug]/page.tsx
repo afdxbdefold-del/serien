@@ -287,9 +287,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             content={series.discoverNewsContext || ''}
           />
 
-          {series.primaryArticles && series.primaryArticles.length > 0 ? (
+          {series.articles && series.articles.length > 0 ? (
             <div className="space-y-4">
-              {series.primaryArticles.slice(0, 3).map((article) => (
+              {series.articles.slice(0, 3).map((article) => (
                 <Link
                   key={article.slug}
                   href={`/${article.slug}`}
