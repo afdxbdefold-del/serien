@@ -354,6 +354,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
         )}
         */}
+
+        {/* NEW: Discover Content - Mini Q&A */}
+        <MiniQA qa={series.discoverQA as any || []} />
       </section>
 
       {/* Desktop: 2-Column Layout */}
