@@ -3,6 +3,58 @@
  * Evergreen editorial sections for Series Hub pages
  */
 
+/**
+ * MODUL 0: Editorial Hook (NEW)
+ * Event-based intro at the very top
+ * 60-100 words, interprets recent event
+ */
+interface EditorialHookProps {
+  seriesName: string;
+  hook: string;
+  lastUpdated: Date;
+}
+
+export function EditorialHook({ seriesName, hook, lastUpdated }: EditorialHookProps) {
+  if (!hook) return null;
+
+  // Calculate days since update
+  const daysSince = Math.floor(
+    (Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  return (
+    <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 shadow-sm p-6 mb-6">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl">
+          💬
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">
+              Aktuelle Einordnung
+            </h2>
+            {daysSince <= 7 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">
+                Neu
+              </span>
+            )}
+          </div>
+          {daysSince <= 14 && (
+            <p className="text-xs text-blue-600">
+              Aktualisiert vor {daysSince === 0 ? 'heute' : `${daysSince} ${daysSince === 1 ? 'Tag' : 'Tagen'}`}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="prose prose-sm max-w-none">
+        <p className="text-gray-800 leading-relaxed">
+          {hook}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 interface DiscoverIntroProps {
   seriesName: string;
   content: string;
