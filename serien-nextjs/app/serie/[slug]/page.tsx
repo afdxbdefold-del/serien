@@ -10,13 +10,14 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 // import SeriesQA from '@/components/SeriesQA';
 // import { getSeriesQA } from '@/lib/series-qa-action';
 import SeriesOverview from '@/components/SeriesOverview';
-import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA } from '@/components/DiscoverContent';
+import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, EditorialHook, StatusContext } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
 import SeriesCast from '@/components/SeriesCast';
 import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import { generateSeriesSchema } from '@/lib/schema-generator';
+import { generateEditorialHook, generateStatusContext } from '@/lib/editorial-hook';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -161,6 +162,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   // Extract genres
   const genres = series.genres ? (series.genres as any[]).map(g => g.name) : [];
   
+  // Generate editorial hook (MODUL 0)
+  const editorialHook = await generateEditorialHook(tmdbId, series.name || series.title || '');
+  
+  // Generate status context (MODUL 1)
+  const statusContext = generateStatusContext(series.status, series.name || series.title || '');
+  
   // Generate structured data
   const seriesSchema = generateSeriesSchema({
     name: series.name || series.title || '',
@@ -248,6 +255,15 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* MODUL 0: Editorial Hook - Event-based intro (NEW - at the very top) */}
+        {editorialHook && (
+          <EditorialHook
+            seriesName={series.name || series.title}
+            hook={editorialHook.hook}
+            lastUpdated={editorialHook.lastUpdated}
+          />
+        )}
+
         {/* NEW: Discover Content - Evergreen Intro */}
         <DiscoverIntro 
           seriesName={series.name || series.title}
@@ -307,6 +323,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             status={series.status}
             numberOfSeasons={series.numberOfSeasons}
           />
+          {/* MODUL 1: Status Context - What does this status mean? */}
+          {statusContext && <StatusContext context={statusContext} />}
         </div>
 
         {/* Mobile: News Section */}
