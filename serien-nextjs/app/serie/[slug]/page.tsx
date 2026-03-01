@@ -265,14 +265,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         </div>
 
         {/* NEW: Fictional Characters Section */}
-        {/* TEMPORARILY DISABLED FOR DEBUGGING
         <div className="mb-6">
           <SeriesCharacters 
             seriesTmdbId={series.tmdbId}
             seriesName={series.name || series.title}
           />
         </div>
-        */}
 
         {/* NEW: Seasons & Status */}
         <div className="mb-6">
