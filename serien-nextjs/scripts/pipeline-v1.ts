@@ -1220,6 +1220,30 @@ export async function runContentPipeline(source: CrawledSource) {
 
 
     // Generate image data
+    const primaryTmdbId = resolution.primarySeries.tmdbId || 0;
+    
+    // Get article count for this series (for backdrop rotation)
+    const articleCount = await tx.articles.count({
+      where: { primarySeriesId: primaryTmdbId }
+    });
+    
+    // Fetch series to get backdrops
+    const seriesData = await tx.series.findUnique({
+      where: { tmdbId: primaryTmdbId },
+      select: { backdrops: true, backdropPath: true }
+    });
+    
+    // Select backdrop using rotation
+    let selectedBackdrop = seriesData?.backdropPath || null;
+    if (seriesData?.backdrops && Array.isArray(seriesData.backdrops) && seriesData.backdrops.length > 0) {
+      const { selectBackdropForArticle } = await import('../lib/tmdb-backdrops');
+      const rotatedBackdrop = selectBackdropForArticle(seriesData.backdrops as any[], articleCount);
+      if (rotatedBackdrop) {
+        selectedBackdrop = rotatedBackdrop;
+        console.log(`🎨 Using rotated backdrop #${(articleCount % seriesData.backdrops.length) + 1} of ${seriesData.backdrops.length}: ${rotatedBackdrop}`);
+      }
+    }
+    
     const imageData = {
       tmdbId: primaryTmdbId,
       tmdbType: 'tv' as const,
@@ -1227,6 +1251,7 @@ export async function runContentPipeline(source: CrawledSource) {
       ogImageUrl: `/img/og/tv/${primaryTmdbId}`,
       cardImageUrl: `/img/card/tv/${primaryTmdbId}`,
       imageAttribution: 'TMDB',
+      tmdbBackdropPath: selectedBackdrop, // NEW: Rotated backdrop
     };
 
     console.log(`✅ Images: TMDB ID ${primaryTmdbId}`);
