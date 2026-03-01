@@ -10,6 +10,7 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
+import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 
 interface PageProps {
   params: Promise<{
@@ -142,37 +143,31 @@ export default async function ArticlePage({ params }: PageProps) {
     return formattedDate;
   };
 
+  // Determine image URL
+  const imageUrl = article.heroImagePath || 
+    article.ogImageUrl || 
+    (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || 
+    '/og-image.png';
+  
+  // Generate structured data with ImageObject
+  const articleSchema = generateArticleSchema({
+    title: article.title,
+    description: article.excerpt || '',
+    imageUrl,
+    imageDimensions: getImageDimensions(imageUrl),
+    datePublished: (article.publishedAt || article.createdAt).toISOString(),
+    dateModified: article.updatedAt.toISOString(),
+    slug,
+    author: article.users?.name,
+  });
+
   return (
     <div className="min-h-screen bg-white">
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD Structured Data with ImageObject */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'NewsArticle',
-            headline: article.title,
-            description: article.excerpt || '',
-            image: article.ogImageUrl || (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || '/og-image.png',
-            datePublished: (article.publishedAt || article.createdAt).toISOString(),
-            dateModified: article.updatedAt.toISOString(),
-            author: {
-              '@type': 'Organization',
-              name: 'serien.de Redaktion',
-            },
-            publisher: {
-              '@type': 'Organization',
-              name: 'serien.de',
-              logo: {
-                '@type': 'ImageObject',
-                url: 'https://serien.de/logo.png',
-              },
-            },
-            mainEntityOfPage: {
-              '@type': 'WebPage',
-              '@id': `/${slug}`,
-            },
-          }),
+          __html: JSON.stringify(articleSchema),
         }}
       />
 
