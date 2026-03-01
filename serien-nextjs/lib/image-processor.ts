@@ -22,11 +22,14 @@ interface ImageProcessingOptions {
   seriesName?: string;
   cropPercent?: number; // Default: 5%
   quality?: number; // Default: 90
+  addGradient?: boolean; // Default: true - Add bottom gradient overlay
+  gradientHeight?: number; // Default: 30% - Height of gradient from bottom
 }
 
 /**
  * Process image to make it unique for Google
  * - Crops 5% from edges
+ * - Adds gradient overlay (bottom fade to dark)
  * - Slight resize
  * - Unique filename
  * - Custom metadata
@@ -43,6 +46,8 @@ export async function processImageForUniqueness(
       seriesName = 'Series',
       cropPercent = 5,
       quality = 90,
+      addGradient = true,
+      gradientHeight = 30, // 30% of image height
     } = options;
 
     // Create output directory if not exists
@@ -87,9 +92,33 @@ export async function processImageForUniqueness(
     console.log(`  Original: ${width}x${height}`);
     console.log(`  Crop: ${cropAmount}px from each edge`);
     console.log(`  New: ${newWidth}x${newHeight}`);
+    console.log(`  Gradient: ${addGradient ? `Yes (${gradientHeight}% from bottom)` : 'No'}`);
 
-    // Process image
-    await sharp(imageBuffer)
+    // Create gradient overlay buffer if requested
+    let gradientBuffer: Buffer | undefined;
+    
+    if (addGradient) {
+      const gradientHeightPx = Math.floor(newHeight * (gradientHeight / 100));
+      
+      // Create SVG gradient (fade from transparent to semi-transparent black)
+      const gradientSvg = `
+        <svg width="${newWidth}" height="${newHeight}">
+          <defs>
+            <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0" />
+              <stop offset="${100 - gradientHeight}%" style="stop-color:rgb(0,0,0);stop-opacity:0" />
+              <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:0.6" />
+            </linearGradient>
+          </defs>
+          <rect width="${newWidth}" height="${newHeight}" fill="url(#grad)" />
+        </svg>
+      `;
+      
+      gradientBuffer = Buffer.from(gradientSvg);
+    }
+
+    // Process image with cropping
+    let processedImage = sharp(imageBuffer)
       .extract({
         left: cropAmount,
         top: cropAmount,
@@ -99,7 +128,20 @@ export async function processImageForUniqueness(
       .resize(newWidth, newHeight, {
         fit: 'cover',
         position: 'center',
-      })
+      });
+
+    // Add gradient overlay if requested
+    if (addGradient && gradientBuffer) {
+      processedImage = processedImage.composite([
+        {
+          input: gradientBuffer,
+          blend: 'over',
+        },
+      ]);
+    }
+
+    // Save with metadata
+    await processedImage
       .jpeg({
         quality,
         mozjpeg: true, // Better compression
