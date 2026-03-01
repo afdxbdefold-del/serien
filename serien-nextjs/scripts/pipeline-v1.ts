@@ -1632,6 +1632,79 @@ export async function runContentPipeline(source: CrawledSource) {
       console.error('⚠️  Character import check failed:', error.message);
     }
 
+    // ========== STEP 11.6: IMAGE PROCESSING (OPTIONAL) ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 11.6: IMAGE PROCESSING');
+    console.log('━'.repeat(70));
+    console.log('');
+    
+    if (process.env.USE_PROCESSED_IMAGES === 'true') {
+      try {
+        console.log('🖼️  Processing article image for uniqueness...');
+        
+        // Get the backdrop path from the series
+        const seriesWithBackdrop = await prisma.series.findUnique({
+          where: { tmdbId: resolution.primarySeries.tmdbId },
+          select: { 
+            backdrops: true, 
+            backdropPath: true,
+            name: true,
+            title: true
+          }
+        });
+        
+        // Determine which backdrop to use
+        let backdropPath = seriesWithBackdrop?.backdropPath;
+        
+        if (seriesWithBackdrop?.backdrops && Array.isArray(seriesWithBackdrop.backdrops) && seriesWithBackdrop.backdrops.length > 0) {
+          // Use the rotated backdrop from imageData
+          const { selectBackdropForArticle } = await import('../lib/tmdb-backdrops');
+          const articleCount = await prisma.articles.count({
+            where: { primarySeriesId: resolution.primarySeries.tmdbId }
+          });
+          backdropPath = selectBackdropForArticle(seriesWithBackdrop.backdrops as any[], articleCount - 1);
+        }
+        
+        if (backdropPath) {
+          const { processImageForUniqueness } = await import('../lib/image-processor');
+          const path = await import('path');
+          
+          const sourceUrl = `https://image.tmdb.org/t/p/original${backdropPath}`;
+          const outputDir = path.join(process.cwd(), 'public', 'img', 'processed');
+          
+          const processResult = await processImageForUniqueness(sourceUrl, outputDir, {
+            articleTitle: result.title,
+            articleSlug: result.slug,
+            seriesName: seriesWithBackdrop.name || seriesWithBackdrop.title || 'Series',
+            cropPercent: 5,
+            quality: 90,
+          });
+          
+          if (processResult.success) {
+            const processedUrl = `/img/processed/${path.basename(processResult.processedPath!)}`;
+            
+            // Update article with processed image
+            await prisma.articles.update({
+              where: { id: result.id },
+              data: {
+                heroImagePath: processedUrl,
+              },
+            });
+            
+            console.log(`✅ Processed image saved: ${processedUrl}`);
+          } else {
+            console.log(`⚠️  Image processing failed: ${processResult.error}`);
+          }
+        } else {
+          console.log('⚠️  No backdrop available for processing');
+        }
+      } catch (error: any) {
+        console.log(`⚠️  Image processing skipped: ${error.message}`);
+      }
+    } else {
+      console.log('⊘ Image processing disabled (USE_PROCESSED_IMAGES=false)');
+    }
+
     // ========== STEP 12: CAST IMPORT (AUTO) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 12: CAST IMPORT');
