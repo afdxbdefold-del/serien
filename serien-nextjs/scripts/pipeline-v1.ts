@@ -1555,6 +1555,58 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log('   → Article published successfully despite actor linking failure');
     }
 
+    // ========== STEP 11.5: AUTO CHARACTER IMPORT ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 11.5: AUTO CHARACTER IMPORT');
+    console.log('━'.repeat(70));
+    console.log('');
+    
+    try {
+      // Check if characters already exist for this series
+      const existingCharacters = await prisma.characters.count({
+        where: {
+          seriesTmdbId: resolution.primarySeries.tmdbId,
+          publishStatus: 'published',
+        },
+      });
+      
+      if (existingCharacters === 0) {
+        console.log('📚 No characters found for this series, importing automatically...');
+        
+        // Import characters (this will call the import-characters script internally)
+        const { execSync } = require('child_process');
+        try {
+          execSync(
+            `cd /app/serien-nextjs && npx tsx scripts/import-characters.ts ${resolution.primarySeries.tmdbId}`,
+            { stdio: 'inherit', timeout: 120000 }
+          );
+          console.log('✅ Characters imported successfully');
+          
+          // Now update this article with character links
+          const { linkCharactersInArticle } = await import('../lib/character-linking');
+          const updatedContent = await linkCharactersInArticle(
+            generatedContent,
+            resolution.primarySeries.tmdbId
+          );
+          
+          // Update article with character links
+          await prisma.articles.update({
+            where: { id: article.id },
+            data: { contentHtml: updatedContent },
+          });
+          
+          console.log('✅ Article updated with character links');
+        } catch (importError: any) {
+          console.log('⚠️  Character import failed:', importError.message);
+          console.log('   Continuing without character links...');
+        }
+      } else {
+        console.log(`✅ Characters already exist (${existingCharacters} characters)`);
+      }
+    } catch (error: any) {
+      console.error('⚠️  Character import check failed:', error.message);
+    }
+
     // ========== STEP 12: CAST IMPORT (AUTO) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 12: CAST IMPORT');
