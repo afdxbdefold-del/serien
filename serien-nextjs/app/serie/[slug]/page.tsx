@@ -226,12 +226,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           content={series.discoverIntro || ''}
         />
 
-        {/* NEW: Discover Content - Series Status */}
-        <DiscoverStatus
-          seriesName={series.name || series.title}
-          content={series.discoverStatus || ''}
-        />
-
         {/* NEW: Where to Stream Box - Standalone Section */}
         <div className="mb-6">
           <WhereToStreamBox 
