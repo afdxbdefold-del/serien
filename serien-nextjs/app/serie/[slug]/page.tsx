@@ -269,9 +269,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         )}
 
         {/* NEW: Discover Content - Evergreen Intro */}
+        {/* DEDUPLICATION: Only render if "Über [Serie]" (SeriesOverview) does NOT exist */}
         <DiscoverIntro 
           seriesName={series.name || series.title}
           content={series.discoverIntro || series.extendedOverview || series.overview || ''}
+          hasExtendedOverview={!!series.extendedOverview}
         />
 
         {/* NEW: Where to Stream Box - Standalone Section */}
@@ -432,9 +434,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           <div className="lg:col-span-7">
             
             {/* NEW: Discover Content - Evergreen Intro (Desktop) */}
+            {/* DEDUPLICATION: Only render if "Über [Serie]" (SeriesOverview) does NOT exist */}
             <DiscoverIntro 
               seriesName={series.name || series.title}
               content={series.discoverIntro || ''}
+              hasExtendedOverview={!!series.extendedOverview}
             />
 
             {/* NEW: Where to Stream Box - Standalone Section (Desktop) */}
