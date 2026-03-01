@@ -275,9 +275,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
         {/* Mobile: News Section */}
         <div className="mt-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            📰 News zu {series.name}
-          </h2>
+          {/* NEW: Discover Content - News Context */}
+          <DiscoverNewsContext
+            seriesName={series.name || series.title}
+            content={series.discoverNewsContext || ''}
+          />
 
           {series.primaryArticles && series.primaryArticles.length > 0 ? (
             <div className="space-y-4">
