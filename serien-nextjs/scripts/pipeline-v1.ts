@@ -1220,8 +1220,6 @@ export async function runContentPipeline(source: CrawledSource) {
 
 
     // Generate image data
-    const primaryTmdbId = resolution.primarySeries.tmdbId || 0;
-    
     // Get article count for this series (for backdrop rotation)
     const articleCount = await tx.articles.count({
       where: { primarySeriesId: primaryTmdbId }
