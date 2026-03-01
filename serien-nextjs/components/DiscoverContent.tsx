@@ -104,6 +104,26 @@ export function DiscoverStatus({ seriesName, content }: DiscoverStatusProps) {
   );
 }
 
+/**
+ * MODUL 1: Status Context (NEW)
+ * One sentence below status box explaining what it means for fans
+ */
+interface StatusContextProps {
+  context: string;
+}
+
+export function StatusContext({ context }: StatusContextProps) {
+  if (!context) return null;
+
+  return (
+    <div className="mt-3 px-4 py-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+      <p className="text-sm text-gray-700 italic">
+        💡 {context}
+      </p>
+    </div>
+  );
+}
+
 interface DiscoverNewsContextProps {
   seriesName: string;
   content: string;
