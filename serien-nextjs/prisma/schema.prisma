@@ -265,6 +265,7 @@ model series {
   discoverStatus      String?
   discoverNewsContext String?
   discoverQA          Json?
+  backdrops           Json?     // NEW: Top 5 backdrops for rotation
   article_series      article_series[]
   articles            articles[]
   follows             follows[]
