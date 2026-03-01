@@ -750,11 +750,16 @@ export async function downloadVideoTrailer(
     if (source === 'YouTube') {
       console.log('   🚀 Attempting YouTube download via RapidAPI...');
       
+      let downloadSuccessful = false;
+      let usedRapidAPI = false;
+      
       // Try API #1 first
       const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
       
       if (rapidResult.success) {
         console.log('   ✅ RapidAPI #1 download successful!');
+        downloadSuccessful = true;
+        usedRapidAPI = true;
       } else {
         console.log(`   ⚠️  RapidAPI #1 failed: ${rapidResult.error}`);
         console.log('   🔄 Trying RapidAPI #2 (Fast Downloader)...');
@@ -764,6 +769,8 @@ export async function downloadVideoTrailer(
         
         if (rapidResult2.success) {
           console.log('   ✅ RapidAPI #2 download successful!');
+          downloadSuccessful = true;
+          usedRapidAPI = true;
         } else {
           console.log(`   ⚠️  RapidAPI #2 failed: ${rapidResult2.error}`);
           console.log('   🔄 Falling back to yt-dlp...');
@@ -773,11 +780,13 @@ export async function downloadVideoTrailer(
           if (!ytdlpResult.success) {
             throw new Error(ytdlpResult.error || 'All download methods failed');
           }
+          downloadSuccessful = true;
+          usedRapidAPI = false;
         }
       }
       
       // Re-encode with ffmpeg for web compatibility if RapidAPI was used
-      if (rapidResult.success || (rapidResult2 && rapidResult2.success)) {
+      if (usedRapidAPI) {
         // Re-encode with ffmpeg for web compatibility (H.264 Baseline Profile)
         const webCompatiblePath = tempFilePath.replace('.mp4', '-web.mp4');
         console.log('   🔄 Re-encoding for web compatibility (H.264 Baseline Profile)...');
