@@ -64,6 +64,8 @@ export async function searchFandomCharacter(
           },
         });
         
+        console.log(`[Fandom]   Status: ${response.status}`);
+        
         if (response.ok) {
           const html = await response.text();
           const characterData = parseFandomCharacterPage(html, url);
@@ -73,8 +75,8 @@ export async function searchFandomCharacter(
             return characterData;
           }
         }
-      } catch (error) {
-        console.log(`[Fandom] Failed to fetch ${url}: ${error}`);
+      } catch (error: any) {
+        console.log(`[Fandom]   Error: ${error.message}`);
         continue;
       }
     }
