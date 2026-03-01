@@ -1632,6 +1632,32 @@ export async function runContentPipeline(source: CrawledSource) {
         }
       } else {
         console.log(`✅ Characters already exist (${existingCharacters} characters)`);
+        
+        // Characters exist - apply linking to current article
+        console.log('🔗 Applying character links to current article...');
+        try {
+          const { linkCharactersInArticle } = await import('../lib/character-linking');
+          const currentArticleContent = await prisma.articles.findUnique({
+            where: { id: result.id },
+            select: { contentHtml: true }
+          });
+          
+          if (currentArticleContent?.contentHtml) {
+            const linkedContent = await linkCharactersInArticle(
+              currentArticleContent.contentHtml,
+              resolution.primarySeries.tmdbId
+            );
+            
+            await prisma.articles.update({
+              where: { id: result.id },
+              data: { contentHtml: linkedContent }
+            });
+            
+            console.log('✅ Character links applied to current article');
+          }
+        } catch (linkError: any) {
+          console.log('⚠️  Character linking failed:', linkError.message);
+        }
       }
     } catch (error: any) {
       console.error('⚠️  Character import check failed:', error.message);
