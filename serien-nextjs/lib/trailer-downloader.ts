@@ -474,6 +474,69 @@ async function downloadViaYtDlp(
 }
 
 /**
+ * Download YouTube video using RapidAPI #3 (Cloud API Hub)
+ * Third backup API - returns direct download URL
+ */
+async function downloadYouTubeViaRapidAPI3(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const rapidApiKey = process.env.RAPIDAPI_KEY_BACKUP || process.env.RAPIDAPI_KEY;
+    if (!rapidApiKey) {
+      return { success: false, error: 'No RapidAPI key found in environment' };
+    }
+
+    console.log('   🌐 Using RapidAPI #3 (Cloud API Hub)...');
+
+    // API #3: cloud-api-hub-youtube-downloader
+    // Returns direct download URL immediately
+    const apiUrl = `https://cloud-api-hub-youtube-downloader.p.rapidapi.com/download?id=${videoId}&filter=audioandvideo&quality=lowest`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': 'cloud-api-hub-youtube-downloader.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      return { success: false, error: `RapidAPI #3 error: ${response.status} ${response.statusText} - ${errorText}` };
+    }
+
+    const data = await response.json();
+    
+    // Check if API returned direct URL
+    if (!data.url) {
+      return { success: false, error: 'No URL in RapidAPI #3 response' };
+    }
+
+    console.log('   ✅ Got direct download URL!');
+    console.log(`   📦 File size: ${(data.filesize / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`   🎬 Format: ${data.format_note} (${data.width}x${data.height})`);
+
+    console.log('   📥 Downloading video from direct URL...');
+
+    // Download the video file
+    const videoResponse = await fetch(data.url);
+    if (!videoResponse.ok) {
+      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded via RapidAPI #3: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download YouTube video using RapidAPI #2 (Fast Downloader 24/7)
  * Backup API if the primary RapidAPI fails
  */
