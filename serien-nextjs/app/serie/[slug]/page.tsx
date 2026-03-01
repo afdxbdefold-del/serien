@@ -16,6 +16,7 @@ import SeriesCast from '@/components/SeriesCast';
 import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
+import { generateSeriesSchema } from '@/lib/schema-generator';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -153,8 +154,34 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   );
   */
 
+  // Extract year information
+  const startYear = series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : undefined;
+  const endYear = series.lastAirDate ? new Date(series.lastAirDate).getFullYear() : undefined;
+  
+  // Extract genres
+  const genres = series.genres ? (series.genres as any[]).map(g => g.name) : [];
+  
+  // Generate structured data
+  const seriesSchema = generateSeriesSchema({
+    name: series.name || series.title || '',
+    description: series.overview || '',
+    posterUrl: `/img/poster/${series.tmdbType}/${tmdbId}`,
+    tmdbId,
+    startYear,
+    endYear,
+    genres,
+  });
+
   return (
     <main className="min-h-screen bg-gray-50">
+      {/* JSON-LD Structured Data with ImageObject */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(seriesSchema),
+        }}
+      />
+      
       {/* Mobile: Hero at top */}
       <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
         <h1 id="series-hero" className="sr-only">{series.name}</h1>
