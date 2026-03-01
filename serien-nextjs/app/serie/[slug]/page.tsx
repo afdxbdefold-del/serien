@@ -367,6 +367,18 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           {/* LEFT: News Feed (Main Content) */}
           <div className="lg:col-span-7">
             
+            {/* NEW: Discover Content - Evergreen Intro (Desktop) */}
+            <DiscoverIntro 
+              seriesName={series.name || series.title}
+              content={series.discoverIntro || ''}
+            />
+
+            {/* NEW: Discover Content - Series Status (Desktop) */}
+            <DiscoverStatus
+              seriesName={series.name || series.title}
+              content={series.discoverStatus || ''}
+            />
+
             {/* NEW: Where to Stream Box - Standalone Section (Desktop) */}
             <WhereToStreamBox 
               seriesId={series.tmdbId}
