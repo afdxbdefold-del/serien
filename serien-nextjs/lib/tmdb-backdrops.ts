@@ -24,13 +24,13 @@ interface BackdropData {
  * Fetch top N backdrops for a series/movie
  * @param type - 'tv' or 'movie'
  * @param id - TMDB ID
- * @param count - Number of backdrops to return (default: 5)
+ * @param count - Number of backdrops to return (default: 10)
  * @returns Array of top-rated backdrops
  */
 export async function fetchTopBackdrops(
   type: 'tv' | 'movie',
   id: number,
-  count: number = 5
+  count: number = 10
 ): Promise<BackdropData[]> {
   try {
     if (!TMDB_API_KEY) {

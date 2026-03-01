@@ -80,9 +80,9 @@ export async function resolveSingleSeries(
 
   const slug = generateSlug(completeDetails.name || seriesName);
 
-  // Fetch top 5 backdrops
-  console.log('📸 Fetching top 5 backdrops...');
-  const topBackdrops = await fetchTopBackdrops('tv', tmdbId, 5);
+  // Fetch top 10 backdrops
+  console.log('📸 Fetching top 10 backdrops...');
+  const topBackdrops = await fetchTopBackdrops('tv', tmdbId, 10);
 
   await prisma.series.create({
     data: {
@@ -98,7 +98,7 @@ export async function resolveSingleSeries(
       // Images
       posterPath: completeDetails.posterPath,
       backdropPath: completeDetails.backdropPath,
-      backdrops: topBackdrops.length > 0 ? topBackdrops : null, // NEW: Top 5 backdrops
+      backdrops: topBackdrops.length > 0 ? topBackdrops : null, // NEW: Top 10 backdrops
       
       // Metadata
       status: completeDetails.status,

@@ -1,9 +1,10 @@
 /**
- * Update Existing Series with Top 5 Backdrops
+ * Update Existing Series with Top 10 Backdrops
  * 
- * Usage: npx tsx scripts/update-series-backdrops.ts [tmdbId]
+ * Usage: npx tsx scripts/update-series-backdrops.ts [tmdbId] [--force]
  * Without tmdbId: Updates ALL series
  * With tmdbId: Updates specific series
+ * --force: Updates even if backdrops already exist
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -11,7 +12,7 @@ import { fetchTopBackdrops } from '../lib/tmdb-backdrops';
 
 const prisma = new PrismaClient();
 
-async function updateSeriesBackdrops(tmdbId?: number) {
+async function updateSeriesBackdrops(tmdbId?: number, force: boolean = false) {
   try {
     let seriesToUpdate;
     
@@ -35,7 +36,7 @@ async function updateSeriesBackdrops(tmdbId?: number) {
       });
     }
     
-    console.log(`\n🎬 Updating ${seriesToUpdate.length} series with top 5 backdrops...\n`);
+    console.log(`\n🎬 Updating ${seriesToUpdate.length} series with top 10 backdrops...\n`);
     
     let updatedCount = 0;
     let skippedCount = 0;
@@ -46,15 +47,19 @@ async function updateSeriesBackdrops(tmdbId?: number) {
       console.log(`📺 ${seriesName} (ID: ${series.tmdbId})`);
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
       
-      // Check if already has backdrops
-      if (series.backdrops && Array.isArray(series.backdrops) && series.backdrops.length > 0) {
-        console.log(`⊘ Skipping: Already has ${series.backdrops.length} backdrops`);
+      // Check if already has backdrops (and not forcing update)
+      if (!force && series.backdrops && Array.isArray(series.backdrops) && series.backdrops.length >= 10) {
+        console.log(`⊘ Skipping: Already has ${series.backdrops.length} backdrops (use --force to update)`);
         skippedCount++;
         continue;
       }
       
-      // Fetch top 5 backdrops
-      const topBackdrops = await fetchTopBackdrops('tv', series.tmdbId, 5);
+      if (series.backdrops && Array.isArray(series.backdrops) && series.backdrops.length > 0 && series.backdrops.length < 10) {
+        console.log(`🔄 Upgrading from ${series.backdrops.length} to 10 backdrops...`);
+      }
+      
+      // Fetch top 10 backdrops
+      const topBackdrops = await fetchTopBackdrops('tv', series.tmdbId, 10);
       
       if (topBackdrops.length === 0) {
         console.log('⚠️  No backdrops found on TMDB');
@@ -96,14 +101,16 @@ async function updateSeriesBackdrops(tmdbId?: number) {
 
 // Main
 async function main() {
-  const tmdbId = process.argv[2] ? parseInt(process.argv[2]) : undefined;
+  const args = process.argv.slice(2);
+  const tmdbId = args[0] && !args[0].startsWith('--') ? parseInt(args[0]) : undefined;
+  const force = args.includes('--force');
   
   if (tmdbId && isNaN(tmdbId)) {
     console.error('❌ Invalid TMDB ID');
     process.exit(1);
   }
   
-  await updateSeriesBackdrops(tmdbId);
+  await updateSeriesBackdrops(tmdbId, force);
 }
 
 main();
