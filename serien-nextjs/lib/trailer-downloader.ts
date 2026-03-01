@@ -836,15 +836,27 @@ export async function downloadVideoTrailer(
           usedRapidAPI = true;
         } else {
           console.log(`   ⚠️  RapidAPI #2 failed: ${rapidResult2.error}`);
-          console.log('   🔄 Falling back to yt-dlp...');
+          console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub)...');
           
-          // Fallback to yt-dlp (already downloads in compatible format)
-          const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
-          if (!ytdlpResult.success) {
-            throw new Error(ytdlpResult.error || 'All download methods failed');
+          // Try API #3 as third backup
+          const rapidResult3 = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
+          
+          if (rapidResult3.success) {
+            console.log('   ✅ RapidAPI #3 download successful!');
+            downloadSuccessful = true;
+            usedRapidAPI = true;
+          } else {
+            console.log(`   ⚠️  RapidAPI #3 failed: ${rapidResult3.error}`);
+            console.log('   🔄 Falling back to yt-dlp (last resort)...');
+            
+            // Fallback to yt-dlp (already downloads in compatible format)
+            const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
+            if (!ytdlpResult.success) {
+              throw new Error(ytdlpResult.error || 'All download methods failed');
+            }
+            downloadSuccessful = true;
+            usedRapidAPI = false;
           }
-          downloadSuccessful = true;
-          usedRapidAPI = false;
         }
       }
       
