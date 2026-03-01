@@ -313,8 +313,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                       )}
                       
                       <div className="flex items-center gap-3 text-xs text-gray-500">
-                        {article.author?.name && (
-                          <span className="font-medium">{article.author.name}</span>
+                        {article.users?.name && (
+                          <span className="font-medium">{article.users.name}</span>
                         )}
                         {article.publishedAt && (
                           <span>
@@ -467,8 +467,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                         )}
                         
                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {article.author?.name && (
-                            <span className="font-medium">{article.author.name}</span>
+                          {article.users?.name && (
+                            <span className="font-medium">{article.users.name}</span>
                           )}
                           {article.publishedAt && (
                             <span>
