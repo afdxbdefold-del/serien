@@ -14,6 +14,7 @@ interface Character {
 
 /**
  * Links character names in article HTML to their character pages
+ * Links FIRST NAME if unique, or FULL NAME if found
  * Only links the FIRST occurrence of each character name
  * @param articleHtml - The HTML content of the article
  * @param seriesTmdbId - The TMDB ID of the series
@@ -45,23 +46,57 @@ export async function linkCharactersInArticle(
 
     let updatedHtml = articleHtml;
 
+    // Build a map of first names to check for uniqueness
+    const firstNameMap = new Map<string, { fullName: string; slug: string; count: number }>();
+    
+    characters.forEach(char => {
+      const firstName = char.name.split(' ')[0];
+      const existing = firstNameMap.get(firstName);
+      
+      if (existing) {
+        existing.count++;
+      } else {
+        firstNameMap.set(firstName, {
+          fullName: char.name,
+          slug: char.slug,
+          count: 1
+        });
+      }
+    });
+
     // Process each character
     for (const character of characters) {
-      // Create regex to find the character name
-      // - Must be word boundary
-      // - Case insensitive
-      // - Not already inside an <a> tag
-      const namePattern = new RegExp(
+      const firstName = character.name.split(' ')[0];
+      const firstNameData = firstNameMap.get(firstName);
+      
+      // Determine which pattern to use
+      let nameToLink: string;
+      
+      // Try full name first
+      const fullNamePattern = new RegExp(
         `\\b(${escapeRegex(character.name)})\\b`,
         'i'
       );
+      
+      if (updatedHtml.match(fullNamePattern)) {
+        nameToLink = character.name;
+      } else if (firstNameData && firstNameData.count === 1) {
+        // Use first name if it's unique
+        nameToLink = firstName;
+      } else {
+        // Skip if full name not found and first name is ambiguous
+        continue;
+      }
+      
+      const namePattern = new RegExp(
+        `\\b(${escapeRegex(nameToLink)})\\b`,
+        'i'
+      );
 
-      // Check if character name exists in the HTML (outside of tags)
-      // We'll use a simple approach: find text nodes only
+      // Find first occurrence in plain text (outside HTML tags)
       const textMatch = updatedHtml.match(namePattern);
       
       if (textMatch) {
-        // Make sure we're not inside an existing link or tag
         const beforeMatch = updatedHtml.substring(0, textMatch.index!);
         const afterMatch = updatedHtml.substring(textMatch.index! + textMatch[0].length);
         
