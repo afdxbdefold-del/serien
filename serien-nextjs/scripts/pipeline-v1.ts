@@ -28,6 +28,7 @@ import { routeContentType } from '../lib/content-type-router'; // NEW: Content t
 import { runRankingPipeline } from '../lib/pipeline-v2-ranking'; // NEW: Ranking pipeline
 import { smartTruncate } from '../lib/smart-truncate'; // NEW: Smart text truncation
 import { generateArticleQA } from '../lib/qa-generator'; // Q&A generator
+import { linkCharactersInArticle } from '../lib/character-linking'; // NEW: Character auto-linking
 
 
 const prisma = new PrismaClient();
