@@ -41,8 +41,8 @@ export async function searchFandomCharacter(
     // Format: https://seriesname.fandom.com/wiki/Character_Name
     const seriesSlug = seriesName
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/\s+/g, '')
+      .replace(/[^a-z0-9]+/g, '');
     
     const characterSlug = characterName
       .replace(/\s+/g, '_');
@@ -50,7 +50,8 @@ export async function searchFandomCharacter(
     // Try multiple possible Fandom URLs
     const possibleUrls = [
       `https://${seriesSlug}.fandom.com/wiki/${characterSlug}`,
-      `https://${seriesName.toLowerCase().replace(/\s+/g, '')}.fandom.com/wiki/${characterSlug}`,
+      `https://${seriesName.toLowerCase().replace(/\s+/g, '-')}.fandom.com/wiki/${characterSlug}`,
+      `https://${seriesName.toLowerCase().replace(/\s+/g, '_')}.fandom.com/wiki/${characterSlug}`,
     ];
     
     for (const url of possibleUrls) {
