@@ -142,18 +142,15 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
   const seasons = series.seasons as any[] || [];
   
-  // Generate Series Q&A (5 evergreen questions)
-  // TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
-  /*
+  // Generate Series Q&A (5 evergreen interpretative questions - MODUL 2)
   const seriesQA = await getSeriesQA(
     series.name || series.title,
     series.overview || '',
-    series.currentStatus || series.status || 'UNKNOWN',
-    seasons.length,
+    series.status || 'UNKNOWN',
+    series.numberOfSeasons || 0,
     series.firstAirDate,
-    null // TODO: Extract last season date from seasons array
+    series.lastAirDate
   );
-  */
 
   // Extract year information
   const startYear = series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : undefined;
@@ -408,14 +405,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           />
         </div>
 
-        {/* Series Q&A Section (Mobile) */}
-        {/* TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
+        {/* Series Q&A Section (Mobile) - MODUL 2: Interpretative Q&A */}
         {seriesQA && seriesQA.length > 0 && (
           <div className="mt-8">
             <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
           </div>
         )}
-        */}
 
         {/* NEW: Discover Content - Series Status (moved to end) */}
         <DiscoverStatus
@@ -563,14 +558,12 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Series Q&A Section (Desktop) */}
-          {/* TEMPORARILY DISABLED - generateSeriesQA function not implemented yet
+          {/* Series Q&A Section (Desktop) - MODUL 2: Interpretative Q&A */}
           {seriesQA && seriesQA.length > 0 && (
             <div className="lg:col-span-7 mt-8">
               <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
             </div>
           )}
-          */}
 
           {/* NEW: Discover Content - Series Status (Desktop - moved to end) */}
           <div className="lg:col-span-7">
