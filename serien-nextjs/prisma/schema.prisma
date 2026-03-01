@@ -259,6 +259,10 @@ model series {
   statusDescription   String?
   statusLastUpdate    DateTime?
   extendedOverview    String?
+  discoverIntro       String?   @db.Text
+  discoverStatus      String?
+  discoverNewsContext String?
+  discoverQA          Json?
   article_series      article_series[]
   articles            articles[]
   follows             follows[]
