@@ -50,10 +50,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   const seriesName = series.name || series.title;
   const ogImage = `/img/og/${series.tmdbType}/${tmdbId}`;
+  
+  // Get primary network for title
+  const primaryNetwork = series.networks && series.networks.length > 0 
+    ? series.networks[0] 
+    : 'Streaming';
 
   return {
-    title: `${seriesName} - Alle News, Trailer & Updates | serien.de`,
-    description: series.overview || `Alle Neuigkeiten, Trailer und Updates zu ${seriesName}`,
+    title: `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`,
+    description: `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`,
     metadataBase: new URL(baseUrl),
     robots: {
       index: true,
