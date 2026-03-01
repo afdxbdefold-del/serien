@@ -806,15 +806,6 @@ export async function downloadVideoTrailer(
           console.log(`   ⚠️  Re-encoding failed: ${error.message}`);
           console.log('   📹 Using original file (may not play in all browsers)');
         }
-      } else {
-        console.log(`   ⚠️  RapidAPI failed: ${rapidResult.error}`);
-        console.log('   🔄 Falling back to yt-dlp...');
-        
-        // Fallback to yt-dlp (already downloads in compatible format)
-        const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
-        if (!ytdlpResult.success) {
-          throw new Error(ytdlpResult.error || 'yt-dlp download failed');
-        }
       }
     } else {
       // For non-YouTube sources, use yt-dlp directly
