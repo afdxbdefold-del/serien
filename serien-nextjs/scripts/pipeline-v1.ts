@@ -1670,6 +1670,19 @@ export async function runContentPipeline(source: CrawledSource) {
           const sourceUrl = `https://image.tmdb.org/t/p/original${backdropPath}`;
           const outputDir = path.join(process.cwd(), 'public', 'img', 'processed');
           
+          // GRADIENT VARIATIONS: Rotate between 3 subtle variants
+          // Editorial-compliant (10-20% opacity range)
+          const gradientVariations = [
+            { height: 13, opacity: 0.12 }, // 12% opacity, 13% height
+            { height: 15, opacity: 0.15 }, // 15% opacity, 15% height (default)
+            { height: 17, opacity: 0.18 }, // 18% opacity, 17% height
+          ];
+          
+          const variantIndex = articleCountForRotation % 3;
+          const gradient = gradientVariations[variantIndex];
+          
+          console.log(`   Using gradient variant ${variantIndex + 1}/3: ${Math.round(gradient.opacity * 100)}% opacity, ${gradient.height}% height`);
+          
           const processResult = await processImageForUniqueness(sourceUrl, outputDir, {
             articleTitle: result.title,
             articleSlug: result.slug,
@@ -1677,8 +1690,8 @@ export async function runContentPipeline(source: CrawledSource) {
             cropPercent: 0, // EDITORIAL: No crop
             quality: 90,
             addGradient: true, // EDITORIAL: Subtle bottom fade
-            gradientHeight: 15, // EDITORIAL: 15% height
-            gradientOpacity: 0.15, // EDITORIAL: 15% opacity (very subtle)
+            gradientHeight: gradient.height, // EDITORIAL: Variant height
+            gradientOpacity: gradient.opacity, // EDITORIAL: Variant opacity
           });
           
           if (processResult.success) {
