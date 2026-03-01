@@ -35,12 +35,15 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
       },
       take: 12, // Show max 12 characters
     });
+    
+    console.log(`[SeriesCharacters] Found ${characters.length} characters for series ${seriesTmdbId}`);
   } catch (error) {
-    console.error('Error fetching characters:', error);
+    console.error('[SeriesCharacters] Error fetching characters:', error);
     return null;
   }
 
-  if (characters.length === 0) {
+  if (!characters || characters.length === 0) {
+    console.log(`[SeriesCharacters] No characters to display for series ${seriesTmdbId}`);
     return null;
   }
 
