@@ -1605,20 +1605,27 @@ export async function runContentPipeline(source: CrawledSource) {
           );
           console.log('✅ Characters imported successfully');
           
-          // Now update this article with character links
+          // IMPORTANT: Now update THIS article with character links
+          console.log('🔗 Applying character links to current article...');
           const { linkCharactersInArticle } = await import('../lib/character-linking');
-          const updatedContent = await linkCharactersInArticle(
-            generatedContent,
-            resolution.primarySeries.tmdbId
-          );
-          
-          // Update article with character links
-          await prisma.articles.update({
-            where: { id: article.id },
-            data: { contentHtml: updatedContent },
+          const currentArticleContent = await prisma.articles.findUnique({
+            where: { id: result.id },
+            select: { contentHtml: true }
           });
           
-          console.log('✅ Article updated with character links');
+          if (currentArticleContent?.contentHtml) {
+            const linkedContent = await linkCharactersInArticle(
+              currentArticleContent.contentHtml,
+              resolution.primarySeries.tmdbId
+            );
+            
+            await prisma.articles.update({
+              where: { id: result.id },
+              data: { contentHtml: linkedContent }
+            });
+            
+            console.log('✅ Character links applied to current article');
+          }
         } catch (importError: any) {
           console.log('⚠️  Character import failed:', importError.message);
           console.log('   Continuing without character links...');
