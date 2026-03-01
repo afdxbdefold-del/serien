@@ -474,6 +474,99 @@ async function downloadViaYtDlp(
 }
 
 /**
+ * Download YouTube video using RapidAPI #2 (Fast Downloader 24/7)
+ * Backup API if the primary RapidAPI fails
+ */
+async function downloadYouTubeViaRapidAPI2(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Use backup API key or primary key
+    const rapidApiKey = process.env.RAPIDAPI_KEY_BACKUP || process.env.RAPIDAPI_KEY;
+    if (!rapidApiKey) {
+      return { success: false, error: 'No RapidAPI key found in environment' };
+    }
+
+    console.log('   🌐 Using RapidAPI #2 (Fast Downloader 24/7)...');
+
+    // API #2: youtube-video-fast-downloader-24-7
+    // Returns file URL that needs to be polled until ready
+    const apiUrl = `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}?quality=247`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': 'youtube-video-fast-downloader-24-7.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      return { success: false, error: `RapidAPI #2 error: ${response.status} ${response.statusText} - ${errorText}` };
+    }
+
+    const data = await response.json();
+    
+    // Check if API returned file URL
+    if (!data.file) {
+      return { success: false, error: 'No file URL in RapidAPI #2 response' };
+    }
+
+    console.log('   ⏳ Video is being prepared (20-300 seconds)...');
+    console.log('   📝 Comment:', data.comment);
+
+    // Poll the file URL until it's ready (max 5 minutes)
+    const downloadUrl = data.file;
+    const maxAttempts = 60; // 60 attempts * 5 seconds = 5 minutes
+    let videoReady = false;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+      try {
+        // Try to fetch the video file
+        const videoResponse = await fetch(downloadUrl, { method: 'HEAD' });
+        
+        if (videoResponse.ok) {
+          videoReady = true;
+          console.log(`   ✅ Video ready after ${(attempt + 1) * 5} seconds!`);
+          break;
+        } else if (videoResponse.status === 404) {
+          console.log(`   ⏳ Attempt ${attempt + 1}/${maxAttempts}: Still preparing...`);
+        } else {
+          console.log(`   ⚠️  Unexpected status ${videoResponse.status}`);
+        }
+      } catch (pollError: any) {
+        console.log(`   ⚠️  Poll attempt ${attempt + 1} failed: ${pollError.message}`);
+      }
+    }
+
+    if (!videoReady) {
+      return { success: false, error: 'RapidAPI #2 timeout - video not ready after 5 minutes' };
+    }
+
+    console.log('   📥 Downloading video from RapidAPI #2...');
+
+    // Download the video file
+    const videoResponse = await fetch(downloadUrl);
+    if (!videoResponse.ok) {
+      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded via RapidAPI #2: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download YouTube video using RapidAPI (bypasses YouTube blocking)
  * More reliable than yt-dlp for YouTube
  */
