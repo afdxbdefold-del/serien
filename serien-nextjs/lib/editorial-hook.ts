@@ -145,9 +145,11 @@ export function generateStatusContext(
   // Platform-specific release patterns
   const platformPatterns: Record<string, string> = {
     'Apple TV+': 'Apple TV+ veröffentlicht neue Staffeln vergleichbarer Serien meist rund ein Jahr nach der vorherigen Staffel',
+    'Apple TV': 'Apple TV+ veröffentlicht neue Staffeln vergleichbarer Serien meist rund ein Jahr nach der vorherigen Staffel',
     'Netflix': 'Netflix entscheidet bei vergleichbaren Produktionen oft innerhalb von 6–12 Monaten nach Staffelstart über eine Fortsetzung',
     'HBO': 'HBO nimmt sich für hochwertige Produktionen dieser Art typischerweise 18–24 Monate Zeit',
     'Amazon Prime': 'Amazon Prime Video kündigt Verlängerungen oft erst Monate nach Veröffentlichung an',
+    'Amazon Prime Video': 'Amazon Prime Video kündigt Verlängerungen oft erst Monate nach Veröffentlichung an',
     'Disney+': 'Disney+ erneuert erfolgreiche Eigenproduktionen meist zeitnah, die Produktion dauert dann aber 12–18 Monate',
   };
 

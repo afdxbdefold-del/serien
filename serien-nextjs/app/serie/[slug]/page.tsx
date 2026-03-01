@@ -166,7 +166,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const editorialHook = await generateEditorialHook(tmdbId, series.name || series.title || '');
   
   // Generate status context (MODUL 1)
-  const statusContext = generateStatusContext(series.status, series.name || series.title || '');
+  const statusContext = generateStatusContext(
+    series.status,
+    series.name || series.title || '',
+    series.networks && series.networks.length > 0 ? series.networks[0] : undefined,
+    series.lastAirDate,
+    series.numberOfSeasons
+  );
   
   // Generate structured data
   const seriesSchema = generateSeriesSchema({
