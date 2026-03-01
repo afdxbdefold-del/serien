@@ -16,8 +16,10 @@ import SeriesCast from '@/components/SeriesCast';
 import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
+import SeriesQA from '@/components/SeriesQA';
 import { generateSeriesSchema } from '@/lib/schema-generator';
 import { generateEditorialHook, generateStatusContext } from '@/lib/editorial-hook';
+import { getSeriesQA } from '@/lib/series-qa-action';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
