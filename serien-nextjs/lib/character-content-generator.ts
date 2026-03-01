@@ -3,6 +3,8 @@
  * Generates discover-optimized content for fictional character pages
  */
 
+import { LlmChat, UserMessage } from 'emergentintegrations/llm/chat';
+
 interface CharacterData {
   name: string;
   seriesName: string;
@@ -98,34 +100,17 @@ AUSGABEFORMAT (JSON):
 Antworte NUR mit dem JSON, keine Einleitung.`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 3000,
-      }),
-    });
+    const chat = new LlmChat({
+      api_key: process.env.EMERGENT_LLM_KEY || '',
+      session_id: `char-gen-${Date.now()}`,
+      system_message: 'Du bist ein professioneller Serien-Redakteur.',
+    }).with_model('openai', 'gpt-4o');
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const responseText = data.choices[0]?.message?.content || '';
+    const userMessage = new UserMessage({ text: prompt });
+    const response = await chat.send_message(userMessage);
 
     // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON found in LLM response');
     }
