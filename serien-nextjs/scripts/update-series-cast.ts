@@ -45,7 +45,7 @@ async function fetchTMDBCredits(tmdbId: number): Promise<{ cast: TMDBCastMember[
     const cast = (data.cast || [])
       .slice(0, 20)
       .map((member: any) => ({
-        id: member.id,
+        id: member.id,  // TMDB ID for linking
         name: member.name,
         character: member.roles?.[0]?.character || '',
         profile_path: member.profile_path,
