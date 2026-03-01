@@ -205,6 +205,7 @@ model persons {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime
   article_persons article_persons[]
+  characters      characters[]
 }
 
 model redirects {
@@ -267,6 +268,7 @@ model series {
   article_series      article_series[]
   articles            articles[]
   follows             follows[]
+  characters          characters[]
 }
 
 model users {
@@ -284,3 +286,44 @@ model users {
   follows             follows[]
   notifications       notifications[]
 }
+
+model characters {
+  id                  String          @id
+  slug                String          @unique
+  name                String
+  seriesTmdbId        Int
+  tmdbCharacterId     String?
+  actorTmdbId         Int?
+  
+  // Content fields
+  shortDescription    String?
+  whoIsContent        String?         @db.Text
+  roleInSeriesContent String?         @db.Text
+  importanceContent   String?         @db.Text
+  appearancesContent  String?         @db.Text
+  qaContent           Json?
+  
+  // Meta fields
+  status              String?
+  firstAppearance     String?
+  seasons             String?
+  
+  // SEO
+  metaTitle           String?
+  metaDescription     String?
+  
+  // Stats & Publishing
+  publishStatus       String          @default("draft")
+  articleMentions     Int             @default(0)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  // Relations
+  series              series          @relation(fields: [seriesTmdbId], references: [tmdbId], onDelete: Cascade)
+  actor               persons?        @relation(fields: [actorTmdbId], references: [tmdbId])
+  
+  @@index([seriesTmdbId])
+  @@index([actorTmdbId])
+  @@index([slug])
+}
+
