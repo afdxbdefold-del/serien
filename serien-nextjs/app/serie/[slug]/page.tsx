@@ -510,6 +510,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           )}
           */}
 
+          {/* NEW: Discover Content - Mini Q&A (Desktop) */}
+          <div className="lg:col-span-7">
+            <MiniQA qa={series.discoverQA as any || []} />
+          </div>
+
           {/* RIGHT: Hero Box (Sticky on Desktop) */}
           <div className="hidden lg:block lg:col-span-5">
             <div className="lg:sticky lg:top-6">
