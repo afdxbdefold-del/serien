@@ -36,10 +36,8 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
     })
   );
 
-  // Filter to only show actors with internal pages or show all if none have pages
-  const actorsToShow = castWithPages.filter(a => a.hasInternalPage).length > 0
-    ? castWithPages.filter(a => a.hasInternalPage)
-    : castWithPages.slice(0, 6);
+  // Show all actors (top 6), regardless of whether they have internal pages
+  const actorsToShow = castWithPages.slice(0, 6);
 
   if (actorsToShow.length === 0) return null;
 
