@@ -14,24 +14,31 @@ interface SeriesCharactersProps {
 
 export default async function SeriesCharacters({ seriesTmdbId, seriesName }: SeriesCharactersProps) {
   // Fetch published characters for this series
-  const characters = await prisma.characters.findMany({
-    where: {
-      seriesTmdbId,
-      publishStatus: 'published',
-    },
-    include: {
-      actor: {
-        select: {
-          name: true,
-          profilePath: true,
+  let characters = [];
+  
+  try {
+    characters = await prisma.characters.findMany({
+      where: {
+        seriesTmdbId,
+        publishStatus: 'published',
+      },
+      include: {
+        actor: {
+          select: {
+            name: true,
+            profilePath: true,
+          },
         },
       },
-    },
-    orderBy: {
-      name: 'asc',
-    },
-    take: 12, // Show max 12 characters
-  });
+      orderBy: {
+        name: 'asc',
+      },
+      take: 12, // Show max 12 characters
+    });
+  } catch (error) {
+    console.error('Error fetching characters:', error);
+    return null;
+  }
 
   if (characters.length === 0) {
     return null;
