@@ -20,7 +20,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
   // Get top 6 actors
   const topCast = cast.slice(0, 6);
 
-  // Check which actors have internal pages
+  // Check which actors have internal pages (for linking)
   const castWithPages = await Promise.all(
     topCast.map(async (actor) => {
       const person = await prisma.persons.findUnique({
@@ -35,11 +35,6 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
       };
     })
   );
-
-  // Show all actors (top 6), regardless of whether they have internal pages
-  const actorsToShow = castWithPages.slice(0, 6);
-
-  if (actorsToShow.length === 0) return null;
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
