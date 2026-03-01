@@ -25,7 +25,8 @@ async function processArticleImage(articleId: string) {
         id: true,
         title: true,
         slug: true,
-        imageData: true,
+        tmdbBackdropPath: true,
+        heroImageUrl: true,
         primarySeriesId: true,
       },
     });
@@ -44,20 +45,18 @@ async function processArticleImage(articleId: string) {
       });
       seriesName = series?.name || series?.title || 'Unknown';
     }
-
-    const imageData = article.imageData as any;
     
-    if (!imageData?.tmdbBackdropPath) {
+    if (!article.tmdbBackdropPath) {
       console.log(`⊘ No backdrop for article: ${article.title}`);
       return false;
     }
 
     console.log(`\n📸 Processing: ${article.title}`);
     console.log(`   Series: ${seriesName}`);
-    console.log(`   Original: ${imageData.tmdbBackdropPath}`);
+    console.log(`   Original: ${article.tmdbBackdropPath}`);
 
     // Process image
-    const sourceUrl = `${TMDB_IMAGE_BASE}${imageData.tmdbBackdropPath}`;
+    const sourceUrl = `${TMDB_IMAGE_BASE}${article.tmdbBackdropPath}`;
     const result = await processImageForUniqueness(sourceUrl, OUTPUT_DIR, {
       articleTitle: article.title,
       articleSlug: article.slug,
@@ -71,19 +70,15 @@ async function processArticleImage(articleId: string) {
       return false;
     }
 
-    // Update article with processed image path
+    // Update article with processed image paths
     const processedUrl = `/img/processed/${path.basename(result.processedPath!)}`;
     const originalBackup = `/img/processed/${path.basename(result.originalPath!)}`;
 
     await prisma.articles.update({
       where: { id: articleId },
       data: {
-        imageData: {
-          ...imageData,
-          processedImageUrl: processedUrl,
-          originalBackup: originalBackup,
-          processedAt: new Date().toISOString(),
-        },
+        heroImagePath: processedUrl,
+        // Store original in a JSON field if we add one, or keep in filesystem only
       },
     });
 
