@@ -38,6 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       overview: true,
       backdropPath: true,
       tmdbType: true,
+      networks: true,
     },
   });
 
