@@ -413,7 +413,7 @@ export async function runContentPipeline(source: CrawledSource) {
     if (metaLength < 100) {
       console.log(`⚠️  Meta too short (${metaLength} < 100) - AUTO-EXTENDING`);
       // Append context sentence from article
-      const plainText = contentHtml.replace(/<[^>]*>/g, ' ').trim();
+      const plainText = generatedContent.replace(/<[^>]*>/g, ' ').trim();
       const firstSentence = plainText.split(/[.!?]+/)[0]?.trim();
       if (firstSentence && firstSentence.length < 100) {
         metaDescription = metaDescription + ' ' + firstSentence.substring(0, 55 - metaDescription.length) + '...';
