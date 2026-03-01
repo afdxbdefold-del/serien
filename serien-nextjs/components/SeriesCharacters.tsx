@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import prisma from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
 
 interface SeriesCharactersProps {
   seriesTmdbId: number;
@@ -13,11 +13,12 @@ interface SeriesCharactersProps {
 }
 
 export default async function SeriesCharacters({ seriesTmdbId, seriesName }: SeriesCharactersProps) {
-  // Fetch published characters for this series
-  let characters = [];
+  // Create a new Prisma instance for this component
+  const prisma = new PrismaClient();
   
   try {
-    characters = await prisma.characters.findMany({
+    // Fetch published characters for this series
+    const characters = await prisma.characters.findMany({
       where: {
         seriesTmdbId,
         publishStatus: 'published',
@@ -36,16 +37,11 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
       take: 12, // Show max 12 characters
     });
     
-    console.log(`[SeriesCharacters] Found ${characters.length} characters for series ${seriesTmdbId}`);
-  } catch (error) {
-    console.error('[SeriesCharacters] Error fetching characters:', error);
-    return null;
-  }
+    await prisma.$disconnect();
 
-  if (!characters || characters.length === 0) {
-    console.log(`[SeriesCharacters] No characters to display for series ${seriesTmdbId}`);
-    return null;
-  }
+    if (!characters || characters.length === 0) {
+      return null;
+    }
 
   return (
     <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -110,4 +106,9 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
       </div>
     </section>
   );
+  } catch (error) {
+    console.error('[SeriesCharacters] Error:', error);
+    await prisma.$disconnect();
+    return null;
+  }
 }
