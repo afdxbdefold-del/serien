@@ -1313,15 +1313,8 @@ export async function runContentPipeline(source: CrawledSource) {
       console.log(`   ✅ Hero Image wird mit 1600x900 (16:9) gespeichert`);
       console.log(`   ✅ Google Discover ready: min. 1200px Breite garantiert`);
 
-      // ========== CHARACTER AUTO-LINKING ==========
-      console.log(`\n🔗 Applying character auto-linking...`);
-      try {
-        generatedContent = await linkCharactersInArticle(generatedContent, resolution.primarySeries.tmdbId);
-        console.log(`   ✅ Character links applied to article content`);
-      } catch (error: any) {
-        console.log(`   ⚠️  Character linking failed: ${error.message}`);
-        // Continue with original content if linking fails
-      }
+      // NOTE: Character linking is applied AFTER transaction in Step 11.5
+      // Cannot be done here due to Prisma connection issues inside transaction
 
       // Create article
       const article = await tx.articles.create({
