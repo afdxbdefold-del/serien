@@ -14,6 +14,7 @@ interface CharacterData {
   tmdbSeriesData?: any;
   tmdbCharacterData?: any;
   actorName?: string;
+  fandomContext?: string; // NEW: Additional context from Fandom
 }
 
 interface GeneratedContent {
@@ -35,8 +36,11 @@ export async function generateCharacterContent(
 ): Promise<GeneratedContent> {
   try {
     const actorArg = data.actorName ? ` "${data.actorName}"` : '';
+    const fandomArg = data.fandomContext ? ` --fandom-context "${data.fandomContext.replace(/"/g, '\\"')}"` : '';
+    
     const { stdout, stderr } = await execAsync(
-      `cd /app/serien-nextjs && python3 scripts/generate-character-content.py "${data.name}" "${data.seriesName}"${actorArg}`
+      `cd /app/serien-nextjs && python3 scripts/generate-character-content.py "${data.name}" "${data.seriesName}"${actorArg}${fandomArg}`,
+      { maxBuffer: 1024 * 1024 * 5 } // 5MB buffer for large context
     );
 
     if (stderr) {
