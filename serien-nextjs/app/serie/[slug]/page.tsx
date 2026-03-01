@@ -13,6 +13,7 @@ import SeriesOverview from '@/components/SeriesOverview';
 import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
 import SeriesCast from '@/components/SeriesCast';
+import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 
@@ -260,6 +261,14 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           <SeriesCast 
             seriesName={series.name || series.title}
             cast={cast}
+          />
+        </div>
+
+        {/* NEW: Fictional Characters Section */}
+        <div className="mb-6">
+          <SeriesCharacters 
+            seriesTmdbId={series.tmdbId}
+            seriesName={series.name || series.title}
           />
         </div>
 
