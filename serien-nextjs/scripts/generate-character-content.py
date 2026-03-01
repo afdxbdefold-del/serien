@@ -6,9 +6,10 @@ Generates discover-optimized content for fictional character pages using Emergen
 import os
 import sys
 import json
+import asyncio
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
-def generate_character_content(character_name: str, series_name: str, actor_name: str = None):
+async def generate_character_content(character_name: str, series_name: str, actor_name: str = None):
     """Generate all content sections for a character page"""
     
     prompt = f"""Du bist ein Serien-Redakteur und erstellst eine Autoritätsseite über die fiktive Figur "{character_name}" aus der Serie "{series_name}".
@@ -87,7 +88,7 @@ Antworte NUR mit dem JSON, keine Einleitung."""
         ).with_model('openai', 'gpt-4o')
 
         user_message = UserMessage(text=prompt)
-        response = chat.send_message(user_message)
+        response = await chat.send_message(user_message)
 
         # Extract JSON from response
         import re
@@ -107,7 +108,7 @@ Antworte NUR mit dem JSON, keine Einleitung."""
         print(f"Error: {str(e)}", file=sys.stderr)
         raise
 
-if __name__ == "__main__":
+async def main():
     if len(sys.argv) < 3:
         print("Usage: python3 generate-character-content.py <character_name> <series_name> [actor_name]", file=sys.stderr)
         sys.exit(1)
@@ -116,5 +117,8 @@ if __name__ == "__main__":
     series_name = sys.argv[2]
     actor_name = sys.argv[3] if len(sys.argv) > 3 else None
 
-    result = generate_character_content(character_name, series_name, actor_name)
+    result = await generate_character_content(character_name, series_name, actor_name)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+
+if __name__ == "__main__":
+    asyncio.run(main())
