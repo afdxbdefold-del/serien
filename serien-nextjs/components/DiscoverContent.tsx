@@ -33,14 +33,17 @@ interface DiscoverStatusProps {
 export function DiscoverStatus({ seriesName, content }: DiscoverStatusProps) {
   if (!content) return null;
 
+  // Remove duplicate heading from content
+  const cleanContent = content.replace(/^Aktueller Stand der Serie\s*/i, '').trim();
+
   return (
-    <section className="bg-blue-50 rounded-xl border border-blue-200 p-6 mb-6">
+    <section className="bg-blue-50 rounded-xl border border-blue-200 p-6 mb-6 mt-8">
       <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
         <span className="text-2xl">📊</span>
         <span>Aktueller Stand der Serie</span>
       </h2>
       <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-        {content}
+        {cleanContent}
       </div>
     </section>
   );
