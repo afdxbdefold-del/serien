@@ -42,7 +42,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
         Besetzung von {seriesName}
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {actorsToShow.map((actor) => {
+        {castWithPages.map((actor) => {
           const ActorCard = (
             <div className="group cursor-pointer">
               <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
