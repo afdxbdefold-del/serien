@@ -15,6 +15,7 @@ import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
+import RatingWithContext from '@/components/RatingWithContext';
 import { generateSeriesSchema } from '@/lib/schema-generator';
 import { generateEditorialHook, generateStatusContext } from '@/lib/editorial-hook';
 import { getSeriesQA } from '@/lib/series-qa-action';
@@ -214,10 +215,10 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             {/* Metadata Row: Rating, Year, Seasons, Status */}
             <div className="flex items-center gap-2 mb-4 flex-wrap">
               {series.voteAverage && (
-                <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200">
-                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                  <span className="font-semibold text-gray-900 text-sm">{series.voteAverage.toFixed(1)}</span>
-                </div>
+                <RatingWithContext 
+                  rating={series.voteAverage} 
+                  voteCount={series.voteCount || undefined}
+                />
               )}
               {series.firstAirDate && (
                 <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700">
@@ -616,10 +617,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                     <div className="flex-shrink-0 w-[120px]">
                       <div className="flex flex-col gap-2">
                         {series.voteAverage && (
-                          <div className="flex items-center justify-center gap-1 bg-yellow-50 px-2 py-1.5 rounded-lg border border-yellow-200">
-                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                            <span className="font-semibold text-gray-900 text-sm">{series.voteAverage.toFixed(1)}</span>
-                          </div>
+                          <RatingWithContext 
+                            rating={series.voteAverage} 
+                            voteCount={series.voteCount || undefined}
+                            className="w-full"
+                          />
                         )}
                         {series.firstAirDate && (
                           <div className="bg-gray-100 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 text-center">
