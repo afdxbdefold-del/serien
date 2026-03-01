@@ -1,19 +1,47 @@
-# Image Processing System (Option C)
+# Image Processing System (Editorial Style)
 
 ## 🎯 Purpose
-Makes TMDB images unique for Google with minimal transformations:
-- **Crop**: Removes 5% from each edge
-- **Resize**: Slight adjustment
-- **Metadata**: Custom EXIF (Title, Description, Copyright)
-- **Filename**: Unique per article (`{slug}-{timestamp}-{id}.jpg`)
+Prepares TMDB images for Google Discover with **editorial standards**:
+- **Subtle** black gradient at bottom (10-20% opacity)
+- **No crop** - maintains original dimensions
+- **No text, no brand colors, no filters**
+- **Natural look** - not clickbait or social media style
+
+## 📐 Editorial Guidelines
+
+### ALLOWED:
+- ✅ TMDB Backdrops/Posters (original colors)
+- ✅ Subtle black gradient at bottom (10-20% opacity)
+- ✅ Light brightness/contrast adjustment (if image too dark)
+- ✅ Unique filename per article
+
+### NOT ALLOWED:
+- ❌ Text overlays (no titles, no headlines)
+- ❌ Brand color overlays (#039CFC)
+- ❌ Color filters, LUTs, saturation boost
+- ❌ Borders, arrows, circles, emojis
+- ❌ YouTube-thumbnail style
+- ❌ Social media design
 
 ## 🔧 Configuration
 
 ### Environment Variable
 ```bash
 # In .env file
-USE_PROCESSED_IMAGES=true   # Use processed images
+USE_PROCESSED_IMAGES=true   # Use editorial-style processed images
 USE_PROCESSED_IMAGES=false  # Use TMDB originals (default)
+```
+
+## ⚙️ Default Settings (Editorial)
+
+```typescript
+{
+  cropPercent: 0,          // No crop
+  quality: 90,             // High quality
+  addGradient: true,       // Subtle fade
+  gradientHeight: 15,      // 15% from bottom
+  gradientOpacity: 0.15    // 15% opacity (very subtle)
+}
 ```
 
 ## 📝 Scripts
