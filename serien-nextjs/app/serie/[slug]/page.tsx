@@ -7,8 +7,6 @@ import { Metadata } from 'next';
 import FollowButtonLocal from '@/components/FollowButtonLocal';
 import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
-// import SeriesQA from '@/components/SeriesQA';
-// import { getSeriesQA } from '@/lib/series-qa-action';
 import SeriesOverview from '@/components/SeriesOverview';
 import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, EditorialHook, StatusContext } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
