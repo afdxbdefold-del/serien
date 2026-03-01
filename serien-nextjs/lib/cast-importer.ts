@@ -106,9 +106,10 @@ export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
             slug,
             name: member.name,
             profilePath: member.profile_path || null,
-            biography: null, // Will be fetched on-demand
-            knownForDepartment: 'Acting',
-            popularity: 0,
+            biography: null,
+            knownFor: null,
+            birthDate: null,
+            birthPlace: null,
             createdAt: new Date(),
             updatedAt: new Date(),
           },
