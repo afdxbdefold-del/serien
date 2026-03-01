@@ -20,19 +20,21 @@ interface ImageProcessingOptions {
   articleTitle?: string;
   articleSlug?: string;
   seriesName?: string;
-  cropPercent?: number; // Default: 5%
+  cropPercent?: number; // Default: 0% - Editorial look needs no crop
   quality?: number; // Default: 90
-  addGradient?: boolean; // Default: true - Add bottom gradient overlay
-  gradientHeight?: number; // Default: 30% - Height of gradient from bottom
+  addGradient?: boolean; // Default: true - Subtle bottom gradient
+  gradientHeight?: number; // Default: 15% - Subtle fade
+  gradientOpacity?: number; // Default: 0.15 (15%) - Very subtle
 }
 
 /**
- * Process image to make it unique for Google
- * - Crops 5% from edges
- * - Adds gradient overlay (bottom fade to dark)
- * - Slight resize
- * - Unique filename
- * - Custom metadata
+ * Process image to make it unique for Google Discover
+ * EDITORIAL STYLE - NOT clickbait or social media
+ * 
+ * - Optional subtle crop
+ * - Subtle black gradient (10-15% opacity) at bottom
+ * - No text, no brand colors, no filters
+ * - Maintains natural look
  */
 export async function processImageForUniqueness(
   sourceUrl: string,
@@ -44,10 +46,11 @@ export async function processImageForUniqueness(
       articleTitle = 'Article',
       articleSlug = 'article',
       seriesName = 'Series',
-      cropPercent = 5,
+      cropPercent = 0, // EDITORIAL: No crop by default
       quality = 90,
       addGradient = true,
-      gradientHeight = 30, // 30% of image height
+      gradientHeight = 15, // EDITORIAL: 15% subtle fade
+      gradientOpacity = 0.15, // EDITORIAL: 15% opacity (10-20% range)
     } = options;
 
     // Create output directory if not exists
@@ -83,52 +86,73 @@ export async function processImageForUniqueness(
     const width = metadata.width || 1920;
     const height = metadata.height || 1080;
 
-    // Calculate crop dimensions (remove 5% from each edge = 10% total)
-    const cropAmount = Math.floor(Math.min(width, height) * (cropPercent / 100));
-    const newWidth = width - (cropAmount * 2);
-    const newHeight = height - (cropAmount * 2);
+    // Calculate crop dimensions if crop is requested
+    let finalWidth = width;
+    let finalHeight = height;
+    let cropLeft = 0;
+    let cropTop = 0;
+    
+    if (cropPercent > 0) {
+      const cropAmount = Math.floor(Math.min(width, height) * (cropPercent / 100));
+      cropLeft = cropAmount;
+      cropTop = cropAmount;
+      finalWidth = width - (cropAmount * 2);
+      finalHeight = height - (cropAmount * 2);
+    }
 
     console.log(`[Image Processor] Transforming:`);
     console.log(`  Original: ${width}x${height}`);
-    console.log(`  Crop: ${cropAmount}px from each edge`);
-    console.log(`  New: ${newWidth}x${newHeight}`);
-    console.log(`  Gradient: ${addGradient ? `Yes (${gradientHeight}% from bottom)` : 'No'}`);
+    if (cropPercent > 0) {
+      console.log(`  Crop: ${cropLeft}px from each edge`);
+    }
+    console.log(`  Final: ${finalWidth}x${finalHeight}`);
+    console.log(`  Gradient: ${addGradient ? `Yes (${gradientHeight}% height, ${Math.round(gradientOpacity * 100)}% opacity)` : 'No'}`);
+    console.log(`  Style: Editorial (subtle, no clickbait)`);
 
     // Create gradient overlay buffer if requested
     let gradientBuffer: Buffer | undefined;
     
     if (addGradient) {
-      const gradientHeightPx = Math.floor(newHeight * (gradientHeight / 100));
+      // EDITORIAL GRADIENT: Subtle black fade at bottom
+      // - Black color (#000000)
+      // - Low opacity (10-20%)
+      // - Small height (15-20%)
+      // - Soft transition
       
-      // Create SVG gradient (fade from transparent to semi-transparent black)
       const gradientSvg = `
-        <svg width="${newWidth}" height="${newHeight}">
+        <svg width="${finalWidth}" height="${finalHeight}">
           <defs>
             <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" style="stop-color:rgb(0,0,0);stop-opacity:0" />
               <stop offset="${100 - gradientHeight}%" style="stop-color:rgb(0,0,0);stop-opacity:0" />
-              <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:0.6" />
+              <stop offset="100%" style="stop-color:rgb(0,0,0);stop-opacity:${gradientOpacity}" />
             </linearGradient>
           </defs>
-          <rect width="${newWidth}" height="${newHeight}" fill="url(#grad)" />
+          <rect width="${finalWidth}" height="${finalHeight}" fill="url(#grad)" />
         </svg>
       `;
       
       gradientBuffer = Buffer.from(gradientSvg);
     }
 
-    // Process image with cropping
-    let processedImage = sharp(imageBuffer)
-      .extract({
-        left: cropAmount,
-        top: cropAmount,
-        width: newWidth,
-        height: newHeight,
-      })
-      .resize(newWidth, newHeight, {
-        fit: 'cover',
-        position: 'center',
+    // Process image
+    let processedImage = sharp(imageBuffer);
+    
+    // Apply crop if requested
+    if (cropPercent > 0) {
+      processedImage = processedImage.extract({
+        left: cropLeft,
+        top: cropTop,
+        width: finalWidth,
+        height: finalHeight,
       });
+    }
+    
+    // Resize to ensure consistency
+    processedImage = processedImage.resize(finalWidth, finalHeight, {
+      fit: 'cover',
+      position: 'center',
+    });
 
     // Add gradient overlay if requested
     if (addGradient && gradientBuffer) {
