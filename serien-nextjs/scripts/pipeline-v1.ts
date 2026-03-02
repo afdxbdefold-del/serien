@@ -1281,10 +1281,10 @@ export async function runContentPipeline(source: CrawledSource) {
     const { runPostProcessing } = await import('../lib/pipeline/post-processors');
     
     const postProcessingResult = await runPostProcessing(prisma, {
-      articleId: result.id,
-      articleSlug: result.slug,
-      articleTitle: result.title,
-      articleContent: result.contentHtml,
+      articleId: result.article.id,
+      articleSlug: result.article.slug,
+      articleTitle: result.article.title,
+      articleContent: result.article.contentHtml,
       seriesName: resolution.primarySeries.title || resolution.primarySeries.name || '',
       seriesTmdbId: resolution.primarySeries.tmdbId,
     });
