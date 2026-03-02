@@ -6,7 +6,6 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesOverview from '@/components/SeriesOverview';
 import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, StatusContext } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
-import SeriesCast from '@/components/SeriesCast';
 import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
