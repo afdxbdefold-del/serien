@@ -8,7 +8,7 @@ import FollowButtonLocal from '@/components/FollowButtonLocal';
 import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesOverview from '@/components/SeriesOverview';
-import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, EditorialHook, StatusContext } from '@/components/DiscoverContent';
+import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, StatusContext } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
 import SeriesCast from '@/components/SeriesCast';
 import SeriesCharacters from '@/components/SeriesCharacters';
@@ -17,7 +17,7 @@ import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import { generateSeriesSchema } from '@/lib/schema-generator';
-import { generateEditorialHook, generateStatusContext } from '@/lib/editorial-hook';
+import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial-hook';
 import { getSeriesQA } from '@/lib/series-qa-action';
 
 interface PageProps {
@@ -160,10 +160,16 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   // Extract genres
   const genres = series.genres ? (series.genres as any[]).map(g => g.name) : [];
   
-  // Generate editorial hook (MODUL 0)
-  const editorialHook = await generateEditorialHook(tmdbId, series.name || series.title || '');
+  // MODUL 0: "Warum relevant"-Context (kulturelle Relevanz, KEIN News-Ton)
+  const relevanceContext = await generateRelevanceContext(
+    series.name || series.title || '',
+    series.overview || '',
+    series.status || 'UNKNOWN',
+    series.voteAverage || 0,
+    series.numberOfSeasons || 0
+  );
   
-  // Generate status context (MODUL 1)
+  // MODUL 1: Status Context (NUR bei echtem Mehrwert)
   const statusContext = generateStatusContext(
     series.status,
     series.name || series.title || '',
@@ -259,13 +265,17 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* MODUL 0: Editorial Hook - Event-based intro (NEW - at the very top) */}
-        {editorialHook && (
-          <EditorialHook
-            seriesName={series.name || series.title}
-            hook={editorialHook.hook}
-            lastUpdated={editorialHook.lastUpdated}
-          />
+        {/* MODUL 0: "Warum relevant"-Box (kulturelle Relevanz, NICHT event-basiert) */}
+        {relevanceContext && (
+          <section className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-md p-6 mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="text-2xl">💡</span>
+              <span>Warum relevant</span>
+            </h2>
+            <p className="text-gray-700 leading-relaxed">
+              {relevanceContext.text}
+            </p>
+          </section>
         )}
 
         {/* NEW: Discover Content - Evergreen Intro */}
