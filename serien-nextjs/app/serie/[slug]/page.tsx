@@ -291,7 +291,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
                 Dazu zählen bestätigte Updates zur Serie, Einordnungen zu Veröffentlichungen sowie zentrale Fakten, sobald sie offiziell vorliegen.
               </p>
               <div className="space-y-4">
-                {series.articles.slice(0, 3).map((article) => (
+                {series.articles.slice(0, 3).map((article: any) => (
                   <Link
                     key={article.slug}
                     href={`/artikel/${article.slug}`}
