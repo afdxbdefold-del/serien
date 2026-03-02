@@ -130,6 +130,23 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
   const seasons = series.seasons as any[] || [];
   
+  // Enrich cast with person page slugs for linking
+  const castWithLinks = await Promise.all(
+    cast.slice(0, 6).map(async (actor: any) => {
+      if (!actor.id) return { ...actor, personSlug: null };
+      
+      const person = await prisma.persons.findUnique({
+        where: { tmdbId: actor.id },
+        select: { slug: true }
+      });
+      
+      return {
+        ...actor,
+        personSlug: person?.slug || null
+      };
+    })
+  );
+  
   // Generate Series Q&A (5 evergreen interpretative questions - MODUL 2)
   const seriesQA = await getSeriesQA(
     series.name || series.title,
