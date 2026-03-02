@@ -63,9 +63,9 @@ async function processNightAgentArticle() {
 <li><strong>Albert Jones</strong> als Deputy Director Mosley</li>
 </ul>
 
-<p>Die Rückkehr von <strong>Luciane Buchanan</strong> (Rose) hängt von der Storyline ab. Weitere Charaktere wie Genesis Rodriguez' Isabel, Suraj Sharma's Jay und andere könnten ebenfalls zurückkehren – abhängig von der Handlung.</p>
+<p>Die Rückkehr von <strong>Luciane Buchanan</strong> (Rose) hängt von der Storyline ab. Weitere Charaktere wie Isabel, Jay und andere könnten ebenfalls zurückkehren – abhängig von der Handlung.</p>
 
-<p>Catherine's tragischer Tod in Staffel 3 bedeutet, dass <strong>Amanda Warren</strong> wahrscheinlich nicht zurückkehren wird. Gleiches gilt für <strong>Louis Herthum</strong> als Jacob Monroe (The Broker).</p>
+<p>Catherines tragischer Tod in Staffel 3 bedeutet, dass <strong>Amanda Warren</strong> wahrscheinlich nicht zurückkehren wird. Gleiches gilt für <strong>Louis Herthum</strong> als Jacob Monroe (The Broker).</p>
 
 <h2>Veröffentlichungstermin</h2>
 
