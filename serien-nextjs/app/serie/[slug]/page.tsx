@@ -1,24 +1,11 @@
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Star, Tv } from 'lucide-react';
 import { Metadata } from 'next';
-import FollowButtonLocal from '@/components/FollowButtonLocal';
-import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
-import WhereToStreamBox from '@/components/WhereToStreamBox';
-import SeriesOverview from '@/components/SeriesOverview';
-import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, StatusContext } from '@/components/DiscoverContent';
-import QuickFactsBox from '@/components/QuickFactsBox';
-import SeriesCast from '@/components/SeriesCast';
-import SeriesCharacters from '@/components/SeriesCharacters';
-import SeasonsStatus from '@/components/SeasonsStatus';
-import RelatedSeries from '@/components/RelatedSeries';
-import SeriesQA from '@/components/SeriesQA';
-import RatingWithContext from '@/components/RatingWithContext';
 import { generateSeriesSchema } from '@/lib/schema-generator';
 import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial-hook';
 import { getSeriesQA } from '@/lib/series-qa-action';
+import MobileSeriesLayout from '@/components/series/MobileSeriesLayout';
+import DesktopSeriesLayout from '@/components/series/DesktopSeriesLayout';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
