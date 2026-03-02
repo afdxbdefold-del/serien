@@ -205,7 +205,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       
       <MobileSeriesLayout
         series={series}
-        cast={cast}
+        cast={castWithLinks}
         creators={creators}
         seasons={seasons}
         trailers={trailers}
@@ -217,7 +217,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
       <DesktopSeriesLayout
         series={series}
-        cast={cast}
+        cast={castWithLinks}
         creators={creators}
         seasons={seasons}
         trailers={trailers}
