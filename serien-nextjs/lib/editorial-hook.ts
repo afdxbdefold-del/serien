@@ -1,148 +1,167 @@
 /**
- * Editorial Hook Generator
- * Generates event-based editorial intro for Series Hub (MODUL 0)
- * Based on latest articles to trigger Google Discover
+ * Editorial Context Generation for Series Hubs
+ * UPDATED: Discover-Optimierung gemäß Instruction (März 2026)
+ * 
+ * MODUL 0: "Warum relevant"-Box (kulturelle/Markt-Relevanz, KEIN News-Ton)
+ * MODUL 1: Status Context (NUR bei echtem Mehrwert, keine Redundanz)
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-interface EditorialHookData {
-  hook: string;
-  lastUpdated: Date;
+interface RelevanceContext {
+  text: string;
+  type: 'cultural' | 'market' | 'genre' | 'impact';
 }
 
 /**
- * Generate editorial hook based on latest article
- * 60-100 words, interprets recent event, NO explanations
+ * MODUL 0: Generate "Warum relevant"-Context
+ * Fokus: Kulturelle/Markt-Relevanz, evergreen Tonalität
+ * NICHT: Event-basiert, News-Ton, künstliche Zeitstempel
  */
-export async function generateEditorialHook(
-  seriesTmdbId: number,
-  seriesName: string
-): Promise<EditorialHookData | null> {
+export async function generateRelevanceContext(
+  seriesName: string,
+  overview: string,
+  status: string,
+  voteAverage: number,
+  numberOfSeasons: number
+): Promise<RelevanceContext | null> {
   try {
-    // Get the most recent published article for this series
-    const latestArticle = await prisma.articles.findFirst({
-      where: {
-        primarySeriesId: seriesTmdbId,
-        status: 'published',
+    const apiKey = process.env.EMERGENT_LLM_KEY;
+    if (!apiKey) {
+      return generateFallbackRelevance(seriesName, overview, status, voteAverage);
+    }
+
+    const response = await fetch('http://localhost:8002/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       },
-      orderBy: {
-        publishedAt: 'desc',
-      },
-      select: {
-        title: true,
-        excerpt: true,
-        publishedAt: true,
-        contentHtml: true,
-      },
+      body: JSON.stringify({
+        model: 'gpt-5.2',
+        messages: [
+          {
+            role: 'system',
+            content: `Du erstellst eine "Warum relevant"-Box für Serien-Hubs.
+
+VERBOTEN:
+- Tagesaktuelle News simulieren
+- Event-basierte Hooks
+- Marketing-Phrasen
+- Künstliche Zeitstempel
+
+ERLAUBT:
+- Kulturelle Relevanz erklären
+- Genre-Einordnung
+- Markt-Position
+- Langfristige Bedeutung
+
+Erstelle 1-2 präzise Sätze in evergreen Tonalität.
+Return JSON: {"text":"...","type":"cultural|market|genre|impact"}`
+          },
+          {
+            role: 'user',
+            content: `Serie: ${seriesName}
+Overview: ${overview}
+Status: ${status}
+Rating: ${voteAverage}/10
+Staffeln: ${numberOfSeasons}
+
+Erstelle evergreen "Warum relevant"-Erklärung (kulturelle/Markt-Relevanz, KEIN News-Ton).`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+        response_format: { type: 'json_object' }
+      }),
     });
 
-    if (!latestArticle) {
-      return null;
+    if (!response.ok) {
+      return generateFallbackRelevance(seriesName, overview, status, voteAverage);
     }
 
-    // Check if article is recent (within last 30 days)
-    const daysSincePublish = Math.floor(
-      (Date.now() - new Date(latestArticle.publishedAt).getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (daysSincePublish > 30) {
-      // Too old for editorial hook
-      return null;
-    }
-
-    // Extract key phrases from article title for context
-    const lowerTitle = latestArticle.title.toLowerCase();
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
     
-    // Detect event type from title
-    let eventContext = '';
-    if (lowerTitle.includes('staffel') && lowerTitle.includes('start')) {
-      eventContext = 'Staffelstart';
-    } else if (lowerTitle.includes('finale') || lowerTitle.includes('episode')) {
-      eventContext = 'Episode';
-    } else if (lowerTitle.includes('besetzt') || lowerTitle.includes('cast')) {
-      eventContext = 'Besetzung';
-    } else if (lowerTitle.includes('verlängert') || lowerTitle.includes('staffel')) {
-      eventContext = 'Staffelnews';
-    } else if (lowerTitle.includes('trailer')) {
-      eventContext = 'Trailer';
-    } else {
-      eventContext = 'News';
+    if (!content) {
+      return generateFallbackRelevance(seriesName, overview, status, voteAverage);
     }
 
-    // Generate contextual hook based on event
-    const hooks = {
-      'Staffelstart': [
-        `Mit dem Start der neuen Staffel stellt sich ${seriesName} erneut der Frage: Wie weit kann eine Serie ihren Ton verändern, ohne die Bindung zum Publikum zu verlieren? Die Reaktionen zeigen, dass nicht alle Fans diesen Schritt mitgehen.`,
-        `Der Staffelstart von ${seriesName} wirft mehr Fragen auf als er beantwortet. Wird die Serie ihrer eigenen Prämisse treu bleiben – oder ist das, was Fans an ihr schätzten, längst einer anderen Vision gewichen?`,
-        `${seriesName} kehrt zurück, und die ersten Reaktionen sind gespalten. Was bedeutet das für eine Serie, die bislang für ihren konstanten Ton bekannt war?`,
-      ],
-      'Episode': [
-        `Die jüngste Episode von ${seriesName} hat eine Wendung genommen, die Fans unterschiedlich bewerten. Ist das ein mutiger Schritt – oder ein Bruch mit dem, was die Serie auszeichnete?`,
-        `${seriesName} hat mit der letzten Folge eine Entwicklung angestoßen, über die sich diskutieren lässt. Bleibt die Serie ihrem Kern treu, oder justiert sie ihre Richtung neu?`,
-        `Was die neueste Episode von ${seriesName} bedeutet, hängt davon ab, welche Erwartungen man an die Serie hatte. Manche sehen darin eine logische Fortführung, andere einen Wendepunkt.`,
-      ],
-      'Besetzung': [
-        `Mit der Bekanntgabe neuer Cast-Mitglieder stellt sich für ${seriesName} die Frage: Wie verändert sich eine Serie, wenn zentrale Figuren oder neue Gesichter hinzukommen?`,
-        `${seriesName} erweitert seine Besetzung – ein Schritt, der bei Fans sowohl Neugier als auch Skepsis auslöst. Wird die Dynamik der Serie davon profitieren?`,
-      ],
-      'Staffelnews': [
-        `Die Ankündigung einer weiteren Staffel von ${seriesName} wirft die Frage auf: Hat die Serie noch Raum, ihre Geschichte sinnvoll weiterzuerzählen – oder wird sie zur Verlängerung um ihrer selbst willen?`,
-        `${seriesName} wird fortgesetzt. Für manche Fans eine gute Nachricht, für andere der Moment, an dem eine Serie ihre ursprüngliche Relevanz hinterfragt werden muss.`,
-      ],
-      'Trailer': [
-        `Der neue Trailer zu ${seriesName} verspricht viel – aber lässt auch Raum für Zweifel. Was genau die Serie mit dieser Staffel vorhat, bleibt offen.`,
-        `${seriesName} zeigt sich im neuen Trailer von einer anderen Seite. Ob das bei Fans ankommt, wird sich erst mit den ersten Episoden zeigen.`,
-      ],
-      'News': [
-        `Die jüngsten Entwicklungen rund um ${seriesName} zeigen: Die Serie bleibt ein Diskussionsthema. Was das für ihre Zukunft bedeutet, ist noch unklar.`,
-        `${seriesName} sorgt erneut für Gespräche – allerdings nicht unbedingt aus den Gründen, die sich die Macher erhofft haben könnten.`,
-      ],
-    };
+    const parsed = JSON.parse(content);
+    
+    if (parsed.text && parsed.text.length > 20) {
+      return {
+        text: parsed.text,
+        type: parsed.type || 'cultural'
+      };
+    }
 
-    // Select random hook from context category
-    const contextHooks = hooks[eventContext as keyof typeof hooks] || hooks['News'];
-    const selectedHook = contextHooks[Math.floor(Math.random() * contextHooks.length)];
-
-    return {
-      hook: selectedHook,
-      lastUpdated: latestArticle.publishedAt,
-    };
+    return generateFallbackRelevance(seriesName, overview, status, voteAverage);
 
   } catch (error) {
-    console.error('Error generating editorial hook:', error);
-    return null;
+    return generateFallbackRelevance(seriesName, overview, status, voteAverage);
   }
 }
 
 /**
- * Generate status context (MODUL 1) - OPTIMIZED
- * Only returns context if it adds REAL VALUE beyond the status itself
+ * Fallback: Evergreen Relevanz ohne LLM
+ */
+function generateFallbackRelevance(
+  seriesName: string,
+  overview: string,
+  status: string,
+  voteAverage: number
+): RelevanceContext {
+  const isHighRated = voteAverage >= 8.0;
+  const overview_lower = overview.toLowerCase();
+  
+  if (isHighRated && overview_lower.includes('drama')) {
+    return {
+      text: `${seriesName} gehört zu den höher bewerteten Drama-Serien und zeigt, wie das Genre erzählerisch erweitert werden kann – jenseits klassischer Konventionen.`,
+      type: 'genre'
+    };
+  }
+  
+  if (overview_lower.includes('thriller') || overview_lower.includes('crime')) {
+    return {
+      text: `${seriesName} bedient ein Genre, das auf Streaming-Plattformen besonders stark nachgefragt wird – Thriller mit komplexen Figuren und verzweigten Plots.`,
+      type: 'market'
+    };
+  }
+  
+  if (status === 'Ended' && isHighRated) {
+    return {
+      text: `${seriesName} hat als abgeschlossene Serie den Vorteil, dass Zuschauer die komplette Story ohne Wartezeiten erleben können – ein Faktor, der im Streaming-Zeitalter zunehmend geschätzt wird.`,
+      type: 'cultural'
+    };
+  }
+  
+  return {
+    text: `${seriesName} zeigt, wie Serien heute erzählt werden: mit Fokus auf Charaktertiefe und einer Bereitschaft, etablierte Genre-Grenzen zu verschieben.`,
+    type: 'cultural'
+  };
+}
+
+/**
+ * MODUL 1: Generate Status Context (NUR bei echtem Mehrwert)
+ * UPDATED: Strengere Bedingungen – keine Redundanz
  * 
- * Requirements:
- * - Must add NEW information (timeframe, production context, platform pattern, or fan implication)
- * - NO repetition of status field
- * - NO filler text
- * - Editorial tone, 1-2 sentences max
- * - If no insight possible, returns NULL (box not rendered)
+ * Rendert NUR wenn:
+ * - Platform-Kontext vorhanden UND relevant
+ * - ODER zeitliche Unsicherheit
+ * - NICHT bei eindeutigen Status (Ended/Canceled)
  */
 export function generateStatusContext(
-  status: string | null, 
+  status: string,
   seriesName: string,
   platform?: string,
   lastAirDate?: Date | null,
   numberOfSeasons?: number | null
 ): string | null {
-  if (!status) return null;
+  // REGEL 1: Nur fortlaufende Serien brauchen Kontext
+  if (status !== 'Returning Series' && status !== 'In Production') {
+    return null; // Ended/Canceled ist eindeutig
+  }
 
-  // Calculate days since last episode (if available)
-  const daysSinceLastEpisode = lastAirDate 
-    ? Math.floor((Date.now() - new Date(lastAirDate).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  // Platform-specific release patterns
+  // REGEL 2: Platform-Kontext nur wenn ECHTER Mehrwert
   const platformPatterns: Record<string, string> = {
     'Apple TV+': 'Apple TV+ veröffentlicht neue Staffeln vergleichbarer Serien meist rund ein Jahr nach der vorherigen Staffel',
     'Apple TV': 'Apple TV+ veröffentlicht neue Staffeln vergleichbarer Serien meist rund ein Jahr nach der vorherigen Staffel',
@@ -155,59 +174,23 @@ export function generateStatusContext(
 
   const platformContext = platform ? platformPatterns[platform] : null;
 
-  // Status-specific contexts (only with REAL insight)
-  switch (status.toLowerCase()) {
-    case 'returning series':
-      // Only show if we can add timeframe or production context
-      if (platformContext) {
-        return `Für Fans heißt das: Die Serie ist offiziell nicht beendet. ${platformContext}.`;
-      }
-      if (daysSinceLastEpisode && daysSinceLastEpisode > 365 && daysSinceLastEpisode < 730) {
-        return `Die letzte Staffel liegt über ein Jahr zurück – ein typisches Intervall für Premium-Serien, aber ohne offizielle Ankündigung bleibt die Wartezeit unklar.`;
-      }
-      if (daysSinceLastEpisode && daysSinceLastEpisode > 730) {
-        return `Mit mehr als zwei Jahren seit der letzten Staffel wächst die Unsicherheit bei Fans – selbst bei offiziell laufenden Serien kann eine solche Pause auf Produktionsprobleme hindeuten.`;
-      }
-      // If no additional context: return null (no box)
-      return null;
-
-    case 'ended':
-      // Only show if there's something meaningful to say
-      if (numberOfSeasons && numberOfSeasons < 2) {
-        return `${seriesName} wurde nach nur ${numberOfSeasons} Staffel${numberOfSeasons === 1 ? '' : 'n'} beendet – eine Entscheidung, die oft auf Zuschauerzahlen oder strategische Neuausrichtungen zurückgeht.`;
-      }
-      if (numberOfSeasons && numberOfSeasons >= 5) {
-        return `Mit ${numberOfSeasons} Staffeln gehört ${seriesName} zu den langlebigeren Produktionen – ob die Serie ihre Geschichte vollständig erzählen konnte, bleibt Diskussionssache.`;
-      }
-      // Generic ended status: no additional value
-      return null;
-
-    case 'canceled':
-      // Always add context for cancellations (high fan interest)
-      if (numberOfSeasons === 1) {
-        return `Die Absetzung nach nur einer Staffel deutet darauf hin, dass ${seriesName} die Erwartungen nicht erfüllt hat – ob narrative Bögen offen bleiben, hängt davon ab, wie die Macher mit der Unsicherheit umgingen.`;
-      }
-      if (numberOfSeasons && numberOfSeasons >= 3) {
-        return `Nach ${numberOfSeasons} Staffeln abgesetzt zu werden wirft die Frage auf, ob ${seriesName} seine Geschichte zu Ende bringen konnte – ein häufiges Dilemma bei Serien mit komplexen Handlungsbögen.`;
-      }
-      return `Die Absetzung von ${seriesName} lässt offen, ob offene Handlungsstränge unbeantwortet bleiben – ein Risiko, das Fans bei der Investition in neue Serien zunehmend einkalkulieren müssen.`;
-
-    case 'in production':
-      // Add production timeline context
-      if (platformContext) {
-        return `Die Serie befindet sich in Produktion. ${platformContext}, was Fans einen groben Zeitrahmen gibt.`;
-      }
-      return `${seriesName} ist in Produktion – die Phase zwischen Drehschluss und Veröffentlichung dauert bei vergleichbaren Produktionen oft 6–12 Monate, je nach Umfang der Postproduktion.`;
-
-    case 'planned':
-      // Only show if we can add uncertainty/skepticism
-      return `Die Serie ist angekündigt, aber noch nicht in Produktion – bei Projekten in diesem Stadium kann es zu Verzögerungen oder sogar zur Absage kommen, bevor eine einzige Szene gedreht wurde.`;
-
-    case 'pilot':
-      return `Nur ein Pilot wurde produziert – ein Stadium, in dem die meisten Projekte scheitern. Ob ${seriesName} tatsächlich zur Serie wird, ist völlig offen.`;
-
-    default:
-      // Unknown status or no meaningful context: return null
-      return null;
+  // REGEL 3: Nur rendern wenn Platform-Kontext vorhanden
+  if (!platformContext) {
+    return null; // Kein Mehrwert ohne Platform-Info
   }
+
+  // REGEL 4: Zeitliche Einordnung optional
+  let timeContext = '';
+  if (lastAirDate) {
+    const daysSinceLastEpisode = Math.floor(
+      (Date.now() - lastAirDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (daysSinceLastEpisode > 365) {
+      timeContext = ' Die letzte Episode lief vor über einem Jahr.';
+    }
+  }
+
+  // FINALE AUSGABE
+  return `💡 Für Fans heißt das: Die Serie ist offiziell nicht beendet. ${platformContext}.${timeContext}`;
 }
