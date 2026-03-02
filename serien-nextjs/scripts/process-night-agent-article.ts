@@ -81,7 +81,7 @@ async function processNightAgentArticle() {
 `;
 
   // Distinct lead
-  const excerpt = 'Netflix bereitet bereits die vierte Staffel von „The Night Agent" vor, auch wenn eine offizielle Bestätigung noch aussteht. Creator Shawn Ryan hat einen Writer's Room zusammengestellt, und die Handlung soll diesmal nach Los Angeles verlegt werden. Fans dürfen auf eine Rückkehr von Rose Larkin hoffen und einen neuen Partner für Peter Sutherland erwarten.';
+  const excerpt = 'Netflix bereitet bereits die vierte Staffel von The Night Agent vor, auch wenn eine offizielle Bestätigung noch aussteht. Creator Shawn Ryan hat einen Writers Room zusammengestellt, und die Handlung soll diesmal nach Los Angeles verlegt werden. Fans dürfen auf eine Rückkehr von Rose Larkin hoffen und einen neuen Partner für Peter Sutherland erwarten.';
 
   // Meta description
   const metaDescription = 'The Night Agent Staffel 4: Alle Infos zu Plot, Cast, neuem Schauplatz Los Angeles und möglicher Rückkehr von Rose Larkin. Release voraussichtlich 2027.';
