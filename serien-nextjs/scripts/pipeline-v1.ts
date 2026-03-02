@@ -29,6 +29,8 @@ import { runRankingPipeline } from '../lib/pipeline-v2-ranking'; // NEW: Ranking
 import { smartTruncate } from '../lib/smart-truncate'; // NEW: Smart text truncation
 import { generateArticleQA } from '../lib/qa-generator'; // Q&A generator
 import { linkCharactersInArticle } from '../lib/character-linking'; // NEW: Character auto-linking
+import { importSeriesCast } from '../lib/cast-importer'; // NEW: Auto-import cast
+import { importSeriesCharacters } from './import-characters'; // NEW: Auto-import characters
 
 
 const prisma = new PrismaClient();
@@ -226,6 +228,27 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log(`   Primary Series: ${resolution.primarySeries.name} (ID: ${resolution.primarySeries.tmdbId})`);
     console.log(`   Related Series: ${resolution.relatedSeries.length}`);
     console.log(`   Total Resolved: ${resolution.totalResolved}`);
+
+    // ========== STEP 2.5: AUTO-IMPORT CAST & CHARACTERS ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 2.5: AUTO-IMPORT CAST & CHARACTERS');
+    console.log('━'.repeat(70));
+
+    try {
+      console.log('📥 Importing cast members...');
+      const castImported = await importSeriesCast(resolution.primarySeries.tmdbId);
+      console.log(`   ✅ ${castImported} new cast members added`);
+    } catch (error: any) {
+      console.log(`   ⚠️  Cast import failed (non-critical): ${error.message}`);
+    }
+
+    try {
+      console.log('\n🎭 Importing fictional characters...');
+      await importSeriesCharacters(resolution.primarySeries.tmdbId);
+      console.log(`   ✅ Characters imported successfully`);
+    } catch (error: any) {
+      console.log(`   ⚠️  Character import failed (non-critical): ${error.message}`);
+    }
 
     // ========== STEP 3: FACT EXTRACTION ==========
     console.log('\n' + '━'.repeat(70));

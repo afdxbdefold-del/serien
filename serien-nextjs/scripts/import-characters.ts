@@ -82,7 +82,7 @@ async function fetchSeriesDetails(seriesTmdbId: number) {
 /**
  * Import characters for a specific series
  */
-async function importSeriesCharacters(seriesTmdbId: number) {
+export async function importSeriesCharacters(seriesTmdbId: number) {
   console.log(`\n🎭 Importing characters for series ${seriesTmdbId}...\n`);
 
   // Check if series exists in DB
