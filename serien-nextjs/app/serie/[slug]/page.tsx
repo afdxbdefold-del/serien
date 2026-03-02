@@ -405,63 +405,6 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           {statusContext && <StatusContext context={statusContext} />}
         </div>
 
-        {/* Mobile: News Section - MOVED TO TOP (after "Warum relevant") */}
-
-          {series.articles && series.articles.length > 0 ? (
-            <div className="space-y-4">
-              {series.articles.slice(0, 3).map((article) => (
-                <Link
-                  key={article.slug}
-                  href={`/${article.slug}`}
-                  className="block group"
-                >
-                  <article className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
-                    {(article.heroLocalUrl || article.cardImageUrl) && (
-                      <div className="relative h-48 overflow-hidden bg-gray-100">
-                        <Image
-                          src={article.heroLocalUrl || article.cardImageUrl || ''}
-                          alt={article.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                    )}
-                    
-                    <div className="p-4">
-                      <p className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
-                        {article.title}
-                      </p>
-                      
-                      {article.excerpt && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                          {article.excerpt}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                        {article.users?.name && (
-                          <span className="font-medium">{article.users.name}</span>
-                        )}
-                        {article.publishedAt && (
-                          <span>
-                            {new Date(article.publishedAt).toLocaleDateString('de-DE', {
-                              day: 'numeric',
-                              month: 'short'
-                            })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-              <p className="text-gray-500 text-sm">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
-            </div>
-          )}
-        </div>
 
         {/* NEW: Related Series (Mobile) */}
         <div className="mt-8">
