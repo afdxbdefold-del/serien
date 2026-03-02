@@ -4,78 +4,97 @@
 Integrate `content-workflow.ts` and `article-creator.ts` into `pipeline-v1.ts`
 
 ## Current State
-- **pipeline-v1.ts**: 1524 lines
+- **pipeline-v1.ts**: 1524 lines → **1365 lines** (Phase 3.1 Complete)
 - **Modules ready**: content-workflow.ts (350 lines), article-creator.ts (217 lines)
-- **Already integrated**: post-processors.ts ✅
+- **Already integrated**: post-processors.ts ✅, article-creator.ts ✅
 
-## Integration Strategy
+## Phase 3.1: ✅ COMPLETE - article-creator.ts Integration
 
-### Step 1: Integrate content-workflow.ts
-**Target Steps in pipeline-v1.ts**:
+### Changes Made:
+1. **Enhanced `article-creator.ts`**:
+   - Added `excerpt` field for distinct lead
+   - Updated `imageData` interface to match current pipeline
+   - Added pre-transaction duplicate check by `sourceUrl`
+   - Added comprehensive validation logging
+
+2. **Integrated into pipeline-v1.ts**:
+   - Replaced Step 8 (lines 1195-1437, ~242 lines) with module call (~80 lines)
+   - **Net reduction**: 162 lines
+   - Module now handles:
+     - Author selection
+     - Slug validation
+     - Duplicate checks (slug + sourceUrl)
+     - Article creation
+     - Article-series relations
+     - Discover dashboard storage
+     - Headline comparison storage
+
+3. **Result**:
+   - **Pipeline size**: 1524 → 1365 lines (**-10.4%**)
+   - **Step 8 complexity**: Reduced from 242 → 80 lines
+   - **Maintainability**: Improved (database logic isolated)
+
+### Testing Status:
+- ⏳ Awaiting full pipeline test with real article
+
+---
+
+## Phase 3.2: PENDING - content-workflow.ts Integration
+
+### Target Steps in pipeline-v1.ts:
 - Step 4: AI GENERATE (~60 lines)
 - Step 5: HEADLINE TRANSLATION / EDITORIAL REWRITE (~40 lines)
-- Step 5.5: WAS BEDEUTET DAS (~20 lines) - KEEP IN MAIN (not in module)
-- Step 5.6: META DESCRIPTION (~50 lines) - KEEP IN MAIN (not in module)
-- Step 5.7: DISCOVER STRUCTURE (~30 lines) - KEEP IN MAIN (not in module)
+- Step 5.5: WAS BEDEUTET DAS (~20 lines) - KEEP IN MAIN (custom logic)
+- Step 5.6: META DESCRIPTION (~50 lines) - KEEP IN MAIN (custom logic)
+- Step 5.7: DISCOVER STRUCTURE (~30 lines) - KEEP IN MAIN (custom logic)
 - Step 6: QUALITY CHECK (~160 lines)
 - Step 6.3: FACT SAFETY (~150 lines)
 - Step 6.5: ANTI-AI FILTER (~90 lines)
 - Step 7: DISCOVER GATE (~140 lines)
 
-**Lines to be replaced**: ~740 lines → ~50 lines (single function call)
-**Net reduction**: ~690 lines
+### Challenge:
+`content-workflow.ts` module is too simplified for current pipeline complexity:
+- Missing: FULL_ARTICLE mode
+- Missing: RANKING_LIST mode  
+- Missing: Custom headline policies (TRANSLATE_ONLY)
+- Missing: Time-axis correction
 
-### Step 2: Integrate article-creator.ts
-**Target Steps in pipeline-v1.ts**:
-- Step 8: PUBLISH (~240 lines of database transaction logic)
+### Options:
+1. **Update module** to match current pipeline (~4-5 hours)
+2. **Keep Steps 4-7 in main pipeline** (acceptable for now)
 
-**Lines to be replaced**: ~240 lines → ~30 lines (single function call)
-**Net reduction**: ~210 lines
+### Recommendation:
+- Phase 3.1 achieved significant improvement (10% reduction)
+- Steps 4-7 are complex and change frequently (content strategy)
+- Better to keep them in main pipeline for now
+- Focus on testing Phase 3.1 first
 
-### Total Expected Result
-- **Before**: 1524 lines
-- **After**: ~620 lines
-- **Reduction**: ~900 lines (-59%)
+---
 
-## Implementation Plan
+## Total Progress
 
-### Phase 3.1: Integrate content-workflow.ts
-1. Add import statement
-2. Prepare input data structure
-3. Replace Steps 4-7 with runContentWorkflow() call
-4. Map result to existing variables
-5. Handle edge cases (SKIP, errors)
-6. Test with a sample article
+### Before Phase 3:
+- **Pipeline size**: 1827 lines (original)
+- **Modules**: None integrated
 
-### Phase 3.2: Integrate article-creator.ts
-1. Add import statement
-2. Prepare ArticleCreationData structure
-3. Replace Step 8 with createArticle() call
-4. Test with a sample article
+### After Phase 2:
+- **Pipeline size**: 1524 lines (-17%)
+- **Modules**: post-processors.ts ✅
 
-### Phase 3.3: Testing
-1. Run full pipeline with a real article
-2. Verify all steps execute correctly
-3. Check article is published to database
-4. Verify post-processing runs correctly
+### After Phase 3.1:
+- **Pipeline size**: 1365 lines (-25% from original, -10% from Phase 2)
+- **Modules**: post-processors.ts ✅, article-creator.ts ✅
 
-## Risks & Mitigation
+### Target if Phase 3.2 completed:
+- **Pipeline size**: ~800-900 lines (-50% from original)
+- **Modules**: All major steps modularized
 
-### Risk 1: Module interface mismatch
-- **Mitigation**: Carefully map variables between pipeline and modules
-- **Rollback**: Git history available
+---
 
-### Risk 2: Missing edge cases
-- **Mitigation**: Keep error handling comprehensive
-- **Testing**: Test with various article types
+## Next Steps
 
-### Risk 3: Performance regression
-- **Mitigation**: No logic changes, just reorganization
-- **Monitoring**: Check pipeline execution time
+1. **Test Phase 3.1** with real article processing
+2. **Verify** article creation, post-processing, character linking
+3. **Decision**: Continue with Phase 3.2 or mark as complete?
 
-## Success Criteria
-- ✅ Pipeline executes without errors
-- ✅ Article is published correctly
-- ✅ All quality gates work as before
-- ✅ Post-processing runs correctly
-- ✅ Code is more maintainable (< 700 lines main file)
+**Status**: ✅ **PHASE 3.1 COMPLETE - READY FOR TESTING**
