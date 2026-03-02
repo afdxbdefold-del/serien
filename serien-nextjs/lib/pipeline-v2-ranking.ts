@@ -506,7 +506,7 @@ ${generatedItems.join('\n\n')}
     
     try {
       // Check if we already have a trailer for this series in DB
-      const existingTrailer = await prisma.articles.findFirst({
+      const existingTrailer = await prisma.article.findFirst({
         where: {
           primarySeriesId: primarySeries.tmdbId,
           trailerLocalUrl: { not: null }
@@ -539,7 +539,7 @@ ${generatedItems.join('\n\n')}
     
     const articleId = `ranking-${Date.now()}`;
     
-    const article = await prisma.articles.create({
+    const article = await prisma.article.create({
       data: {
         id: articleId,
         slug,

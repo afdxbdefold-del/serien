@@ -19,7 +19,7 @@ const OUTPUT_DIR = path.join(process.cwd(), 'public', 'img', 'processed');
 async function processArticleImage(articleId: string) {
   try {
     // Get article
-    const article = await prisma.articles.findUnique({
+    const article = await prisma.article.findUnique({
       where: { id: articleId },
       select: {
         id: true,
@@ -74,7 +74,7 @@ async function processArticleImage(articleId: string) {
     const processedUrl = `/img/processed/${path.basename(result.processedPath!)}`;
     const originalBackup = `/img/processed/${path.basename(result.originalPath!)}`;
 
-    await prisma.articles.update({
+    await prisma.article.update({
       where: { id: articleId },
       data: {
         heroImagePath: processedUrl,
@@ -93,7 +93,7 @@ async function processArticleImage(articleId: string) {
 
 async function processAllArticles() {
   try {
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       where: {
         status: 'published',
       },

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
   // Handle article type separately
   if (type === 'article') {
     try {
-      const article = await prisma.articles.findUnique({
+      const article = await prisma.article.findUnique({
         where: { id },
         select: { ogImagePath: true },
       });

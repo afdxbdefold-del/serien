@@ -112,7 +112,7 @@ async function testArticleCreator() {
     console.log('Test 4: Database Verification');
     console.log('-'.repeat(80));
     
-    const savedArticle = await prisma.articles.findUnique({
+    const savedArticle = await prisma.article.findUnique({
       where: { slug: result.article.slug },
       include: {
         article_series: true,
@@ -184,7 +184,7 @@ async function testArticleCreator() {
       where: { articleId: result.article.id }
     });
     
-    await prisma.articles.delete({
+    await prisma.article.delete({
       where: { id: result.article.id }
     });
     

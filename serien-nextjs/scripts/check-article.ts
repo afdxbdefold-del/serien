@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function checkArticle() {
-  const article = await prisma.articles.findUnique({
+  const article = await prisma.article.findUnique({
     where: { id: 'pipeline-1772073714136' },
     select: {
       id: true,

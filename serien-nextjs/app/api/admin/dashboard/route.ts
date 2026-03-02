@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch stats
     const [totalNews, totalSeries, totalUsers, recentNews] = await Promise.all([
-      prisma.articles.count({ where: { status: 'published' } }),
+      prisma.article.count({ where: { status: 'published' } }),
       prisma.series.count(),
       prisma.users.count(),
-      prisma.articles.count({
+      prisma.article.count({
         where: {
           status: 'published',
           createdAt: {

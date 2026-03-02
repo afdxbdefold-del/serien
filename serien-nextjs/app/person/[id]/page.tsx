@@ -46,7 +46,7 @@ export default async function PersonPage({ params }: PageProps) {
     .slice(0, 10) || [];
 
   // Get related articles from database
-  const relatedArticles = await prisma.articles.findMany({
+  const relatedArticles = await prisma.article.findMany({
     where: {
       article_persons: {
         some: {

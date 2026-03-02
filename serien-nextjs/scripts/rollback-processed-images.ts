@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
 
 async function rollbackArticleImage(articleId: string) {
   try {
-    const article = await prisma.articles.findUnique({
+    const article = await prisma.article.findUnique({
       where: { id: articleId },
       select: {
         id: true,
@@ -59,7 +59,7 @@ async function rollbackArticleImage(articleId: string) {
     // Update database - remove processed image references
     const { processedImageUrl, originalBackup, processedAt, ...cleanImageData } = imageData;
 
-    await prisma.articles.update({
+    await prisma.article.update({
       where: { id: articleId },
       data: {
         imageData: cleanImageData,
@@ -78,7 +78,7 @@ async function rollbackArticleImage(articleId: string) {
 async function rollbackAllArticles() {
   try {
     // Find all articles with processed images
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       where: {
         imageData: {
           path: ['processedImageUrl'],

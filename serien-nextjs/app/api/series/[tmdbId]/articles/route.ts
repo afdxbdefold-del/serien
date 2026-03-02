@@ -34,7 +34,7 @@ export async function GET(
     }
 
     // Get recent articles for this series
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       where: {
         primarySeriesId: seriesId,
         status: 'published',

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get articles for followed series
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       where: {
         status: 'published',
         primarySeriesId: {

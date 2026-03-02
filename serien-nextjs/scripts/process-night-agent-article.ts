@@ -20,7 +20,7 @@ async function processNightAgentArticle() {
   const seriesTmdbId = 129552; // The Night Agent
 
   // Check if article already exists
-  const existing = await prisma.articles.findUnique({
+  const existing = await prisma.article.findUnique({
     where: { sourceUrl }
   });
 

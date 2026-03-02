@@ -17,7 +17,7 @@ async function importNews() {
     });
 
     // Create article
-    const article = await prisma.articles.create({
+    const article = await prisma.article.create({
       data: {
         id: 'ella-morgan-news-' + Date.now(),
         slug: 'dakota-fanning-ella-morgan-dreht-in-new-york',

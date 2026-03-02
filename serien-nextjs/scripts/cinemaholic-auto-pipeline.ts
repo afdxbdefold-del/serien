@@ -121,7 +121,7 @@ async function processCinemaHolicArticles() {
       const urlParts = article.url.split('/');
       const possibleSlug = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1];
       
-      const existing = await prisma.articles.findFirst({
+      const existing = await prisma.article.findFirst({
         where: {
           OR: [
             { slug: { contains: possibleSlug.substring(0, 30) } },

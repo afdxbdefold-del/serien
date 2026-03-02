@@ -153,7 +153,7 @@ async function linkActorsAlternative(
     
     const { processArticle } = await import('../../scripts/link-actors-to-articles');
     
-    const articleForLinking = await prisma.articles.findUnique({
+    const articleForLinking = await prisma.article.findUnique({
       where: { id: articleId },
       select: {
         id: true,
@@ -221,7 +221,7 @@ async function processCharacters(
     console.log('🔗 Applying character links to current article...');
     
     const { linkCharactersInArticle } = await import('../character-linking');
-    const currentArticleContent = await prisma.articles.findUnique({
+    const currentArticleContent = await prisma.article.findUnique({
       where: { id: articleId },
       select: { contentHtml: true }
     });
@@ -232,7 +232,7 @@ async function processCharacters(
         seriesTmdbId
       );
       
-      await prisma.articles.update({
+      await prisma.article.update({
         where: { id: articleId },
         data: { contentHtml: linkedContent }
       });
@@ -285,7 +285,7 @@ async function processImageForUniqueness(
     
     if (seriesWithBackdrop?.backdrops && Array.isArray(seriesWithBackdrop.backdrops) && seriesWithBackdrop.backdrops.length > 0) {
       const { selectBackdropForArticle } = await import('../tmdb-backdrops');
-      const articleCount = await prisma.articles.count({
+      const articleCount = await prisma.article.count({
         where: { primarySeriesId: seriesTmdbId }
       });
       backdropPath = selectBackdropForArticle(seriesWithBackdrop.backdrops as any[], articleCount - 1);
@@ -298,7 +298,7 @@ async function processImageForUniqueness(
       const sourceUrl = `https://image.tmdb.org/t/p/original${backdropPath}`;
       const outputDir = path.join(process.cwd(), 'public', 'img', 'processed');
       
-      const articleCountForRotation = await prisma.articles.count({
+      const articleCountForRotation = await prisma.article.count({
         where: { primarySeriesId: seriesTmdbId }
       });
       
@@ -327,7 +327,7 @@ async function processImageForUniqueness(
       if (processResult.success) {
         const processedUrl = `/img/processed/${path.basename(processResult.processedPath!)}`;
         
-        await prisma.articles.update({
+        await prisma.article.update({
           where: { id: articleId },
           data: { heroImagePath: processedUrl },
         });

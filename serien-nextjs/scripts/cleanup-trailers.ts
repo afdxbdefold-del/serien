@@ -34,7 +34,7 @@ async function cleanupOldTrailers(options: CleanupOptions) {
 
   try {
     // Find articles with trailers older than cutoff date
-    const oldArticles = await prisma.articles.findMany({
+    const oldArticles = await prisma.article.findMany({
       where: {
         trailerLocalUrl: { not: null },
         publishedAt: { lt: cutoffDate },
@@ -101,7 +101,7 @@ async function cleanupOldTrailers(options: CleanupOptions) {
 
         if (!options.dryRun) {
           // Soft delete: set trailerLocalUrl to null
-          await prisma.articles.updateMany({
+          await prisma.article.updateMany({
             where: {
               id: { in: toClean.map((a) => a.id) },
             },

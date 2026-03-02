@@ -67,7 +67,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
   }
 
   // Fetch related articles mentioning this character
-  const relatedArticles = await prisma.articles.findMany({
+  const relatedArticles = await prisma.article.findMany({
     where: {
       status: 'published',
       primarySeriesId: character.seriesTmdbId,
