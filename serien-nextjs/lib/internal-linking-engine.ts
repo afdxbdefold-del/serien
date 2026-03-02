@@ -5,9 +5,7 @@
  * Optimiert für Google Search & Discover
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './prisma'; // Use shared Prisma instance
 
 interface InternalLinksConfig {
   articleId: string;

@@ -255,7 +255,10 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+// Only run main if this script is executed directly
+if (require.main === module || import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
