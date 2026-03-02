@@ -200,10 +200,58 @@ export default function MobileSeriesLayout({
       </div>
 
       <div className="mb-6">
-        <SeriesCast 
-          seriesName={series.name || series.title}
-          cast={cast}
-        />
+        {cast && cast.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              Besetzung von {series.name || series.title}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {cast.map((actor: any) => {
+                const ActorCard = (
+                  <div className="group cursor-pointer">
+                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                      {actor.profile_path ? (
+                        <Image
+                          src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                          alt={actor.name}
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        {actor.name}
+                      </p>
+                      {actor.character && (
+                        <p className="text-xs text-gray-600 line-clamp-1 mt-1">
+                          als {actor.character}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+
+                return actor.personSlug ? (
+                  <Link key={actor.id || actor.name} href={`/person/${actor.personSlug}`}>
+                    {ActorCard}
+                  </Link>
+                ) : (
+                  <div key={actor.id || actor.name}>
+                    {ActorCard}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="mb-6">
