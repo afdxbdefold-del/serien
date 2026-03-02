@@ -295,6 +295,8 @@ model characters {
   seriesTmdbId        Int
   tmdbCharacterId     String?
   actorTmdbId         Int?
+  imageUrl            String?
+  orderIndex          Int?
   
   // Content fields
   shortDescription    String?

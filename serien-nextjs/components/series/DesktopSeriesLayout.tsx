@@ -19,6 +19,7 @@ interface DesktopSeriesLayoutProps {
   trailers: any[];
   seriesQA: any[];
   slug: string;
+  characters: any[];
 }
 
 export default function DesktopSeriesLayout({
@@ -29,6 +30,7 @@ export default function DesktopSeriesLayout({
   trailers,
   seriesQA,
   slug,
+  characters,
 }: DesktopSeriesLayoutProps) {
   return (
     <section className="container mx-auto px-6 py-8 lg:py-12 hidden lg:block" aria-labelledby="series-desktop">
