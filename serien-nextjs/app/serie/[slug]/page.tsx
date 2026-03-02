@@ -147,6 +147,26 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     })
   );
   
+  // Fetch fictional characters for this series
+  const characters = await prisma.characters.findMany({
+    where: {
+      seriesTmdbId: series.tmdbId,
+      publishStatus: 'published',
+    },
+    include: {
+      actor: {
+        select: {
+          name: true,
+          profilePath: true,
+        }
+      }
+    },
+    take: 6,
+    orderBy: {
+      orderIndex: 'asc'
+    }
+  });
+  
   // Generate Series Q&A (5 evergreen interpretative questions - MODUL 2)
   const seriesQA = await getSeriesQA(
     series.name || series.title,
@@ -213,6 +233,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         statusContext={statusContext}
         seriesQA={seriesQA}
         slug={slug}
+        characters={characters}
       />
 
       <DesktopSeriesLayout
@@ -223,6 +244,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         trailers={trailers}
         seriesQA={seriesQA}
         slug={slug}
+        characters={characters}
       />
     </main>
   );

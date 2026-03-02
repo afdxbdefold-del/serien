@@ -6,7 +6,6 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesOverview from '@/components/SeriesOverview';
 import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA, StatusContext } from '@/components/DiscoverContent';
 import QuickFactsBox from '@/components/QuickFactsBox';
-import SeriesCharacters from '@/components/SeriesCharacters';
 import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
@@ -22,6 +21,7 @@ interface MobileSeriesLayoutProps {
   statusContext: any;
   seriesQA: any[];
   slug: string;
+  characters: any[];
 }
 
 export default function MobileSeriesLayout({
@@ -34,6 +34,7 @@ export default function MobileSeriesLayout({
   statusContext,
   seriesQA,
   slug,
+  characters,
 }: MobileSeriesLayoutProps) {
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
@@ -254,10 +255,50 @@ export default function MobileSeriesLayout({
       </div>
 
       <div className="mb-6">
-        <SeriesCharacters 
-          seriesTmdbId={series.tmdbId}
-          seriesName={series.name || series.title}
-        />
+        {characters && characters.length > 0 && (
+          <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              Fiktive Charaktere aus {series.name || series.title}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {characters.map((character: any) => (
+                <Link
+                  key={character.slug}
+                  href={`/figur/${character.slug}`}
+                  className="group"
+                >
+                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                    {character.imageUrl ? (
+                      <Image
+                        src={character.imageUrl}
+                        alt={character.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      {character.name}
+                    </p>
+                    {character.actor && (
+                      <p className="text-xs text-gray-600 line-clamp-1 mt-1">
+                        gespielt von {character.actor.name}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="mb-6">
