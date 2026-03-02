@@ -279,12 +279,37 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         )}
 
         {/* Aktuelle News zu Serie (MOBILE - direkt nach "Warum relevant") */}
-        {recentArticles.length > 0 && (
+        {series.articles && series.articles.length > 0 && (
           <div className="lg:hidden mb-6">
-            <DiscoverNewsContext
-              seriesName={series.name || series.title}
-              articles={recentArticles}
-            />
+            <section className="bg-white rounded-xl border border-gray-200 shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Aktuelle News zu {series.name || series.title}
+              </h2>
+              <div className="space-y-4">
+                {series.articles.slice(0, 3).map((article) => (
+                  <Link
+                    key={article.slug}
+                    href={`/${article.slug}`}
+                    className="block group"
+                  >
+                    <div className="border-b border-gray-100 pb-3 last:border-0">
+                      <p className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-1">
+                        {article.title}
+                      </p>
+                      {article.publishedAt && (
+                        <p className="text-xs text-gray-500">
+                          {new Date(article.publishedAt).toLocaleDateString('de-DE', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </div>
         )}
 
