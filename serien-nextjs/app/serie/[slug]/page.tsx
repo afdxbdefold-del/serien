@@ -178,7 +178,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* JSON-LD Structured Data with ImageObject */}
+      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -186,8 +186,30 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         }}
       />
       
-      {/* Mobile: Hero at top */}
-      <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
+      <MobileSeriesLayout
+        series={series}
+        cast={cast}
+        creators={creators}
+        seasons={seasons}
+        trailers={trailers}
+        relevanceContext={relevanceContext}
+        statusContext={statusContext}
+        seriesQA={seriesQA}
+        slug={slug}
+      />
+
+      <DesktopSeriesLayout
+        series={series}
+        cast={cast}
+        creators={creators}
+        seasons={seasons}
+        trailers={trailers}
+        seriesQA={seriesQA}
+        slug={slug}
+      />
+    </main>
+  );
+}
         <h1 id="series-hero" className="sr-only">{series.name}</h1>
         <div className="bg-white rounded-xl shadow-xl overflow-hidden mb-6">
           {/* Hero Image with Video Player (if trailer exists) */}
