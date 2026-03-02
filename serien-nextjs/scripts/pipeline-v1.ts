@@ -1197,16 +1197,6 @@ export async function runContentPipeline(source: CrawledSource) {
     console.log('STEP 8: PUBLISH');
     console.log('━'.repeat(70));
 
-    // Check for duplicate
-    const existingArticle = await prisma.articles.findUnique({
-      where: { sourceUrl: source.url }
-    });
-
-    if (existingArticle) {
-      console.log('⚠️  Article already exists - SKIPPING');
-      return { skipped: true, reason: 'duplicate' };
-    }
-
     // Generate DISTINCT lead paragraph (not from article body)
     console.log('📝 Generating distinct lead paragraph...');
     const articleExcerpt = await generateDistinctLead({
@@ -1217,9 +1207,7 @@ export async function runContentPipeline(source: CrawledSource) {
     });
     console.log(`✅ Distinct lead generated: "${articleExcerpt.substring(0, 100)}..."`);
     
-
-
-    // Generate image data
+    // Generate image data with backdrop rotation
     // Get article count for this series (for backdrop rotation)
     const articleCount = await prisma.articles.count({
       where: { primarySeriesId: primaryTmdbId }
@@ -1249,189 +1237,42 @@ export async function runContentPipeline(source: CrawledSource) {
       ogImageUrl: `/img/og/tv/${primaryTmdbId}`,
       cardImageUrl: `/img/card/tv/${primaryTmdbId}`,
       imageAttribution: 'TMDB',
-      tmdbBackdropPath: selectedBackdrop, // NEW: Rotated backdrop
+      tmdbBackdropPath: selectedBackdrop,
     };
 
     console.log(`✅ Images: TMDB ID ${primaryTmdbId}`);
 
-    // Prepare dates (now already declared earlier for internal linking)
+    // Prepare dates
     const sourceDate = new Date();
 
-    // Create article with transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Get random author from database
-      const authors = await tx.users.findMany({
-        where: { role: 'author' },
-        select: { id: true, name: true }
-      });
-
-      if (authors.length === 0) {
-        throw new Error('No authors found in database');
-      }
-
-      // Select random author
-      const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
-      console.log(`✍️  Selected random author: ${randomAuthor.name}`);
-      console.log(`🔑 Generated slug: ${slug}`);
-
-      // Final slug validation before DB insert
-      if (!slug || slug.length < 5) {
-        console.log(`❌ Generated slug is too short: "${slug}"`);
-        throw new Error(`Invalid slug generated: "${slug}" from title: "${articleTitle}"`);
-      }
-
-      // Check if article already exists
-      const existingArticle = await tx.articles.findUnique({
-        where: { slug },
-        select: { id: true, title: true }
-      });
-      
-      if (existingArticle) {
-        console.log(`⚠️  DUPLICATE: Article with slug "${slug}" exists: "${existingArticle.title}"`);
-        throw new Error(`Duplicate slug: ${slug}`);
-      }
-
-      // Debug logging before article creation
-      console.log(`📝 Creating article with:`);
-      console.log(`   Title: "${articleTitle}" (${articleTitle.length} chars)`);
-      console.log(`   Slug: "${slug}" (${slug.length} chars)`);
-      console.log(`   Content length: ${generatedContent.length} chars`);
-
-      // ========== HERO IMAGE VALIDATION (Google Discover) ==========
-      console.log(`\n🖼️  Validating Hero Image for Google Discover...`);
-      
-      const heroImageUrl = `/img/hero/tv/${resolution.primarySeries.tmdbId}`;
-      
-      // Hero image is mandatory - must exist and be >= 1200px wide
-      if (!heroImageUrl) {
-        throw new Error(
-          '❌ PUBLISH BLOCKED: Hero Image fehlt - mindestens 1200 Pixel Breite erforderlich (Google Discover)'
-        );
-      }
-      
-      console.log(`   Hero Image URL: ${heroImageUrl}`);
-      console.log(`   ✅ Hero Image wird mit 1600x900 (16:9) gespeichert`);
-      console.log(`   ✅ Google Discover ready: min. 1200px Breite garantiert`);
-
-      // NOTE: Character linking is applied AFTER transaction in Step 11.5
-      // Cannot be done here due to Prisma connection issues inside transaction
-
-      // Create article
-      const article = await tx.articles.create({
-        data: {
-          id: `pipeline-${Date.now()}`,
-          slug,
-          title: articleTitle,
-          excerpt: smartTruncate(metaDescription, 200), // Smart truncation at sentence boundary
-          contentHtml: generatedContent,
-          contentType: classification.content_type,
-          authorId: randomAuthor.id,
-          status: 'published',
-          publishedAt: now,
-          sourcePublishedAt: sourceDate,
-          sourceUrl: source.url,
-          readingTime: Math.ceil(generatedContent.split(' ').length / 200),
-          confidence: classification.confidence,
-          primarySeriesId: resolution.primarySeries.tmdbId,
-          publishMode,
-          wasBedeutetDasText,
-          trailerLocalUrl: trailerLocalPath, // NEW: Trailer video path
-          ...imageData,
-          updatedAt: now, // Required field
-        },
-      });
-
-      // Create many-to-many relations for related series
-      if (resolution.relatedSeries.length > 0) {
-        await tx.article_series.createMany({
-          data: resolution.relatedSeries.map((series, index) => ({
-            articleId: article.id,
-            seriesId: series.tmdbId,
-            position: index + 1,
-          })),
-        });
-      }
-
-      // === STORE DISCOVER DASHBOARD ===
-      // Auto-cleanup: Keep only last 1000 results
-      const dashboardCount = await tx.discover_score_dashboards.count();
-      if (dashboardCount >= 1000) {
-        // Delete oldest entries
-        const toDelete = dashboardCount - 999;
-        const oldestEntries = await tx.discover_score_dashboards.findMany({
-          orderBy: { timestamp: 'asc' },
-          take: toDelete,
-          select: { id: true },
-        });
-        
-        await tx.discover_score_dashboards.deleteMany({
-          where: {
-            id: { in: oldestEntries.map(e => e.id) },
-          },
-        });
-      }
-
-      // Store dashboard metrics
-      await tx.discover_score_dashboards.create({
-        data: {
-          id: `discover-${Date.now()}`, // Required ID
-          articleId: article.id,
-          pipelineVersion: 'serien_pipeline_v1',
-          headlineMetrics: discoverResult.dashboard.headline,
-          contentMetrics: discoverResult.dashboard.content_opening,
-          freshnessMetrics: discoverResult.dashboard.freshness,
-          imageMetrics: discoverResult.dashboard.image_visual,
-          trustMetrics: discoverResult.dashboard.trust_clarity,
-          discoverScore: discoverResult.scores.total,
-          finalVerdict: discoverResult.dashboard.aggregation.final_verdict,
-          primaryBlockers: discoverResult.dashboard.aggregation.primary_blockers,
-          improvementHints: discoverResult.dashboard.aggregation.improvement_hints,
-        },
-      });
-
-      // === STORE HEADLINE COMPARISON ===
-      const headlineChanged = articleTitle !== originalHeadline;
-      let headlineDelta: number | null = null;
-      let comparisonStatus = 'NO_REWRITE';
-      
-      if (headlineWasRewrittenByAntiAi && headlineChanged) {
-        // We have before/after scores
-        const antiAiScoreAfterRewrite = antiAiResult.antiAiScore;
-        headlineDelta = antiAiScoreAfterRewrite - antiAiScoreBeforeRewrite;
-        
-        if (headlineDelta >= 5) {
-          comparisonStatus = 'IMPROVED';
-        } else if (headlineDelta <= -5) {
-          comparisonStatus = 'WORSE';
-        } else {
-          comparisonStatus = 'NEUTRAL';
-        }
-      } else if (headlineChanged) {
-        // Headline was rewritten (by Editorial), but not by Anti-AI
-        comparisonStatus = 'NEUTRAL';
-      }
-
-      await tx.headline_comparisons.create({
-        data: {
-          id: `headline-${Date.now()}`, // Required ID
-          articleId: article.id,
-          headline_original: originalHeadline,
-          headline_rewritten: headlineChanged ? articleTitle : null,
-          antiAiScore_original: headlineWasRewrittenByAntiAi ? antiAiScoreBeforeRewrite : antiAiResult.antiAiScore,
-          antiAiScore_rewritten: headlineWasRewrittenByAntiAi ? antiAiResult.antiAiScore : null,
-          headline_delta: headlineDelta,
-          status: comparisonStatus,
-        },
-      });
-
-      return article;
+    // Use article-creator module (PHASE 3 REFACTORING)
+    const { createArticle } = await import('../lib/pipeline/article-creator');
+    
+    const result = await createArticle(prisma, {
+      title: articleTitle,
+      slug,
+      content: generatedContent,
+      excerpt: articleExcerpt,
+      metaDescription,
+      contentType: classification.content_type,
+      publishMode,
+      wasBedeutetDasText,
+      trailerLocalPath,
+      imageData,
+      sourceUrl: source.url,
+      sourceDate,
+      confidence: classification.confidence,
+      primarySeriesId: resolution.primarySeries.tmdbId,
+      relatedSeriesIds: resolution.relatedSeries.map(s => s.tmdbId),
+      discoverResult,
+      antiAiResult,
+      antiAiScoreBeforeRewrite,
+      headlineWasRewrittenByAntiAi,
+      originalHeadline,
+      now,
     });
 
-    console.log('\n✅ Article published successfully!');
-    console.log(`   ID: ${result.id}`);
-    console.log(`   Slug: ${result.slug}`);
-    console.log(`   Title: ${result.title}`);
-    console.log(`   Publish Mode: ${result.publishMode}`);
+    console.log(`   Publish Mode: ${result.article.publishMode}`);
     console.log(`   Primary Series: ${resolution.primarySeries.name}`);
     console.log(`   Related Series: ${resolution.relatedSeries.length}`);
 
