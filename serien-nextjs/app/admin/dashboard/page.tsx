@@ -5,7 +5,8 @@ import { Loader2 } from 'lucide-react';
 
 // Force client-side only rendering
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
+// TEMPORARY: Edge runtime disabled due to Vercel incident (Mar 2, 2026)
+// Re-enable once Vercel fixes: export const runtime = 'edge';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
