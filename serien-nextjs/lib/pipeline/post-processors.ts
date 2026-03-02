@@ -210,14 +210,14 @@ async function processCharacters(
         console.log('✅ Characters imported successfully');
       } catch (importError: any) {
         console.log('⚠️  Character import failed:', importError.message);
-        console.log('   Continuing without character links...');
+        console.log('   Will skip linking for now (no characters available)...');
         return false;
       }
     } else {
       console.log(`✅ Characters already exist (${existingCharacters} characters)`);
     }
     
-    // Apply character linking
+    // CRITICAL: Always try to apply character linking, even if import failed but characters exist
     console.log('🔗 Applying character links to current article...');
     
     const { linkCharactersInArticle } = await import('../character-linking');
@@ -226,7 +226,12 @@ async function processCharacters(
       select: { contentHtml: true }
     });
     
-    if (currentArticleContent?.contentHtml) {
+    if (!currentArticleContent?.contentHtml) {
+      console.log('⚠️  Article content not found, skipping linking');
+      return false;
+    }
+    
+    try {
       const linkedContent = await linkCharactersInArticle(
         currentArticleContent.contentHtml,
         seriesTmdbId
@@ -238,12 +243,16 @@ async function processCharacters(
       });
       
       console.log('✅ Character links applied to current article');
+      console.log(`   Article ID: ${articleId}`);
       return true;
+    } catch (linkError: any) {
+      console.error('❌ Character linking FAILED:', linkError.message);
+      console.error('   This is CRITICAL - article has no internal links!');
+      throw linkError; // Re-throw to make it visible
     }
-    
-    return false;
   } catch (error: any) {
-    console.error('⚠️  Character import check failed:', error.message);
+    console.error('❌ Character processing FAILED:', error.message);
+    console.error('   Stack:', error.stack);
     return false;
   }
 }
