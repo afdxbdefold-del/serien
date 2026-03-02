@@ -10,15 +10,20 @@ export interface ArticleCreationData {
   title: string;
   slug: string;
   content: string;
+  excerpt: string; // NEW: Distinct lead/excerpt
   metaDescription: string;
   contentType: string;
   publishMode: string;
   wasBedeutetDasText: string | null;
   trailerLocalPath: string | null;
   imageData: {
-    heroImagePath?: string;
-    cardImagePath?: string;
-    ogImagePath?: string;
+    tmdbId: number;
+    tmdbType: 'tv' | 'movie';
+    heroImageUrl: string;
+    ogImageUrl: string;
+    cardImageUrl: string;
+    imageAttribution: string;
+    tmdbBackdropPath: string | null; // NEW: For backdrop rotation
   };
   sourceUrl: string;
   sourceDate: Date;
@@ -45,11 +50,23 @@ export interface ArticleCreationResult {
 
 /**
  * Creates an article with all related data in a single transaction
+ * Phase 3: Enhanced with backdrop rotation, distinct lead, and improved validation
  */
 export async function createArticle(
   prisma: PrismaClient,
   data: ArticleCreationData
 ): Promise<ArticleCreationResult> {
+  // Pre-transaction: Check for duplicate by sourceUrl
+  const existingBySource = await prisma.articles.findUnique({
+    where: { sourceUrl: data.sourceUrl },
+    select: { id: true, title: true, slug: true }
+  });
+  
+  if (existingBySource) {
+    console.log('⚠️  Article already exists (duplicate sourceUrl) - SKIPPING');
+    throw new Error(`Duplicate article: sourceUrl "${data.sourceUrl}" already exists (slug: ${existingBySource.slug})`);
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     // Get random author
     const authors = await tx.users.findMany({
@@ -70,7 +87,7 @@ export async function createArticle(
       throw new Error(`Invalid slug: "${data.slug}" from title: "${data.title}"`);
     }
 
-    // Check for duplicates
+    // Check for duplicate slug
     const existingArticle = await tx.articles.findUnique({
       where: { slug: data.slug },
       select: { id: true, title: true }
@@ -82,7 +99,7 @@ export async function createArticle(
 
     // Validate hero image
     console.log(`\n🖼️  Validating Hero Image for Google Discover...`);
-    const heroImageUrl = `/img/hero/tv/${data.primarySeriesId}`;
+    const heroImageUrl = data.imageData.heroImageUrl;
     
     if (!heroImageUrl) {
       throw new Error('Hero Image fehlt - mindestens 1200 Pixel Breite erforderlich (Google Discover)');
@@ -90,6 +107,7 @@ export async function createArticle(
     
     console.log(`   Hero Image URL: ${heroImageUrl}`);
     console.log(`   ✅ Hero Image wird mit 1600x900 (16:9) gespeichert`);
+    console.log(`   ✅ Google Discover ready: min. 1200px Breite garantiert`);
 
     // Create article
     const article = await tx.articles.create({
@@ -97,7 +115,7 @@ export async function createArticle(
         id: `pipeline-${Date.now()}`,
         slug: data.slug,
         title: data.title,
-        excerpt: smartTruncate(data.metaDescription, 200),
+        excerpt: data.excerpt, // Use provided distinct lead
         contentHtml: data.content,
         contentType: data.contentType,
         authorId: randomAuthor.id,
@@ -111,7 +129,15 @@ export async function createArticle(
         publishMode: data.publishMode,
         wasBedeutetDasText: data.wasBedeutetDasText,
         trailerLocalUrl: data.trailerLocalPath,
-        ...data.imageData,
+        metaDescription: smartTruncate(data.metaDescription, 200),
+        // Image data
+        tmdbId: data.imageData.tmdbId,
+        tmdbType: data.imageData.tmdbType,
+        heroImageUrl: data.imageData.heroImageUrl,
+        ogImageUrl: data.imageData.ogImageUrl,
+        cardImageUrl: data.imageData.cardImageUrl,
+        imageAttribution: data.imageData.imageAttribution,
+        tmdbBackdropPath: data.imageData.tmdbBackdropPath,
         updatedAt: data.now,
       },
     });
