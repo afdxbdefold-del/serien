@@ -208,3 +208,5 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         slug={slug}
       />
     </main>
+  );
+}
