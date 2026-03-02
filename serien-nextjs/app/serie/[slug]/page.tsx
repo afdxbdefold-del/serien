@@ -278,6 +278,16 @@ export default async function SeriesDetailPage({ params }: PageProps) {
           </section>
         )}
 
+        {/* Aktuelle News zu Serie (MOBILE - direkt nach "Warum relevant") */}
+        {recentArticles.length > 0 && (
+          <div className="lg:hidden mb-6">
+            <DiscoverNewsContext
+              seriesName={series.name || series.title}
+              articles={recentArticles}
+            />
+          </div>
+        )}
+
         {/* NEW: Discover Content - Evergreen Intro */}
         {/* DEDUPLICATION: Only render if "Über [Serie]" (SeriesOverview) does NOT exist */}
         <DiscoverIntro 
