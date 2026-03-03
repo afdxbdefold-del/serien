@@ -11,11 +11,11 @@
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown } from '../lib/character-linking-markdown';
-import { generateNaturalArticleHTML } from '../lib/article-formatter';
+import { markdownToHtml } from '../lib/markdown-to-html';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
-import { searchTvEnhanced } from '../lib/tmdb-search-enhanced'; // NEW: Enhanced search
-import { getTvDetailsComplete } from '../lib/tmdb'; // For creating series
+import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
+import { getTvDetailsComplete } from '../lib/tmdb';
 import { extractFacts } from '../lib/fact-extractor';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { importSeriesCharacters } from './import-characters';
@@ -196,7 +196,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 7: MARKDOWN → HTML');
     console.log('━'.repeat(70));
     
-    const contentHtml = generateNaturalArticleHTML(structuredContent.markdown);
+    const contentHtml = markdownToHtml(structuredContent.markdown);
     
     // Verify H2s survived conversion
     const h2Count = (contentHtml.match(/<h2>/g) || []).length;
@@ -221,12 +221,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
         title: structuredContent.headline,
         slug,
         contentHtml,
-        lead: structuredContent.lead,
+        excerpt: structuredContent.lead,
         metaDescription: structuredContent.metaDescription,
-        imageUrl: dbSeries.backdropPath 
+        heroImageUrl: dbSeries.backdropPath 
           ? `https://image.tmdb.org/t/p/original${dbSeries.backdropPath}`
           : null,
         tmdbId: dbSeries.tmdbId,
+        authorId: 'author_001', // System author
         createdAt: now,
         updatedAt: now,
         sourceUrl: source.url,
