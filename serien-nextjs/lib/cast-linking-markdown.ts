@@ -55,6 +55,11 @@ export async function linkCastInMarkdown(
   const sortedCast = cast.sort((a, b) => b.name.length - a.name.length);
   
   sortedCast.forEach(member => {
+    // Skip very short names (likely too generic)
+    if (member.name.length < 4) {
+      return;
+    }
+    
     const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
     let regex = new RegExp(

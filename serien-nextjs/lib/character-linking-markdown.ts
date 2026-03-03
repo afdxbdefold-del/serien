@@ -58,6 +58,12 @@ export async function linkCharactersInMarkdown(
       const nicknameMatch = char.name.match(/'([^']+)'/);
       if (nicknameMatch) {
         const nickname = nicknameMatch[1];
+        
+        // Skip very short nicknames
+        if (nickname.length < 4) {
+          return;
+        }
+        
         const escapedNickname = nickname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const nicknameRegex = new RegExp(
           `(?<!\\[)(?<!\\()\\b${escapedNickname}\\b(?!\\])(?!\\))`,
@@ -84,6 +90,12 @@ export async function linkCharactersInMarkdown(
         const secondName = words[1];
         if (secondName) {
           const cleanSecondName = secondName.replace(/'/g, '');
+          
+          // Skip very short names
+          if (cleanSecondName.length < 4) {
+            return;
+          }
+          
           const escapedSecondName = cleanSecondName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           regex = new RegExp(
             `(?<!\\[)(?<!\\()\\b${escapedSecondName}\\b(?!\\])(?!\\))`,
@@ -92,6 +104,11 @@ export async function linkCharactersInMarkdown(
           matchedName = cleanSecondName;
         }
       } else {
+        // Skip very short first names
+        if (firstName.length < 4) {
+          return;
+        }
+        
         const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         regex = new RegExp(
           `(?<!\\[)(?<!\\()\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
