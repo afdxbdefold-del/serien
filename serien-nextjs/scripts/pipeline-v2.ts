@@ -62,6 +62,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.log('STEP 1: FULL TEXT FETCH');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 1: Full Text Fetch');
     
     let fullSourceText = source.text;
     let sourceWordCount = 0;
@@ -80,11 +81,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log(`✅ Full text: ${sourceWordCount} words`);
       }
     }
+    console.timeEnd('⏱️  STEP 1: Full Text Fetch');
 
     // ========== STEP 2: CLASSIFICATION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 2: CLASSIFICATION');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 2: Classification');
     
     const classification = await classifyContent(
       source.title,
@@ -93,6 +96,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     );
     
     console.log(`✅ Type: ${classification.content_type}`);
+    console.timeEnd('⏱️  STEP 2: Classification');
     
     if (classification.content_type === 'SKIP' || classification.content_type === 'UNKNOWN') {
       console.log('⚠️  Article skipped (not relevant)');
@@ -106,6 +110,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 3: ENHANCED TMDB RESOLUTION ⚡');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 3: TMDB Resolution');
     
     const searchResult = await searchTvEnhanced(source.title, fullSourceText);
     
@@ -155,19 +160,23 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } else {
       console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
     }
+    console.timeEnd('⏱️  STEP 3: TMDB Resolution');
 
     // ========== STEP 4: FACT EXTRACTION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 4: FACT EXTRACTION');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 4: Fact Extraction');
     
     const facts = await extractFacts(fullSourceText, source.title);
     console.log(`✅ Extracted ${facts.length} facts`);
+    console.timeEnd('⏱️  STEP 4: Fact Extraction');
 
     // ========== STEP 5: STRUCTURED CONTENT GENERATION (ONE CALL!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5: STRUCTURED CONTENT GENERATION ⚡');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 5: Content Generation');
     
     const structuredContent = await generateStructuredContent({
       facts,
@@ -182,11 +191,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`   Headline: "${structuredContent.headline}"`);
     console.log(`   Sections: ${structuredContent.sections.length} with H2s`);
     console.log(`   Q&A: ${structuredContent.qa.length} pairs`);
+    console.timeEnd('⏱️  STEP 5: Content Generation');
 
     // ========== STEP 5.1: QUALITY GATES ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5.1: QUALITY GATES');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 5.1: Quality Gates');
     
     // Note: Quality gates are lenient in v2 to allow content through
     // They log warnings but don't block publication
@@ -234,14 +245,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch (error: any) {
       console.log(`⚠️  Time-axis check skipped: ${error.message}`);
     }
+    console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 
     // ========== STEP 6: CHARACTER IMPORT & LINKING (ON MARKDOWN!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6: CHARACTER LINKING (Markdown) ⚡');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 6: Character Import & Linking');
     
     // Import characters first
+    console.time('⏱️  STEP 6a: Import Characters');
     await importSeriesCharacters(dbSeries.tmdbId);
+    console.timeEnd('⏱️  STEP 6a: Import Characters');
     
     // Link characters in markdown
     const characterLinkResult = await linkCharactersInMarkdown(
@@ -260,11 +275,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     structuredContent.markdown = castLinkResult.linkedMarkdown;
     console.log(`✅ Linked ${castLinkResult.castLinked} cast members`);
+    console.timeEnd('⏱️  STEP 6: Character Import & Linking');
 
     // ========== STEP 7: MARKDOWN → HTML ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7: MARKDOWN → HTML');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7: Markdown to HTML');
     
     const contentHtml = markdownToHtml(structuredContent.markdown);
     
@@ -276,11 +293,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     if (h2Count === 0) {
       console.log('⚠️  WARNING: No H2 tags in HTML!');
     }
+    console.timeEnd('⏱️  STEP 7: Markdown to HTML');
 
     // ========== STEP 7.5: INTERNAL LINKING ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7.5: INTERNAL LINKING');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7.5: Internal Linking');
     
     // Generate article ID early for internal linking
     const articleId = `pipeline-v2-${Date.now()}`;
@@ -307,11 +326,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`\n⚠️  Link Validation Warnings:`);
       linkValidation.errors.forEach(err => console.log(`   - ${err}`));
     }
+    console.timeEnd('⏱️  STEP 7.5: Internal Linking');
 
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 8: PUBLISH');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 8: Publish');
     
     const slug = generateSlug(structuredContent.headline);
     // articleId already generated in Step 7.5
@@ -342,11 +363,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Article published`);
     console.log(`   ID: ${articleId}`);
     console.log(`   Slug: ${slug}`);
+    console.timeEnd('⏱️  STEP 8: Publish');
 
     // ========== STEP 9: POST-PROCESSING (PARALLEL!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 9: POST-PROCESSING (Parallel) ⚡');
     console.log('━'.repeat(70));
+    console.time('⏱️  STEP 9: Post-Processing');
     
     await Promise.all([
       // Save Q&A
@@ -444,6 +467,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
       })(),
     ]);
+    console.timeEnd('⏱️  STEP 9: Post-Processing');
 
     // ========== SUCCESS ==========
     console.log('\n' + '='.repeat(70));
