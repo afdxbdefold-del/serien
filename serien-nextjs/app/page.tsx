@@ -44,34 +44,45 @@ export const revalidate = 60; // Revalidate every 60 seconds
 
 export default async function Page() {
   // Fetch news, series, and stats from database
-  const [articles, series, seriesCount, articlesCount] = await Promise.all([
-    prisma.article.findMany({
-      where: { status: 'published' },
-      include: {
-        users: { 
-          select: { 
-            name: true,
-            id: true
-          } 
-        },
-        series: {
-          select: {
-            title: true,
-            slug: true,
-            networks: true,
+  let articles, series, seriesCount, articlesCount;
+  
+  try {
+    [articles, series, seriesCount, articlesCount] = await Promise.all([
+      prisma.article.findMany({
+        where: { status: 'published' },
+        include: {
+          users: { 
+            select: { 
+              name: true,
+              id: true
+            } 
+          },
+          series: {
+            select: {
+              title: true,
+              slug: true,
+              networks: true,
+            }
           }
-        }
-      },
-      orderBy: { publishedAt: 'desc' },
-      take: 20
-    }),
-    prisma.series.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 20
-    }),
-    prisma.series.count(),
-    prisma.article.count({ where: { status: 'published' } })
-  ]);
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 20
+      }),
+      prisma.series.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      }),
+      prisma.series.count(),
+      prisma.article.count({ where: { status: 'published' } })
+    ]);
+  } catch (error) {
+    console.error('Homepage DB query failed:', error);
+    // Return empty data on error
+    articles = [];
+    series = [];
+    seriesCount = 0;
+    articlesCount = 0;
+  }
 
   const stats = {
     series_total: seriesCount,
