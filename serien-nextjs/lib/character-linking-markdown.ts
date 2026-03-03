@@ -44,16 +44,17 @@ export async function linkCharactersInMarkdown(
   const sortedCharacters = characters.sort((a, b) => b.name.length - a.name.length);
   
   sortedCharacters.forEach(char => {
-    // Build regex that matches character name but not inside markdown links
+    // Build regex that matches character name but not inside markdown links or headings
     const escapedName = char.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
     const regex = new RegExp(
-      `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedName}\\b(?!\\])(?!\\))`,
-      'gi'
+      `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedName}\\b(?!\\])(?!\\))`,
+      'gim'
     );
     
     let matches = linkedMarkdown.match(regex);
     let matchedName = char.name;
+    let regexToUse = regex;
     
     // Try nickname in quotes: "Dr. Michael 'Robby' Robinavitch" → "Robby"
     if (!matches && char.name.includes("'")) {
@@ -62,81 +63,103 @@ export async function linkCharactersInMarkdown(
         const nickname = nicknameMatch[1];
         const escapedNickname = nickname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const nicknameRegex = new RegExp(
-          `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedNickname}\\b(?!\\])(?!\\))`,
-          'gi'
+          `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedNickname}\\b(?!\\])(?!\\))`,
+          'gim'
         );
         
         matches = linkedMarkdown.match(nicknameRegex);
         
         if (matches && matches.length > 0) {
+          // Replace ONLY FIRST occurrence
           linkedMarkdown = linkedMarkdown.replace(
             nicknameRegex,
-            `[${nickname}](/charaktere/${char.slug})`
+            (match) => {
+              if (!linkedMarkdown.substring(0, linkedMarkdown.indexOf(match)).includes(`[${nickname}](`)) {
+                return `[${nickname}](/charaktere/${char.slug})`;
+              }
+              return match;
+            }
           );
+          
+          // Replace only the first match
+          const firstIndex = linkedMarkdown.search(nicknameRegex);
+          if (firstIndex !== -1) {
+            linkedMarkdown = 
+              linkedMarkdown.substring(0, firstIndex) +
+              linkedMarkdown.substring(firstIndex).replace(nicknameRegex, `[${nickname}](/charaktere/${char.slug})`);
+          }
+          
           linkedCount++;
-          console.log(`   ✅ Linked: ${nickname} → ${char.name} (${matches.length} occurrences)`);
+          console.log(`   ✅ Linked: ${nickname} → ${char.name} (1st occurrence only)`);
           return;
         }
       }
     }
     
-    // If full name not found, try matching first name only (for "Xavier Collins" → "Xavier")
+    // If full name not found, try matching first name only
     if (!matches && char.name.includes(' ')) {
       const firstName = char.name.split(' ')[0];
       
-      // Skip if first name is a title like "Dr." or "Nurse"
+      // Skip if first name is a title
       if (['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Nurse', 'Officer', 'Detective'].includes(firstName)) {
         // Try second word instead
         const secondName = char.name.split(' ')[1];
         if (secondName) {
-          const escapedSecondName = secondName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const cleanSecondName = secondName.replace(/'/g, '');
+          const escapedSecondName = cleanSecondName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const secondNameRegex = new RegExp(
-            `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedSecondName}\\b(?!\\])(?!\\))`,
-            'gi'
+            `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedSecondName}\\b(?!\\])(?!\\))`,
+            'gim'
           );
           
           matches = linkedMarkdown.match(secondNameRegex);
           
           if (matches && matches.length > 0) {
-            linkedMarkdown = linkedMarkdown.replace(
-              secondNameRegex,
-              `[${secondName}](/charaktere/${char.slug})`
-            );
-            linkedCount++;
-            console.log(`   ✅ Linked: ${secondName} → ${char.name} (${matches.length} occurrences)`);
-            return;
+            matchedName = cleanSecondName;
+            regexToUse = secondNameRegex;
           }
         }
       } else {
         const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const firstNameRegex = new RegExp(
-          `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
-          'gi'
+          `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
+          'gim'
         );
         
         matches = linkedMarkdown.match(firstNameRegex);
         
         if (matches && matches.length > 0) {
-          linkedMarkdown = linkedMarkdown.replace(
-            firstNameRegex,
-            `[${firstName}](/charaktere/${char.slug})`
-          );
-          linkedCount++;
-          console.log(`   ✅ Linked: ${firstName} → ${char.name} (${matches.length} occurrences)`);
-          return;
+          matchedName = firstName;
+          regexToUse = firstNameRegex;
         }
       }
     }
     
     if (matches && matches.length > 0) {
-      // Replace with markdown link
+      // Replace ONLY THE FIRST occurrence
+      let replaced = false;
       linkedMarkdown = linkedMarkdown.replace(
-        regex,
-        `[${matchedName}](/charaktere/${char.slug})`
+        regexToUse,
+        (match, offset) => {
+          // Check if we're inside a heading
+          const beforeMatch = linkedMarkdown.substring(Math.max(0, offset - 100), offset);
+          const lastNewline = beforeMatch.lastIndexOf('\n');
+          const lineStart = beforeMatch.substring(lastNewline + 1);
+          
+          // Skip if in heading or already replaced
+          if (replaced || /^#+\s/.test(lineStart)) {
+            return match;
+          }
+          
+          replaced = true;
+          return `[${matchedName}](/charaktere/${char.slug})`;
+        }
       );
       
-      linkedCount++;
-      console.log(`   ✅ Linked: ${matchedName} (${matches.length} occurrences)`);
+      if (replaced) {
+        linkedCount++;
+        console.log(`   ✅ Linked: ${matchedName} → ${char.name} (1st occurrence only)`);
+      }
     }
   });
   
