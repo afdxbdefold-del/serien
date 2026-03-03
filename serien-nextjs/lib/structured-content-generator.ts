@@ -12,7 +12,7 @@
  */
 
 interface StructuredContentInput {
-  facts: string[];
+  facts: any; // ExtractedFacts object from fact-extractor
   seriesName: string;
   originalHeadline: string;
   sourceText: string;
@@ -69,7 +69,26 @@ export async function generateStructuredContent(
 function buildPrompt(input: StructuredContentInput): string {
   const { facts, seriesName, originalHeadline, contentType, wordCountTarget } = input;
   
-  const factsList = facts.slice(0, 10).map((f, i) => `${i + 1}. ${f}`).join('\n');
+  // Convert facts object to flat list
+  const factsList: string[] = [];
+  
+  if (facts.key_statements && facts.key_statements.length > 0) {
+    factsList.push(...facts.key_statements);
+  }
+  if (facts.season_numbers && facts.season_numbers.length > 0) {
+    factsList.push(`Staffeln/Seasons: ${facts.season_numbers.join(', ')}`);
+  }
+  if (facts.release_dates && facts.release_dates.length > 0) {
+    factsList.push(`Release: ${facts.release_dates.join(', ')}`);
+  }
+  if (facts.networks_platforms && facts.networks_platforms.length > 0) {
+    factsList.push(`Platforms: ${facts.networks_platforms.join(', ')}`);
+  }
+  if (facts.people_names && facts.people_names.length > 0) {
+    factsList.push(`Menschen: ${facts.people_names.slice(0, 5).join(', ')}`);
+  }
+  
+  const factsText = factsList.slice(0, 10).map((f, i) => `${i + 1}. ${f}`).join('\n') || '(Keine spezifischen Fakten extrahiert)';
   
   // Calculate sections needed
   const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
@@ -82,7 +101,7 @@ AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadli
 SERIE: ${seriesName}
 
 FAKTEN AUS QUELLE:
-${factsList}
+${factsText}
 
 STRUKTUR-ANFORDERUNGEN:
 

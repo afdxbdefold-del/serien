@@ -20,13 +20,13 @@ interface CharacterLinkResult {
  */
 export async function linkCharactersInMarkdown(
   markdown: string,
-  seriesId: number
+  seriesTmdbId: number
 ): Promise<CharacterLinkResult> {
   console.log('🔗 Linking characters in markdown...');
   
   // Get all characters for this series
   const characters = await prisma.characters.findMany({
-    where: { seriesId },
+    where: { seriesTmdbId },
     select: { id: true, name: true, slug: true },
   });
   

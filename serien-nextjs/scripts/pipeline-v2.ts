@@ -11,7 +11,7 @@
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown } from '../lib/character-linking-markdown';
-import { convertMarkdownToHTML } from '../lib/article-formatter';
+import { generateNaturalArticleHTML } from '../lib/article-formatter';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
 import { searchTvEnhanced } from '../lib/tmdb-search-enhanced'; // NEW: Enhanced search
@@ -113,7 +113,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
-      select: { id: true, name: true, title: true, tmdbId: true, backdropPath: true }
+      select: { tmdbId: true, name: true, title: true, backdropPath: true }
     });
     
     if (!dbSeries) {
@@ -138,6 +138,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           overview: completeDetails.overview || '',
           status: completeDetails.status,
           firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+          updatedAt: new Date(),
         }
       });
       
@@ -179,12 +180,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     
     // Import characters first
-    await importSeriesCharacters(dbSeries.id, dbSeries.tmdbId);
+    await importSeriesCharacters(dbSeries.tmdbId);
     
     // Link characters in markdown
     const linkResult = await linkCharactersInMarkdown(
       structuredContent.markdown,
-      dbSeries.id
+      dbSeries.tmdbId
     );
     
     structuredContent.markdown = linkResult.linkedMarkdown;
@@ -195,7 +196,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 7: MARKDOWN → HTML');
     console.log('━'.repeat(70));
     
-    const contentHtml = convertMarkdownToHTML(structuredContent.markdown);
+    const contentHtml = generateNaturalArticleHTML(structuredContent.markdown);
     
     // Verify H2s survived conversion
     const h2Count = (contentHtml.match(/<h2>/g) || []).length;
@@ -259,7 +260,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       
       // Import cast
       (async () => {
-        await importSeriesCast(dbSeries.tmdbId, dbSeries.id);
+        await importSeriesCast(dbSeries.tmdbId, dbSeries.tmdbId);
         console.log(`   ✅ Cast imported`);
       })(),
       
