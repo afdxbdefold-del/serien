@@ -57,62 +57,68 @@ export async function linkCastInMarkdown(
   sortedCast.forEach(member => {
     const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    const regex = new RegExp(
-      `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedName}\\b(?!\\])(?!\\))`,
+    let regex = new RegExp(
+      `(?<!\\[)(?<!\\()\\b${escapedName}\\b(?!\\])(?!\\))`,
       'gim'
     );
     
-    let matches = linkedMarkdown.match(regex);
     let matchedName = member.name;
-    let regexToUse = regex;
     
-    // Try first name only if full name not found
-    if (!matches && member.name.includes(' ')) {
+    // Try last name if full name not found
+    if (member.name.includes(' ')) {
       const firstName = member.name.split(' ')[0];
       const lastName = member.name.split(' ').pop();
       
-      // Try last name (more unique for actors)
       if (lastName && lastName !== firstName) {
         const escapedLastName = lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const lastNameRegex = new RegExp(
-          `(?<!\\[)(?<!\\()(?<!^#+ )\\b${escapedLastName}\\b(?!\\])(?!\\))`,
+          `(?<!\\[)(?<!\\()\\b${escapedLastName}\\b(?!\\])(?!\\))`,
           'gim'
         );
         
-        matches = linkedMarkdown.match(lastNameRegex);
-        
-        if (matches && matches.length > 0) {
+        const testMatch = lastNameRegex.exec(linkedMarkdown);
+        if (testMatch) {
+          regex = lastNameRegex;
           matchedName = lastName;
-          regexToUse = lastNameRegex;
         }
       }
     }
     
-    if (matches && matches.length > 0) {
-      // Replace ONLY THE FIRST occurrence
-      let replaced = false;
-      linkedMarkdown = linkedMarkdown.replace(
-        regexToUse,
-        (match, offset) => {
-          // Check if we're inside a heading
-          const beforeMatch = linkedMarkdown.substring(Math.max(0, offset - 100), offset);
-          const lastNewline = beforeMatch.lastIndexOf('\n');
-          const lineStart = beforeMatch.substring(lastNewline + 1);
-          
-          // Skip if in heading or already replaced
-          if (replaced || /^#+\s/.test(lineStart)) {
-            return match;
-          }
-          
-          replaced = true;
-          return `[${matchedName}](/personen/${member.slug})`;
-        }
-      );
+    // Find first valid occurrence (not in heading)
+    regex.lastIndex = 0;
+    let match;
+    let validMatch = null;
+    
+    while ((match = regex.exec(linkedMarkdown)) !== null) {
+      const matchIndex = match.index;
       
-      if (replaced) {
-        linkedCount++;
-        console.log(`   ✅ Linked: ${matchedName} → ${member.name} (1st occurrence only)`);
+      // Check if match is inside a heading
+      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
+      const lastNewline = beforeMatch.lastIndexOf('\n');
+      const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
+      
+      // Skip if in heading
+      if (/^#+\s/.test(lineStart.trim())) {
+        continue;
       }
+      
+      // This is the first valid match!
+      validMatch = match;
+      break;
+    }
+    
+    if (validMatch) {
+      // Replace only this occurrence using string slicing
+      const matchIndex = validMatch.index;
+      const matchText = validMatch[0];
+      
+      linkedMarkdown = 
+        linkedMarkdown.substring(0, matchIndex) +
+        `[${matchText}](/personen/${member.slug})` +
+        linkedMarkdown.substring(matchIndex + matchText.length);
+      
+      linkedCount++;
+      console.log(`   ✅ Linked: ${matchedName} → ${member.name} (1st valid occurrence)`);
     }
   });
   
