@@ -204,8 +204,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     try {
       // Anti-AI Filter
-      const antiAiResult = antiAiFilter(structuredContent.markdown || '');
-      console.log(`✅ Anti-AI filter: ${antiAiResult.passed ? 'Passed' : 'Warnings'}`);
+      const antiAiResult = antiAiFilter({
+        articleHtml: structuredContent.markdown || '',
+        headline: structuredContent.headline,
+        seriesName: dbSeries.name || dbSeries.title || '',
+      });
+      console.log(`✅ Anti-AI filter: ${antiAiResult.status === 'PASS' ? 'Passed' : 'Warnings'}`);
     } catch (error: any) {
       console.log(`⚠️  Anti-AI filter skipped: ${error.message}`);
     }
