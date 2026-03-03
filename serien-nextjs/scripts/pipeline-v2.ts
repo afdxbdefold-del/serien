@@ -250,15 +250,17 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Save Q&A
       (async () => {
         if (structuredContent.qa.length > 0) {
-          await prisma.articleQA.createMany({
-            data: structuredContent.qa.map((qa, index) => ({
+          const qaId = `qa-${articleId}`;
+          await prisma.article_qa.create({
+            data: {
+              id: qaId,
               articleId,
-              question: qa.question,
-              answer: qa.answer,
-              order: index + 1,
-            })),
+              questions: structuredContent.qa, // Store as JSON array
+              schemaEnabled: true,
+              updatedAt: now,
+            },
           });
-          console.log(`   ✅ Q&A saved: ${structuredContent.qa.length} pairs`);
+          console.log(`   ✅ Q&A saved: ${structuredContent.qa.length} questions`);
         }
       })(),
       

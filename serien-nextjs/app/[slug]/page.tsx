@@ -194,7 +194,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <div className="mb-8">
             <InlineVideoPlayer
               heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-              trailerUrl={article.trailerLocalUrl}
+              trailerUrl={article.heroVideoUrl || article.trailerLocalUrl}
               title={article.title}
             />
             <p className="text-xs text-gray-500 mt-2">
