@@ -47,6 +47,11 @@ export default async function Page() {
   let articles, series, seriesCount, articlesCount;
   
   try {
+    // Defensive check for Vercel serverless environment
+    if (!prisma) {
+      throw new Error('Prisma client is not initialized');
+    }
+    
     [articles, series, seriesCount, articlesCount] = await Promise.all([
       prisma.article.findMany({
         where: { status: 'published' },

@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
         hostname: 'image.tmdb.org',
       },
     ]
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma']
   }
 };
 
