@@ -1,8 +1,6 @@
 /**
- * Fandom.com Scraper V2 - Cloudflare-Resistant
- * Alternative WITHOUT API Keys:
- * 1. MediaWiki API (public, no auth needed)
- * 2. Browser automation fallback (bypasses Cloudflare)
+ * Fandom.com Scraper - Apify Integration
+ * Fast and reliable web scraping using Apify Actor
  */
 
 import * as cheerio from 'cheerio';
@@ -21,18 +19,113 @@ interface FandomCharacterData {
 }
 
 /**
+ * Fetch Fandom page via Apify Actor
+ */
+async function fetchViaApify(url: string): Promise<string | null> {
+  try {
+    const apiToken = process.env.APIFY_API_TOKEN;
+    
+    if (!apiToken) {
+      console.log('[Apify] ⚠️  No API token found, falling back to browser method');
+      return null;
+    }
+
+    console.log(`[Apify] Fetching: ${url}`);
+
+    // Prepare Actor input
+    const actorInput = {
+      startUrls: [{ url }],
+      download_image: false,
+    };
+
+    // Run the Actor (Actor ID: ZuMH5LMcuGb6f3thd)
+    const runResponse = await fetch(
+      `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs?token=${apiToken}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(actorInput),
+      }
+    );
+
+    if (!runResponse.ok) {
+      console.log(`[Apify] Run failed: HTTP ${runResponse.status}`);
+      return null;
+    }
+
+    const runData = await runResponse.json();
+    const runId = runData.data.id;
+    
+    console.log(`[Apify] Run started: ${runId}`);
+
+    // Poll for completion (max 30 seconds)
+    const maxAttempts = 15;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+      
+      const statusResponse = await fetch(
+        `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs/${runId}?token=${apiToken}`
+      );
+
+      if (!statusResponse.ok) {
+        console.log(`[Apify] Status check failed: HTTP ${statusResponse.status}`);
+        return null;
+      }
+
+      const statusData = await statusResponse.json();
+      const status = statusData.data.status;
+
+      if (status === 'SUCCEEDED') {
+        console.log(`[Apify] ✅ Run completed`);
+        
+        // Get results
+        const resultsResponse = await fetch(
+          `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs/${runId}/dataset/items?token=${apiToken}`
+        );
+
+        if (!resultsResponse.ok) {
+          console.log(`[Apify] Results fetch failed: HTTP ${resultsResponse.status}`);
+          return null;
+        }
+
+        const results = await resultsResponse.json();
+        
+        if (results.length > 0 && results[0].html) {
+          console.log(`[Apify] ✅ HTML fetched (${results[0].html.length} chars)`);
+          return results[0].html;
+        } else {
+          console.log(`[Apify] ⚠️  No HTML in results`);
+          return null;
+        }
+      } else if (status === 'FAILED' || status === 'ABORTED') {
+        console.log(`[Apify] ❌ Run ${status}`);
+        return null;
+      }
+
+      attempt++;
+    }
+
+    console.log(`[Apify] ⏱️  Timeout after ${maxAttempts * 2}s`);
+    return null;
+
+  } catch (error: any) {
+    console.log(`[Apify] Error: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * METHOD 1: MediaWiki API (Public, No Auth Required)
- * Most Fandom wikis are powered by MediaWiki and have a public API
  */
 async function fetchViaMediaWikiAPI(
   wikiDomain: string,
   pageName: string
 ): Promise<{ content: string; url: string } | null> {
   try {
-    // MediaWiki API endpoint (public, no key needed)
     const apiUrl = `https://${wikiDomain}/api.php`;
     
-    // Get page content using MediaWiki API
     const params = new URLSearchParams({
       action: 'parse',
       page: pageName,
@@ -42,8 +135,6 @@ async function fetchViaMediaWikiAPI(
       disabletoc: '1',
     });
 
-    console.log(`[Fandom API] Fetching: ${apiUrl}?${params.toString()}`);
-
     const response = await fetch(`${apiUrl}?${params.toString()}`, {
       headers: {
         'User-Agent': 'serien.de-bot/1.0 (character-info-aggregator)',
@@ -52,19 +143,12 @@ async function fetchViaMediaWikiAPI(
     });
 
     if (!response.ok) {
-      console.log(`[Fandom API] HTTP ${response.status}`);
       return null;
     }
 
     const data = await response.json();
 
-    if (data.error) {
-      console.log(`[Fandom API] Error: ${data.error.info}`);
-      return null;
-    }
-
-    if (!data.parse || !data.parse.text) {
-      console.log(`[Fandom API] No content found`);
+    if (data.error || !data.parse || !data.parse.text) {
       return null;
     }
 
@@ -78,48 +162,38 @@ async function fetchViaMediaWikiAPI(
       url: pageUrl,
     };
   } catch (error: any) {
-    console.log(`[Fandom API] Error: ${error.message}`);
     return null;
   }
 }
 
 /**
- * METHOD 2: Browser Automation (Playwright)
- * Bypasses Cloudflare by using a real browser
+ * METHOD 2: Browser Automation (Playwright) - Fallback
  */
 async function fetchViaBrowser(url: string): Promise<string | null> {
   try {
     console.log(`[Fandom Browser] Launching browser for: ${url}`);
 
-    // Dynamic import to avoid loading Playwright unless needed
     const { chromium } = await import('playwright');
 
-    const browser = await chromium.launch({
-      headless: true,
-    });
-
+    const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     });
 
     const page = await context.newPage();
 
-    // Navigate and wait for content
     await page.goto(url, {
       waitUntil: 'domcontentloaded',
       timeout: 15000,
     });
 
-    // Wait for character infobox or main content
     await page.waitForSelector('.portable-infobox, .mw-parser-output', {
       timeout: 10000,
     }).catch(() => {
       console.log('[Fandom Browser] Warning: Infobox not found, continuing...');
     });
 
-    // Get page HTML
     const html = await page.content();
-
     await browser.close();
 
     console.log(`[Fandom Browser] ✅ Content fetched (${html.length} chars)`);
@@ -137,7 +211,6 @@ async function fetchViaBrowser(url: string): Promise<string | null> {
 function parseCharacterData(html: string, url: string): FandomCharacterData {
   const $ = cheerio.load(html);
 
-  // Check if this is a valid character page
   const pageTitle = $('h1.page-header__title, h1#firstHeading').text().trim();
   
   if (!pageTitle || pageTitle.includes('Search results') || pageTitle.includes('not found')) {
@@ -191,25 +264,18 @@ function parseCharacterData(html: string, url: string): FandomCharacterData {
     characterData.bio = bioSection;
   }
 
-  console.log(`[Fandom] Extracted data for ${characterData.name}:`);
-  console.log(`  - Description: ${characterData.description?.length || 0} chars`);
-  console.log(`  - Portrayed by: ${characterData.portrayed_by || 'N/A'}`);
-  console.log(`  - Status: ${characterData.status || 'N/A'}`);
-
   return characterData;
 }
 
 /**
- * Main function: Search for character with Cloudflare-resistant methods
- * NO API KEYS REQUIRED
+ * Main function: Search for character with Apify + fallbacks
  */
 export async function searchFandomCharacter(
   characterName: string,
   seriesName: string
 ): Promise<FandomCharacterData> {
   try {
-    console.log(`\n[Fandom V2] Searching: ${characterName} from ${seriesName}`);
-    console.log(`[Fandom V2] Using Cloudflare-resistant methods (NO API KEY)`);
+    console.log(`\n[Fandom] Searching: ${characterName} from ${seriesName}`);
 
     // Build wiki domain variations
     const seriesSlug = seriesName
@@ -226,7 +292,7 @@ export async function searchFandomCharacter(
     ];
 
     // STRATEGY 1: Try MediaWiki API (fast, no Cloudflare issues)
-    console.log(`[Fandom V2] Strategy 1: MediaWiki API (public, no auth)`);
+    console.log(`[Fandom] Strategy 1: MediaWiki API (fastest)`);
     
     for (const domain of wikiDomains) {
       const result = await fetchViaMediaWikiAPI(domain, characterSlug);
@@ -234,28 +300,47 @@ export async function searchFandomCharacter(
       if (result) {
         const characterData = parseCharacterData(result.content, result.url);
         if (characterData.found) {
-          console.log(`[Fandom V2] ✅ Found via MediaWiki API: ${result.url}`);
+          console.log(`[Fandom] ✅ Found via MediaWiki API: ${result.url}`);
           return characterData;
         }
       }
     }
 
-    // STRATEGY 2: Browser automation fallback (bypasses Cloudflare)
-    // 🔥 OPTIMIZATION: Try only FIRST domain to save time (was: all 3 domains)
-    console.log(`[Fandom V2] Strategy 2: Browser Automation (Cloudflare bypass)`);
+    // STRATEGY 2: Try Apify (if token available)
+    if (process.env.APIFY_API_TOKEN) {
+      console.log(`[Fandom] Strategy 2: Apify Actor`);
 
+      // Try only the first domain with Apify (stop after first success)
+      for (const domain of wikiDomains) {
+        const url = `https://${domain}/wiki/${characterSlug}`;
+        const html = await fetchViaApify(url);
+
+        if (html) {
+          const characterData = parseCharacterData(html, url);
+          if (characterData.found) {
+            console.log(`[Fandom] ✅ Found via Apify: ${url}`);
+            return characterData;
+          }
+        }
+      }
+    }
+
+    // STRATEGY 3: Browser automation fallback (only 1 attempt!)
+    console.log(`[Fandom] Strategy 3: Browser Automation (last resort)`);
+
+    // 🔥 OPTIMIZATION: Try only the FIRST domain, not all 3!
     const url = `https://${wikiDomains[0]}/wiki/${characterSlug}`;
     const html = await fetchViaBrowser(url);
 
     if (html) {
       const characterData = parseCharacterData(html, url);
       if (characterData.found) {
-        console.log(`[Fandom V2] ✅ Found via Browser: ${url}`);
+        console.log(`[Fandom] ✅ Found via Browser: ${url}`);
         return characterData;
       }
     }
 
-    console.log(`[Fandom V2] ⚠️  Character not found`);
+    console.log(`[Fandom] ⚠️  Character not found`);
     return {
       name: characterName,
       found: false,
@@ -263,7 +348,7 @@ export async function searchFandomCharacter(
     };
 
   } catch (error: any) {
-    console.error(`[Fandom V2] Error:`, error.message);
+    console.error(`[Fandom] Error:`, error.message);
     return {
       name: characterName,
       found: false,
