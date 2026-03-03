@@ -45,41 +45,86 @@ export async function linkCharactersInMarkdown(
   
   sortedCharacters.forEach(char => {
     // Build regex that matches character name but not inside markdown links
-    // Avoid matching inside: [text](url) or **bold** or ## headings
     const escapedName = char.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    // Match character name only if:
-    // - Not inside markdown link brackets []
-    // - Not inside markdown link URLs ()
-    // - Not at start of line after ## (heading)
     const regex = new RegExp(
       `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedName}\\b(?!\\])(?!\\))`,
       'gi'
     );
     
     let matches = linkedMarkdown.match(regex);
+    let matchedName = char.name;
+    
+    // Try nickname in quotes: "Dr. Michael 'Robby' Robinavitch" → "Robby"
+    if (!matches && char.name.includes("'")) {
+      const nicknameMatch = char.name.match(/'([^']+)'/);
+      if (nicknameMatch) {
+        const nickname = nicknameMatch[1];
+        const escapedNickname = nickname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const nicknameRegex = new RegExp(
+          `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedNickname}\\b(?!\\])(?!\\))`,
+          'gi'
+        );
+        
+        matches = linkedMarkdown.match(nicknameRegex);
+        
+        if (matches && matches.length > 0) {
+          linkedMarkdown = linkedMarkdown.replace(
+            nicknameRegex,
+            `[${nickname}](/charaktere/${char.slug})`
+          );
+          linkedCount++;
+          console.log(`   ✅ Linked: ${nickname} → ${char.name} (${matches.length} occurrences)`);
+          return;
+        }
+      }
+    }
     
     // If full name not found, try matching first name only (for "Xavier Collins" → "Xavier")
     if (!matches && char.name.includes(' ')) {
       const firstName = char.name.split(' ')[0];
-      const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const firstNameRegex = new RegExp(
-        `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
-        'gi'
-      );
       
-      matches = linkedMarkdown.match(firstNameRegex);
-      
-      if (matches && matches.length > 0) {
-        // Replace first name with markdown link
-        linkedMarkdown = linkedMarkdown.replace(
-          firstNameRegex,
-          `[${firstName}](/charaktere/${char.slug})`
+      // Skip if first name is a title like "Dr." or "Nurse"
+      if (['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Nurse', 'Officer', 'Detective'].includes(firstName)) {
+        // Try second word instead
+        const secondName = char.name.split(' ')[1];
+        if (secondName) {
+          const escapedSecondName = secondName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const secondNameRegex = new RegExp(
+            `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedSecondName}\\b(?!\\])(?!\\))`,
+            'gi'
+          );
+          
+          matches = linkedMarkdown.match(secondNameRegex);
+          
+          if (matches && matches.length > 0) {
+            linkedMarkdown = linkedMarkdown.replace(
+              secondNameRegex,
+              `[${secondName}](/charaktere/${char.slug})`
+            );
+            linkedCount++;
+            console.log(`   ✅ Linked: ${secondName} → ${char.name} (${matches.length} occurrences)`);
+            return;
+          }
+        }
+      } else {
+        const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const firstNameRegex = new RegExp(
+          `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
+          'gi'
         );
         
-        linkedCount++;
-        console.log(`   ✅ Linked: ${firstName} → ${char.name} (${matches.length} occurrences)`);
-        return; // Skip full name matching
+        matches = linkedMarkdown.match(firstNameRegex);
+        
+        if (matches && matches.length > 0) {
+          linkedMarkdown = linkedMarkdown.replace(
+            firstNameRegex,
+            `[${firstName}](/charaktere/${char.slug})`
+          );
+          linkedCount++;
+          console.log(`   ✅ Linked: ${firstName} → ${char.name} (${matches.length} occurrences)`);
+          return;
+        }
       }
     }
     
@@ -87,11 +132,11 @@ export async function linkCharactersInMarkdown(
       // Replace with markdown link
       linkedMarkdown = linkedMarkdown.replace(
         regex,
-        `[${char.name}](/charaktere/${char.slug})`
+        `[${matchedName}](/charaktere/${char.slug})`
       );
       
       linkedCount++;
-      console.log(`   ✅ Linked: ${char.name} (${matches.length} occurrences)`);
+      console.log(`   ✅ Linked: ${matchedName} (${matches.length} occurrences)`);
     }
   });
   
