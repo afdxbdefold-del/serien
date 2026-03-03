@@ -85,11 +85,16 @@ function buildPrompt(input: StructuredContentInput): string {
     factsList.push(`Platforms: ${facts.networks_platforms.join(', ')}`);
   }
   if (facts.people_names && facts.people_names.length > 0) {
-    factsList.push(`Menschen/Charaktere: ${facts.people_names.slice(0, 10).join(', ')}`);
+    factsList.push(`WICHTIGE PERSONEN/CHARAKTERE: ${facts.people_names.slice(0, 10).join(', ')}`);
   }
   if (facts.series_names && facts.series_names.length > 0) {
     factsList.push(`Serien: ${facts.series_names.join(', ')}`);
   }
+  
+  // Extract character names separately for emphasis
+  const characterNames = facts.people_names && facts.people_names.length > 0 
+    ? facts.people_names.slice(0, 10).join(', ')
+    : '';
   
   const factsText = factsList.slice(0, 15).map((f, i) => `${i + 1}. ${f}`).join('\n') || '(Keine spezifischen Fakten extrahiert)';
   
@@ -105,6 +110,8 @@ SERIE: ${seriesName}
 
 FAKTEN AUS QUELLE:
 ${factsText}
+
+${characterNames ? `\n🎭 CHARAKTERE, DIE DU VERWENDEN MUSST:\n${characterNames}\n` : ''}
 
 STRUKTUR-ANFORDERUNGEN:
 
@@ -128,10 +135,12 @@ STRUKTUR-ANFORDERUNGEN:
    - 2-3 ABSÄTZE: Je 2-4 Sätze
    - Fließender Übergang zur nächsten Section
    
-   **WICHTIG - NAMEN VERWENDEN:**
-   - Erwähne Charakternamen aus den Fakten (z.B. "Robby", "Samira")
-   - Verwende Namen beim ersten Vorkommen, danach können Pronomen folgen
-   - Vermeide generische Begriffe wie "das Team", "die Ärzte" wenn Namen verfügbar sind
+   🚨 KRITISCH - NAMEN VERWENDEN:
+   ${characterNames ? `- Du MUSST diese Namen verwenden: ${characterNames}` : '- Verwende verfügbare Charakternamen'}
+   - Nenne Namen beim ersten Vorkommen im Text (nicht in Überschriften)
+   - Verwende z.B. "Robby untersucht den Fall" statt "Ein Arzt untersucht"
+   - Vermeide: "das Team", "die Ärzte", "das Personal" → Nutze konkrete Namen!
+   - Nach der ersten Erwähnung: Pronomen OK
    
    H2-Beispiele:
    ✅ "Verlängerung für Staffel 3 bestätigt"
@@ -149,13 +158,11 @@ STIL:
 - Faktisch, nicht spekulativ
 - Keine AI-Phrasen ("tauchen ein", "spannende Entwicklung")
 - Deutsche Anführungszeichen: „..." nicht "..."
-- **Verwende konkrete Namen statt generischer Begriffe**
+- 🎯 KONKRETE NAMEN VERWENDEN, NICHT GENERISCH SCHREIBEN
 
-WICHTIG:
-- NUR Fakten aus der Quelle verwenden
-- Keine Erfindungen
-- Klare Struktur mit H2-Überschriften
-- **Namen aus den Fakten im Text verwenden**`;
+KRITISCHE REGEL:
+${characterNames ? `Du MUSST mindestens 3 der folgenden Namen im Content verwenden: ${characterNames}` : 'Verwende alle verfügbaren Namen aus den Fakten'}
+Nutze Namen statt "ein Arzt", "das Team", "die Crew"!`;
 
   return basePrompt;
 }
