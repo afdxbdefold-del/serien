@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -90,6 +90,38 @@ model articles {
 
   @@index([primarySeriesId])
   @@index([publishedAt])
+  @@index([slug])
+}
+
+model characters {
+  id                  String   @id
+  slug                String   @unique
+  name                String
+  seriesTmdbId        Int
+  tmdbCharacterId     String?
+  actorTmdbId         Int?
+  shortDescription    String?
+  whoIsContent        String?
+  roleInSeriesContent String?
+  importanceContent   String?
+  appearancesContent  String?
+  qaContent           Json?
+  status              String?
+  firstAppearance     String?
+  seasons             String?
+  metaTitle           String?
+  metaDescription     String?
+  publishStatus       String   @default("draft")
+  articleMentions     Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime
+  imageUrl            String?
+  orderIndex          Int?
+  persons             persons? @relation(fields: [actorTmdbId], references: [tmdbId])
+  series              series   @relation(fields: [seriesTmdbId], references: [tmdbId], onDelete: Cascade)
+
+  @@index([actorTmdbId])
+  @@index([seriesTmdbId])
   @@index([slug])
 }
 
@@ -261,15 +293,15 @@ model series {
   statusDescription   String?
   statusLastUpdate    DateTime?
   extendedOverview    String?
-  discoverIntro       String?   @db.Text
-  discoverStatus      String?
+  discoverIntro       String?
   discoverNewsContext String?
   discoverQA          Json?
-  backdrops           Json?     // NEW: Top 5 backdrops for rotation
+  discoverStatus      String?
+  backdrops           Json?
   article_series      article_series[]
   articles            articles[]
-  follows             follows[]
   characters          characters[]
+  follows             follows[]
 }
 
 model users {
@@ -287,46 +319,3 @@ model users {
   follows             follows[]
   notifications       notifications[]
 }
-
-model characters {
-  id                  String          @id
-  slug                String          @unique
-  name                String
-  seriesTmdbId        Int
-  tmdbCharacterId     String?
-  actorTmdbId         Int?
-  imageUrl            String?
-  orderIndex          Int?
-  
-  // Content fields
-  shortDescription    String?
-  whoIsContent        String?         @db.Text
-  roleInSeriesContent String?         @db.Text
-  importanceContent   String?         @db.Text
-  appearancesContent  String?         @db.Text
-  qaContent           Json?
-  
-  // Meta fields
-  status              String?
-  firstAppearance     String?
-  seasons             String?
-  
-  // SEO
-  metaTitle           String?
-  metaDescription     String?
-  
-  // Stats & Publishing
-  publishStatus       String          @default("draft")
-  articleMentions     Int             @default(0)
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
-  // Relations
-  series              series          @relation(fields: [seriesTmdbId], references: [tmdbId], onDelete: Cascade)
-  actor               persons?        @relation(fields: [actorTmdbId], references: [tmdbId])
-  
-  @@index([seriesTmdbId])
-  @@index([actorTmdbId])
-  @@index([slug])
-}
-

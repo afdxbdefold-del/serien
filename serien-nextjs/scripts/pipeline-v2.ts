@@ -228,6 +228,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
           : null,
         tmdbId: dbSeries.tmdbId,
         authorId: 'author_001', // System author
+        status: 'published', // ✅ Auto-publish articles
+        publishedAt: now, // ✅ Set publication timestamp
         createdAt: now,
         updatedAt: now,
         sourceUrl: source.url,
