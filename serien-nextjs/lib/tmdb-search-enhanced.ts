@@ -29,11 +29,51 @@ interface EnhancedSearchResult {
 }
 
 /**
+ * Clean article title to extract series name
+ * Removes common noise words from recap/review titles
+ */
+function cleanTitleForSeriesExtraction(title: string): string {
+  let cleaned = title;
+  
+  // Remove common noise patterns (case insensitive)
+  // Order matters: more specific patterns first!
+  const noisePatterns = [
+    /\s+finale\s+recap\s+and\s+ending\s+explained/gi,
+    /\s+finale\s+recap\s+and\s+ending/gi,
+    /\s+recap\s+and\s+ending\s+explained/gi,
+    /\s+finale\s+recap/gi,
+    /\s+episode\s+\d+\s+recap/gi,
+    /\s+season\s+\d+\s+episode\s+\d+/gi,
+    /\s+s\d+e\d+/gi,
+    /\s+recap\s+and\s+ending/gi,
+    /\s+ending\s+explained/gi,
+    /\s+recap$/gi,
+    /\s+review$/gi,
+    /\s+explained$/gi,
+    /\s+breakdown$/gi,
+    /\s+ending$/gi,
+    /\s+finale$/gi,
+  ];
+  
+  for (const pattern of noisePatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+  
+  // Trim and clean up extra spaces
+  cleaned = cleaned.trim().replace(/\s+/g, ' ');
+  
+  return cleaned;
+}
+
+/**
  * Extract full series name from article context
  * String-based approach (no regex) - more robust with various quote types
  */
 function extractSeriesNameFromContext(title: string, articleText: string): string[] {
   const candidates: string[] = [];
+  
+  // Clean title first to remove noise
+  const cleanedTitle = cleanTitleForSeriesExtraction(title);
   
   // All possible quote characters we want to support
   // Using Unicode escape sequences to avoid parsing issues
@@ -49,7 +89,14 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
     '\u00AB',   // French left quote
   ];
   
-  // Strategy 1: Find quoted text in title
+  // Strategy 0: Use cleaned title as candidate (NEW!)
+  console.log(`   🧹 Cleaned title: "${cleanedTitle}" (length: ${cleanedTitle.length})`);
+  if (cleanedTitle.length >= 3 && cleanedTitle.length <= 60) {
+    candidates.push(cleanedTitle);
+    console.log(`   ✅ Added cleaned title as candidate`);
+  }
+  
+  // Strategy 1: Find quoted text in ORIGINAL title
   for (const openQuote of quoteChars) {
     const startIdx = title.indexOf(openQuote);
     if (startIdx === -1) continue;
@@ -151,11 +198,13 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   }
   
   // Deduplicate, filter, and clean
+  console.log(`   📋 Raw candidates before filter: ${candidates.length}`, candidates.slice(0, 3));
   const unique = [...new Set(candidates)]
-    .filter(c => c.length >= 2 && c.length <= 40)
-    .filter(c => !c.match(/^(Renewed|Season|Staffel|for|um|eine|bei|verlängert|The|A|An|Der|Die|Das)$/i))
-    .filter(c => c.split(/\s+/).length <= 5); // Max 5 words
+    .filter(c => c.length >= 2 && c.length <= 60) // Increased from 40 to 60 for longer titles
+    .filter(c => !c.match(/^(Renewed|Season|Staffel|for|um|eine|bei|verlängert)$/i))
+    .filter(c => c.split(/\s+/).length <= 8); // Max 8 words (increased from 5)
   
+  console.log(`   ✨ Filtered candidates: ${unique.length}`, unique);
   return unique;
 }
 
