@@ -113,7 +113,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
-      select: { tmdbId: true, name: true, title: true, backdropPath: true }
+      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true }
     });
     
     if (!dbSeries) {
@@ -138,6 +138,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           overview: completeDetails.overview || '',
           status: completeDetails.status,
           firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+          trailers: completeDetails.trailers || [], // ✅ Save trailers from TMDB
           updatedAt: new Date(),
         }
       });
@@ -269,18 +270,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
       
       // Download trailer
       (async () => {
-        const trailerId = await findTrailerYouTubeId(
-          dbSeries.name || dbSeries.title,
-          dbSeries.tmdbId
-        );
-        
-        if (trailerId) {
-          await downloadYouTubeTrailer(
-            trailerId,
-            dbSeries.name || dbSeries.title,
-            articleId
-          );
-          console.log(`   ✅ Trailer downloaded`);
+        try {
+          // Get trailer ID from series trailers JSON
+          const trailerId = findTrailerYouTubeId(dbSeries.trailers);
+          
+          if (trailerId) {
+            console.log(`   🎬 Found trailer ID: ${trailerId}`);
+            const downloadResult = await downloadYouTubeTrailer(
+              trailerId,
+              dbSeries.name || dbSeries.title || ''
+            );
+            
+            if (downloadResult.success && downloadResult.localPath) {
+              // Update article with trailer URL
+              await prisma.articles.update({
+                where: { id: articleId },
+                data: { heroVideoUrl: downloadResult.localPath }
+              });
+              console.log(`   ✅ Trailer downloaded and saved: ${downloadResult.localPath}`);
+            } else {
+              console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
+            }
+          } else {
+            console.log(`   ℹ️  No trailer available for this series`);
+          }
+        } catch (error: any) {
+          console.log(`   ❌ Trailer processing error: ${error.message}`);
         }
       })(),
       
