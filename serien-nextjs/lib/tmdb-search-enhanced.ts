@@ -30,68 +30,131 @@ interface EnhancedSearchResult {
 
 /**
  * Extract full series name from article context
- * Examples:
- * - "'Cross' Renewed for Season 3" → "Cross"  
- * - "Alex Cross Season 3 Details" → "Alex Cross"
- * - "'Cross' um eine 3. Staffel bei Amazon Prime verlängert" → "Cross"
+ * String-based approach (no regex) - more robust with various quote types
  */
 function extractSeriesNameFromContext(title: string, articleText: string): string[] {
   const candidates: string[] = [];
   
-  // 1. Extract from title (quoted names) - HIGHEST PRIORITY
-  // Support various quote types: ' " ' " ' ' „ "
-  // Use simpler alternation instead of character class
-  const quotePattern = /['""''„"]([^'""''„"]{2,40})['""''"]/g;
-  const quotedMatches = title.matchAll(quotePattern);
+  // All possible quote characters we want to support
+  // Using Unicode escape sequences to avoid parsing issues
+  const quoteChars = [
+    "'",        // ASCII single quote (U+0027)
+    '"',        // ASCII double quote (U+0022)
+    '\u2018',   // Unicode left single quote
+    '\u2019',   // Unicode right single quote
+    '\u201C',   // Unicode left double quote
+    '\u201D',   // Unicode right double quote
+    '\u201E',   // German opening quote
+    '\u00BB',   // French right quote
+    '\u00AB',   // French left quote
+  ];
   
-  for (const match of quotedMatches) {
-    if (match[1] && match[1].length > 2) {
-      candidates.push(match[1]);
-    }
-  }
-  
-  // 2. Extract after "um" or "bekommt" (German patterns)
-  const germanPattern = /['""''„"]([^'""''„"]{2,40})['""'']\s+(?:um|bekommt|erhält)/i;
-  const germanMatch = title.match(germanPattern);
-  if (germanMatch && germanMatch[1]) {
-    candidates.push(germanMatch[1]);
-  }
-  
-  // 3. Extract from beginning before "Season", "Staffel", "Renewed"
-  const seasonMatch = title.match(/^([A-Z][a-zA-Z\s]{2,40}?)\s+(?:Season|Staffel|Renewed|Cancelled|um|bekommt)/i);
-  if (seasonMatch && seasonMatch[1]) {
-    const cleaned = seasonMatch[1].trim();
-    // Avoid generic words
-    if (cleaned.length > 3 && !cleaned.match(/^(The|A|An|Der|Die|Das|New|Old)$/i)) {
-      candidates.push(cleaned);
-    }
-  }
-  
-  // 4. Look for proper nouns in article text (first 500 chars)
-  const textHead = articleText.substring(0, 500);
-  const properNounMatches = textHead.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:series|show|returns|stars)/g);
-  for (const match of properNounMatches) {
-    if (match[1] && match[1].length > 3) {
-      candidates.push(match[1]);
-    }
-  }
-  
-  // 5. Extract from article text first paragraph
-  const firstSentence = textHead.match(/^([^.!?]{20,200})[.!?]/);
-  if (firstSentence) {
-    const textQuotePattern = /['""''„"]([^'""''„"]{2,40})['""''"]/g;
-    const quotedInText = firstSentence[1].matchAll(textQuotePattern);
-    for (const match of quotedInText) {
-      if (match[1]) {
-        candidates.push(match[1]);
+  // Strategy 1: Find quoted text in title
+  for (const openQuote of quoteChars) {
+    const startIdx = title.indexOf(openQuote);
+    if (startIdx === -1) continue;
+    
+    // Look for any closing quote after this position
+    for (const closeQuote of quoteChars) {
+      const endIdx = title.indexOf(closeQuote, startIdx + 1);
+      if (endIdx === -1 || endIdx === startIdx) continue;
+      
+      const extracted = title.substring(startIdx + 1, endIdx).trim();
+      
+      // Valid series name candidate?
+      if (extracted.length >= 2 && extracted.length <= 40 && !extracted.includes('\n')) {
+        candidates.push(extracted);
       }
     }
   }
   
-  // Deduplicate and filter
+  // Strategy 2: Find quoted text in article first sentence
+  const firstSentenceMatch = articleText.match(/^([^.!?]{20,300})[.!?]/);
+  if (firstSentenceMatch) {
+    const firstSentence = firstSentenceMatch[1];
+    
+    for (const openQuote of quoteChars) {
+      const startIdx = firstSentence.indexOf(openQuote);
+      if (startIdx === -1) continue;
+      
+      for (const closeQuote of quoteChars) {
+        const endIdx = firstSentence.indexOf(closeQuote, startIdx + 1);
+        if (endIdx === -1 || endIdx === startIdx) continue;
+        
+        const extracted = firstSentence.substring(startIdx + 1, endIdx).trim();
+        
+        if (extracted.length >= 2 && extracted.length <= 40 && !extracted.includes('\n')) {
+          candidates.push(extracted);
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Extract words before "Season", "Staffel", "Renewed"
+  const keywords = ['Season', 'Staffel', 'Renewed', 'Cancelled', 'um eine', 'bekommt'];
+  
+  for (const keyword of keywords) {
+    const keywordIdx = title.indexOf(keyword);
+    if (keywordIdx === -1) continue;
+    
+    // Get text before keyword
+    const beforeKeyword = title.substring(0, keywordIdx).trim();
+    
+    // Remove quotes from the end
+    let cleaned = beforeKeyword;
+    for (const quote of quoteChars) {
+      if (cleaned.endsWith(quote)) {
+        cleaned = cleaned.slice(0, -1).trim();
+      }
+    }
+    
+    // Get last 2-4 words (likely the series name)
+    const words = cleaned.split(/\s+/);
+    if (words.length >= 1) {
+      const lastWords = words.slice(-Math.min(3, words.length)).join(' ');
+      
+      if (lastWords.length >= 3 && lastWords.length <= 40) {
+        candidates.push(lastWords);
+      }
+    }
+  }
+  
+  // Strategy 4: Look for "series/show NAME" patterns in text
+  const seriesPatterns = [
+    'series ',
+    'show ',
+    'drama ',
+    'Serie ',
+  ];
+  
+  for (const pattern of seriesPatterns) {
+    const patternIdx = articleText.toLowerCase().indexOf(pattern);
+    if (patternIdx === -1) continue;
+    
+    // Check if there's a quote right after
+    const afterPattern = articleText.substring(patternIdx + pattern.length, patternIdx + pattern.length + 50);
+    
+    for (const openQuote of quoteChars) {
+      if (!afterPattern.startsWith(openQuote)) continue;
+      
+      for (const closeQuote of quoteChars) {
+        const endIdx = afterPattern.indexOf(closeQuote, 1);
+        if (endIdx === -1) continue;
+        
+        const extracted = afterPattern.substring(1, endIdx).trim();
+        
+        if (extracted.length >= 2 && extracted.length <= 40) {
+          candidates.push(extracted);
+        }
+      }
+    }
+  }
+  
+  // Deduplicate, filter, and clean
   const unique = [...new Set(candidates)]
-    .filter(c => c.length > 2 && c.length < 40)
-    .filter(c => !c.match(/^(Renewed|Season|Staffel|for|um|eine|bei|verlängert)$/i));
+    .filter(c => c.length >= 2 && c.length <= 40)
+    .filter(c => !c.match(/^(Renewed|Season|Staffel|for|um|eine|bei|verlängert|The|A|An|Der|Die|Das)$/i))
+    .filter(c => c.split(/\s+/).length <= 5); // Max 5 words
   
   return unique;
 }
