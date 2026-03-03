@@ -2,7 +2,7 @@
  * Semantic H2 Heading Generator
  * Automatically adds proper H2/H3 structure to articles BEFORE publication
  * 
- * Uses LLM to generate semantic, contextual headings
+ * Generates contextual headings for each section
  */
 
 interface HeadingGeneratorConfig {
@@ -37,128 +37,106 @@ export async function addSemanticHeadings(config: HeadingGeneratorConfig): Promi
     return contentHtml;
   }
   
-  // Extract plain text from paragraphs (skip lead)
-  const textParagraphs = paragraphMatches
-    .map(p => p.replace(/<[^>]*>/g, ' ').trim())
-    .filter(text => text.length > 50);
+  console.log(`   Found ${paragraphMatches.length} paragraphs, generating headings...`);
   
-  if (textParagraphs.length < 4) {
-    console.log(`   ⚠️  Not enough text paragraphs (found: ${textParagraphs.length}, need: 4+)`);
-    return contentHtml;
+  // Strategy: Add H2 before paragraphs 3, 5, 7 (after lead, every 2 paragraphs)
+  let result = '';
+  const headingPositions = [2, 4, 6]; // Indices where to insert H2 (before these paragraphs)
+  
+  for (let i = 0; i < paragraphMatches.length; i++) {
+    // Check if we should add H2 before this paragraph
+    if (headingPositions.includes(i) && i < paragraphMatches.length) {
+      // Generate heading based on THIS paragraph
+      const heading = await generateHeadingForParagraph(
+        paragraphMatches[i],
+        seriesName,
+        articleTitle
+      );
+      
+      if (heading) {
+        result += `<h2>${heading}</h2>\n\n`;
+        console.log(`   ✅ H2: "${heading}"`);
+      }
+    }
+    
+    result += paragraphMatches[i] + '\n\n';
   }
-  
-  console.log(`   Found ${textParagraphs.length} paragraphs, generating headings...`);
-  
-  // Use LLM to generate 3-4 semantic headings
-  const headings = await generateHeadingsWithLLM(textParagraphs, articleTitle, seriesName);
-  
-  if (headings.length === 0) {
-    console.log('   ⚠️  LLM failed to generate headings');
-    return contentHtml;
-  }
-  
-  // Insert headings into HTML
-  const result = insertHeadingsIntoHtml(contentHtml, headings);
   
   const finalH2Count = (result.match(/<h2>/g) || []).length;
-  console.log(`   ✅ Added ${finalH2Count} H2 headings`);
+  console.log(`   ✅ Generated ${finalH2Count} H2 headings`);
   
-  return result;
+  return result.trim();
 }
 
 /**
- * Generate semantic headings using LLM
+ * Generate a heading for a specific paragraph using LLM
  */
-async function generateHeadingsWithLLM(
-  paragraphs: string[],
-  articleTitle: string,
-  seriesName: string
-): Promise<string[]> {
+async function generateHeadingForParagraph(
+  paragraph: string,
+  seriesName: string,
+  articleTitle: string
+): Promise<string | null> {
   const emergentApiKey = process.env.EMERGENT_LLM_KEY;
   
   if (!emergentApiKey) {
-    console.log('   ⚠️  No EMERGENT_LLM_KEY, cannot generate headings');
-    return [];
+    console.log('   ⚠️  No EMERGENT_LLM_KEY');
+    return null;
   }
   
-  // Take first 5 paragraphs for context
-  const context = paragraphs.slice(0, 5).join('\n\n');
+  // Extract plain text
+  const plainText = paragraph.replace(/<[^>]*>/g, ' ').trim();
   
-  const prompt = `Du bist ein professioneller Redakteur. Analysiere folgenden Artikel-Text und generiere 3-4 prägnante H2-Überschriften.
+  if (plainText.length < 50) {
+    return null; // Too short
+  }
+  
+  const prompt = `Du bist ein professioneller Redakteur. Erstelle eine prägnante H2-Überschrift für folgenden Absatz.
 
-ARTIKEL-TITEL: ${articleTitle}
+ARTIKEL: ${articleTitle}
 SERIE: ${seriesName}
 
-ARTIKEL-TEXT:
-${context}
+ABSATZ:
+${plainText.substring(0, 300)}
 
 ANFORDERUNGEN:
-- 3-4 Überschriften
-- Max 6 Wörter pro Überschrift
+- Max 6 Wörter
 - Klar und informativ
-- Keine Fragen
+- Fasse den Absatz zusammen
+- Keine Frage
 - Keine Clickbait
 
-FORMAT (NUR die Überschriften, eine pro Zeile):`;
+NUR die Überschrift (ohne Anführungszeichen):`;
 
   try {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({
       apiKey: emergentApiKey,
-      baseURL: 'http://localhost:8002/v1',  // Emergent proxy
+      baseURL: 'http://localhost:8002/v1',
     });
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 200,
+      max_tokens: 50,
     });
     
-    const text = response.choices[0]?.message?.content || '';
+    const heading = response.choices[0]?.message?.content?.trim() || '';
     
-    // Parse headings (one per line)
-    const headings = text
-      .split('\n')
-      .map(line => line.replace(/^[-•*\d.)\s]+/, '').trim())
-      .filter(line => line.length > 5 && line.length < 65)
-      .slice(0, 4);
+    // Clean up
+    const cleaned = heading
+      .replace(/^["']|["']$/g, '') // Remove quotes
+      .replace(/^H2:\s*/i, '') // Remove "H2:" prefix
+      .trim();
     
-    headings.forEach((h, i) => console.log(`   ${i + 1}. "${h}"`));
-    
-    return headings;
-  } catch (error: any) {
-    console.log(`   ⚠️  LLM call failed: ${error.message}`);
-    return [];
-  }
-}
-
-/**
- * Insert headings into HTML at appropriate positions
- */
-function insertHeadingsIntoHtml(html: string, headings: string[]): string {
-  // Strategy: Insert H2 after every 2nd paragraph (skip lead)
-  const parts = html.split('</p>');
-  
-  if (parts.length < 4) return html;
-  
-  let result = parts[0] + '</p>'; // Keep lead paragraph
-  let headingIndex = 0;
-  
-  for (let i = 1; i < parts.length - 1; i++) {
-    // Add heading every 2 paragraphs
-    if (i % 2 === 1 && headingIndex < headings.length) {
-      result += `\n\n<h2>${headings[headingIndex]}</h2>\n\n`;
-      headingIndex++;
+    // Validate
+    if (cleaned.length > 5 && cleaned.length < 65) {
+      return cleaned;
     }
     
-    result += parts[i] + '</p>';
+    return null;
+  } catch (error: any) {
+    console.log(`   ⚠️  LLM failed: ${error.message}`);
+    return null;
   }
-  
-  // Add last part (if any)
-  if (parts[parts.length - 1].trim()) {
-    result += parts[parts.length - 1];
-  }
-  
-  return result;
 }
