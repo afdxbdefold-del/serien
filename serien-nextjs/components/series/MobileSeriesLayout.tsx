@@ -96,7 +96,7 @@ export default function MobileSeriesLayout({
         </div>
       </div>
 
-      {relevanceContext && (
+      {relevanceContext?.text && (
         <section className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-md p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
             <span className="text-2xl">💡</span>
