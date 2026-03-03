@@ -22,6 +22,7 @@ import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
 import { findTrailerYouTubeId, downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
+import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 
 const prisma = new PrismaClient();
 
@@ -208,6 +209,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log('⚠️  WARNING: No H2 tags in HTML!');
     }
 
+    // ========== STEP 7.5: INTERNAL LINKING ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.5: INTERNAL LINKING');
+    console.log('━'.repeat(70));
+    
+    const internalLinksResult = await generateInternalLinks({
+      contentHtml,
+      seriesName: dbSeries.name || dbSeries.title || '',
+      seriesSlug: dbSeries.slug || '',
+      articleTitle: structuredContent.headline,
+    });
+    
+    const finalContentHtml = internalLinksResult.updatedContentHtml;
+    
+    console.log(`✅ Internal Links injected:`);
+    console.log(`   Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
+    console.log(`   Related Articles: ${internalLinksResult.relatedArticles.length}`);
+    console.log(`   Total Links: ${internalLinksResult.totalInternalLinks}`);
+    
+    // Validate links
+    const linkValidation = validateInternalLinks(finalContentHtml, dbSeries.name || dbSeries.title || '');
+    if (!linkValidation.valid) {
+      console.log(`\n⚠️  Link Validation Warnings:`);
+      linkValidation.errors.forEach(err => console.log(`   - ${err}`));
+    }
+
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 8: PUBLISH');
@@ -221,7 +248,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         id: articleId,
         title: structuredContent.headline,
         slug,
-        contentHtml,
+        contentHtml: finalContentHtml,
         excerpt: structuredContent.lead,
         metaDescription: structuredContent.metaDescription,
         heroImageUrl: dbSeries.backdropPath 
