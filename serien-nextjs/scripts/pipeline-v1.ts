@@ -711,7 +711,7 @@ export async function runContentPipeline(source: CrawledSource) {
         const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
         
-        const draftArticle = await prisma.article.create({
+        const draftArticle = await prisma.articles.create({
           data: {
             id: `draft-fact-safety-${Date.now()}`,
             slug: `${slug}-draft-fact`,
@@ -777,7 +777,7 @@ export async function runContentPipeline(source: CrawledSource) {
           const plainTextContent = generatedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           const articleExcerpt = plainTextContent.substring(0, 200).trim() + '...';
           
-          const draftArticle = await prisma.article.create({
+          const draftArticle = await prisma.articles.create({
             data: {
               id: `draft-fact-retry-${Date.now()}`,
               slug: `${slug}-draft-fact2`,
@@ -1095,7 +1095,7 @@ export async function runContentPipeline(source: CrawledSource) {
 
     try {
       // FIRST: Check if we already have a trailer for this series in DB
-      const existingTrailer = await prisma.article.findFirst({
+      const existingTrailer = await prisma.articles.findFirst({
         where: {
           primarySeriesId: resolution.primarySeries.tmdbId,
           trailerLocalUrl: { not: null }
@@ -1232,7 +1232,7 @@ export async function runContentPipeline(source: CrawledSource) {
     
     // Generate image data with backdrop rotation
     // Get article count for this series (for backdrop rotation)
-    const articleCount = await prisma.article.count({
+    const articleCount = await prisma.articles.count({
       where: { primarySeriesId: primaryTmdbId }
     });
     

@@ -63,7 +63,7 @@ Die Episode zeigt eindrucksvoll, wie sehr sich das Personal des Pittsburgh Traum
   const excerpt = 'Die sechste Episode von "The Pitt" Staffel 2 liefert einen emotionalen Moment: Der beliebte Stammpatient Louie stirbt im Pittsburgh Trauma Medical Center. Das Team erfährt seine tragische Geschichte.';
 
   // Create article
-  const article = await prisma.article.create({
+  const article = await prisma.articles.create({
     data: {
       slug,
       title,

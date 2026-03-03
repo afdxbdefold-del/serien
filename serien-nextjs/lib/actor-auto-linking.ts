@@ -137,7 +137,7 @@ function escapeRegex(str: string): string {
  */
 export async function applyAutoLinking(articleId: string): Promise<boolean> {
   try {
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { id: articleId },
       select: { contentHtml: true },
     });
@@ -149,7 +149,7 @@ export async function applyAutoLinking(articleId: string): Promise<boolean> {
     const linkedHtml = await autoLinkActors(articleId, article.contentHtml);
 
     if (linkedHtml !== article.contentHtml) {
-      await prisma.article.update({
+      await prisma.articles.update({
         where: { id: articleId },
         data: { contentHtml: linkedHtml },
       });

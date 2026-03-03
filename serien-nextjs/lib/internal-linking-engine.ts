@@ -68,7 +68,7 @@ async function findRelatedArticles(
   // Find max 2 related articles from same series
   // Priority: Most recent, but not the current article
   
-  const articles = await prisma.article.findMany({
+  const articles = await prisma.articles.findMany({
     where: {
       primarySeriesId: seriesId,
       id: { not: currentArticleId },

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const article = await prisma.article.findFirst({
+  const article = await prisma.articles.findFirst({
     where: { slug: 'die-wahre-geschichte-von-the-gray-house-erklaert' },
     include: { 
       primarySeries: { select: { name: true, tmdbId: true } },

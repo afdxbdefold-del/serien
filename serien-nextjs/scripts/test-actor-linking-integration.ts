@@ -13,7 +13,7 @@ async function testActorLinking() {
   
   try {
     // Get a test article
-    const article = await prisma.article.findFirst({
+    const article = await prisma.articles.findFirst({
       where: {
         slug: 'wednesday-staffel-2-netflix-gibt-produktionsstart-und-neue-cast-mitglieder-bekannt',
         status: 'published'

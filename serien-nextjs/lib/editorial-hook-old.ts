@@ -23,7 +23,7 @@ export async function generateEditorialHook(
 ): Promise<EditorialHookData | null> {
   try {
     // Get the most recent published article for this series
-    const latestArticle = await prisma.article.findFirst({
+    const latestArticle = await prisma.articles.findFirst({
       where: {
         primarySeriesId: seriesTmdbId,
         status: 'published',

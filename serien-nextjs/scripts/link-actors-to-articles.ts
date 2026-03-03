@@ -154,7 +154,7 @@ async function updateArticleWithPersonLinks(
   actorMappings: Map<string, { tmdbId: number; slug: string }>
 ): Promise<boolean> {
   try {
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { id: articleId },
       select: { contentHtml: true }
     });
@@ -178,7 +178,7 @@ async function updateArticleWithPersonLinks(
     }
     
     // Update article
-    await prisma.article.update({
+    await prisma.articles.update({
       where: { id: articleId },
       data: { contentHtml: updatedHtml, updatedAt: new Date() }
     });
@@ -284,7 +284,7 @@ async function main() {
     
     if (articleSlug) {
       // Process single article
-      articles = await prisma.article.findMany({
+      articles = await prisma.articles.findMany({
         where: {
           slug: articleSlug,
           status: 'published'
@@ -303,7 +303,7 @@ async function main() {
       }
     } else {
       // Process multiple articles
-      articles = await prisma.article.findMany({
+      articles = await prisma.articles.findMany({
         where: {
           status: 'published'
         },

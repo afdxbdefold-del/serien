@@ -40,7 +40,7 @@ async function processTVLineArticles() {
       const urlParts = article.url.split('/');
       const possibleSlug = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1];
       
-      const existing = await prisma.article.findFirst({
+      const existing = await prisma.articles.findFirst({
         where: {
           OR: [
             { slug: { contains: possibleSlug } },

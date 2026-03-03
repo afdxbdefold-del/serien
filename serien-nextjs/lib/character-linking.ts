@@ -146,7 +146,7 @@ export async function updateExistingArticlesWithCharacterLinks(
 ): Promise<number> {
   try {
     // Get all published articles for this series
-    const articles = await prisma.article.findMany({
+    const articles = await prisma.articles.findMany({
       where: {
         primarySeriesId: seriesTmdbId,
         status: 'published',
@@ -167,7 +167,7 @@ export async function updateExistingArticlesWithCharacterLinks(
 
       // Only update if HTML changed
       if (updatedHtml !== originalHtml) {
-        await prisma.article.update({
+        await prisma.articles.update({
           where: { id: article.id },
           data: { contentHtml: updatedHtml },
         });

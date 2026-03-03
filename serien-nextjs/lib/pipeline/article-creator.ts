@@ -57,7 +57,7 @@ export async function createArticle(
   data: ArticleCreationData
 ): Promise<ArticleCreationResult> {
   // Pre-transaction: Check for duplicate by sourceUrl
-  const existingBySource = await prisma.article.findUnique({
+  const existingBySource = await prisma.articles.findUnique({
     where: { sourceUrl: data.sourceUrl },
     select: { id: true, title: true, slug: true }
   });

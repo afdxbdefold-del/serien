@@ -109,7 +109,7 @@ async function importNewsArticle(article: NewsArticle) {
 
     // 4. Create article
     const slug = generateSlug(article.title);
-    const articleData = await prisma.article.create({
+    const articleData = await prisma.articles.create({
       data: {
         id: `crawler-${Date.now()}`,
         slug,
