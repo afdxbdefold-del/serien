@@ -14,6 +14,8 @@ import { linkCharactersInMarkdown } from '../lib/character-linking-markdown';
 import { convertMarkdownToHTML } from '../lib/article-formatter';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
+import { searchTvEnhanced } from '../lib/tmdb-search-enhanced'; // NEW: Enhanced search
+import { getTvDetailsComplete } from '../lib/tmdb'; // For creating series
 import { extractFacts } from '../lib/fact-extractor';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { importSeriesCharacters } from './import-characters';
@@ -92,19 +94,57 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Map to our internal type
     const contentType = classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
 
-    // ========== STEP 3: TMDB RESOLUTION ==========
+    // ========== STEP 3: ENHANCED TMDB RESOLUTION ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 3: TMDB RESOLUTION');
+    console.log('STEP 3: ENHANCED TMDB RESOLUTION ⚡');
     console.log('━'.repeat(70));
     
-    const resolution = await resolveTmdbSeries(source.title, fullSourceText);
+    const searchResult = await searchTvEnhanced(source.title, fullSourceText);
     
-    if (!resolution.primarySeries) {
-      console.log('❌ No series found in TMDB');
+    if (!searchResult || searchResult.confidence < 0.6) {
+      console.log('❌ No confident TMDB match found');
       return null;
     }
     
-    console.log(`✅ Series: ${resolution.primarySeries.name} (ID: ${resolution.primarySeries.tmdbId})`);
+    console.log(`✅ Series: ${searchResult.name} (ID: ${searchResult.tmdbId})`);
+    console.log(`   Confidence: ${(searchResult.confidence * 100).toFixed(1)}%`);
+    console.log(`   Method: ${searchResult.matchMethod}`);
+    
+    // Check if series exists in DB
+    let dbSeries = await prisma.series.findUnique({
+      where: { tmdbId: searchResult.tmdbId },
+      select: { id: true, name: true, title: true, tmdbId: true, backdropPath: true }
+    });
+    
+    if (!dbSeries) {
+      // Create new series
+      console.log('📚 Creating new series record...');
+      const completeDetails = await getTvDetailsComplete(searchResult.tmdbId, 'de-DE');
+      
+      if (!completeDetails) {
+        console.log('❌ Failed to fetch series details');
+        return null;
+      }
+      
+      // Create series (simplified)
+      dbSeries = await prisma.series.create({
+        data: {
+          tmdbId: searchResult.tmdbId,
+          name: completeDetails.name,
+          title: completeDetails.name,
+          slug: generateSlug(completeDetails.name),
+          posterPath: completeDetails.posterPath,
+          backdropPath: completeDetails.backdropPath,
+          overview: completeDetails.overview || '',
+          status: completeDetails.status,
+          firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+        }
+      });
+      
+      console.log(`✅ Series created: ${dbSeries.name}`);
+    } else {
+      console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
+    }
 
     // ========== STEP 4: FACT EXTRACTION ==========
     console.log('\n' + '━'.repeat(70));
@@ -121,7 +161,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     const structuredContent = await generateStructuredContent({
       facts,
-      seriesName: resolution.primarySeries.name,
+      seriesName: dbSeries.name || dbSeries.title,
       originalHeadline: source.title,
       sourceText: fullSourceText,
       contentType,
@@ -139,23 +179,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     
     // Import characters first
-    const dbSeries = await prisma.series.findUnique({
-      where: { tmdbId: resolution.primarySeries.tmdbId },
-      select: { id: true },
-    });
+    await importSeriesCharacters(dbSeries.id, dbSeries.tmdbId);
     
-    if (dbSeries) {
-      await importSeriesCharacters(dbSeries.id, resolution.primarySeries.tmdbId);
-      
-      // Link characters in markdown
-      const linkResult = await linkCharactersInMarkdown(
-        structuredContent.markdown,
-        dbSeries.id
-      );
-      
-      structuredContent.markdown = linkResult.linkedMarkdown;
-      console.log(`✅ Linked ${linkResult.charactersLinked} characters`);
-    }
+    // Link characters in markdown
+    const linkResult = await linkCharactersInMarkdown(
+      structuredContent.markdown,
+      dbSeries.id
+    );
+    
+    structuredContent.markdown = linkResult.linkedMarkdown;
+    console.log(`✅ Linked ${linkResult.charactersLinked} characters`);
 
     // ========== STEP 7: MARKDOWN → HTML ==========
     console.log('\n' + '━'.repeat(70));
@@ -189,10 +222,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
         contentHtml,
         lead: structuredContent.lead,
         metaDescription: structuredContent.metaDescription,
-        imageUrl: resolution.primarySeries.backdropPath 
-          ? `https://image.tmdb.org/t/p/original${resolution.primarySeries.backdropPath}`
+        imageUrl: dbSeries.backdropPath 
+          ? `https://image.tmdb.org/t/p/original${dbSeries.backdropPath}`
           : null,
-        tmdbId: resolution.primarySeries.tmdbId,
+        tmdbId: dbSeries.tmdbId,
         createdAt: now,
         updatedAt: now,
         sourceUrl: source.url,
@@ -226,23 +259,21 @@ export async function runPipelineV2(source: PipelineV2Source) {
       
       // Import cast
       (async () => {
-        if (dbSeries) {
-          await importSeriesCast(resolution.primarySeries.tmdbId, dbSeries.id);
-          console.log(`   ✅ Cast imported`);
-        }
+        await importSeriesCast(dbSeries.tmdbId, dbSeries.id);
+        console.log(`   ✅ Cast imported`);
       })(),
       
       // Download trailer
       (async () => {
         const trailerId = await findTrailerYouTubeId(
-          resolution.primarySeries.name,
-          resolution.primarySeries.tmdbId
+          dbSeries.name || dbSeries.title,
+          dbSeries.tmdbId
         );
         
         if (trailerId) {
           await downloadYouTubeTrailer(
             trailerId,
-            resolution.primarySeries.name,
+            dbSeries.name || dbSeries.title,
             articleId
           );
           console.log(`   ✅ Trailer downloaded`);
@@ -252,7 +283,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Update series status
       (async () => {
         await updateSeriesStatus(
-          resolution.primarySeries.tmdbId,
+          dbSeries.tmdbId,
           'RENEWED', // Simple intent detection
           fullSourceText
         );
