@@ -204,7 +204,7 @@ export async function importSeriesCharacters(seriesTmdbId: number) {
           roleInSeriesContent: content.roleInSeriesContent,
           importanceContent: content.importanceContent,
           appearancesContent: content.appearancesContent,
-          qaContent: content.qa as any,
+          qaContent: JSON.stringify(content.qa), // ✅ Stringify JSON for proper storage
           metaTitle: content.metaTitle,
           metaDescription: content.metaDescription,
           publishStatus: 'published',
