@@ -12,6 +12,9 @@ import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 
+// Force dynamic rendering - articles need real-time data
+export const dynamic = 'force-dynamic';
+
 interface PageProps {
   params: Promise<{
     slug: string;
