@@ -11,6 +11,7 @@
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown } from '../lib/character-linking-markdown';
+import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
@@ -243,13 +244,22 @@ export async function runPipelineV2(source: PipelineV2Source) {
     await importSeriesCharacters(dbSeries.tmdbId);
     
     // Link characters in markdown
-    const linkResult = await linkCharactersInMarkdown(
+    const characterLinkResult = await linkCharactersInMarkdown(
       structuredContent.markdown,
       dbSeries.tmdbId
     );
     
-    structuredContent.markdown = linkResult.linkedMarkdown;
-    console.log(`✅ Linked ${linkResult.charactersLinked} characters`);
+    structuredContent.markdown = characterLinkResult.linkedMarkdown;
+    console.log(`✅ Linked ${characterLinkResult.charactersLinked} characters`);
+    
+    // Link cast members in markdown
+    const castLinkResult = await linkCastInMarkdown(
+      structuredContent.markdown,
+      dbSeries.tmdbId
+    );
+    
+    structuredContent.markdown = castLinkResult.linkedMarkdown;
+    console.log(`✅ Linked ${castLinkResult.castLinked} cast members`);
 
     // ========== STEP 7: MARKDOWN → HTML ==========
     console.log('\n' + '━'.repeat(70));
