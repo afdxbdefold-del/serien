@@ -40,25 +40,36 @@ export async function addSemanticHeadings(config: HeadingGeneratorConfig): Promi
   console.log(`   Found ${paragraphMatches.length} paragraphs, generating headings...`);
   
   // Strategy: Add H2 before paragraphs 3, 5, 7 (after lead, every 2 paragraphs)
+  // BUT: Only if the previous paragraph ends with a sentence-ending punctuation
   let result = '';
   const headingPositions = [2, 4, 6]; // Indices where to insert H2 (before these paragraphs)
   
   for (let i = 0; i < paragraphMatches.length; i++) {
     // Check if we should add H2 before this paragraph
     if (headingPositions.includes(i) && i < paragraphMatches.length) {
-      // Generate heading based on THIS paragraph
-      const heading = await generateHeadingForParagraph(
-        paragraphMatches[i],
-        seriesName,
-        articleTitle
-      );
+      // CRITICAL: Check if previous paragraph ends with sentence-ending punctuation
+      const prevParagraph = paragraphMatches[i - 1];
+      const prevText = prevParagraph.replace(/<[^>]*>/g, '').trim();
+      const endsWithSentence = /[.!?]$/.test(prevText);
       
-      if (heading) {
-        result += `<h2>${heading}</h2>\n\n`;
-        console.log(`   ✅ H2: "${heading}"`);
+      if (endsWithSentence) {
+        // Generate heading based on THIS paragraph
+        const heading = await generateHeadingForParagraph(
+          paragraphMatches[i],
+          seriesName,
+          articleTitle
+        );
+        
+        if (heading) {
+          result += `<h2>${heading}</h2>\n\n`;
+          console.log(`   ✅ H2: "${heading}"`);
+        }
+      } else {
+        console.log(`   ⚠️  Skipping H2 at position ${i}: Previous paragraph doesn't end with sentence`);
       }
     }
     
+    // Always add the paragraph
     result += paragraphMatches[i] + '\n\n';
   }
   
