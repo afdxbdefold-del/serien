@@ -192,7 +192,7 @@ export default function MobileSeriesLayout({
         <QuickFactsBox
           originalTitle={series.originalName || series.originalTitle}
           firstAirYear={series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null}
-          creators={creators.map(c => c.name)}
+          creators={(creators || []).map(c => c?.name).filter(Boolean)}
           mainGenre={series.genres && series.genres.length > 0 ? series.genres[0] : null}
           platform={series.networks && series.networks.length > 0 ? series.networks[0] : null}
           status={series.status}

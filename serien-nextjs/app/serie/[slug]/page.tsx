@@ -225,26 +225,26 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       
       <MobileSeriesLayout
         series={series}
-        cast={castWithLinks}
-        creators={creators}
-        seasons={seasons}
-        trailers={trailers}
-        relevanceContext={relevanceContext}
-        statusContext={statusContext}
-        seriesQA={seriesQA}
+        cast={castWithLinks || []}
+        creators={creators || []}
+        seasons={seasons || []}
+        trailers={trailers || []}
+        relevanceContext={relevanceContext || null}
+        statusContext={statusContext || null}
+        seriesQA={seriesQA || []}
         slug={slug}
-        characters={characters}
+        characters={characters || []}
       />
 
       <DesktopSeriesLayout
         series={series}
-        cast={castWithLinks}
-        creators={creators}
-        seasons={seasons}
-        trailers={trailers}
-        seriesQA={seriesQA}
+        cast={castWithLinks || []}
+        creators={creators || []}
+        seasons={seasons || []}
+        trailers={trailers || []}
+        seriesQA={seriesQA || []}
         slug={slug}
-        characters={characters}
+        characters={characters || []}
       />
     </main>
   );
