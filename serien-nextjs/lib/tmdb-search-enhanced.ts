@@ -39,7 +39,11 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   const candidates: string[] = [];
   
   // 1. Extract from title (quoted names) - HIGHEST PRIORITY
-  const quotedMatches = title.matchAll(/["'„"]([^"'""]{2,40})["'""]/g);
+  // Support various quote types: ' " ' " ' ' „ "
+  // Use simpler alternation instead of character class
+  const quotePattern = /['""''„"]([^'""''„"]{2,40})['""''"]/g;
+  const quotedMatches = title.matchAll(quotePattern);
+  
   for (const match of quotedMatches) {
     if (match[1] && match[1].length > 2) {
       candidates.push(match[1]);
@@ -47,9 +51,8 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   }
   
   // 2. Extract after "um" or "bekommt" (German patterns)
-  // "„Cross" um eine 3. Staffel" → "Cross"
-  // "„Cross" bekommt" → "Cross"
-  const germanMatch = title.match(/["'„"]([^"'""]{2,40})["'""]\s+(?:um|bekommt|erhält)/i);
+  const germanPattern = /['""''„"]([^'""''„"]{2,40})['""'']\s+(?:um|bekommt|erhält)/i;
+  const germanMatch = title.match(germanPattern);
   if (germanMatch && germanMatch[1]) {
     candidates.push(germanMatch[1]);
   }
@@ -76,8 +79,8 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   // 5. Extract from article text first paragraph
   const firstSentence = textHead.match(/^([^.!?]{20,200})[.!?]/);
   if (firstSentence) {
-    // Look for quoted names in first sentence
-    const quotedInText = firstSentence[1].matchAll(/["'„"]([^"'""]{2,40})["'""]/g);
+    const textQuotePattern = /['""''„"]([^'""''„"]{2,40})['""''"]/g;
+    const quotedInText = firstSentence[1].matchAll(textQuotePattern);
     for (const match of quotedInText) {
       if (match[1]) {
         candidates.push(match[1]);
@@ -169,10 +172,12 @@ export async function searchTvEnhanced(
   }
   
   console.log('🔍 Enhanced TMDB search...');
+  console.log(`   Title: "${title}"`);
+  console.log(`   Text (first 100): "${articleText.substring(0, 100)}"`);
   
   // Extract potential series names
   const candidates = extractSeriesNameFromContext(title, articleText);
-  console.log(`   Candidates: ${candidates.join(', ')}`);
+  console.log(`   Candidates: ${candidates.join(', ') || '(none)'}`);
   
   if (candidates.length === 0) {
     console.log('   ⚠️  No series name candidates found');
