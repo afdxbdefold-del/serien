@@ -30,37 +30,20 @@ export async function addSemanticHeadings(config: HeadingGeneratorConfig): Promi
   console.log('   No H2 tags found, generating semantic structure...');
   
   // Split into paragraphs
-  const paragraphs = contentHtml.split(/(<\/p>)/i).filter(p => p.trim());
+  const paragraphMatches = contentHtml.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
   
-  if (paragraphs.length < 8) { // At least 4 full <p>...</p> pairs
-    console.log('   ⚠️  Too few paragraphs for heading generation');
+  if (!paragraphMatches || paragraphMatches.length < 4) {
+    console.log(`   ⚠️  Too few paragraphs (found: ${paragraphMatches?.length || 0}, need: 4+)`);
     return contentHtml;
   }
   
-  // Extract plain text paragraphs (skip lead)
-  const textParagraphs: string[] = [];
-  let inParagraph = false;
-  let currentP = '';
-  
-  for (const part of paragraphs) {
-    if (part.startsWith('<p')) {
-      inParagraph = true;
-      currentP = part;
-    } else if (part === '</p>') {
-      currentP += part;
-      const plainText = currentP.replace(/<[^>]*>/g, ' ').trim();
-      if (plainText.length > 50) {
-        textParagraphs.push(plainText);
-      }
-      inParagraph = false;
-      currentP = '';
-    } else if (inParagraph) {
-      currentP += part;
-    }
-  }
+  // Extract plain text from paragraphs (skip lead)
+  const textParagraphs = paragraphMatches
+    .map(p => p.replace(/<[^>]*>/g, ' ').trim())
+    .filter(text => text.length > 50);
   
   if (textParagraphs.length < 4) {
-    console.log('   ⚠️  Not enough content paragraphs');
+    console.log(`   ⚠️  Not enough text paragraphs (found: ${textParagraphs.length}, need: 4+)`);
     return contentHtml;
   }
   
@@ -119,10 +102,13 @@ ANFORDERUNGEN:
 FORMAT (NUR die Überschriften, eine pro Zeile):`;
 
   try {
-    const { EmergentIntegrations } = await import('emergentintegrations');
-    const llm = new EmergentIntegrations(emergentApiKey);
-    
-    const response = await llm.openai.chat.completions.create({
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({
+      apiKey: emergentApiKey,
+      baseURL: 'http://localhost:8002/v1',  // Emergent proxy
+    });
+
+    const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
