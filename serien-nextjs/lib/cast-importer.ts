@@ -65,7 +65,7 @@ async function fetchTMDBCast(tmdbId: number): Promise<TMDBCastMember[]> {
 }
 
 /**
- * Import cast members for a series into persons table
+ * Import cast members for a series into persons table AND series.cast JSON
  * Only imports if they don't already exist
  */
 export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
@@ -132,6 +132,26 @@ export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
       console.log(`   🎉 Imported ${importedCount} new cast members`);
     } else {
       console.log(`   ℹ️  All cast members already exist`);
+    }
+
+    // ✅ UPDATE series.cast JSON field for frontend display
+    try {
+      await prisma.series.update({
+        where: { tmdbId: seriesTmdbId },
+        data: {
+          cast: cast.map(member => ({
+            id: member.id,
+            name: member.name,
+            character: member.character,
+            profile_path: member.profile_path,
+            order: member.order,
+          })),
+          updatedAt: new Date(),
+        },
+      });
+      console.log(`   ✅ Updated series.cast field with ${cast.length} members`);
+    } catch (error: any) {
+      console.error(`   ⚠️  Failed to update series.cast field:`, error.message);
     }
 
     return importedCount;
