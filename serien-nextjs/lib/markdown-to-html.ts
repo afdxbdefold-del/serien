@@ -6,6 +6,9 @@
 export function markdownToHtml(markdown: string): string {
   let html = markdown;
   
+  // Convert markdown links [text](url) to <a href="url">text</a>
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  
   // Convert headings (must be at line start)
   // H3 first (to avoid matching ## in ###)
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');

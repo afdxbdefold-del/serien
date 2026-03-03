@@ -57,7 +57,31 @@ export async function linkCharactersInMarkdown(
       'gi'
     );
     
-    const matches = linkedMarkdown.match(regex);
+    let matches = linkedMarkdown.match(regex);
+    
+    // If full name not found, try matching first name only (for "Xavier Collins" → "Xavier")
+    if (!matches && char.name.includes(' ')) {
+      const firstName = char.name.split(' ')[0];
+      const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const firstNameRegex = new RegExp(
+        `(?<!\\[)(?<!\\()(?<!##\\s)\\b${escapedFirstName}\\b(?!\\])(?!\\))`,
+        'gi'
+      );
+      
+      matches = linkedMarkdown.match(firstNameRegex);
+      
+      if (matches && matches.length > 0) {
+        // Replace first name with markdown link
+        linkedMarkdown = linkedMarkdown.replace(
+          firstNameRegex,
+          `[${firstName}](/charaktere/${char.slug})`
+        );
+        
+        linkedCount++;
+        console.log(`   ✅ Linked: ${firstName} → ${char.name} (${matches.length} occurrences)`);
+        return; // Skip full name matching
+      }
+    }
     
     if (matches && matches.length > 0) {
       // Replace with markdown link
