@@ -106,11 +106,30 @@ export default async function Page() {
     isAuthenticated = false;
   }
 
+  // Serialize data for client component (convert Dates to strings)
+  const serializedArticles = articles.map((article: any) => ({
+    ...article,
+    publishedAt: article.publishedAt?.toISOString() || null,
+    updatedAt: article.updatedAt?.toISOString() || null,
+    createdAt: article.createdAt?.toISOString() || null,
+    sourcePublishedAt: article.sourcePublishedAt?.toISOString() || null,
+  }));
+
+  const serializedSeries = series.map((s: any) => ({
+    ...s,
+    firstAirDate: s.firstAirDate?.toISOString() || null,
+    lastAirDate: s.lastAirDate?.toISOString() || null,
+    createdAt: s.createdAt?.toISOString() || null,
+    updatedAt: s.updatedAt?.toISOString() || null,
+    statusLastUpdate: s.statusLastUpdate?.toISOString() || null,
+    lastNewsDate: s.lastNewsDate?.toISOString() || null,
+  }));
+
   return (
     <>
       <HomeClient 
-        initialNews={articles} 
-        initialSeries={series} 
+        initialNews={serializedArticles} 
+        initialSeries={serializedSeries} 
         stats={stats}
         isAuthenticated={isAuthenticated}
       />
