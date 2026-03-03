@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch article
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { id: articleId },
       include: {
         series: true, // Fixed: use 'series' not 'primarySeries'

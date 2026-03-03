@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { slug } = await params;
     
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { slug },
       select: { id: true }
     });
@@ -72,7 +72,7 @@ export async function POST(
       );
     }
 
-    const article = await prisma.article.findUnique({
+    const article = await prisma.articles.findUnique({
       where: { slug },
       select: { id: true }
     });

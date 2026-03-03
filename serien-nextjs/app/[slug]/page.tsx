@@ -24,7 +24,7 @@ interface PageProps {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await prisma.article.findUnique({
+  const article = await prisma.articles.findUnique({
     where: { slug },
     select: {
       title: true,
@@ -89,7 +89,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   
   // Fetch article with related data
-  const article = await prisma.article.findUnique({
+  const article = await prisma.articles.findUnique({
     where: { slug },
     include: {
       users: true, // Fixed: use 'users' not 'author' (relation name in schema)
@@ -103,7 +103,7 @@ export default async function ArticlePage({ params }: PageProps) {
   }
 
   // Fetch related news (same category or same series)
-  const relatedNews = await prisma.article.findMany({
+  const relatedNews = await prisma.articles.findMany({
     where: {
       status: 'published',
       id: { not: article.id },

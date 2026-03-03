@@ -7,7 +7,7 @@ export async function GET() {
   // Get articles from last 48 hours only
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
   
-  const recentArticles = await prisma.article.findMany({
+  const recentArticles = await prisma.articles.findMany({
     where: {
       status: 'published',
       publishedAt: {
