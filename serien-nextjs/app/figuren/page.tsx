@@ -9,6 +9,10 @@ import Image from 'next/image';
 import prisma from '@/lib/prisma';
 import { Search } from 'lucide-react';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 export const metadata: Metadata = {
   title: 'Serienfiguren - Charaktere & Rollen | serien.de',
   description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',

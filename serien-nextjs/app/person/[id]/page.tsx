@@ -9,6 +9,10 @@ import prisma from '@/lib/prisma';
 import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
 import Image from 'next/image';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 interface PageProps {
   params: Promise<{
     id: string;

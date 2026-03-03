@@ -2,6 +2,10 @@ import { Mail, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 const gradientColors: Record<string, string> = {
   'from-rose-500 to-pink-600': 'linear-gradient(135deg, #f43f5e, #db2777)',
   'from-purple-500 to-indigo-600': 'linear-gradient(135deg, #a855f7, #4f46e5)',

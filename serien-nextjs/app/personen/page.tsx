@@ -7,6 +7,10 @@ import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import ActorGrid from '@/components/ActorGrid';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 export const metadata: Metadata = {
   title: 'Schauspieler & Stars - Alle Serien-Darsteller | serien.de',
   description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',

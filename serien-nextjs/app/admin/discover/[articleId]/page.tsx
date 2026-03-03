@@ -3,6 +3,10 @@ import Link from 'next/link';
 import { CheckCircle2, XCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import prisma from '@/lib/prisma';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 interface PageProps {
   params: Promise<{ articleId: string }>;
 }

@@ -3,6 +3,10 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { Library } from 'lucide-react';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 interface PageProps {
   params: Promise<{
     genre: string;

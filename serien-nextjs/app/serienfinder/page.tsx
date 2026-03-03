@@ -2,6 +2,10 @@ import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import TrendingClient from '@/components/TrendingClient';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+
 export const metadata: Metadata = {
   title: 'Serienfinder | serien.de',
   description: 'Finde deine nächste Lieblingsserie - mit umfangreichen Filtern nach Genre, Sender, Bewertung und mehr.',
