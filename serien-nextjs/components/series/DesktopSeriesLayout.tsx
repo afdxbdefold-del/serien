@@ -17,6 +17,8 @@ interface DesktopSeriesLayoutProps {
   creators: any[];
   seasons: any[];
   trailers: any[];
+  relevanceContext: any;
+  statusContext: any;
   seriesQA: any[];
   slug: string;
   characters: any[];
@@ -28,6 +30,8 @@ export default function DesktopSeriesLayout({
   creators,
   seasons,
   trailers,
+  relevanceContext,
+  statusContext,
   seriesQA,
   slug,
   characters,

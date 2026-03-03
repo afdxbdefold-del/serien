@@ -213,6 +213,19 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     genres,
   });
 
+  // Serialize Prisma Date objects for React Server Components
+  const serializedSeries = {
+    ...series,
+    articles: series.articles?.map((article: any) => ({
+      ...article,
+      publishedAt: article.publishedAt ? article.publishedAt.toISOString() : null,
+      createdAt: article.createdAt ? article.createdAt.toISOString() : null,
+      updatedAt: article.updatedAt ? article.updatedAt.toISOString() : null,
+    })) || [],
+    firstAirDate: series.firstAirDate || null,
+    lastAirDate: series.lastAirDate || null,
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       {/* JSON-LD Structured Data */}
@@ -224,7 +237,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       />
       
       <MobileSeriesLayout
-        series={series}
+        series={serializedSeries}
         cast={castWithLinks || []}
         creators={creators || []}
         seasons={seasons || []}
@@ -237,11 +250,13 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       />
 
       <DesktopSeriesLayout
-        series={series}
+        series={serializedSeries}
         cast={castWithLinks || []}
         creators={creators || []}
         seasons={seasons || []}
         trailers={trailers || []}
+        relevanceContext={relevanceContext || null}
+        statusContext={statusContext || null}
         seriesQA={seriesQA || []}
         slug={slug}
         characters={characters || []}
