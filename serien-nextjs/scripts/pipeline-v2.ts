@@ -282,11 +282,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 7.5: INTERNAL LINKING');
     console.log('━'.repeat(70));
     
+    // Generate article ID early for internal linking
+    const articleId = `pipeline-v2-${Date.now()}`;
+    
     const internalLinksResult = await generateInternalLinks({
+      articleId,
       contentHtml,
-      seriesName: dbSeries.name || dbSeries.title || '',
-      seriesSlug: dbSeries.slug || '',
-      articleTitle: structuredContent.headline,
+      primarySeriesId: dbSeries.tmdbId, // Now passing as number
+      primarySeriesName: dbSeries.name || dbSeries.title || '',
+      primarySeriesSlug: dbSeries.slug || '',
+      publishedAt: null,
     });
     
     const finalContentHtml = internalLinksResult.updatedContentHtml;
@@ -309,7 +314,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     
     const slug = generateSlug(structuredContent.headline);
-    const articleId = `pipeline-v2-${Date.now()}`;
+    // articleId already generated in Step 7.5
     
     await prisma.articles.create({
       data: {
@@ -323,6 +328,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
           ? `https://image.tmdb.org/t/p/original${dbSeries.backdropPath}`
           : null,
         tmdbId: dbSeries.tmdbId,
+        primarySeriesId: dbSeries.tmdbId, // ✅ Set correct series ID for internal linking
+        tmdbType: 'tv',
         authorId: 'author_001', // System author
         status: 'published', // ✅ Auto-publish articles
         publishedAt: now, // ✅ Set publication timestamp

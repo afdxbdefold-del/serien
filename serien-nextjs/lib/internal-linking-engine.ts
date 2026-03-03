@@ -10,7 +10,7 @@ import prisma from './prisma'; // Use shared Prisma instance
 interface InternalLinksConfig {
   articleId: string;
   contentHtml: string;
-  primarySeriesId: string;
+  primarySeriesId: number; // Changed from string to number
   primarySeriesName: string;
   primarySeriesSlug: string;
   publishedAt: Date | null;
@@ -62,7 +62,7 @@ export async function generateInternalLinks(
 
 async function findRelatedArticles(
   currentArticleId: string,
-  seriesId: string,
+  seriesId: number, // Changed from string to number
   publishedAt: Date | null
 ): Promise<Array<{ id: string; title: string; slug: string; publishedAt: Date | null }>> {
   // Find max 2 related articles from same series
