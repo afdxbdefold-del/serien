@@ -1086,6 +1086,18 @@ export async function runContentPipeline(source: CrawledSource) {
       linkValidation.errors.forEach(err => console.log(`   - ${err}`));
     }
 
+    // ========== STEP 7.7: ADD SEMANTIC H2 HEADINGS ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.7: ADD SEMANTIC H2 HEADINGS');
+    console.log('━'.repeat(70));
+
+    const { addSemanticHeadings } = await import('../lib/heading-generator');
+    generatedContent = await addSemanticHeadings({
+      contentHtml: generatedContent,
+      articleTitle,
+      seriesName: resolution.primarySeries.name,
+    });
+
     // ========== STEP 7.8: TRAILER DOWNLOAD ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7.8: TRAILER DOWNLOAD (LOCAL STORAGE)');
