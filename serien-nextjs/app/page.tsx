@@ -47,13 +47,8 @@ export default async function Page() {
   let articles, series, seriesCount, articlesCount;
   
   try {
-    // Defensive check for Vercel serverless environment
-    if (!prisma) {
-      throw new Error('Prisma client is not initialized');
-    }
-    
     [articles, series, seriesCount, articlesCount] = await Promise.all([
-      prisma.article.findMany({
+      prisma.articles.findMany({
         where: { status: 'published' },
         include: {
           users: { 
@@ -78,7 +73,7 @@ export default async function Page() {
         take: 20
       }),
       prisma.series.count(),
-      prisma.article.count({ where: { status: 'published' } })
+      prisma.articles.count({ where: { status: 'published' } })
     ]);
   } catch (error) {
     console.error('Homepage DB query failed:', error);
