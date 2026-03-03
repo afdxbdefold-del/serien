@@ -23,6 +23,12 @@ import { importSeriesCast } from '../lib/cast-importer';
 import { findTrailerYouTubeId, downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
+import { qualityCheck } from '../lib/quality-checker';
+import { antiAiFilter } from '../lib/anti-ai-filter';
+import { discoverGate } from '../lib/discover-gate';
+import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { factSafetyCheck } from '../lib/fact-safety-layer';
+import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 
 const prisma = new PrismaClient();
 
@@ -175,6 +181,58 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`   Headline: "${structuredContent.headline}"`);
     console.log(`   Sections: ${structuredContent.sections.length} with H2s`);
     console.log(`   Q&A: ${structuredContent.qa.length} pairs`);
+
+    // ========== STEP 5.1: QUALITY GATES ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.1: QUALITY GATES');
+    console.log('━'.repeat(70));
+    
+    // Quality Check
+    const qualityResult = qualityCheck(structuredContent.markdown, structuredContent.headline);
+    if (!qualityResult.passed) {
+      console.log('❌ Quality check failed:');
+      qualityResult.errors.forEach(err => console.log(`   - ${err}`));
+      return null;
+    }
+    console.log(`✅ Quality check passed`);
+    
+    // Anti-AI Filter
+    const antiAiResult = antiAiFilter(structuredContent.markdown);
+    if (!antiAiResult.passed) {
+      console.log('❌ Anti-AI filter failed:');
+      antiAiResult.errors.forEach(err => console.log(`   - ${err}`));
+      return null;
+    }
+    console.log(`✅ Anti-AI filter passed`);
+    
+    // Fact Safety Check
+    const factSafetyResult = await factSafetyCheck(
+      structuredContent.markdown,
+      facts,
+      fullSourceText
+    );
+    if (!factSafetyResult.passed) {
+      console.log('❌ Fact safety check failed:');
+      factSafetyResult.errors.forEach(err => console.log(`   - ${err}`));
+      return null;
+    }
+    console.log(`✅ Fact safety check passed`);
+    
+    // Time-Axis Correction (old content check)
+    const contentAge = await classifyContentAge(fullSourceText, source.title);
+    const shouldPublish = shouldPublishBasedOnAge(contentAge);
+    
+    if (!shouldPublish) {
+      console.log(`⚠️  Content too old (${contentAge.ageCategory}), skipping`);
+      return null;
+    }
+    
+    if (contentAge.ageCategory === 'OLD') {
+      console.log(`⚠️  Old content detected, neutralizing headline...`);
+      structuredContent.headline = neutralizeOldContentHeadline(structuredContent.headline);
+    }
+    
+    console.log(`✅ Content age: ${contentAge.ageCategory}`);
 
     // ========== STEP 6: CHARACTER IMPORT & LINKING (ON MARKDOWN!) ==========
     console.log('\n' + '━'.repeat(70));
@@ -336,6 +394,37 @@ export async function runPipelineV2(source: PipelineV2Source) {
           fullSourceText
         );
         console.log(`   ✅ Series status updated`);
+      })(),
+      
+      // Generate "Was bedeutet das" section
+      (async () => {
+        try {
+          const wasBedeutetDasText = await generateWasBedeutetDas(
+            structuredContent.headline,
+            finalContentHtml,
+            dbSeries.name || dbSeries.title || ''
+          );
+          
+          if (wasBedeutetDasText) {
+            await prisma.articles.update({
+              where: { id: articleId },
+              data: { wasBedeutetDasText }
+            });
+            console.log(`   ✅ "Was bedeutet das" generated`);
+          }
+        } catch (error: any) {
+          console.log(`   ⚠️  "Was bedeutet das" generation failed: ${error.message}`);
+        }
+      })(),
+      
+      // Discover Gate
+      (async () => {
+        try {
+          await discoverGate(articleId, structuredContent.headline, finalContentHtml);
+          console.log(`   ✅ Discover Gate processed`);
+        } catch (error: any) {
+          console.log(`   ⚠️  Discover Gate failed: ${error.message}`);
+        }
       })(),
     ]);
 
