@@ -1,6 +1,10 @@
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 
+// Force dynamic rendering - admin dashboard needs real-time data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DiscoverDashboard() {
   let audits = [];
   let error = null;

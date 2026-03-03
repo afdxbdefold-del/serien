@@ -4,6 +4,9 @@ import { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 
+// Force dynamic rendering - homepage needs real-time data
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien. Folge Serien, entdecke neue Highlights und verpasse keine wichtigen Updates mehr.',
