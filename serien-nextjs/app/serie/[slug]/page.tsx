@@ -154,7 +154,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       publishStatus: 'published',
     },
     include: {
-      actor: {
+      persons: {
         select: {
           name: true,
           profilePath: true,

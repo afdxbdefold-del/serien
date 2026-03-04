@@ -55,7 +55,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           posterPath: true,
         },
       },
-      actor: {
+      persons: {
         select: {
           tmdbId: true,
           name: true,
@@ -128,14 +128,14 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                     {seriesName}
                   </Link>
                 </div>
-                {character.actor && (
+                {character.persons && (
                   <div>
                     <span className="text-sm text-gray-500">Gespielt von:</span>
                     <Link
-                      href={`/person/${character.actor.slug}`}
+                      href={`/person/${character.persons.slug}`}
                       className="ml-2 text-blue-600 hover:underline font-medium"
                     >
-                      {character.actor.name}
+                      {character.persons.name}
                     </Link>
                   </div>
                 )}
@@ -209,17 +209,17 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
             )}
 
             {/* Darsteller & Besetzung */}
-            {character.actor && (
+            {character.persons && (
               <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Darsteller & Besetzung
                 </h2>
                 <div className="flex items-start gap-4">
-                  {character.actor.profilePath && (
-                    <Link href={`/person/${character.actor.slug}`}>
+                  {character.persons.profilePath && (
+                    <Link href={`/person/${character.persons.slug}`}>
                       <Image
-                        src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
-                        alt={character.actor.name}
+                        src={`https://image.tmdb.org/t/p/w185${character.persons.profilePath}`}
+                        alt={character.persons.name}
                         width={80}
                         height={120}
                         className="rounded-lg shadow-md hover:shadow-lg transition-shadow"
@@ -228,10 +228,10 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                   )}
                   <div>
                     <Link
-                      href={`/person/${character.actor.slug}`}
+                      href={`/person/${character.persons.slug}`}
                       className="text-lg font-semibold text-blue-600 hover:underline"
                     >
-                      {character.actor.name}
+                      {character.persons.name}
                     </Link>
                     <p className="text-sm text-gray-600 mt-1">
                       spielt {character.name} in {seriesName}.
