@@ -148,7 +148,7 @@ export async function linkCharactersInMarkdown(
       
       linkedMarkdown = 
         linkedMarkdown.substring(0, matchIndex) +
-        `[${matchText}](/charaktere/${char.slug})` +
+        `[${matchText}](/figur/${char.slug})` +
         linkedMarkdown.substring(matchIndex + matchText.length);
       
       linkedCount++;

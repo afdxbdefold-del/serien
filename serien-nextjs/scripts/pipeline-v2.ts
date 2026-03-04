@@ -267,6 +267,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
     structuredContent.markdown = characterLinkResult.linkedMarkdown;
     console.log(`✅ Linked ${characterLinkResult.charactersLinked} characters`);
     
+    // DEBUG: Check if links are actually in markdown
+    const debugCharLinks = (structuredContent.markdown.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
+    console.log(`🔍 DEBUG: Markdown has ${debugCharLinks} character links`);
+    
     // Link cast members in markdown
     const castLinkResult = await linkCastInMarkdown(
       structuredContent.markdown,
@@ -275,6 +279,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     structuredContent.markdown = castLinkResult.linkedMarkdown;
     console.log(`✅ Linked ${castLinkResult.castLinked} cast members`);
+    
+    // DEBUG: Check if links are actually in markdown
+    const debugCastLinks = (structuredContent.markdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
+    console.log(`🔍 DEBUG: Markdown has ${debugCastLinks} cast links`);
+    
     console.timeEnd('⏱️  STEP 6: Character Import & Linking');
 
     // ========== STEP 7: MARKDOWN → HTML ==========
@@ -284,6 +293,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.time('⏱️  STEP 7: Markdown to HTML');
     
     const contentHtml = markdownToHtml(structuredContent.markdown);
+    
+    // DEBUG: Check if links survived HTML conversion
+    const debugHtmlCharLinks = (contentHtml.match(/href="\/figur\//g) || []).length;
+    const debugHtmlCastLinks = (contentHtml.match(/href="\/person\//g) || []).length;
+    console.log(`🔍 DEBUG: HTML has ${debugHtmlCharLinks} character links, ${debugHtmlCastLinks} cast links`);
     
     // Verify H2s survived conversion
     const h2Count = (contentHtml.match(/<h2>/g) || []).length;

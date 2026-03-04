@@ -119,7 +119,7 @@ export async function linkCastInMarkdown(
       
       linkedMarkdown = 
         linkedMarkdown.substring(0, matchIndex) +
-        `[${matchText}](/personen/${member.slug})` +
+        `[${matchText}](/person/${member.slug})` +
         linkedMarkdown.substring(matchIndex + matchText.length);
       
       linkedCount++;
