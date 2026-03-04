@@ -19,7 +19,7 @@ interface FandomCharacterData {
 }
 
 /**
- * Fetch Fandom page via Apify Actor
+ * Fetch Fandom page via Apify Actor (Universal Web Scraper)
  */
 async function fetchViaApify(url: string): Promise<string | null> {
   try {
@@ -32,15 +32,37 @@ async function fetchViaApify(url: string): Promise<string | null> {
 
     console.log(`[Apify] Fetching: ${url}`);
 
-    // Prepare Actor input
+    // Use Universal Web Scraper Actor
     const actorInput = {
       startUrls: [{ url }],
-      download_image: false,
+      linkSelector: 'a[href]',
+      pseudoUrls: [],
+      pageFunction: `async function pageFunction(context) {
+        const { page } = context;
+        
+        // Wait for content to load
+        await page.waitForSelector('body', { timeout: 10000 });
+        
+        // Get full HTML
+        const html = await page.content();
+        
+        return {
+          url: page.url(),
+          html: html,
+          title: await page.title(),
+        };
+      }`,
+      proxyConfiguration: {
+        useApifyProxy: true,
+      },
+      maxRequestsPerCrawl: 1,
+      maxConcurrency: 1,
     };
 
-    // Run the Actor (Actor ID: ZuMH5LMcuGb6f3thd)
+    // Run the Universal Web Scraper Actor
+    // Actor ID: apify/web-scraper (universal, reliable)
     const runResponse = await fetch(
-      `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs?token=${apiToken}`,
+      `https://api.apify.com/v2/acts/apify~web-scraper/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,6 +77,7 @@ async function fetchViaApify(url: string): Promise<string | null> {
 
     const runData = await runResponse.json();
     const runId = runData.data.id;
+    const datasetId = runData.data.defaultDatasetId;
     
     console.log(`[Apify] Run started: ${runId}`);
 
@@ -66,7 +89,7 @@ async function fetchViaApify(url: string): Promise<string | null> {
       await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
       
       const statusResponse = await fetch(
-        `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs/${runId}?token=${apiToken}`
+        `https://api.apify.com/v2/acts/apify~web-scraper/runs/${runId}?token=${apiToken}`
       );
 
       if (!statusResponse.ok) {
@@ -80,9 +103,9 @@ async function fetchViaApify(url: string): Promise<string | null> {
       if (status === 'SUCCEEDED') {
         console.log(`[Apify] ✅ Run completed`);
         
-        // Get results
+        // Get results from dataset
         const resultsResponse = await fetch(
-          `https://api.apify.com/v2/acts/ZuMH5LMcuGb6f3thd/runs/${runId}/dataset/items?token=${apiToken}`
+          `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiToken}`
         );
 
         if (!resultsResponse.ok) {
