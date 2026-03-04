@@ -140,57 +140,7 @@ async function fetchViaApify(url: string): Promise<string | null> {
 }
 
 /**
- * METHOD 1: MediaWiki API (Public, No Auth Required)
- */
-async function fetchViaMediaWikiAPI(
-  wikiDomain: string,
-  pageName: string
-): Promise<{ content: string; url: string } | null> {
-  try {
-    const apiUrl = `https://${wikiDomain}/api.php`;
-    
-    const params = new URLSearchParams({
-      action: 'parse',
-      page: pageName,
-      format: 'json',
-      prop: 'text|displaytitle',
-      disableeditsection: '1',
-      disabletoc: '1',
-    });
-
-    const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      headers: {
-        'User-Agent': 'serien.de-bot/1.0 (character-info-aggregator)',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (data.error || !data.parse || !data.parse.text) {
-      return null;
-    }
-
-    const pageUrl = `https://${wikiDomain}/wiki/${pageName}`;
-    const htmlContent = data.parse.text['*'];
-
-    console.log(`[Fandom API] ✅ Content fetched (${htmlContent.length} chars)`);
-
-    return {
-      content: htmlContent,
-      url: pageUrl,
-    };
-  } catch (error: any) {
-    return null;
-  }
-}
-
-/**
- * METHOD 2: Browser Automation (Playwright) - Fallback
+ * METHOD 1: Browser Automation (Playwright) - Fallback
  */
 async function fetchViaBrowser(url: string): Promise<string | null> {
   try {
@@ -291,7 +241,7 @@ function parseCharacterData(html: string, url: string): FandomCharacterData {
 }
 
 /**
- * Main function: Search for character with Apify + fallbacks
+ * Main function: Search for character with Apify + Browser fallback
  */
 export async function searchFandomCharacter(
   characterName: string,
@@ -314,42 +264,25 @@ export async function searchFandomCharacter(
       `${seriesName.toLowerCase().replace(/\s+/g, '_')}.fandom.com`,
     ];
 
-    // STRATEGY 1: Try MediaWiki API (fast, no Cloudflare issues)
-    console.log(`[Fandom] Strategy 1: MediaWiki API (fastest)`);
-    
-    for (const domain of wikiDomains) {
-      const result = await fetchViaMediaWikiAPI(domain, characterSlug);
-      
-      if (result) {
-        const characterData = parseCharacterData(result.content, result.url);
+    // STRATEGY 1: Try Apify (if token available)
+    if (process.env.APIFY_API_TOKEN) {
+      console.log(`[Fandom] Strategy 1: Apify Web Scraper (fast & reliable)`);
+
+      // Try only the first domain with Apify (stop after first success)
+      const url = `https://${wikiDomains[0]}/wiki/${characterSlug}`;
+      const html = await fetchViaApify(url);
+
+      if (html) {
+        const characterData = parseCharacterData(html, url);
         if (characterData.found) {
-          console.log(`[Fandom] ✅ Found via MediaWiki API: ${result.url}`);
+          console.log(`[Fandom] ✅ Found via Apify: ${url}`);
           return characterData;
         }
       }
     }
 
-    // STRATEGY 2: Try Apify (if token available)
-    if (process.env.APIFY_API_TOKEN) {
-      console.log(`[Fandom] Strategy 2: Apify Actor`);
-
-      // Try only the first domain with Apify (stop after first success)
-      for (const domain of wikiDomains) {
-        const url = `https://${domain}/wiki/${characterSlug}`;
-        const html = await fetchViaApify(url);
-
-        if (html) {
-          const characterData = parseCharacterData(html, url);
-          if (characterData.found) {
-            console.log(`[Fandom] ✅ Found via Apify: ${url}`);
-            return characterData;
-          }
-        }
-      }
-    }
-
-    // STRATEGY 3: Browser automation fallback (only 1 attempt!)
-    console.log(`[Fandom] Strategy 3: Browser Automation (last resort)`);
+    // STRATEGY 2: Browser automation fallback (only 1 attempt!)
+    console.log(`[Fandom] Strategy 2: Browser Automation (last resort)`);
 
     // 🔥 OPTIMIZATION: Try only the FIRST domain, not all 3!
     const url = `https://${wikiDomains[0]}/wiki/${characterSlug}`;
