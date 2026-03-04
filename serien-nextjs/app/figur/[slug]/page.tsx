@@ -90,7 +90,24 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     },
   });
 
-  const qa = character.qaContent as Array<{ question: string; answer: string }> | null;
+  // Parse qaContent safely (handles both string and JSON)
+  let qa: Array<{ question: string; answer: string }> | null = null;
+  
+  if (character.qaContent) {
+    try {
+      if (typeof character.qaContent === 'string') {
+        // Try to parse as JSON if it's a string
+        qa = JSON.parse(character.qaContent);
+      } else if (Array.isArray(character.qaContent)) {
+        // Already an array
+        qa = character.qaContent as Array<{ question: string; answer: string }>;
+      }
+    } catch (error) {
+      console.error('Failed to parse qaContent:', error);
+      qa = null;
+    }
+  }
+  
   const seriesName = character.series.name || character.series.title;
 
   return (
