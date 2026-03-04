@@ -19,7 +19,7 @@ interface FandomCharacterData {
 }
 
 /**
- * Fetch Fandom page via Apify Actor (Universal Web Scraper)
+ * Fetch Fandom page via Apify Actor (Web Scraper with Puppeteer)
  */
 async function fetchViaApify(url: string): Promise<string | null> {
   try {
@@ -32,37 +32,36 @@ async function fetchViaApify(url: string): Promise<string | null> {
 
     console.log(`[Apify] Fetching: ${url}`);
 
-    // Use Universal Web Scraper Actor
+    // Use Web Scraper with Puppeteer (handles JS, bypasses Cloudflare)
     const actorInput = {
       startUrls: [{ url }],
-      linkSelector: 'a[href]',
-      pseudoUrls: [],
-      pageFunction: `async function pageFunction(context) {
-        const { page } = context;
-        
-        // Wait for content to load
-        await page.waitForSelector('body', { timeout: 10000 });
-        
-        // Get full HTML
-        const html = await page.content();
-        
-        return {
-          url: page.url(),
-          html: html,
-          title: await page.title(),
-        };
-      }`,
+      useChrome: true,
+      useStealth: false,
       proxyConfiguration: {
         useApifyProxy: true,
       },
-      maxRequestsPerCrawl: 1,
       maxConcurrency: 1,
+      maxRequestsPerCrawl: 1,
+      pageFunction: `async function pageFunction(context) {
+        const { request, page } = context;
+        
+        // Wait for body to load
+        await page.waitForSelector('body', { timeout: 10000 });
+        
+        // Get the full HTML
+        const html = await page.content();
+        
+        return {
+          url: request.url,
+          html: html,
+        };
+      }`,
     };
 
-    // Run the Universal Web Scraper Actor
-    // Actor ID: apify/web-scraper (universal, reliable)
+    // Run Web Scraper with Puppeteer (NO waitForFinish - we'll poll manually)
+    // Actor ID: apify/puppeteer-scraper
     const runResponse = await fetch(
-      `https://api.apify.com/v2/acts/apify~web-scraper/runs?token=${apiToken}`,
+      `https://api.apify.com/v2/acts/apify~puppeteer-scraper/runs?token=${apiToken}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +70,8 @@ async function fetchViaApify(url: string): Promise<string | null> {
     );
 
     if (!runResponse.ok) {
-      console.log(`[Apify] Run failed: HTTP ${runResponse.status}`);
+      const errorText = await runResponse.text();
+      console.log(`[Apify] Run failed: HTTP ${runResponse.status} - ${errorText}`);
       return null;
     }
 
@@ -81,15 +81,16 @@ async function fetchViaApify(url: string): Promise<string | null> {
     
     console.log(`[Apify] Run started: ${runId}`);
 
-    // Poll for completion (max 30 seconds)
-    const maxAttempts = 15;
-    let attempt = 0;
-
-    while (attempt < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+    // Poll for completion (max 20 seconds to keep it fast)
+    const maxWaitSeconds = 20;
+    const pollInterval = 2000; // 2s
+    const maxAttempts = Math.floor(maxWaitSeconds / (pollInterval / 1000));
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
       
       const statusResponse = await fetch(
-        `https://api.apify.com/v2/acts/apify~web-scraper/runs/${runId}?token=${apiToken}`
+        `https://api.apify.com/v2/acts/apify~puppeteer-scraper/runs/${runId}?token=${apiToken}`
       );
 
       if (!statusResponse.ok) {
@@ -101,7 +102,7 @@ async function fetchViaApify(url: string): Promise<string | null> {
       const status = statusData.data.status;
 
       if (status === 'SUCCEEDED') {
-        console.log(`[Apify] ✅ Run completed`);
+        console.log(`[Apify] ✅ Run completed in ${(attempt + 1) * (pollInterval / 1000)}s`);
         
         // Get results from dataset
         const resultsResponse = await fetch(
@@ -115,22 +116,33 @@ async function fetchViaApify(url: string): Promise<string | null> {
 
         const results = await resultsResponse.json();
         
-        if (results.length > 0 && results[0].html) {
-          console.log(`[Apify] ✅ HTML fetched (${results[0].html.length} chars)`);
-          return results[0].html;
-        } else {
-          console.log(`[Apify] ⚠️  No HTML in results`);
-          return null;
+        if (results.length > 0) {
+          const item = results[0];
+          
+          // Check for errors
+          if (item['#error']) {
+            console.log(`[Apify] ❌ PageFunction error:`, item['#error']);
+            return null;
+          }
+          
+          const html = item.html;
+          
+          if (html) {
+            console.log(`[Apify] ✅ HTML fetched (${html.length} chars)`);
+            return html;
+          }
         }
+        
+        console.log(`[Apify] ⚠️  No valid content in results`);
+        return null;
+        
       } else if (status === 'FAILED' || status === 'ABORTED') {
         console.log(`[Apify] ❌ Run ${status}`);
         return null;
       }
-
-      attempt++;
     }
 
-    console.log(`[Apify] ⏱️  Timeout after ${maxAttempts * 2}s`);
+    console.log(`[Apify] ⏱️  Timeout after ${maxWaitSeconds}s (run still processing, falling back)`);
     return null;
 
   } catch (error: any) {
