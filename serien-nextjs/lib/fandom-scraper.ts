@@ -1,8 +1,6 @@
 /**
- * Fandom.com Scraper V2 - Cloudflare-Resistant
- * Alternative WITHOUT API Keys:
- * 1. MediaWiki API (public, no auth needed)
- * 2. Browser automation fallback (bypasses Cloudflare)
+ * Fandom.com Scraper - Browser Automation
+ * Uses Playwright to bypass Cloudflare protection
  */
 
 import * as cheerio from 'cheerio';
@@ -21,70 +19,7 @@ interface FandomCharacterData {
 }
 
 /**
- * METHOD 1: MediaWiki API (Public, No Auth Required)
- * Most Fandom wikis are powered by MediaWiki and have a public API
- */
-async function fetchViaMediaWikiAPI(
-  wikiDomain: string,
-  pageName: string
-): Promise<{ content: string; url: string } | null> {
-  try {
-    // MediaWiki API endpoint (public, no key needed)
-    const apiUrl = `https://${wikiDomain}/api.php`;
-    
-    // Get page content using MediaWiki API
-    const params = new URLSearchParams({
-      action: 'parse',
-      page: pageName,
-      format: 'json',
-      prop: 'text|displaytitle',
-      disableeditsection: '1',
-      disabletoc: '1',
-    });
-
-    console.log(`[Fandom API] Fetching: ${apiUrl}?${params.toString()}`);
-
-    const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      headers: {
-        'User-Agent': 'serien.de-bot/1.0 (character-info-aggregator)',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.log(`[Fandom API] HTTP ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      console.log(`[Fandom API] Error: ${data.error.info}`);
-      return null;
-    }
-
-    if (!data.parse || !data.parse.text) {
-      console.log(`[Fandom API] No content found`);
-      return null;
-    }
-
-    const pageUrl = `https://${wikiDomain}/wiki/${pageName}`;
-    const htmlContent = data.parse.text['*'];
-
-    console.log(`[Fandom API] ✅ Content fetched (${htmlContent.length} chars)`);
-
-    return {
-      content: htmlContent,
-      url: pageUrl,
-    };
-  } catch (error: any) {
-    console.log(`[Fandom API] Error: ${error.message}`);
-    return null;
-  }
-}
-
-/**
- * METHOD 2: Browser Automation (Playwright)
+ * Browser Automation (Playwright)
  * Bypasses Cloudflare by using a real browser
  */
 async function fetchViaBrowser(url: string): Promise<string | null> {
@@ -200,16 +135,14 @@ function parseCharacterData(html: string, url: string): FandomCharacterData {
 }
 
 /**
- * Main function: Search for character with Cloudflare-resistant methods
- * NO API KEYS REQUIRED
+ * Main function: Search for character using browser automation
  */
 export async function searchFandomCharacter(
   characterName: string,
   seriesName: string
 ): Promise<FandomCharacterData> {
   try {
-    console.log(`\n[Fandom V2] Searching: ${characterName} from ${seriesName}`);
-    console.log(`[Fandom V2] Using Cloudflare-resistant methods (NO API KEY)`);
+    console.log(`\n[Fandom] Searching: ${characterName} from ${seriesName}`);
 
     // Build wiki domain variations
     const seriesSlug = seriesName
@@ -225,24 +158,8 @@ export async function searchFandomCharacter(
       `${seriesName.toLowerCase().replace(/\s+/g, '_')}.fandom.com`,
     ];
 
-    // STRATEGY 1: Try MediaWiki API (fast, no Cloudflare issues)
-    console.log(`[Fandom V2] Strategy 1: MediaWiki API (public, no auth)`);
-    
-    for (const domain of wikiDomains) {
-      const result = await fetchViaMediaWikiAPI(domain, characterSlug);
-      
-      if (result) {
-        const characterData = parseCharacterData(result.content, result.url);
-        if (characterData.found) {
-          console.log(`[Fandom V2] ✅ Found via MediaWiki API: ${result.url}`);
-          return characterData;
-        }
-      }
-    }
-
-    // STRATEGY 2: Browser automation fallback (bypasses Cloudflare)
-    // 🔥 OPTIMIZATION: Try only FIRST domain to save time (was: all 3 domains)
-    console.log(`[Fandom V2] Strategy 2: Browser Automation (Cloudflare bypass)`);
+    // Try browser automation (only first domain for speed)
+    console.log(`[Fandom] Using Browser Automation (Cloudflare bypass)`);
 
     const url = `https://${wikiDomains[0]}/wiki/${characterSlug}`;
     const html = await fetchViaBrowser(url);
@@ -250,12 +167,12 @@ export async function searchFandomCharacter(
     if (html) {
       const characterData = parseCharacterData(html, url);
       if (characterData.found) {
-        console.log(`[Fandom V2] ✅ Found via Browser: ${url}`);
+        console.log(`[Fandom] ✅ Found: ${url}`);
         return characterData;
       }
     }
 
-    console.log(`[Fandom V2] ⚠️  Character not found`);
+    console.log(`[Fandom] ⚠️  Character not found`);
     return {
       name: characterName,
       found: false,
@@ -263,7 +180,7 @@ export async function searchFandomCharacter(
     };
 
   } catch (error: any) {
-    console.error(`[Fandom V2] Error:`, error.message);
+    console.error(`[Fandom] Error:`, error.message);
     return {
       name: characterName,
       found: false,

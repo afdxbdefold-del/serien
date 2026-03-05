@@ -8,7 +8,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { generateCharacterContent, createCharacterSlug } from '../lib/character-content-generator';
-import { searchFandomCharacter, formatFandomDataForContent } from '../lib/fandom-scraper-apify';
+import { searchFandomCharacter, formatFandomDataForContent } from '../lib/fandom-scraper';
 import pLimit from 'p-limit';
 
 const prisma = new PrismaClient();
