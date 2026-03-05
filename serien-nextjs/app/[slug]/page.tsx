@@ -11,6 +11,7 @@ import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
+import { getAuthorUrl } from '@/lib/author-utils';
 
 // Force dynamic rendering - articles need real-time data
 export const dynamic = 'force-dynamic';
@@ -237,7 +238,12 @@ export default async function ArticlePage({ params }: PageProps) {
                   </div>
                 )}
                 <div>
-                  <p className="font-semibold text-gray-900">{article.users.name || 'Anonymous'}</p>
+                  <Link 
+                    href={getAuthorUrl(article.users.name || '')}
+                    className="font-semibold text-gray-900 hover:text-cyan-600 transition-colors"
+                  >
+                    {article.users.name || 'Anonymous'}
+                  </Link>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Clock className="h-4 w-4" />
                     <span>{getRelativeTime()}</span>
