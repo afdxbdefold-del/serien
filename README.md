@@ -40,7 +40,7 @@ React-basierter UI-Prototyp zur visuellen Abnahme des Designs.
 - ❌ Keine Backend-Integration
 
 **Live Preview:**
-https://tv-pulse.preview.emergentagent.com
+https://seo-biographien.preview.emergentagent.com
 
 **Dokumentation:**
 Siehe `/app/frontend/README_PROTOTYPE.md`

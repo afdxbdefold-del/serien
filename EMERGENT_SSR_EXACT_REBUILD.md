@@ -817,7 +817,7 @@ module.exports = {
 **File: `/app/frontend/.env`**
 
 ```bash
-REACT_APP_BACKEND_URL=https://serien-next.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://seo-biographien.preview.emergentagent.com
 PORT=3000
 ```
 
@@ -861,7 +861,7 @@ command=node server/ssr.js
 directory=/app/frontend
 autostart=true
 autorestart=true
-environment=NODE_ENV=production,REACT_APP_BACKEND_URL=https://serien-next.preview.emergentagent.com
+environment=NODE_ENV=production,REACT_APP_BACKEND_URL=https://seo-biographien.preview.emergentagent.com
 stdout_logfile=/var/log/supervisor/ssr.out.log
 stderr_logfile=/var/log/supervisor/ssr.err.log
 ```
@@ -1049,9 +1049,9 @@ curl -w "Time: %{time_total}s\n" http://localhost:3000/ist-black-rabbit-sehenswe
 ## DEPLOYMENT URL
 
 Nach erfolgreichem Setup:
-- Preview: https://serien-next.preview.emergentagent.com
-- Backend: https://serien-next.preview.emergentagent.com/api
-- Sitemap: https://serien-next.preview.emergentagent.com/sitemap.xml
+- Preview: https://seo-biographien.preview.emergentagent.com
+- Backend: https://seo-biographien.preview.emergentagent.com/api
+- Sitemap: https://seo-biographien.preview.emergentagent.com/sitemap.xml
 
 ---
 
