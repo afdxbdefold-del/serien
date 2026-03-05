@@ -100,6 +100,20 @@ export default async function AuthorPage({ params }: PageProps) {
     notFound();
   }
 
+  // Get full author data including bio and expertise
+  const authorFull = await prisma.users.findUnique({
+    where: { id: author.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      bio: true,
+      expertise: true,
+      createdAt: true,
+    },
+  });
+
   // Get author's articles
   const articles = await prisma.articles.findMany({
     where: {
@@ -162,7 +176,7 @@ export default async function AuthorPage({ params }: PageProps) {
             {/* Info */}
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {author.name}
+                {authorFull?.name || author.name}
               </h1>
               <p className="text-gray-600 mb-1">
                 Autor bei serien.de
@@ -172,6 +186,32 @@ export default async function AuthorPage({ params }: PageProps) {
               </p>
             </div>
           </div>
+
+          {/* Bio */}
+          {authorFull?.bio && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-gray-700 leading-relaxed">
+                {authorFull.bio}
+              </p>
+            </div>
+          )}
+
+          {/* Expertise Tags */}
+          {authorFull?.expertise && authorFull.expertise.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">Schwerpunkte</h2>
+              <div className="flex flex-wrap gap-2">
+                {authorFull.expertise.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-cyan-50 text-cyan-700 text-sm font-medium rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Articles Grid */}

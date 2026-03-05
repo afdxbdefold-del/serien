@@ -312,6 +312,8 @@ model users {
   createdAt           DateTime        @default(now())
   image               String?
   role                String          @default("user")
+  bio                 String?
+  expertise           String[]        @default([])
   favoriteStreamers   String[]        @default([])
   onboardingCompleted Boolean         @default(false)
   articles            articles[]

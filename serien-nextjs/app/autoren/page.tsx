@@ -33,6 +33,8 @@ export default async function AutorenPage() {
       name: true,
       email: true,
       image: true,
+      bio: true,
+      expertise: true,
       createdAt: true,
       _count: {
         select: {
@@ -136,9 +138,27 @@ export default async function AutorenPage() {
                         {articleCount} {articleCount === 1 ? 'Artikel' : 'Artikel'}
                       </p>
                       {lastPublishedText && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 mb-2">
                           {lastPublishedText}
                         </p>
+                      )}
+                      {/* Expertise Tags - First 2 */}
+                      {author.expertise && author.expertise.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {author.expertise.slice(0, 2).map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-2 py-0.5 bg-cyan-50 text-cyan-700 text-xs font-medium rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {author.expertise.length > 2 && (
+                            <span className="text-xs text-gray-400">
+                              +{author.expertise.length - 2}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
