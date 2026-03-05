@@ -409,14 +409,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log(`   ✅ Cast imported`);
       })(),
       
-      // Download trailer
+      // Download trailer (or search if TMDB has none)
       (async () => {
         try {
           // Get trailer ID from series trailers JSON
           const trailerId = findTrailerYouTubeId(dbSeries.trailers);
           
           if (trailerId) {
-            console.log(`   🎬 Found trailer ID: ${trailerId}`);
+            console.log(`   🎬 Found trailer ID from TMDB: ${trailerId}`);
             const downloadResult = await downloadYouTubeTrailer(
               trailerId,
               dbSeries.name || dbSeries.title || ''
@@ -433,7 +433,19 @@ export async function runPipelineV2(source: PipelineV2Source) {
               console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
             }
           } else {
-            console.log(`   ℹ️  No trailer available for this series`);
+            // TMDB has no trailer - Log for manual addition
+            console.log(`   ℹ️  No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
+            console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
+            console.log(`   💡 Add via: npx tsx scripts/add-trailer.ts ${slug} [youtube-url]`);
+            
+            // TODO: Future enhancement - Automatic YouTube search
+            // const searchResult = await searchYouTubeTrailer(dbSeries.name || dbSeries.title || '');
+            // if (searchResult.found) {
+            //   await prisma.articles.update({
+            //     where: { id: articleId },
+            //     data: { heroVideoUrl: searchResult.url }
+            //   });
+            // }
           }
         } catch (error: any) {
           console.log(`   ❌ Trailer processing error: ${error.message}`);
