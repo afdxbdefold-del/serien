@@ -232,16 +232,24 @@ async function scrapeArticle(url: string): Promise<ImportedArticle | null> {
       });
     }
     
-    // Extract all images (handle lazy loading)
+    // Extract all images (handle lazy loading - check all possible attributes)
     const images: string[] = [];
-    $('article img, .entry-content img').each((_, el) => {
+    $('article img, .entry-content img, .wp-block-image img, figure img').each((_, el) => {
       // Check multiple attributes for lazy-loaded images
-      const src = $(el).attr('data-src') || 
-                  $(el).attr('data-lazy-src') || 
-                  $(el).attr('data-original') ||
-                  $(el).attr('src');
-      if (src && !src.includes('data:image') && !images.includes(src)) {
-        images.push(src);
+      const possibleSrcs = [
+        $(el).attr('data-src'),
+        $(el).attr('data-lazy-src'),
+        $(el).attr('data-original'),
+        $(el).attr('data-srcset')?.split(',')[0]?.trim().split(' ')[0], // First srcset image
+        $(el).attr('srcset')?.split(',')[0]?.trim().split(' ')[0],
+        $(el).attr('src')
+      ];
+      
+      for (const src of possibleSrcs) {
+        if (src && !src.includes('data:image') && !images.includes(src) && src.startsWith('http')) {
+          images.push(src);
+          break; // Only add one URL per image element
+        }
       }
     });
     
@@ -270,6 +278,60 @@ async function scrapeArticle(url: string): Promise<ImportedArticle | null> {
 }
 
 /**
+ * Upload ALL images from article content and replace URLs in HTML
+ */
+async function migrateAllImages(
+  content: string,
+  images: string[],
+  slug: string
+): Promise<string> {
+  let updatedContent = content;
+  const imageUrlMap: Map<string, string> = new Map();
+  
+  console.log(`   🖼️  Migrating ${images.length} content images...`);
+  
+  for (let i = 0; i < images.length; i++) {
+    const originalUrl = images[i];
+    
+    // Skip if already processed or is a data URL
+    if (imageUrlMap.has(originalUrl) || originalUrl.includes('data:image')) {
+      continue;
+    }
+    
+    try {
+      const newPath = await uploadImageToStorage(originalUrl, slug, i + 1);
+      if (newPath) {
+        imageUrlMap.set(originalUrl, newPath);
+      }
+    } catch (error) {
+      console.log(`   ⚠️  Failed to migrate image ${i + 1}`);
+    }
+  }
+  
+  // Replace all image URLs in content
+  for (const [oldUrl, newUrl] of imageUrlMap) {
+    // Replace in src attributes
+    updatedContent = updatedContent.split(oldUrl).join(newUrl);
+  }
+  
+  // Also fix lazy-loading attributes to use src
+  updatedContent = updatedContent
+    .replace(/data-src="([^"]+)"/g, 'src="$1"')
+    .replace(/data-lazy-src="([^"]+)"/g, 'src="$1"')
+    .replace(/data-original="([^"]+)"/g, 'src="$1"');
+  
+  // Remove lazy-loading placeholder images (1x1 pixel gifs)
+  updatedContent = updatedContent.replace(
+    /<img[^>]*src="data:image\/gif[^"]*"[^>]*>/g,
+    ''
+  );
+  
+  console.log(`   ✅ Migrated ${imageUrlMap.size} images`);
+  
+  return updatedContent;
+}
+
+/**
  * Save article to database
  */
 async function saveArticle(article: ImportedArticle, uploadImages: boolean = true): Promise<boolean> {
@@ -295,11 +357,21 @@ async function saveArticle(article: ImportedArticle, uploadImages: boolean = tru
     
     // Upload hero image if enabled
     let heroImagePath = article.heroImage;
-    if (uploadImages && article.heroImage) {
-      const uploadedPath = await uploadImageToStorage(article.heroImage, article.slug, 0);
-      if (uploadedPath) {
-        heroImagePath = uploadedPath;
-        console.log(`   📷 Hero image uploaded`);
+    let finalContent = article.content;
+    
+    if (uploadImages) {
+      // Upload hero image
+      if (article.heroImage) {
+        const uploadedPath = await uploadImageToStorage(article.heroImage, article.slug, 0);
+        if (uploadedPath) {
+          heroImagePath = uploadedPath;
+          console.log(`   📷 Hero image uploaded`);
+        }
+      }
+      
+      // Migrate ALL content images
+      if (article.images.length > 0) {
+        finalContent = await migrateAllImages(article.content, article.images, article.slug);
       }
     }
     
@@ -328,7 +400,7 @@ async function saveArticle(article: ImportedArticle, uploadImages: boolean = tru
         id: articleId,
         slug: article.slug,
         title: article.title,
-        contentHtml: article.content,
+        contentHtml: finalContent,
         excerpt: article.excerpt,
         heroImageUrl: heroImagePath,
         heroLocalUrl: heroImagePath,
