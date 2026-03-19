@@ -275,7 +275,8 @@ export default async function ArticlePage({ params }: PageProps) {
         </section>
 
         {/* Series Infobox: AFTER content, BEFORE Q&A (Discover-optimized) */}
-        {article.primarySeriesId && article.series && (
+        {/* Hide for imported articles without real series assignment */}
+        {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
           <SeriesInfobox
             seriesId={article.primarySeriesId}
             seriesName={article.series.title || article.series.name || ''}
@@ -296,7 +297,8 @@ export default async function ArticlePage({ params }: PageProps) {
           <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
 
           {/* Where to Stream Box */}
-          {article.primarySeriesId && article.series && (
+          {/* Hide for imported articles without real series assignment */}
+          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
           <WhereToStreamBox
             seriesId={article.primarySeriesId}
             seriesName={article.series.title || article.series.name || ''}
