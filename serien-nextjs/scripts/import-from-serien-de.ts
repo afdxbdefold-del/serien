@@ -8,6 +8,7 @@
  * - Downloads and re-hosts images to Emergent Object Storage
  */
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as cheerio from 'cheerio';
 
@@ -115,7 +116,9 @@ async function uploadImageToStorage(
     }
 
     const result = await uploadResponse.json();
-    return result.path;
+    // Return the web-accessible URL path (not the storage path)
+    // Format: /img/imported/{slug}/{filename}
+    return `/img/imported/${slug}/${index === 0 ? 'hero' : `image-${index}`}.${ext}`;
   } catch (error: any) {
     console.log(`   ⚠️  Image upload error: ${error.message}`);
     return null;
@@ -215,16 +218,28 @@ async function scrapeArticle(url: string): Promise<ImportedArticle | null> {
                      $('.category').first().text().trim() ||
                      'Allgemein';
     
-    // Extract hero image
-    const heroImage = $('article img').first().attr('src') ||
-                      $('meta[property="og:image"]').attr('content') ||
-                      $('.entry-content img').first().attr('src') ||
-                      null;
+    // Extract hero image - prefer og:image (most reliable)
+    const ogImage = $('meta[property="og:image"]').attr('content');
+    let heroImage = ogImage || null;
     
-    // Extract all images
+    // Fallback: look for real images (not lazy-loading placeholders)
+    if (!heroImage) {
+      $('article img, .entry-content img').each((_, el) => {
+        const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src');
+        if (src && !src.includes('data:image') && !heroImage) {
+          heroImage = src;
+        }
+      });
+    }
+    
+    // Extract all images (handle lazy loading)
     const images: string[] = [];
     $('article img, .entry-content img').each((_, el) => {
-      const src = $(el).attr('src');
+      // Check multiple attributes for lazy-loaded images
+      const src = $(el).attr('data-src') || 
+                  $(el).attr('data-lazy-src') || 
+                  $(el).attr('data-original') ||
+                  $(el).attr('src');
       if (src && !src.includes('data:image') && !images.includes(src)) {
         images.push(src);
       }
