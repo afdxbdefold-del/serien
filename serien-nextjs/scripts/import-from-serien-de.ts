@@ -6,11 +6,14 @@
  * - Scrapes full content including images
  * - Stores in local database with original content
  * - Downloads and re-hosts images to Emergent Object Storage
+ * - Automatically matches and assigns series via TMDB
  */
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as cheerio from 'cheerio';
+import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
+import { getTvDetailsComplete } from '../lib/tmdb';
 
 const prisma = new PrismaClient();
 
@@ -66,6 +69,10 @@ interface ImportedArticle {
   heroImage: string | null;
   images: string[];
   publishedAt: Date;
+  // Series matching
+  matchedSeriesId?: number;
+  matchedSeriesName?: string;
+  matchConfidence?: number;
 }
 
 interface ImportStats {
@@ -74,6 +81,94 @@ interface ImportStats {
   skipped: number;
   failed: number;
   errors: string[];
+  seriesMatched: number;
+}
+
+/**
+ * Try to match article to a series via TMDB
+ */
+async function matchSeries(title: string, content: string): Promise<{
+  seriesId: number;
+  seriesName: string;
+  confidence: number;
+} | null> {
+  try {
+    // Use the enhanced TMDB search
+    const searchResult = await searchTvEnhanced(title, content);
+    
+    if (!searchResult || searchResult.confidence < 0.6) {
+      return null;
+    }
+    
+    // Check if series exists in our DB
+    const existingSeries = await prisma.series.findUnique({
+      where: { tmdbId: searchResult.tmdbId },
+      select: { tmdbId: true, name: true }
+    });
+    
+    if (existingSeries) {
+      return {
+        seriesId: existingSeries.tmdbId,
+        seriesName: existingSeries.name,
+        confidence: searchResult.confidence
+      };
+    }
+    
+    // Series doesn't exist - create it
+    const completeDetails = await getTvDetailsComplete(searchResult.tmdbId, 'de-DE');
+    
+    if (!completeDetails) {
+      return null;
+    }
+    
+    // Generate slug for series
+    const seriesSlug = completeDetails.name
+      .toLowerCase()
+      .replace(/[äöü]/g, (char: string) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue' }[char] || char))
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    // Create the series
+    // Convert genres and networks to string arrays (as expected by schema)
+    const genreNames = (completeDetails.genres || []).map((g: any) => 
+      typeof g === 'string' ? g : g.name
+    );
+    const networkNames = (completeDetails.networks || []).map((n: any) => 
+      typeof n === 'string' ? n : n.name
+    );
+    
+    await prisma.series.create({
+      data: {
+        tmdbId: searchResult.tmdbId,
+        name: completeDetails.name,
+        title: completeDetails.name,
+        slug: seriesSlug,
+        posterPath: completeDetails.posterPath,
+        backdropPath: completeDetails.backdropPath,
+        overview: completeDetails.overview,
+        firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+        genres: genreNames,
+        networks: networkNames,
+        status: completeDetails.status,
+        voteAverage: completeDetails.voteAverage,
+        popularity: completeDetails.popularity,
+        updatedAt: new Date(),
+      }
+    });
+    
+    console.log(`   📺 New series created: ${completeDetails.name}`);
+    
+    return {
+      seriesId: searchResult.tmdbId,
+      seriesName: completeDetails.name,
+      confidence: searchResult.confidence
+    };
+    
+  } catch (error: any) {
+    // Log the error for debugging
+    console.log(`   ⚠️  Series match error: ${error.message}`);
+    return null;
+  }
 }
 
 /**
@@ -415,34 +510,55 @@ async function saveArticle(article: ImportedArticle, uploadImages: boolean = tru
     // Get next author (round-robin from real authors)
     const author = getNextAuthor();
     
+    // Try to match series
+    let primarySeriesId: number | undefined;
+    let tmdbId: number | undefined;
+    let seriesMatched = false;
+    
+    if (article.matchedSeriesId) {
+      primarySeriesId = article.matchedSeriesId;
+      tmdbId = article.matchedSeriesId;
+      seriesMatched = true;
+    }
+    
     // Generate unique ID
     const articleId = crypto.randomUUID();
     
     // Create article using correct schema field names
-    await prisma.articles.create({
-      data: {
-        id: articleId,
-        slug: article.slug,
-        title: article.title,
-        contentHtml: finalContent,
-        excerpt: article.excerpt,
-        heroImageUrl: heroImagePath,
-        heroLocalUrl: heroImagePath,
-        category: article.category,
-        status: 'published',
-        publishedAt: article.publishedAt,
-        updatedAt: new Date(),
-        authorId: author.id,
-        sourceUrl: article.url,
-        contentType: 'IMPORTED',
-        publishMode: 'DISCOVER',
-        imageAttribution: 'serien.de'
-      }
-    });
+    const articleData: any = {
+      id: articleId,
+      slug: article.slug,
+      title: article.title,
+      contentHtml: finalContent,
+      excerpt: article.excerpt,
+      heroImageUrl: heroImagePath,
+      heroLocalUrl: heroImagePath,
+      category: article.category,
+      status: 'published',
+      publishedAt: article.publishedAt,
+      updatedAt: new Date(),
+      authorId: author.id,
+      sourceUrl: article.url,
+      contentType: seriesMatched ? 'IMPORTED_WITH_SERIES' : 'IMPORTED',
+      publishMode: 'DISCOVER',
+      imageAttribution: 'serien.de'
+    };
+    
+    // Only set primarySeriesId if we have a match
+    if (primarySeriesId) {
+      articleData.primarySeriesId = primarySeriesId;
+      articleData.tmdbId = tmdbId;
+      articleData.tmdbType = 'tv';
+    }
+    
+    await prisma.articles.create({ data: articleData });
     
     console.log(`   👤 Author: ${author.name}`);
+    if (seriesMatched && article.matchedSeriesName) {
+      console.log(`   📺 Serie: ${article.matchedSeriesName} (${(article.matchConfidence! * 100).toFixed(0)}%)`);
+    }
     
-    return true;
+    return seriesMatched;
     
   } catch (error: any) {
     console.log(`   ❌ Save error: ${error.message}`);
@@ -471,7 +587,8 @@ export async function importFromSerienDe(options: {
     imported: 0,
     skipped: 0,
     failed: 0,
-    errors: []
+    errors: [],
+    seriesMatched: 0
   };
   
   try {
@@ -526,15 +643,27 @@ export async function importFromSerienDe(options: {
         continue;
       }
       
-      // Save to database
-      const saved = await saveArticle(article, !skipImages);
+      // Try to match series via TMDB
+      console.log(`   🔍 Searching for series match...`);
+      const seriesMatch = await matchSeries(article.title, article.content);
       
-      if (saved) {
-        stats.imported++;
-        console.log(`   ✅ Imported: ${article.title}`);
+      if (seriesMatch) {
+        article.matchedSeriesId = seriesMatch.seriesId;
+        article.matchedSeriesName = seriesMatch.seriesName;
+        article.matchConfidence = seriesMatch.confidence;
+        console.log(`   ✅ Found: ${seriesMatch.seriesName} (${(seriesMatch.confidence * 100).toFixed(0)}% confidence)`);
       } else {
-        stats.skipped++;
+        console.log(`   ℹ️  No series match found`);
       }
+      
+      // Save to database
+      const savedWithSeries = await saveArticle(article, !skipImages);
+      
+      stats.imported++;
+      if (savedWithSeries) {
+        stats.seriesMatched++;
+      }
+      console.log(`   ✅ Imported: ${article.title}`);
       
       // Rate limiting
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -551,6 +680,7 @@ export async function importFromSerienDe(options: {
   console.log('='.repeat(70));
   console.log(`Total articles:  ${stats.total}`);
   console.log(`Imported:        ${stats.imported}`);
+  console.log(`Series matched:  ${stats.seriesMatched}`);
   console.log(`Skipped:         ${stats.skipped}`);
   console.log(`Failed:          ${stats.failed}`);
   
