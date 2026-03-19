@@ -14,6 +14,43 @@ import * as cheerio from 'cheerio';
 
 const prisma = new PrismaClient();
 
+// Cache for authors - will be loaded once
+let authorCache: { id: string; name: string }[] = [];
+let authorIndex = 0;
+
+/**
+ * Load all real authors from database (role=author, @serien.de email)
+ */
+async function loadAuthors(): Promise<void> {
+  if (authorCache.length > 0) return;
+  
+  const authors = await prisma.users.findMany({
+    where: {
+      role: 'author',
+      email: { contains: '@serien.de' }
+    },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+  
+  authorCache = authors;
+  console.log(`📝 Loaded ${authors.length} authors for assignment`);
+  authors.forEach(a => console.log(`   - ${a.name}`));
+}
+
+/**
+ * Get next author in round-robin fashion
+ */
+function getNextAuthor(): { id: string; name: string } {
+  if (authorCache.length === 0) {
+    throw new Error('No authors loaded - call loadAuthors() first');
+  }
+  
+  const author = authorCache[authorIndex % authorCache.length];
+  authorIndex++;
+  return author;
+}
+
 // ========== EMERGENT OBJECT STORAGE ==========
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
 const APP_NAME = "serien-nextjs";
@@ -375,21 +412,8 @@ async function saveArticle(article: ImportedArticle, uploadImages: boolean = tru
       }
     }
     
-    // Get or create default author
-    let author = await prisma.users.findFirst({
-      where: { email: 'redaktion@serien.de' }
-    });
-    
-    if (!author) {
-      author = await prisma.users.create({
-        data: {
-          id: crypto.randomUUID(),
-          email: 'redaktion@serien.de',
-          name: 'serien.de Redaktion',
-          role: 'AUTHOR'
-        }
-      });
-    }
+    // Get next author (round-robin from real authors)
+    const author = getNextAuthor();
     
     // Generate unique ID
     const articleId = crypto.randomUUID();
@@ -415,6 +439,8 @@ async function saveArticle(article: ImportedArticle, uploadImages: boolean = tru
         imageAttribution: 'serien.de'
       }
     });
+    
+    console.log(`   👤 Author: ${author.name}`);
     
     return true;
     
@@ -452,6 +478,11 @@ export async function importFromSerienDe(options: {
     // Initialize storage if uploading images
     if (!skipImages && !dryRun) {
       await initStorage();
+    }
+    
+    // Load authors for assignment
+    if (!dryRun) {
+      await loadAuthors();
     }
     
     // Fetch all article URLs
