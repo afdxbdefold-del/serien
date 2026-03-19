@@ -91,7 +91,7 @@ export default function Header() {
                   AUTOREN
                 </Link>
                 <Link href="/autoren" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
-                  REDAKTION
+                  AUTOREN
                 </Link>
               </nav>
             </div>
@@ -248,7 +248,7 @@ export default function Header() {
                 className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
-                REDAKTION
+                AUTOREN
               </Link>
             </nav>
           </div>

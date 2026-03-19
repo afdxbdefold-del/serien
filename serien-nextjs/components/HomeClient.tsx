@@ -145,13 +145,55 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
     setSelectedStreamers([]);
   };
 
-  // Load more functions would need API implementation
+  // Load more functions
   const loadMoreNews = async () => {
-    // TODO: Implement pagination API call
+    if (loadingMore || !hasMoreNews) return;
+    
+    setLoadingMore(true);
+    try {
+      const nextPage = newsPage + 1;
+      const response = await fetch(`/api/news?page=${nextPage}&limit=${NEWS_PER_PAGE}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.articles && data.articles.length > 0) {
+          setNews(prev => [...prev, ...data.articles]);
+          setNewsPage(nextPage);
+          setHasMoreNews(data.articles.length === NEWS_PER_PAGE);
+        } else {
+          setHasMoreNews(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading more news:', error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const loadMoreSeries = async () => {
-    // TODO: Implement pagination API call
+    if (loadingMoreSeries || !hasMoreSeries) return;
+    
+    setLoadingMoreSeries(true);
+    try {
+      const nextPage = seriesPage + 1;
+      const response = await fetch(`/api/series?page=${nextPage}&limit=${SERIES_PER_PAGE}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.series && data.series.length > 0) {
+          setSeries(prev => [...prev, ...data.series]);
+          setSeriesPage(nextPage);
+          setHasMoreSeries(data.series.length === SERIES_PER_PAGE);
+        } else {
+          setHasMoreSeries(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading more series:', error);
+    } finally {
+      setLoadingMoreSeries(false);
+    }
   };
 
   const handleFollowToggle = async (seriesId: string, isCurrentlyFollowing: boolean) => {
