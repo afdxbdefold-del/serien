@@ -1,6 +1,7 @@
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 
 export const metadata = {
@@ -14,8 +15,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const orgSchema = generateOrganizationSchema();
   
   return (
-    <html lang="de">
+    <html lang="de" suppressHydrationWarning>
       <head>
+        {/* Prevent flash of wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const stored = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark) ? 'dark' : 'light';
+                document.documentElement.classList.add(theme);
+              })();
+            `,
+          }}
+        />
+        <meta name="theme-color" content="#ffffff" />
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"
@@ -30,10 +45,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
+        <ThemeProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );

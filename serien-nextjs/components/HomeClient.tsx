@@ -201,16 +201,16 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   };
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-gray-950">
       {/* Hero Section - Clean style like Feed buttons */}
       {!isAuthenticated && (
         <section className="py-10 md:py-14" aria-labelledby="hero-heading">
           <div className="container mx-auto px-6 md:px-12">
-            <div className="max-w-3xl mx-auto text-center bg-gray-50 rounded-3xl p-8 md:p-12">
-              <h1 id="hero-heading" className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+            <div className="max-w-3xl mx-auto text-center bg-gray-50 dark:bg-gray-900 rounded-3xl p-8 md:p-12">
+              <h1 id="hero-heading" className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3">
                 Folge deinen Lieblingsserien
               </h1>
-              <p className="text-lg md:text-xl text-gray-700 mb-6">
+              <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-6">
                 um personalisierte News und Updates zu erhalten.
               </p>
 
@@ -229,9 +229,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
       {/* Authenticated: Show H1 at top */}
       {isAuthenticated && (
-        <section className="py-6 bg-gray-50 border-b" aria-labelledby="main-heading">
+        <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
           <div className="container mx-auto px-6 md:px-12">
-            <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900">
+            <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
               Serien-News
             </h1>
           </div>
@@ -250,8 +250,8 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
           {/* Tip Box for All News Tab */}
           {activeTab === 'all-news' && (
-            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <p className="text-xs text-gray-600">
+            <div className="mb-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
               </p>
             </div>

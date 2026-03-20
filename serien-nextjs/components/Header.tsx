@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Search, X, Menu, Loader2 } from 'lucide-react';
 import Logo from './Logo';
+import { ThemeToggle } from './ThemeToggle';
 
 export default function Header() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -96,8 +97,13 @@ export default function Header() {
               </nav>
             </div>
 
-            {/* Right - Search Icon & Mobile Menu */}
-            <div className="flex items-center gap-3">
+            {/* Right - Theme Toggle, Search Icon & Mobile Menu */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle - Desktop */}
+              <div className="hidden md:block">
+                <ThemeToggle variant="icon" />
+              </div>
+              
               {/* Search Icon - All devices */}
               <button 
                 onClick={() => setShowSearch(!showSearch)}
@@ -195,61 +201,66 @@ export default function Header() {
         <div className="fixed inset-0 z-[100]" onClick={() => setShowMobileMenu(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div 
-            className="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl"
+            className="absolute right-0 top-0 h-full w-72 bg-white dark:bg-gray-900 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Menü</h2>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Menü</h2>
               <button 
                 onClick={() => setShowMobileMenu(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
-                <X className="h-5 w-5 text-gray-500" />
+                <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
             <nav className="p-4 space-y-2">
               <Link 
                 href="/" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 NEWS
               </Link>
               <Link 
                 href="/serienfinder" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 SERIENFINDER
               </Link>
               <Link 
                 href="/personen" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 PERSONEN
               </Link>
               <Link 
                 href="/figuren" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 FIGUREN
               </Link>
               <Link 
                 href="/autoren" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 AUTOREN
               </Link>
               <Link 
-                href="/autoren" 
-                className="block px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                href="/kalender" 
+                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
-                AUTOREN
+                KALENDER
               </Link>
+              
+              {/* Theme Toggle in Mobile Menu */}
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <ThemeToggle variant="menu" />
+              </div>
             </nav>
           </div>
         </div>

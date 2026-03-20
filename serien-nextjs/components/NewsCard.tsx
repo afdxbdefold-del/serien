@@ -59,7 +59,7 @@ export default function NewsCard({
 
   return (
     <Link href={`/${slug}`}>
-      <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
+      <article className="group bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all duration-300 overflow-hidden cursor-pointer">
         {/* Image */}
         <div className="relative aspect-video overflow-hidden">
           {(cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
@@ -70,8 +70,8 @@ export default function NewsCard({
               className="object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400">Kein Bild</span>
+            <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+              <span className="text-gray-400 dark:text-gray-600">Kein Bild</span>
             </div>
           )}
           
@@ -87,18 +87,18 @@ export default function NewsCard({
 
         {/* Content */}
         <div className="p-5">
-          <p className="text-lg font-bold text-gray-900 leading-snug mb-3 group-hover:text-purple-600 transition-colors">
+          <p className="text-lg font-bold text-gray-900 dark:text-white leading-snug mb-3 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
             {title}
           </p>
 
           {excerpt && (
-            <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4">
               {excerpt}
             </p>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-500">
             <span>{getRelativeTime()}</span>
           </div>
         </div>

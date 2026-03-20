@@ -36,6 +36,37 @@
     
     --radius: 0.5rem;
   }
+  
+  .dark {
+    /* Dark Theme */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 262 83% 65%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 262 83% 65%;
+  }
 }
 
 @layer base {
@@ -46,20 +77,25 @@
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
+  
+  /* Dark mode overrides for common elements */
+  .dark body {
+    @apply bg-gray-950;
+  }
 }
 
 /* Internal Linking Engine Styles */
 @layer components {
   .internal-link-box {
-    @apply my-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-r-lg;
+    @apply my-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-l-4 border-blue-500 rounded-r-lg;
   }
   
   .internal-link-box h3 {
-    @apply text-lg font-bold text-gray-900 mb-3;
+    @apply text-lg font-bold text-gray-900 dark:text-gray-100 mb-3;
   }
   
   .internal-link-box a {
-    @apply text-blue-600 hover:text-blue-800 font-medium underline decoration-blue-300 hover:decoration-blue-600 transition-colors;
+    @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium underline decoration-blue-300 dark:decoration-blue-600 hover:decoration-blue-600 dark:hover:decoration-blue-400 transition-colors;
   }
   
   .internal-link-box ul {
@@ -67,6 +103,50 @@
   }
   
   .internal-link-box li {
-    @apply text-sm text-gray-700;
+    @apply text-sm text-gray-700 dark:text-gray-300;
+  }
+}
+
+/* Dark mode utility overrides */
+@layer utilities {
+  /* Common background overrides */
+  .dark .bg-white {
+    @apply !bg-gray-900;
+  }
+  .dark .bg-gray-50 {
+    @apply !bg-gray-900;
+  }
+  .dark .bg-gray-100 {
+    @apply !bg-gray-800;
+  }
+  
+  /* Text color overrides */
+  .dark .text-gray-900 {
+    @apply !text-gray-100;
+  }
+  .dark .text-gray-800 {
+    @apply !text-gray-200;
+  }
+  .dark .text-gray-700 {
+    @apply !text-gray-300;
+  }
+  .dark .text-gray-600 {
+    @apply !text-gray-400;
+  }
+  
+  /* Border overrides */
+  .dark .border-gray-200 {
+    @apply !border-gray-700;
+  }
+  .dark .border-gray-100 {
+    @apply !border-gray-800;
+  }
+  
+  /* Hover state overrides */
+  .dark .hover\:bg-gray-50:hover {
+    @apply !bg-gray-800;
+  }
+  .dark .hover\:bg-gray-100:hover {
+    @apply !bg-gray-700;
   }
 }
