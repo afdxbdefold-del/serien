@@ -61,11 +61,11 @@ export default function NewsCard({
     <Link href={`/${slug}`}>
       {/* GLOW EFFECT: Remove 'dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30' to revert */}
       <article className="group bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:shadow-lg dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30 transition-all duration-300 overflow-hidden cursor-pointer">
-        {/* Image */}
+        {/* Image - Using hero/backdrop images (16:9) instead of card/poster */}
         <div className="relative aspect-video overflow-hidden">
           {(cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
             <Image
-              src={cardImageUrl || (tmdbId && tmdbType ? `/img/card/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
+              src={cardImageUrl || (tmdbId && tmdbType ? `/img/hero/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
               alt={title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
