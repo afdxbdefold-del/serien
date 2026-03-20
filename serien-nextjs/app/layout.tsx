@@ -1,7 +1,5 @@
 import './globals.css';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import { ThemeProvider } from '@/components/ThemeProvider';
+import LayoutWrapper from '@/components/LayoutWrapper';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 
 export const metadata = {
@@ -46,11 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
-        <ThemeProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </ThemeProvider>
+        <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
   );

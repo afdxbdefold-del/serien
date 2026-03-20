@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
 
       if (response.ok) {
         localStorage.setItem('admin_token', data.token);
-        localStorage.setItem('admin_username', data.username);
+        localStorage.setItem('admin_username', data.user?.name || data.user?.email || 'Admin');
         router.push('/admin/dashboard');
       } else {
         setError(data.detail || 'Login fehlgeschlagen');
