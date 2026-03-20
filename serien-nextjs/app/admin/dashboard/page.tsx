@@ -98,7 +98,7 @@ export default function AdminDashboardPage() {
               { id: 'dashboard', label: '📊 Dashboard', href: null },
               { id: 'discover', label: '🎯 Discover Analytics', href: '/admin/discover-analytics' },
               { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
-              { id: 'articles', label: '📝 Articles', href: null },
+              { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
               { id: 'users', label: '👥 Users', href: null },
               { id: 'crawler', label: '🕷️ Crawler', href: null },
             ].map(({ id, label, href }) => (
