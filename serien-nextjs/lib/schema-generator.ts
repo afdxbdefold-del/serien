@@ -99,7 +99,7 @@ export function generateArticleSchema(data: {
     datePublished: data.datePublished,
     dateModified: data.dateModified,
     author: {
-      '@type': 'Organization',
+      '@type': 'Person',
       name: data.author || 'serien.de Redaktion',
     },
     publisher: {
