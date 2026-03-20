@@ -302,6 +302,7 @@ model series {
   articles            articles[]
   characters          characters[]
   follows             follows[]
+  upcoming_episodes   upcoming_episodes[]
 }
 
 model users {
@@ -321,3 +322,27 @@ model users {
   follows             follows[]
   notifications       notifications[]
 }
+
+
+// Upcoming episodes for series calendar
+model upcoming_episodes {
+  id            String   @id @default(cuid())
+  seriesId      Int
+  seriesName    String
+  seriesSlug    String
+  seasonNumber  Int
+  episodeNumber Int
+  episodeName   String?
+  airDate       DateTime
+  overview      String?
+  stillPath     String?
+  network       String?   // Netflix, Prime Video, Disney+, etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  series        series   @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
+
+  @@unique([seriesId, seasonNumber, episodeNumber])
+  @@index([airDate])
+  @@index([network])
+}
+

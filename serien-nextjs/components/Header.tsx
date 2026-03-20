@@ -90,8 +90,8 @@ export default function Header() {
                 <Link href="/autoren" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   AUTOREN
                 </Link>
-                <Link href="/autoren" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
-                  AUTOREN
+                <Link href="/kalender" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
+                  KALENDER
                 </Link>
               </nav>
             </div>
