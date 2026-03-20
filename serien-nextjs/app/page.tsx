@@ -49,7 +49,12 @@ export default async function Page() {
   try {
     [articles, series, seriesCount, articlesCount] = await Promise.all([
       prisma.articles.findMany({
-        where: { status: 'published' },
+        where: { 
+          OR: [
+            { status: 'published' },
+            { status: 'PUBLISHED' }
+          ]
+        },
         include: {
           users: { 
             select: { 
@@ -73,7 +78,14 @@ export default async function Page() {
         take: 20
       }),
       prisma.series.count(),
-      prisma.articles.count({ where: { status: 'published' } })
+      prisma.articles.count({ 
+        where: { 
+          OR: [
+            { status: 'published' },
+            { status: 'PUBLISHED' }
+          ]
+        } 
+      })
     ]);
   } catch (error) {
     console.error('Homepage DB query failed:', error);
