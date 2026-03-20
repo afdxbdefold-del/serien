@@ -55,7 +55,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
             onClick={() => setShowVideo(true)}
           >
             <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center hover:scale-110 transition-transform shadow-2xl">
-              <Play className="w-10 h-10 text-gray-900 ml-1" fill="currentColor" />
+              <Play className="w-10 h-10 ml-1" fill="#111827" stroke="#111827" />
             </div>
           </div>
         </>
