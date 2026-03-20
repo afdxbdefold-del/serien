@@ -166,7 +166,7 @@ export default async function ArticlePage({ params }: PageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       {/* JSON-LD Structured Data with ImageObject */}
       <script
         type="application/ld+json"
@@ -180,7 +180,7 @@ export default async function ArticlePage({ params }: PageProps) {
         {/* Back Button (before header) */}
         <Link 
           href="/"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
           aria-label="Zurück zur Startseite"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" />
@@ -214,12 +214,12 @@ export default async function ArticlePage({ params }: PageProps) {
         )}
 
         {/* Title */}
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
           {article.title}
         </h1>
 
         {/* Meta Info */}
-        <div className="flex items-center justify-between gap-6 mb-8 pb-8 border-b">
+        <div className="flex items-center justify-between gap-6 mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-6">
             {article.users && (
               <div className="flex items-center gap-3">
@@ -240,11 +240,11 @@ export default async function ArticlePage({ params }: PageProps) {
                 <div>
                   <Link 
                     href={getAuthorUrl(article.users.name || '')}
-                    className="font-semibold text-gray-900 hover:text-cyan-600 transition-colors"
+                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
                   >
                     {article.users.name || 'Anonymous'}
                   </Link>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <Clock className="h-4 w-4" />
                     <span>{getRelativeTime()}</span>
                   </div>
@@ -259,7 +259,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* Excerpt/Lead */}
         {article.excerpt && (
-          <p className="text-xl text-gray-700 leading-relaxed font-medium">
+          <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
             {article.excerpt}
           </p>
         )}
@@ -269,7 +269,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <section aria-labelledby="article-content">
           <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
           <div 
-            className="prose prose-lg max-w-none mb-12 overflow-x-hidden"
+            className="prose prose-lg dark:prose-invert max-w-none mb-12 overflow-x-hidden"
             dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
           />
         </section>
@@ -310,11 +310,11 @@ export default async function ArticlePage({ params }: PageProps) {
         {/* Related News */}
         {relatedNews.length > 0 && (
           <section className="mt-16" aria-labelledby="similar-news">
-            <h3 id="similar-news" className="text-3xl font-bold mb-8">Ähnliche News</h3>
+            <h3 id="similar-news" className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Ähnliche News</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedNews.map((news) => (
                 <Link key={news.id} href={`/${news.slug}`}>
-                  <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
+                  <article className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all duration-300 overflow-hidden cursor-pointer">
                     {news.heroLocalUrl && (
                       <div className="relative aspect-video overflow-hidden">
                         <Image
@@ -326,10 +326,10 @@ export default async function ArticlePage({ params }: PageProps) {
                       </div>
                     )}
                     <div className="p-4">
-                      <p className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-2">
+                      <p className="font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
                         {news.title}
                       </p>
-                      <p className="text-sm text-gray-500 mt-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                         {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
                           day: 'numeric',
                           month: 'short',

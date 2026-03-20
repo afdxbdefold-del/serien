@@ -25,11 +25,11 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
   return (
     <section 
       aria-labelledby="qa-article" 
-      className="mt-12 mb-8 border-t border-gray-200 pt-8"
+      className="mt-12 mb-8 border-t border-gray-200 dark:border-gray-700 pt-8"
     >
       <h2 
         id="qa-article" 
-        className="text-2xl font-bold mb-6 text-gray-900"
+        className="text-2xl font-bold mb-6 text-gray-900 dark:text-white"
       >
         Fragen & Antworten
       </h2>
@@ -44,7 +44,7 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
         {questions.map((qa, index) => (
           <div
             key={index}
-            className="bg-gray-50 rounded-lg p-6 hover:bg-gray-100 transition-colors"
+            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             {...(schemaEnabled && {
               itemScope: true,
               itemProp: "mainEntity",
@@ -52,7 +52,7 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
             })}
           >
             <h3 
-              className="text-lg font-semibold mb-3 text-gray-900"
+              className="text-lg font-semibold mb-3 text-gray-900 dark:text-white"
               {...(schemaEnabled && { itemProp: "name" })}
             >
               {qa.question}
@@ -66,7 +66,7 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
               })}
             >
               <p 
-                className="text-gray-700 leading-relaxed"
+                className="text-gray-700 dark:text-gray-300 leading-relaxed"
                 {...(schemaEnabled && { itemProp: "text" })}
               >
                 {qa.answer}

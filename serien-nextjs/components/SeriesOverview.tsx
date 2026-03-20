@@ -24,14 +24,14 @@ export default function SeriesOverview({
   }
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
-      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
+      <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
         <span className="text-2xl">📖</span>
         <span>Über {seriesName}</span>
       </h2>
       
-      <div className="prose prose-sm max-w-none">
-        <div className="text-gray-700 leading-relaxed space-y-4 whitespace-pre-line">
+      <div className="prose prose-sm dark:prose-invert max-w-none">
+        <div className="text-gray-700 dark:text-gray-300 leading-relaxed space-y-4 whitespace-pre-line">
           {extendedOverview}
         </div>
       </div>

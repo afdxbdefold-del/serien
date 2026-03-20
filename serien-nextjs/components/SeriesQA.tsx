@@ -29,7 +29,7 @@ export default function SeriesQA({ questions, seriesName }: SeriesQAProps) {
     >
       <h2 
         id="qa-series" 
-        className="text-3xl font-bold mb-6 text-gray-900"
+        className="text-3xl font-bold mb-6 text-gray-900 dark:text-white"
       >
         Häufige Fragen zu {seriesName}
       </h2>
@@ -42,13 +42,13 @@ export default function SeriesQA({ questions, seriesName }: SeriesQAProps) {
         {questions.map((qa, index) => (
           <div
             key={index}
-            className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
             itemScope
             itemProp="mainEntity"
             itemType="https://schema.org/Question"
           >
             <h3 
-              className="text-xl font-semibold mb-3 text-gray-900"
+              className="text-xl font-semibold mb-3 text-gray-900 dark:text-white"
               itemProp="name"
             >
               {qa.question}
@@ -60,7 +60,7 @@ export default function SeriesQA({ questions, seriesName }: SeriesQAProps) {
               itemType="https://schema.org/Answer"
             >
               <p 
-                className="text-gray-700 leading-relaxed text-base"
+                className="text-gray-700 dark:text-gray-300 leading-relaxed text-base"
                 itemProp="text"
               >
                 {qa.answer}

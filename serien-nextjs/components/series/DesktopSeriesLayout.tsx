@@ -72,15 +72,15 @@ export default function DesktopSeriesLayout({
           />
 
           {cast && cast.length > 0 && (
-            <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">
+            <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6 mb-6">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
                 Besetzung von {series.name || series.title}
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {cast.map((actor: any) => {
                   const ActorCard = (
                     <div className="group cursor-pointer">
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
                         {actor.profile_path ? (
                           <Image
                             src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
@@ -98,11 +98,11 @@ export default function DesktopSeriesLayout({
                         )}
                       </div>
                       <div className="text-sm">
-                        <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        <p className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {actor.name}
                         </p>
                         {actor.character && (
-                          <p className="text-xs text-gray-600 line-clamp-1 mt-1">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
                             als {actor.character}
                           </p>
                         )}
@@ -146,11 +146,11 @@ export default function DesktopSeriesLayout({
                   href={`/${article.slug}`}
                   className="block group"
                 >
-                  <article className={`bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all ${
+                  <article className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all ${
                     index === 0 ? 'lg:flex lg:gap-6' : ''
                   }`}>
                     {(article.heroLocalUrl || article.cardImageUrl) && (
-                      <div className={`relative overflow-hidden bg-gray-100 ${
+                      <div className={`relative overflow-hidden bg-gray-100 dark:bg-gray-700 ${
                         index === 0 
                           ? 'lg:w-2/5 h-64 lg:h-auto' 
                           : 'h-48'
@@ -165,19 +165,19 @@ export default function DesktopSeriesLayout({
                     )}
                     
                     <div className={`p-6 ${index === 0 ? 'lg:flex-1' : ''}`}>
-                      <p className={`font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 ${
+                      <p className={`font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 ${
                         index === 0 ? 'text-2xl mb-3' : 'text-lg mb-2'
                       }`}>
                         {article.title}
                       </p>
                       
                       {article.excerpt && (
-                        <p className={`text-gray-600 line-clamp-${index === 0 ? '3' : '2'} mb-3`}>
+                        <p className={`text-gray-600 dark:text-gray-400 line-clamp-${index === 0 ? '3' : '2'} mb-3`}>
                           {article.excerpt}
                         </p>
                       )}
                       
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                         {article.users?.name && (
                           <span className="font-medium">{article.users.name}</span>
                         )}
@@ -197,8 +197,8 @@ export default function DesktopSeriesLayout({
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <p className="text-gray-500">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <p className="text-gray-500 dark:text-gray-400">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>
             </div>
           )}
 
@@ -230,7 +230,7 @@ export default function DesktopSeriesLayout({
 
         <div className="hidden lg:block lg:col-span-5">
           <div className="lg:sticky lg:top-6">
-            <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
               <div className="relative w-full aspect-[16/9] bg-gray-900">
                 {series.backdropPath && (
                   <>
@@ -252,7 +252,7 @@ export default function DesktopSeriesLayout({
                       alt={series.name || ''}
                       width={120}
                       height={180}
-                      className="rounded-lg shadow-2xl border-4 border-white w-[120px] h-auto"
+                      className="rounded-lg shadow-2xl border-4 border-white dark:border-gray-800 w-[120px] h-auto"
                     />
                   </div>
                 )}
@@ -270,20 +270,20 @@ export default function DesktopSeriesLayout({
                         />
                       )}
                       {series.firstAirDate && (
-                        <div className="bg-gray-100 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 text-center">
+                        <div className="bg-gray-100 dark:bg-gray-700 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
                           {new Date(series.firstAirDate).getFullYear()}
                         </div>
                       )}
                       {series.numberOfSeasons && (
-                        <div className="bg-gray-100 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 text-center">
+                        <div className="bg-gray-100 dark:bg-gray-700 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
                           {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
                         </div>
                       )}
                       {series.status && (
                         <div className={`px-2 py-1.5 rounded-lg text-xs font-medium text-center ${
                           series.status === 'Returning Series' || series.status === 'Running'
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-gray-100 text-gray-700 border border-gray-200'
+                            ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
                         }`}>
                           {series.status === 'Returning Series' ? 'Läuft' : 
                            series.status === 'Ended' ? 'Beendet' : series.status}
@@ -293,11 +293,11 @@ export default function DesktopSeriesLayout({
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="text-2xl font-bold text-gray-900 mb-3" aria-label={`Serie: ${series.name}`}>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mb-3" aria-label={`Serie: ${series.name}`}>
                       {series.name}
                     </p>
                     {series.overview && (
-                      <p className="text-gray-700 leading-relaxed mb-4 text-sm">
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4 text-sm">
                         {series.overview}
                       </p>
                     )}

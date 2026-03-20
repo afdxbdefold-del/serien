@@ -227,7 +227,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"

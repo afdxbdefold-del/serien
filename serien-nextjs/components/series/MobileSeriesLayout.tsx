@@ -39,7 +39,7 @@ export default function MobileSeriesLayout({
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
       <h1 id="series-hero" className="sr-only">{series.name}</h1>
-      <div className="bg-white rounded-xl shadow-xl overflow-hidden mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden mb-6">
         <MobileHeroWithVideo
           backdropPath={series.backdropPath}
           posterPath={series.posterPath}
@@ -48,7 +48,7 @@ export default function MobileSeriesLayout({
         />
         
         <div className="pt-6 px-6 pb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
             {series.name}
           </h1>
 
@@ -60,20 +60,20 @@ export default function MobileSeriesLayout({
               />
             )}
             {series.firstAirDate && (
-              <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700">
+              <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300">
                 {new Date(series.firstAirDate).getFullYear()}
               </div>
             )}
             {series.numberOfSeasons && (
-              <div className="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700">
+              <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300">
                 {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
               </div>
             )}
             {series.status && (
               <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
                 series.status === 'Returning Series' || series.status === 'Running'
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-gray-100 text-gray-700 border border-gray-200'
+                  ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
               }`}>
                 {series.status === 'Returning Series' ? 'Läuft' : 
                  series.status === 'Ended' ? 'Beendet' : series.status}
@@ -82,7 +82,7 @@ export default function MobileSeriesLayout({
           </div>
 
           {series.overview && (
-            <p className="text-gray-700 leading-relaxed mb-4 text-sm">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4 text-sm">
               {series.overview}
             </p>
           )}
@@ -97,12 +97,12 @@ export default function MobileSeriesLayout({
       </div>
 
       {relevanceContext?.text && (
-        <section className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-md p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <section className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl border border-blue-200 dark:border-blue-800 shadow-md p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <span className="text-2xl">💡</span>
             <span>Warum relevant</span>
           </h2>
-          <p className="text-gray-700 leading-relaxed">
+          <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
             {relevanceContext.text}
           </p>
         </section>
@@ -110,12 +110,12 @@ export default function MobileSeriesLayout({
 
       {series.articles && series.articles.length > 0 && (
         <div className="lg:hidden mb-6">
-          <section className="bg-white rounded-xl border border-gray-200 shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <span className="text-2xl">📰</span>
               <span>Aktuelle News zu {series.name || series.title}</span>
             </h2>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               In diesem Bereich werden relevante Meldungen und neue Entwicklungen rund um {series.name || series.title} gebündelt. 
               Dazu zählen bestätigte Updates zur Serie, Einordnungen zu Veröffentlichungen sowie zentrale Fakten, sobald sie offiziell vorliegen.
             </p>
@@ -126,9 +126,9 @@ export default function MobileSeriesLayout({
                   href={`/${article.slug}`}
                   className="block group"
                 >
-                  <div className="border border-gray-100 rounded-lg p-4 hover:border-cyan-300 hover:bg-cyan-50/30 transition-all">
+                  <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 hover:border-cyan-300 dark:hover:border-cyan-600 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/30 transition-all">
                     {article.cardImageUrl && (
-                      <div className="relative h-40 mb-3 rounded-lg overflow-hidden bg-gray-100">
+                      <div className="relative h-40 mb-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
                         <Image
                           src={article.cardImageUrl}
                           alt={article.title}
@@ -137,16 +137,16 @@ export default function MobileSeriesLayout({
                         />
                       </div>
                     )}
-                    <h3 className="font-bold text-gray-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 mb-2">
                       {article.title}
                     </h3>
                     {article.excerpt && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
                         {article.excerpt}
                       </p>
                     )}
                     {article.publishedAt && (
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                         {article.users?.name && (
                           <span>{article.users.name}</span>
                         )}
@@ -201,15 +201,15 @@ export default function MobileSeriesLayout({
 
       <div className="mb-6">
         {cast && cast.length > 0 && (
-          <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
               Besetzung von {series.name || series.title}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {cast.map((actor: any) => {
                 const ActorCard = (
                   <div className="group cursor-pointer">
-                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
                       {actor.profile_path ? (
                         <Image
                           src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
@@ -227,11 +227,11 @@ export default function MobileSeriesLayout({
                       )}
                     </div>
                     <div className="text-sm">
-                      <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      <p className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {actor.name}
                       </p>
                       {actor.character && (
-                        <p className="text-xs text-gray-600 line-clamp-1 mt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
                           als {actor.character}
                         </p>
                       )}
@@ -256,8 +256,8 @@ export default function MobileSeriesLayout({
 
       <div className="mb-6">
         {characters && characters.length > 0 && (
-          <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
+          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
               Fiktive Charaktere aus {series.name || series.title}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -267,7 +267,7 @@ export default function MobileSeriesLayout({
                   href={`/figur/${character.slug}`}
                   className="group"
                 >
-                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
                     {character.imageUrl ? (
                       <Image
                         src={character.imageUrl}
@@ -285,11 +285,11 @@ export default function MobileSeriesLayout({
                     )}
                   </div>
                   <div className="text-sm">
-                    <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    <p className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {character.name}
                     </p>
                     {character.actor && (
-                      <p className="text-xs text-gray-600 line-clamp-1 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
                         gespielt von {character.actor.name}
                       </p>
                     )}

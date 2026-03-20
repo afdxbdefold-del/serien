@@ -38,17 +38,17 @@ export default function QuickFactsBox({
   if (facts.length === 0) return null;
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
-      <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
+      <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">
         Schnelle Fakten
       </h3>
       <dl className="space-y-3">
         {facts.map((fact, index) => (
           <div key={index} className="flex justify-between items-start">
-            <dt className="text-sm font-medium text-gray-600 w-1/3">
+            <dt className="text-sm font-medium text-gray-600 dark:text-gray-400 w-1/3">
               {fact.label}
             </dt>
-            <dd className="text-sm text-gray-900 w-2/3 text-right font-medium">
+            <dd className="text-sm text-gray-900 dark:text-white w-2/3 text-right font-medium">
               {fact.value}
             </dd>
           </div>
