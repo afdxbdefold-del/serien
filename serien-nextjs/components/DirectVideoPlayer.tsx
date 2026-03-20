@@ -10,6 +10,20 @@ interface DirectVideoPlayerProps {
   title: string;
 }
 
+// Extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/ // Direct video ID
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: DirectVideoPlayerProps) {
   const [showVideo, setShowVideo] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +36,12 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
     );
   }
 
-  const videoSrc = trailerUrl.startsWith('http') 
+  // Check if it's a YouTube URL
+  const youtubeId = getYouTubeVideoId(trailerUrl);
+  const isYouTube = !!youtubeId;
+
+  // Build video URL for non-YouTube videos
+  const videoSrc = !isYouTube && trailerUrl.startsWith('http') 
     ? trailerUrl 
     : `/api/trailer/${trailerUrl}`;
 
@@ -55,6 +74,15 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
             Zurück
           </button>
         </div>
+      ) : isYouTube ? (
+        /* YouTube Embed */
+        <iframe
+          className="w-full h-full"
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
       ) : (
         <video
           className="w-full h-full"

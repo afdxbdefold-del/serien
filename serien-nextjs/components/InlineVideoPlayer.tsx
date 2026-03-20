@@ -10,6 +10,20 @@ interface InlineVideoPlayerProps {
   title: string;
 }
 
+// Extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/ // Direct video ID
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -29,10 +43,14 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
     );
   }
 
-  // Build video URL with cache busting
-  const videoUrl = trailerUrl.startsWith('http') 
+  // Check if it's a YouTube URL
+  const youtubeId = getYouTubeVideoId(trailerUrl);
+  const isYouTube = !!youtubeId;
+
+  // Build video URL for non-YouTube videos
+  const videoUrl = !isYouTube && trailerUrl.startsWith('http') 
     ? trailerUrl 
-    : `/api/trailer/${trailerUrl}?v=3`; // Increment version to bust cache
+    : `/api/trailer/${trailerUrl}?v=3`;
 
   // With trailer: Show image with play button, then video
   return (
@@ -73,8 +91,17 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
                 </button>
               </div>
             </div>
+          ) : isYouTube ? (
+            /* YouTube Embed */
+            <iframe
+              className="w-full h-full"
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
+              title={title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           ) : (
-            /* Video Player - Maximum compatibility */
+            /* Video Player for local/storage videos */
             <video
               className="w-full h-full"
               controls
