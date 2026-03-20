@@ -119,13 +119,15 @@
   /* Wrapper for video embeds - use !important to override any other styles */
   .video-embed-wrapper {
     position: relative !important;
+    display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     overflow: hidden !important;
     border-radius: 0.5rem;
     margin: 1.5rem 0;
-    padding-bottom: 56.25% !important; /* 16:9 aspect ratio */
-    height: 0 !important;
+    aspect-ratio: 16 / 9 !important; /* Modern way to set aspect ratio */
     background: #1f2937;
+    z-index: 1 !important; /* Keep below sticky header */
   }
   
   .video-embed-wrapper iframe {
@@ -135,6 +137,34 @@
     width: 100% !important;
     height: 100% !important;
     border: 0;
+    z-index: 1 !important;
+  }
+  
+  /* Ensure prose container keeps videos contained */
+  .prose .video-embed-wrapper {
+    max-width: 100% !important;
+  }
+  
+  /* WordPress embed styles - imported articles use these classes */
+  .wp-block-embed,
+  .wp-block-embed-youtube {
+    margin: 1.5rem 0 !important;
+    max-width: 100% !important;
+    display: block !important;
+    position: relative !important;
+  }
+  
+  .wp-block-embed__wrapper {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+  
+  /* When wrapper contains a video-embed-wrapper, don't add extra padding */
+  .wp-block-embed__wrapper .video-embed-wrapper {
+    position: relative !important;
+    margin: 0 !important;
   }
 }
 
