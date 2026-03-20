@@ -269,7 +269,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <section aria-labelledby="article-content">
           <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
           <div 
-            className="prose prose-lg max-w-none mb-12"
+            className="prose prose-lg max-w-none mb-12 overflow-x-hidden"
             dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
           />
         </section>

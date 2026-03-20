@@ -85,7 +85,7 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   
   let sanitized = html;
   
-  // STEP 0: Make YouTube/Video iframes responsive
+  // STEP 0a: Make YouTube/Video iframes responsive
   // Remove fixed width/height and wrap in responsive container
   // Don't add inline styles - let CSS handle the positioning
   sanitized = sanitized.replace(
@@ -104,6 +104,28 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
       if (match.includes('video-embed-wrapper')) return match; // Already wrapped
       return `<div class="video-embed-wrapper"><iframe${before}${after}>`;
     }
+  );
+  
+  // STEP 0b: Make Instagram embeds responsive
+  // Remove min-width from inline styles to allow proper mobile display
+  sanitized = sanitized.replace(
+    /(<blockquote[^>]*class="[^"]*instagram-media[^"]*"[^>]*style="[^"]*)(min-width:\s*\d+px;?)([^"]*")/gi,
+    '$1$3'
+  );
+  // Also remove max-width that might be too large
+  sanitized = sanitized.replace(
+    /(<blockquote[^>]*class="[^"]*instagram-media[^"]*"[^>]*style="[^"]*)(max-width:\s*\d+px;?)([^"]*")/gi,
+    '$1max-width:100%;$3'
+  );
+  // Wrap Instagram embeds in a responsive container
+  sanitized = sanitized.replace(
+    /(<blockquote[^>]*class="[^"]*instagram-media[^"]*")/gi,
+    '<div class="embed-container" style="max-width:100%;overflow:hidden;">$1'
+  );
+  // Close the wrapper after the blockquote's script tag
+  sanitized = sanitized.replace(
+    /(<\/blockquote>)(\s*<script[^>]*instagram[^>]*><\/script>)/gi,
+    '$1$2</div>'
   );
   
   // STEP 1: Remove duplicate lead if it appears at the start of content

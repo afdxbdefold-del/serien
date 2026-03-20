@@ -116,6 +116,20 @@
     min-height: 200px;
   }
   
+  /* Prevent any content from overflowing the prose container */
+  .prose,
+  .article-content,
+  [class*="content"] {
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+    overflow-x: hidden !important; /* Prevent horizontal scroll from embeds */
+  }
+  
+  .prose > *,
+  .article-content > * {
+    max-width: 100% !important;
+  }
+  
   /* Wrapper for video embeds - use !important to override any other styles */
   .video-embed-wrapper {
     position: relative !important;
@@ -165,6 +179,44 @@
   .wp-block-embed__wrapper .video-embed-wrapper {
     position: relative !important;
     margin: 0 !important;
+  }
+  
+  /* Instagram embeds - make responsive */
+  .instagram-media,
+  iframe[src*="instagram.com"],
+  blockquote.instagram-media {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 1rem auto !important;
+  }
+  
+  /* Instagram embed text should wrap */
+  .instagram-media a,
+  .instagram-media p {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* Embed container for social media */
+  .embed-container {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    margin: 1rem 0;
+  }
+  
+  /* Twitter/X embeds */
+  .twitter-tweet,
+  iframe[src*="twitter.com"],
+  iframe[src*="x.com"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  
+  /* Generic blockquote embeds from WordPress */
+  .wp-block-embed blockquote {
+    max-width: 100% !important;
+    overflow: hidden !important;
   }
 }
 
