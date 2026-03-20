@@ -68,7 +68,7 @@ export default function MobileHeroWithVideo({
           {/* YouTube Video Player */}
           {trailerKey && (
             <iframe
-              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&mute=1`}
+              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1`}
               title="Series Trailer"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
