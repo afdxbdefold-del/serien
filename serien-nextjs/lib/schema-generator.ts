@@ -3,6 +3,8 @@
  * Generates structured data markup for SEO
  */
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+
 /**
  * Image dimensions for different image types
  */
@@ -232,4 +234,255 @@ export function generatePersonSchema(data: {
   }
 
   return schema;
+}
+
+
+/**
+ * Generate FAQPage schema for Q&A sections
+ * Helps with rich snippets in Google search results
+ */
+export function generateFAQSchema(questions: Array<{ question: string; answer: string }>) {
+  if (!questions || questions.length === 0) return null;
+  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: questions.map(q => ({
+      '@type': 'Question',
+      name: q.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: q.answer,
+      },
+    })),
+  };
+}
+
+/**
+ * Generate VideoObject schema for trailers
+ * Helps videos appear in Google video search
+ */
+export function generateVideoSchema(data: {
+  name: string;
+  description: string;
+  thumbnailUrl: string;
+  uploadDate: string;
+  duration?: string; // ISO 8601 format, e.g., "PT2M30S"
+  embedUrl?: string;
+  contentUrl?: string;
+}) {
+  const schema: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: data.name,
+    description: data.description,
+    thumbnailUrl: data.thumbnailUrl,
+    uploadDate: data.uploadDate,
+  };
+  
+  if (data.duration) schema.duration = data.duration;
+  if (data.embedUrl) schema.embedUrl = data.embedUrl;
+  if (data.contentUrl) schema.contentUrl = data.contentUrl;
+  
+  return schema;
+}
+
+/**
+ * Generate WebSite schema with SearchAction for Sitelinks Searchbox
+ */
+export function generateWebSiteSchema() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'serien.de',
+    alternateName: 'Serien.de - Streaming News & Reviews',
+    url: baseUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${baseUrl}/serienfinder?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
+/**
+ * Generate Organization schema for the publisher
+ */
+export function generateOrganizationSchema() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'serien.de',
+    url: baseUrl,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${baseUrl}/logo.png`,
+      width: 600,
+      height: 60,
+    },
+    sameAs: [],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      email: 'kontakt@serien.de',
+    },
+  };
+}
+
+/**
+ * Generate Review/Rating schema
+ */
+export function generateReviewSchema(data: {
+  itemName: string;
+  itemType: 'TVSeries' | 'Movie' | 'Episode';
+  reviewBody: string;
+  ratingValue: number;
+  bestRating?: number;
+  worstRating?: number;
+  authorName: string;
+  datePublished: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Review',
+    itemReviewed: {
+      '@type': data.itemType,
+      name: data.itemName,
+    },
+    reviewBody: data.reviewBody,
+    reviewRating: {
+      '@type': 'Rating',
+      ratingValue: data.ratingValue,
+      bestRating: data.bestRating || 10,
+      worstRating: data.worstRating || 1,
+    },
+    author: {
+      '@type': 'Person',
+      name: data.authorName,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'serien.de',
+    },
+    datePublished: data.datePublished,
+  };
+}
+
+/**
+ * Generate HowTo schema for guide articles
+ */
+export function generateHowToSchema(data: {
+  name: string;
+  description: string;
+  totalTime?: string; // ISO 8601 duration
+  steps: Array<{ name: string; text: string; imageUrl?: string }>;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: data.name,
+    description: data.description,
+    ...(data.totalTime && { totalTime: data.totalTime }),
+    step: data.steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: step.name,
+      text: step.text,
+      ...(step.imageUrl && {
+        image: {
+          '@type': 'ImageObject',
+          url: step.imageUrl,
+        },
+      }),
+    })),
+  };
+}
+
+/**
+ * Generate ItemList schema for list articles (e.g., "Top 10 Serien")
+ */
+export function generateItemListSchema(data: {
+  name: string;
+  description: string;
+  items: Array<{ name: string; url?: string; position: number }>;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: data.name,
+    description: data.description,
+    numberOfItems: data.items.length,
+    itemListElement: data.items.map(item => ({
+      '@type': 'ListItem',
+      position: item.position,
+      name: item.name,
+      ...(item.url && { url: item.url }),
+    })),
+  };
+}
+
+/**
+ * Generate Author/Person schema for author pages
+ */
+export function generateAuthorSchema(data: {
+  name: string;
+  description: string;
+  imageUrl?: string;
+  jobTitle?: string;
+  expertise?: string[];
+  url: string;
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: data.name,
+    description: data.description,
+    url: `${baseUrl}${data.url}`,
+    ...(data.imageUrl && {
+      image: {
+        '@type': 'ImageObject',
+        url: data.imageUrl,
+      },
+    }),
+    ...(data.jobTitle && { jobTitle: data.jobTitle }),
+    ...(data.expertise && data.expertise.length > 0 && { 
+      knowsAbout: data.expertise 
+    }),
+    worksFor: {
+      '@type': 'Organization',
+      name: 'serien.de',
+      url: baseUrl,
+    },
+  };
+}
+
+/**
+ * Generate combined schema graph for a page
+ * Combines multiple schemas into a single @graph
+ */
+export function generateSchemaGraph(schemas: Array<Record<string, any> | null>) {
+  const validSchemas = schemas.filter(s => s !== null);
+  
+  if (validSchemas.length === 0) return null;
+  if (validSchemas.length === 1) return validSchemas[0];
+  
+  return {
+    '@context': 'https://schema.org',
+    '@graph': validSchemas.map(s => {
+      // Remove @context from individual schemas when combining
+      const { '@context': _, ...rest } = s;
+      return rest;
+    }),
+  };
 }

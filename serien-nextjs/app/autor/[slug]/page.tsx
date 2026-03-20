@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { generateAuthorSlug, matchAuthorBySlug } from '@/lib/author-utils';
+import { generateAuthorSchema } from '@/lib/schema-generator';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,9 +142,24 @@ export default async function AuthorPage({ params }: PageProps) {
   });
 
   const articleCount = articles.length;
+  
+  // Generate Author Schema
+  const authorSchema = generateAuthorSchema({
+    name: authorFull?.name || '',
+    description: authorFull?.bio || `Autor bei serien.de mit ${articleCount} Artikeln`,
+    jobTitle: 'Redakteur',
+    expertise: authorFull?.expertise || [],
+    url: `/autor/${slug}`,
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Author Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(authorSchema) }}
+      />
+      
       <div className="container mx-auto px-6 md:px-12 py-8 max-w-6xl">
         {/* Back Button */}
         <Link 
