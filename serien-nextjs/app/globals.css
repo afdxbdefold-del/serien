@@ -263,3 +263,52 @@
     @apply !bg-gray-700;
   }
 }
+
+/* Prose/Article Content Dark Mode - Critical for readability */
+.dark .prose {
+  --tw-prose-body: theme('colors.gray.300');
+  --tw-prose-headings: theme('colors.white');
+  --tw-prose-lead: theme('colors.gray.300');
+  --tw-prose-links: theme('colors.cyan.400');
+  --tw-prose-bold: theme('colors.white');
+  --tw-prose-counters: theme('colors.gray.400');
+  --tw-prose-bullets: theme('colors.gray.400');
+  --tw-prose-hr: theme('colors.gray.700');
+  --tw-prose-quotes: theme('colors.gray.300');
+  --tw-prose-quote-borders: theme('colors.gray.600');
+  --tw-prose-captions: theme('colors.gray.400');
+  --tw-prose-code: theme('colors.cyan.300');
+  --tw-prose-pre-code: theme('colors.gray.200');
+  --tw-prose-pre-bg: theme('colors.gray.900');
+  --tw-prose-th-borders: theme('colors.gray.600');
+  --tw-prose-td-borders: theme('colors.gray.700');
+}
+
+.dark .prose p,
+.dark .prose li,
+.dark .prose span {
+  color: theme('colors.gray.300') !important;
+}
+
+.dark .prose a {
+  color: theme('colors.cyan.400') !important;
+  text-decoration: underline;
+}
+
+.dark .prose a:hover {
+  color: theme('colors.cyan.300') !important;
+}
+
+.dark .prose strong,
+.dark .prose b {
+  color: theme('colors.white') !important;
+}
+
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose h4,
+.dark .prose h5,
+.dark .prose h6 {
+  color: theme('colors.white') !important;
+}
