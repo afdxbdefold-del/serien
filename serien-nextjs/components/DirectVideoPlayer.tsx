@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play, AlertCircle } from 'lucide-react';
+import { Play, AlertCircle, Loader2 } from 'lucide-react';
 
 interface DirectVideoPlayerProps {
   heroImageUrl: string;
@@ -27,6 +27,18 @@ function getYouTubeVideoId(url: string): string | null {
 export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: DirectVideoPlayerProps) {
   const [showVideo, setShowVideo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [blobUrl]);
 
   if (!trailerUrl) {
     return (
@@ -45,6 +57,40 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
     ? trailerUrl 
     : `/api/trailer/${trailerUrl}`;
 
+  const handlePlayClick = async () => {
+    if (isYouTube) {
+      setShowVideo(true);
+      return;
+    }
+
+    // For local videos, fetch as blob first
+    setLoading(true);
+    setShowVideo(true);
+    
+    try {
+      const response = await fetch(videoSrc);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setBlobUrl(url);
+      setLoading(false);
+      
+      // Auto-play after loading
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('Video fetch error:', err);
+      setError(err.message || 'Video konnte nicht geladen werden');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
       {!showVideo ? (
@@ -52,13 +98,18 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
           <Image src={heroImageUrl} alt={title} fill className="object-cover" priority />
           <div 
             className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors cursor-pointer"
-            onClick={() => setShowVideo(true)}
+            onClick={handlePlayClick}
           >
             <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center hover:scale-110 transition-transform shadow-2xl">
               <Play className="w-10 h-10 ml-1" fill="#111827" stroke="#111827" />
             </div>
           </div>
         </>
+      ) : loading ? (
+        <div className="flex flex-col items-center justify-center h-full text-white">
+          <Loader2 className="w-12 h-12 animate-spin mb-4" />
+          <p className="text-sm">Trailer wird geladen...</p>
+        </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center h-full p-8 text-white text-center">
           <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
@@ -68,6 +119,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
             onClick={() => {
               setError(null);
               setShowVideo(false);
+              setBlobUrl(null);
             }}
             className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
           >
@@ -85,21 +137,21 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title }: D
         />
       ) : (
         <video
+          ref={videoRef}
           className="w-full h-full"
           controls
-          autoPlay
           muted
           playsInline
-          preload="auto"
+          src={blobUrl || undefined}
           onError={(e) => {
-            console.error('Video error:', e);
-            setError('Video konnte nicht geladen werden');
+            const video = e.currentTarget;
+            console.error('Video playback error:', {
+              code: video.error?.code,
+              message: video.error?.message
+            });
+            setError('Video konnte nicht abgespielt werden');
           }}
-          onLoadedData={() => console.log('Video loaded successfully')}
-        >
-          <source src={videoSrc} type="video/mp4" />
-          Dein Browser unterstützt HTML5 Video nicht.
-        </video>
+        />
       )}
     </div>
   );
