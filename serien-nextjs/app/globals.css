@@ -105,6 +105,37 @@
   .internal-link-box li {
     @apply text-sm text-gray-700 dark:text-gray-300;
   }
+  
+  /* Responsive YouTube/Video Embeds */
+  .article-content iframe,
+  .prose iframe,
+  [class*="content"] iframe {
+    @apply max-w-full h-auto aspect-video rounded-lg;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 200px;
+  }
+  
+  /* Wrapper for video embeds - use !important to override any other styles */
+  .video-embed-wrapper {
+    position: relative !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    border-radius: 0.5rem;
+    margin: 1.5rem 0;
+    padding-bottom: 56.25% !important; /* 16:9 aspect ratio */
+    height: 0 !important;
+    background: #1f2937;
+  }
+  
+  .video-embed-wrapper iframe {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
+  }
 }
 
 /* Dark mode utility overrides */

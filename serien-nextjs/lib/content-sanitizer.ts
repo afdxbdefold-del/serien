@@ -85,6 +85,26 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   
   let sanitized = html;
   
+  // STEP 0: Make YouTube/Video iframes responsive
+  // Remove fixed width/height and wrap in responsive container
+  sanitized = sanitized.replace(
+    /<iframe([^>]*)(width=["'][^"']*["'])([^>]*)(height=["'][^"']*["'])([^>]*)>/gi,
+    '<div class="video-embed-wrapper"><iframe$1$3$5 style="position:absolute;top:0;left:0;width:100%;height:100%;">'
+  );
+  // Close the wrapper div after the iframe
+  sanitized = sanitized.replace(/<\/iframe>/gi, '</iframe></div>');
+  // Fix double-wrapped cases
+  sanitized = sanitized.replace(/<\/div><\/div>/g, '</div>');
+  
+  // Also handle iframes with only width or only height
+  sanitized = sanitized.replace(
+    /<iframe([^>]*)(width=["']\d+["'])([^>]*)>/gi,
+    (match, before, width, after) => {
+      if (match.includes('video-embed-wrapper')) return match; // Already wrapped
+      return `<div class="video-embed-wrapper"><iframe${before}${after} style="position:absolute;top:0;left:0;width:100%;height:100%;">`;
+    }
+  );
+  
   // STEP 1: Remove duplicate lead if it appears at the start of content
   if (excerpt) {
     const excerptClean = excerpt.trim();
