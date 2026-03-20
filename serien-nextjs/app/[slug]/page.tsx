@@ -99,18 +99,25 @@ export default async function ArticlePage({ params }: PageProps) {
     },
   });
 
-  if (!article || article.status !== 'published') {
+  if (!article || (article.status?.toLowerCase() !== 'published')) {
     notFound();
   }
 
   // Fetch related news (same category or same series)
   const relatedNews = await prisma.articles.findMany({
     where: {
-      status: 'published',
-      id: { not: article.id },
       OR: [
-        { category: article.category },
-        { primarySeriesId: article.primarySeriesId },
+        { status: 'published' },
+        { status: 'PUBLISHED' }
+      ],
+      id: { not: article.id },
+      AND: [
+        {
+          OR: [
+            { category: article.category },
+            { primarySeriesId: article.primarySeriesId },
+          ],
+        }
       ],
     },
     take: 3,
