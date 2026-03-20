@@ -45,9 +45,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   
+  // Build absolute OG image URL
   // Use TMDB image pipeline if available, fallback to local URL
-  const ogImage = article.ogImageUrl || 
+  const ogImagePath = article.ogImageUrl || 
     (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
+  
+  // Make sure OG image is absolute URL
+  const ogImage = ogImagePath?.startsWith('http') 
+    ? ogImagePath 
+    : ogImagePath 
+      ? `${baseUrl}${ogImagePath.startsWith('/') ? '' : '/'}${ogImagePath}`
+      : null;
 
   return {
     title: `${article.title} | serien.de`,
@@ -61,27 +69,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       'max-video-preview': -1,
     },
     alternates: {
-      canonical: `/${slug}`,
+      canonical: `${baseUrl}/${slug}`,
     },
     openGraph: {
-      title: `${article.title} | serien.de`,
+      title: article.title,
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
       type: 'article',
-      url: `/${slug}`,
+      url: `${baseUrl}/${slug}`,
+      siteName: 'serien.de',
+      locale: 'de_DE',
       images: ogImage ? [
         {
           url: ogImage,
           width: 1200,
           height: 630,
           alt: article.title,
+          type: 'image/jpeg',
         },
       ] : [],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${article.title} | serien.de`,
+      title: article.title,
       description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
       images: ogImage ? [ogImage] : undefined,
+      site: '@serien_de',
     },
   };
 }

@@ -2,10 +2,21 @@ import './globals.css';
 import LayoutWrapper from '@/components/LayoutWrapper';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 
+// Use environment variable for base URL (set in Vercel)
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+
 export const metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien.',
-  metadataBase: new URL('https://serien-de.vercel.app'),
+  metadataBase: new URL(baseUrl),
+  openGraph: {
+    type: 'website',
+    locale: 'de_DE',
+    siteName: 'serien.de',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
