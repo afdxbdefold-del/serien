@@ -13,7 +13,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
+  const [theme, setThemeState] = useState<Theme>('light');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
 
@@ -42,7 +42,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize theme on mount
   useEffect(() => {
     const stored = localStorage.getItem('theme') as Theme | null;
-    const initialTheme = stored || 'system';
+    const initialTheme = stored || 'light';  // Default to light mode
     setThemeState(initialTheme);
     applyTheme(initialTheme);
     setMounted(true);
@@ -74,7 +74,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Prevent flash of wrong theme
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: 'system', resolvedTheme: 'light', setTheme: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'light', resolvedTheme: 'light', setTheme: () => {} }}>
         {children}
       </ThemeContext.Provider>
     );
