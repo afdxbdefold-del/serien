@@ -49,7 +49,8 @@ export default function SeriesCard({
 
   return (
     <Link href={`/serie/${tmdbId}-${slug}`}>
-      <article className="group relative bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
+      {/* GLOW EFFECT: Remove 'dark:bg-gray-900 dark:border-gray-800 dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30' to revert */}
+      <article className="group relative bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:shadow-lg dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30 transition-all duration-300 overflow-hidden cursor-pointer">
         {/* Poster Image */}
         <div className="aspect-[2/3] overflow-hidden bg-gray-200">
           {posterPath ? (
