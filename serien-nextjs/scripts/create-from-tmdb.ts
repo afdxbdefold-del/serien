@@ -269,11 +269,18 @@ function buildSourceText(details: any): string {
     parts.push(`Tagline: "${details.tagline}"`);
   }
 
-  // Cast
+  // Cast - IMPORTANT: Include detailed cast info for linking
   if (details.credits?.cast?.length) {
-    const mainCast = details.credits.cast.slice(0, 5);
-    const castList = mainCast.map((c: any) => `${c.name} als ${c.character}`).join(', ');
-    parts.push(`Hauptdarsteller: ${castList}`);
+    const mainCast = details.credits.cast.slice(0, 8);
+    parts.push(`\n## Besetzung und Charaktere\n`);
+    parts.push(`Die Hauptrollen werden von folgenden Schauspielern verkörpert:`);
+    mainCast.forEach((c: any) => {
+      parts.push(`- ${c.name} spielt die Rolle von ${c.character || 'einer wichtigen Figur'}`);
+    });
+    
+    // Add a summary line to encourage mentioning actors in the article
+    const topActors = mainCast.slice(0, 3).map((c: any) => c.name).join(', ');
+    parts.push(`\nMit Stars wie ${topActors} hat die Serie eine hochkarätige Besetzung.`);
   }
 
   return parts.join('\n\n');
