@@ -61,9 +61,9 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
     : null;
 
   return (
-    <div className="my-8 rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm">
+    <div className="my-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-6 shadow-sm">
       {/* H3 TITLE (FIXED FORMAT) */}
-      <h3 className="text-xl font-bold text-gray-900 mb-4">
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
         Mehr zur Serie „{seriesName}"
       </h3>
 
@@ -71,7 +71,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
         {/* VISUAL: Series Poster (medium size) */}
         {posterImage && (
           <div className="flex-shrink-0">
-            <div className="relative w-32 h-48 rounded-lg overflow-hidden shadow-md bg-gray-100">
+            <div className="relative w-32 h-48 rounded-lg overflow-hidden shadow-md bg-gray-100 dark:bg-gray-700">
               <Image
                 src={posterImage}
                 alt={seriesName}
@@ -86,7 +86,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
           {/* META ROW: Scannable, no sentences */}
           <div className="space-y-2 mb-4">
             {/* Line 1: Status · Seasons */}
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               {data.status && (
                 <>
                   <span className="font-medium">Status:</span> {data.status}
@@ -102,7 +102,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
 
             {/* Line 2: Genre · Platform */}
             {(data.genre || data.platform) && (
-              <div className="text-sm text-gray-700">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
                 {data.genre && (
                   <>
                     <span className="font-medium">Genre:</span> {data.genre}
@@ -119,7 +119,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
           </div>
 
           {/* MINI-HOOK: Single sentence, neutral */}
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Auf der Serienseite findest du Hintergründe, Besetzung und alle aktuellen Infos auf einen Blick.
           </p>
 

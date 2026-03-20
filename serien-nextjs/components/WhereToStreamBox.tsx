@@ -42,11 +42,11 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
         href={streamerURL}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-md transition-all group"
+        className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all group"
         title={hasDirectStreamerLink ? `${displayName} öffnen` : `${displayName} - Link nicht verfügbar`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
             <Image
               src={logoUrl}
               alt={displayName}
@@ -56,26 +56,26 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
             />
           </div>
           <div>
-            <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+            <p className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {displayName}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {typeLabels[type]}
             </p>
           </div>
         </div>
-        <ExternalLink className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+        <ExternalLink className="h-5 w-5 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
       </a>
     );
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
       <div className="flex items-start gap-3 mb-4">
         <div className="p-2 bg-blue-500 rounded-lg">
           <Tv className="h-5 w-5 text-white" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mt-1">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
           Wo wird die Serie gestreamt?
         </h3>
       </div>
@@ -97,8 +97,8 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
         {providers.rent && providers.rent.slice(0, 3).map(p => renderProvider(p, 'rent'))}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500 text-center">
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
           Streaming-Verfügbarkeit für Deutschland • Daten von TMDB
         </p>
       </div>
