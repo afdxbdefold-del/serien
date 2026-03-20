@@ -159,10 +159,10 @@ async function main() {
           title: topic.title,
           contentHtml: html,
           excerpt,
-          status: 'PUBLISHED',
+          status: 'published',
           contentType: 'NEWS',
           authorId: author?.id,
-          seriesId: series.id,
+          primarySeriesId: series.tmdbId, // Use tmdbId, not series.id!
           publishedAt: new Date(),
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -176,7 +176,6 @@ async function main() {
             ? `https://image.tmdb.org/t/p/w500${series.posterPath}`
             : null,
           heroVideoUrl: 'https://www.youtube.com/watch?v=Ades3pQbeh8', // One Piece S2 Teaser
-          // Q&A stored via article_qa relation if needed
         }
       });
       
