@@ -217,6 +217,97 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
   console.log(`  📺 Series: ${series.name}`);
   console.log(`  🆔 Article ID: ${article.id}`);
   console.log('='.repeat(70));
+
+  // POST-PROCESSING: Fix internal links
+  console.log('\n🔗 Post-processing: Adding internal links...');
+  try {
+    await addInternalLinks(article.slug, series.tmdbId);
+    console.log('   ✅ Internal links processed');
+  } catch (e) {
+    console.log('   ⚠️ Link processing failed:', (e as Error).message);
+  }
+}
+
+// Internal link post-processor
+async function addInternalLinks(articleSlug: string, seriesTmdbId: number): Promise<void> {
+  const article = await prisma.articles.findUnique({
+    where: { slug: articleSlug },
+    select: { id: true, contentHtml: true }
+  });
+  
+  if (!article?.contentHtml) return;
+  
+  // Get series cast
+  const series = await prisma.series.findUnique({
+    where: { tmdbId: seriesTmdbId },
+    select: { cast: true }
+  });
+  
+  interface LinkEntity { name: string; slug: string; }
+  const entities: LinkEntity[] = [];
+  
+  // Add persons from cast
+  if (series?.cast && Array.isArray(series.cast)) {
+    for (const cm of series.cast as any[]) {
+      if (cm.name) {
+        const person = await prisma.persons.findFirst({
+          where: { name: cm.name },
+          select: { name: true, slug: true }
+        });
+        if (person?.slug) {
+          entities.push({ name: person.name, slug: `/person/${person.slug}` });
+        }
+      }
+    }
+  }
+  
+  // Add characters
+  const chars = await prisma.characters.findMany({
+    where: { seriesTmdbId },
+    select: { name: true, slug: true }
+  });
+  
+  for (const c of chars) {
+    if (c.slug) {
+      entities.push({ name: c.name, slug: `/figur/${c.slug}` });
+      // Add variants for common names
+      const variants: Record<string, string[]> = {
+        'Monkey D. Luffy': ['Luffy', 'Ruffy'],
+        'Roronoa Zoro': ['Zoro'],
+      };
+      if (variants[c.name]) {
+        for (const v of variants[c.name]) {
+          entities.push({ name: v, slug: `/figur/${c.slug}` });
+        }
+      }
+    }
+  }
+  
+  // Sort by length (longest first)
+  entities.sort((a, b) => b.name.length - a.name.length);
+  
+  let html = article.contentHtml;
+  const linked = new Set<string>();
+  
+  for (const e of entities) {
+    if (linked.has(e.name.toLowerCase())) continue;
+    const escaped = e.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?<!<a[^>]*>.*?)\\b(${escaped})\\b(?![^<]*</a>)`, 'i');
+    const match = html.match(pattern);
+    if (match) {
+      const link = `<a href="${e.slug}" class="text-cyan-600 dark:text-cyan-400 hover:underline">${match[1]}</a>`;
+      html = html.replace(pattern, link);
+      linked.add(e.name.toLowerCase());
+    }
+  }
+  
+  if (linked.size > 0) {
+    await prisma.articles.update({
+      where: { id: article.id },
+      data: { contentHtml: html }
+    });
+    console.log(`   📎 Added ${linked.size} links: ${[...linked].join(', ')}`);
+  }
 }
 
 function buildSourceText(details: any): string {
