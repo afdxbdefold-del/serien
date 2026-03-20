@@ -40,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <meta name="theme-color" content="#ffffff" />
+        <link rel="manifest" href="/manifest.json" />
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"
