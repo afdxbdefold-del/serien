@@ -237,7 +237,7 @@ export default async function ArticlePage({ params }: PageProps) {
               className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              Zurück zu {article.series.title || article.series.name}
+              Zu {article.series.title || article.series.name}
             </Link>
           ) : (
             <Link 
@@ -245,7 +245,7 @@ export default async function ArticlePage({ params }: PageProps) {
               className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              Zurück zur Startseite
+              Zur Startseite
             </Link>
           )}
 
