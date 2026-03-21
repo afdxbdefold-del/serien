@@ -49,6 +49,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
+        
+        {/* DNS Prefetch & Preconnect for Performance */}
+        <link rel="dns-prefetch" href="https://image.tmdb.org" />
+        <link rel="dns-prefetch" href="https://integrations.emergentagent.com" />
+        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://integrations.emergentagent.com" crossOrigin="anonymous" />
+        
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"

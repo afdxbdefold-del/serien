@@ -125,6 +125,8 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   fill
                   className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
                   priority={index === 0}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  sizes="100vw"
                 />
                 {/* Gradient Scrim - Only in Dark Mode */}
                 <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
