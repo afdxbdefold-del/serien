@@ -380,7 +380,27 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                 </div>
               </div>
 
-              {/* Genres */}
+              {/* Networks / Sender/Plattform - NOW SECOND */}
+              <div>
+                <h3 className="font-bold text-lg mb-4">🎬 Sender/Plattform</h3>
+                <div className="flex flex-wrap gap-2">
+                  {filterOptions.networks.map(network => (
+                    <button
+                      key={network}
+                      onClick={() => toggleArrayFilter(network, selectedNetworks, setSelectedNetworks)}
+                      className={`px-4 py-2 rounded-full border-2 transition-all ${
+                        selectedNetworks.includes(network)
+                          ? 'border-purple-500 bg-purple-50 text-purple-700 font-semibold'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {network}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Genres - NOW THIRD */}
               <div>
                 <h3 className="font-bold text-lg mb-4">📺 Genres</h3>
                 <div className="flex flex-wrap gap-2">
@@ -415,26 +435,6 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                       }`}
                     >
                       {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Networks */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">🎬 Sender/Plattform</h3>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.networks.map(network => (
-                    <button
-                      key={network}
-                      onClick={() => toggleArrayFilter(network, selectedNetworks, setSelectedNetworks)}
-                      className={`px-4 py-2 rounded-full border-2 transition-all ${
-                        selectedNetworks.includes(network)
-                          ? 'border-purple-500 bg-purple-50 text-purple-700 font-semibold'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {network}
                     </button>
                   ))}
                 </div>
