@@ -12,6 +12,7 @@ import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 import { getAuthorUrl } from '@/lib/author-utils';
+import NewsCard from '@/components/NewsCard';
 
 // Force dynamic rendering - articles need real-time data
 export const dynamic = 'force-dynamic';
@@ -140,10 +141,16 @@ export default async function ArticlePage({ params }: PageProps) {
       title: true,
       excerpt: true,
       heroLocalUrl: true,
+      cardImageUrl: true,
+      tmdbId: true,
+      tmdbType: true,
       publishedAt: true,
       category: true,
       users: {
         select: { name: true },
+      },
+      series: {
+        select: { networks: true },
       },
     },
   });
@@ -335,33 +342,21 @@ export default async function ArticlePage({ params }: PageProps) {
           {relatedNews.length > 0 && (
             <section className="mt-12" aria-labelledby="similar-news">
               <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ähnliche News</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {relatedNews.map((news) => (
-                  <Link key={news.id} href={`/${news.slug}`}>
-                    <article className="group bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer">
-                      {news.heroLocalUrl && (
-                        <div className="relative aspect-video overflow-hidden">
-                          <Image
-                            src={news.heroLocalUrl}
-                            alt={news.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        </div>
-                      )}
-                      <div className="p-3">
-                        <p className="font-semibold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 text-sm">
-                          {news.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
-                            day: 'numeric',
-                            month: 'short',
-                          }) : 'Kein Datum'}
-                        </p>
-                      </div>
-                    </article>
-                  </Link>
+                  <NewsCard
+                    key={news.id}
+                    slug={news.slug}
+                    title={news.title}
+                    excerpt={news.excerpt}
+                    heroLocalUrl={news.heroLocalUrl}
+                    cardImageUrl={news.cardImageUrl}
+                    tmdbId={news.tmdbId}
+                    tmdbType={news.tmdbType}
+                    publishedAt={news.publishedAt}
+                    category={news.category}
+                    networks={news.series?.networks as string[] || []}
+                  />
                 ))}
               </div>
             </section>
