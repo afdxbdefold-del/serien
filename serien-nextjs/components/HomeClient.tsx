@@ -2,12 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-react';
-import FeedSwitcher from './FeedSwitcher';
+import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
-import SeriesCard from './SeriesCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
-import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
 const ALL_STREAMERS = [
@@ -33,87 +30,19 @@ interface HomeClientProps {
 }
 
 export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [] }: HomeClientProps) {
-  const [activeTab, setActiveTab] = useState('all-news');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
   
-  // Hero background images - random selection on page load
-  const heroBackgrounds = [
-    'https://customer-assets.emergentagent.com/job_serien-next/artifacts/u0qp8011_47372.jpg',
-    'https://customer-assets.emergentagent.com/job_serien-next/artifacts/4os8uxy9_47373.jpg'
-  ];
-  const [currentBg] = useState(() => heroBackgrounds[Math.floor(Math.random() * heroBackgrounds.length)]);
-  
   // Data states
   const [news, setNews] = useState(initialNews);
-  const [myNews, setMyNews] = useState<any[]>([]);
-  const [series, setSeries] = useState(initialSeries);
-  const [loadingMyFeed, setLoadingMyFeed] = useState(false);
   
   // Pagination states
   const [newsPage, setNewsPage] = useState(0);
   const [hasMoreNews, setHasMoreNews] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  
-  const [seriesPage, setSeriesPage] = useState(0);
-  const [hasMoreSeries, setHasMoreSeries] = useState(true);
-  const [loadingMoreSeries, setLoadingMoreSeries] = useState(false);
 
   const NEWS_PER_PAGE = 20;
-  const SERIES_PER_PAGE = 20;
-
-  // Load My Feed from LocalStorage followed series
-  useEffect(() => {
-    const loadMyFeed = async () => {
-      const followedIds = getFollowedIds();
-      
-      if (activeTab === 'my-news' && followedIds.length > 0 && myNews.length === 0) {
-        setLoadingMyFeed(true);
-        try {
-          const response = await fetch('/api/articles/by-followed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tmdbIds: followedIds }),
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setMyNews(data.articles || []);
-          }
-        } catch (error) {
-          console.error('Failed to load my feed:', error);
-        } finally {
-          setLoadingMyFeed(false);
-        }
-      }
-      
-      // If no followed series, clear feed
-      if (followedIds.length === 0) {
-        setMyNews([]);
-      }
-    };
-    
-    loadMyFeed();
-    
-    // Listen for follow changes
-    const unsubscribe = onFollowsChanged(() => {
-      setMyNews([]); // Clear cache when follows change
-      loadMyFeed();
-    });
-    
-    return unsubscribe;
-  }, [activeTab, myNews.length]);
-
-  // Remove old Google Login function (not needed without auth)
-  // const loginWithGoogle = () => { ... };
-
-  // Filter series by search
-  const filteredSeries = searchQuery
-    ? series.filter(show => 
-        show.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : series;
 
   // Filter by selected streamers
   const filterByStreamers = (items: any[], isNews = false) => {
@@ -132,8 +61,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   };
 
   const filteredNews = filterByStreamers(news, true);
-  const filteredMyNews = filterByStreamers(myNews, true);
-  const filteredSeriesByStreamer = filterByStreamers(filteredSeries, false);
 
   const toggleStreamer = (streamerId: string) => {
     setSelectedStreamers(prev => 
@@ -235,26 +162,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full hidden sm:block" />
           </div>
 
-          {/* Feed Switcher */}
-          <FeedSwitcher 
-            activeTab={activeTab} 
-            onTabChange={setActiveTab}
-            isAuthenticated={isAuthenticated}
-          />
+          {/* Tip Box */}
+          <div className="mb-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
+            </p>
+          </div>
 
-          {/* Tip Box for All News Tab */}
-          {activeTab === 'all-news' && (
-            <div className="mb-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
-              </p>
-            </div>
-          )}
-
-          {/* Content based on active tab */}
-          {activeTab === 'all-news' && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* News Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredNews.map((item: any) => (
                   <NewsCard 
                     key={item.id}
@@ -292,74 +208,22 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                   </button>
                 </div>
               )}
-            </>
-          )}
-
-          {activeTab === 'my-news' && (
-            <>
-              {loadingMyFeed ? (
-                <div className="flex justify-center py-24">
-                  <div className="text-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-                    <p className="text-gray-600">Lade deine personalisierten News...</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredMyNews.length > 0 ? (
-                    filteredMyNews.map((item: any) => (
-                      <NewsCard 
-                        key={item.id}
-                        slug={item.slug}
-                        title={item.title}
-                        excerpt={item.excerpt}
-                        heroLocalUrl={item.heroLocalUrl}
-                        cardImageUrl={item.cardImageUrl}
-                        tmdbId={item.tmdbId}
-                        tmdbType={item.tmdbType}
-                        publishedAt={item.publishedAt}
-                        category={item.category}
-                        authorName={item.author?.name}
-                        networks={item.primarySeries?.networks || []}
-                      />
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-16">
-                      <div className="max-w-md mx-auto">
-                        <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                          <Sparkles className="h-10 w-10 text-blue-600" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-3">
-                          Noch keine personalisierten News
-                        </h3>
-                        <p className="text-gray-600">
-                          Folge deinen Lieblingsserien, um personalisierte News und Updates zu erhalten.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </div>
       </div>
 
       {/* Floating Newsfilter Button - Bottom Right */}
-      {(activeTab === 'all-news' || activeTab === 'my-news') && (
-        <button
-          onClick={() => setShowFilterModal(true)}
-          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:from-cyan-600 hover:to-blue-600 transition-all z-40"
-        >
-          <SlidersHorizontal className="h-5 w-5" />
-          <span className="font-semibold">Newsfilter</span>
-          {selectedStreamers.length > 0 && (
-            <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full">
-              {selectedStreamers.length}
-            </span>
-          )}
-        </button>
-      )}
+      <button
+        onClick={() => setShowFilterModal(true)}
+        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:from-cyan-600 hover:to-blue-600 transition-all z-40"
+      >
+        <SlidersHorizontal className="h-5 w-5" />
+        <span className="font-semibold">Newsfilter</span>
+        {selectedStreamers.length > 0 && (
+          <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full">
+            {selectedStreamers.length}
+          </span>
+        )}
+      </button>
 
       {/* Newsfilter Modal */}
       {showFilterModal && (
