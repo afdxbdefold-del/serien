@@ -126,8 +126,8 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
                   priority={index === 0}
                 />
-                {/* Gradient Scrim - Light: subtle, Dark: cinematic */}
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/60 via-transparent to-transparent dark:from-[hsl(230,25%,5%)] dark:via-[hsl(230,25%,5%)]/30" />
+                {/* Gradient Scrim - Only in Dark Mode */}
+                <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
               </div>
             );
           })}
