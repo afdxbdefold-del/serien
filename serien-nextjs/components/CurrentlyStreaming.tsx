@@ -48,18 +48,19 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
   }
 
   return (
-    <section className="mb-12">
+    <section className="mb-12" data-testid="currently-streaming">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
             Aktuell im Stream
           </h2>
-          <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full hidden sm:block" />
+          <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
         </div>
         <Link 
           href="/serienfinder"
-          className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+          className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-[hsl(215,20%,65%)] hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors duration-300"
+          data-testid="view-all-series"
         >
           Alle anzeigen
           <ChevronRight className="w-4 h-4" />
@@ -68,11 +69,12 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
 
       {/* Scrollable Series Row */}
       <div className="relative group">
-        {/* Left Scroll Button */}
+        {/* Left Scroll Button - Glassmorphism */}
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -translate-x-1/2"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/60 dark:bg-black/70 dark:backdrop-blur-xl dark:border dark:border-white/10 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 -translate-x-1/2"
           aria-label="Scroll left"
+          data-testid="scroll-left"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -88,14 +90,15 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
               key={item.tmdbId}
               href={item.slug ? `/serie/${item.tmdbId}-${item.slug}` : `/serie/${item.tmdbId}`}
               className="group/card flex-shrink-0 w-[160px] sm:w-[180px] relative"
+              data-testid={`series-card-${item.tmdbId}`}
             >
               {/* Poster Image */}
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 shadow-lg">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-[hsl(230,25%,12%)] shadow-lg dark:hover:shadow-[0_0_25px_rgba(6,182,212,0.25)] transition-shadow duration-500">
                 <Image
                   src={item.posterPath || `/img/card/tv/${item.tmdbId}`}
                   alt={item.title}
                   fill
-                  className="object-cover group-hover/card:scale-105 transition-transform duration-300"
+                  className="object-cover transition-transform duration-700 ease-out group-hover/card:scale-105"
                 />
                 
                 {/* Play Button Overlay */}
@@ -130,19 +133,20 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
           ))}
         </div>
 
-        {/* Right Scroll Button */}
+        {/* Right Scroll Button - Glassmorphism */}
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/60 dark:bg-black/70 dark:backdrop-blur-xl dark:border dark:border-white/10 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-x-1/2"
           aria-label="Scroll right"
+          data-testid="scroll-right"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Streaming Providers */}
+      {/* Streaming Providers - Glassmorphism Style */}
       <div className="mt-8">
-        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
+        <h3 className="text-lg font-semibold text-gray-700 dark:text-[hsl(215,20%,75%)] mb-4">
           Im Stream bei:
         </h3>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -150,9 +154,10 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
             <Link
               key={provider.id}
               href={`/serienfinder?network=${encodeURIComponent(provider.name)}`}
-              className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex items-center justify-center transition-transform hover:scale-105"
+              className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 dark:hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] dark:border dark:border-white/10 dark:backdrop-blur-sm"
               style={{ backgroundColor: provider.color }}
               title={provider.name}
+              data-testid={`provider-${provider.id}`}
             >
               <span className="text-white font-bold text-sm text-center px-2">
                 {provider.name}

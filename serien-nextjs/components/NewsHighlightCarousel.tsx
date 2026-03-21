@@ -96,13 +96,14 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   return (
     <section 
       ref={containerRef}
-      className="relative w-full bg-gray-900"
+      className="relative w-full bg-[hsl(230,25%,5%)]"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      data-testid="news-highlight-carousel"
     >
       {/* Main Image Area */}
-      <Link href={`/${currentNews.slug}`} className="block">
+      <Link href={`/${currentNews.slug}`} className="block group" data-testid="carousel-main-link">
         <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden">
           {/* Background Images - All preloaded for smooth transitions */}
           {news.map((item, index) => {
@@ -114,7 +115,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
             return (
               <div
                 key={item.id}
-                className={`absolute inset-0 transition-opacity duration-500 ${
+                className={`absolute inset-0 transition-opacity duration-700 ${
                   index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               >
@@ -122,41 +123,44 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   src={imgUrl}
                   alt={item.title}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
                   priority={index === 0}
                 />
+                {/* Cinematic Gradient Scrim */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
               </div>
             );
           })}
         </div>
       </Link>
 
-      {/* Content Box - Dark background below image */}
-      <div className="bg-gray-900 px-4 py-5 sm:px-6 sm:py-6">
-        <Link href={`/${currentNews.slug}`}>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 hover:text-cyan-400 transition-colors line-clamp-3">
+      {/* Content Box - Cinematic Dark */}
+      <div className="bg-[hsl(230,25%,5%)] px-4 py-5 sm:px-6 sm:py-6">
+        <Link href={`/${currentNews.slug}`} data-testid="carousel-title-link">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 hover:text-cyan-400 transition-colors duration-300 line-clamp-3 tracking-tight">
             {currentNews.title}
           </h2>
         </Link>
         
         {/* Date */}
-        <p className="text-gray-400 text-sm">
+        <p className="text-[hsl(215,20%,55%)] text-sm">
           {getRelativeTime(currentNews.publishedAt)}
         </p>
       </div>
 
-      {/* Navigation Dots */}
-      <div className="bg-gray-900 pb-6 flex justify-center gap-2">
+      {/* Navigation Dots - with Glow */}
+      <div className="bg-[hsl(230,25%,5%)] pb-6 flex justify-center gap-2">
         {news.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
             className={`h-2 rounded-full transition-all duration-300 ${
               index === currentIndex 
-                ? 'w-6 bg-cyan-500' 
-                : 'w-2 bg-gray-600 hover:bg-gray-500'
+                ? 'w-6 bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.6)]' 
+                : 'w-2 bg-[hsl(230,25%,20%)] hover:bg-[hsl(230,25%,30%)]'
             }`}
             aria-label={`Slide ${index + 1}`}
+            data-testid={`carousel-dot-${index}`}
           />
         ))}
       </div>

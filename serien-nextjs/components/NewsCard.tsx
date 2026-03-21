@@ -58,20 +58,19 @@ export default function NewsCard({
   const streamerStyle = streamerName ? streamerStyles[streamerName] : null;
 
   return (
-    <Link href={`/${slug}`}>
-      {/* GLOW EFFECT: Remove 'dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30' to revert */}
-      <article className="group bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:shadow-lg dark:hover:shadow-cyan-500/20 dark:hover:border-cyan-500/30 transition-all duration-300 overflow-hidden cursor-pointer">
-        {/* Image - Using hero/backdrop images (16:9) instead of card/poster */}
+    <Link href={`/${slug}`} data-testid="news-card-link">
+      <article className="group bg-white dark:bg-[hsl(230,25%,9%)] rounded-xl border border-gray-200 dark:border-[hsl(230,25%,15%)] hover:shadow-lg dark:hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] dark:hover:border-cyan-500/40 transition-all duration-500 overflow-hidden cursor-pointer card-lift">
+        {/* Image - Using hero/backdrop images (16:9) */}
         <div className="relative aspect-video overflow-hidden">
           {(cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
             <Image
               src={cardImageUrl || (tmdbId && tmdbType ? `/img/hero/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
               alt={title}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+            <div className="w-full h-full bg-gray-200 dark:bg-[hsl(230,25%,12%)] flex items-center justify-center">
               <span className="text-gray-400 dark:text-gray-600">Kein Bild</span>
             </div>
           )}
@@ -88,18 +87,18 @@ export default function NewsCard({
 
         {/* Content */}
         <div className="p-5">
-          <p className="text-lg font-bold text-gray-900 dark:text-white leading-snug mb-3 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+          <p className="text-lg font-bold text-gray-900 dark:text-white leading-snug mb-3 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors duration-300">
             {title}
           </p>
 
           {excerpt && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4">
+            <p className="text-sm text-gray-600 dark:text-[hsl(215,20%,65%)] line-clamp-2 mb-4">
               {excerpt}
             </p>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-500">
+          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-[hsl(215,20%,55%)]">
             <span>{getRelativeTime()}</span>
           </div>
         </div>

@@ -136,15 +136,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
               Serien News
             </h2>
-            <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full hidden sm:block" />
+            <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
           </div>
 
-          {/* Tip Box */}
-          <div className="mb-6 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+          {/* Tip Box - Glassmorphism in Dark Mode */}
+          <div className="mb-6 bg-gray-50 dark:bg-[hsl(230,25%,9%)] border border-gray-200 dark:border-[hsl(230,25%,15%)] rounded-lg p-3">
+            <p className="text-xs text-gray-600 dark:text-[hsl(215,20%,65%)]">
               💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
             </p>
           </div>
@@ -169,13 +169,14 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 ))}
               </div>
               
-              {/* Load More Button */}
+              {/* Load More Button - with Glow */}
               {hasMoreNews && filteredGridNews.length > 0 && (
                 <div className="mt-12 flex justify-center">
                   <button
                     onClick={loadMoreNews}
                     disabled={loadingMore}
-                    className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-semibold rounded-lg hover:from-cyan-400 hover:to-cyan-300 transition-all duration-300 shadow-lg hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    data-testid="load-more-news"
                   >
                     {loadingMore ? (
                       <>
@@ -191,10 +192,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </div>
       </div>
 
-      {/* Floating Newsfilter Button - Bottom Right */}
+      {/* Floating Newsfilter Button - Glassmorphism */}
       <button
         onClick={() => setShowFilterModal(true)}
-        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:from-cyan-600 hover:to-blue-600 transition-all z-40"
+        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-cyan-400 dark:from-cyan-500/90 dark:to-cyan-400/90 text-white rounded-full shadow-2xl dark:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] dark:backdrop-blur-sm transition-all duration-300 z-40"
+        data-testid="newsfilter-button"
       >
         <SlidersHorizontal className="h-5 w-5" />
         <span className="font-semibold">Newsfilter</span>
@@ -205,17 +207,18 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         )}
       </button>
 
-      {/* Newsfilter Modal */}
+      {/* Newsfilter Modal - Glassmorphism in Dark Mode */}
       {showFilterModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFilterModal(false)}>
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="text-2xl font-bold">Newsfilter nach Streamer</h2>
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowFilterModal(false)}>
+          <div className="bg-white dark:bg-[hsl(230,25%,9%)] dark:border dark:border-[hsl(230,25%,15%)] rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-200 dark:border-[hsl(230,25%,15%)] flex items-center justify-between sticky top-0 bg-white dark:bg-[hsl(230,25%,9%)]">
+              <h2 className="text-2xl font-bold dark:text-white tracking-tight">Newsfilter nach Streamer</h2>
               <button
                 onClick={() => setShowFilterModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-[hsl(230,25%,15%)] rounded-lg transition-colors duration-300"
+                data-testid="close-filter-modal"
               >
-                <X className="h-6 w-6" />
+                <X className="h-6 w-6 dark:text-white" />
               </button>
             </div>
 
@@ -227,11 +230,12 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     <button
                       key={streamer.id}
                       onClick={() => toggleStreamer(streamer.id)}
-                      className={`p-4 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                         isSelected
-                          ? 'border-cyan-500 bg-cyan-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 dark:border-cyan-500'
+                          : 'border-gray-200 dark:border-[hsl(230,25%,20%)] hover:border-gray-300 dark:hover:border-[hsl(230,25%,30%)] dark:bg-[hsl(230,25%,12%)]'
                       }`}
+                      data-testid={`filter-${streamer.id}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -239,9 +243,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                         >
                           {streamer.label.substring(0, 1)}
                         </div>
-                        <span className="font-medium text-left">{streamer.label}</span>
+                        <span className="font-medium text-left dark:text-white">{streamer.label}</span>
                         {isSelected && (
-                          <Check className="h-5 w-5 text-cyan-600 ml-auto" />
+                          <Check className="h-5 w-5 text-cyan-600 dark:text-cyan-400 ml-auto" />
                         )}
                       </div>
                     </button>
@@ -252,13 +256,15 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               <div className="mt-6 flex gap-4">
                 <button
                   onClick={clearFilters}
-                  className="flex-1 px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-6 py-3 border border-gray-200 dark:border-[hsl(230,25%,20%)] rounded-lg hover:bg-gray-50 dark:hover:bg-[hsl(230,25%,15%)] dark:text-white transition-colors duration-300"
+                  data-testid="reset-filters"
                 >
                   Zurücksetzen
                 </button>
                 <button
                   onClick={() => setShowFilterModal(false)}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-cyan-400 text-white rounded-lg hover:from-cyan-400 hover:to-cyan-300 transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                  data-testid="apply-filters"
                 >
                   Anwenden
                 </button>
