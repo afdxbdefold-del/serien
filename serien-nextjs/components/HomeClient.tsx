@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-react';
+import { Search, Loader2, SlidersHorizontal, X, Check } from 'lucide-react';
 import FeedSwitcher from './FeedSwitcher';
 import NewsCard from './NewsCard';
 import SeriesCard from './SeriesCard';
@@ -204,27 +204,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
-      {/* Hero Section - Clean style like Feed buttons */}
-      {!isAuthenticated && (
-        <section className="py-10 md:py-14" aria-labelledby="hero-heading">
+      {/* Aktuell im Stream - Hero Section */}
+      {!isAuthenticated && streamingSeries.length > 0 && (
+        <section className="py-8 md:py-10" aria-labelledby="hero-heading">
           <div className="container mx-auto px-6 md:px-12">
-            <div className="max-w-3xl mx-auto text-center bg-gray-50 dark:bg-gray-900 rounded-3xl p-8 md:p-12">
-              <h1 id="hero-heading" className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3">
-                Folge deinen Lieblingsserien
-              </h1>
-              <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-6">
-                um personalisierte News und Updates zu erhalten.
-              </p>
-
-              {/* Serien entdecken Button */}
-              <Link 
-                href="/serienfinder"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl"
-              >
-                <Sparkles className="h-5 w-5" />
-                Serienfinder
-              </Link>
-            </div>
+            <CurrentlyStreaming series={streamingSeries} />
           </div>
         </section>
       )}
@@ -262,11 +246,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           {/* Content based on active tab */}
           {activeTab === 'all-news' && (
             <>
-              {/* Aktuell im Stream Section */}
-              {streamingSeries.length > 0 && (
-                <CurrentlyStreaming series={streamingSeries} />
-              )}
-              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredNews.map((item: any) => (
                   <NewsCard 
