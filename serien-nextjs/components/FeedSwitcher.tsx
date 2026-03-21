@@ -26,7 +26,7 @@ export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: Fee
 
   return (
     <div className="mb-8 flex justify-center">
-      <div className="inline-flex items-center gap-2 p-1.5 bg-gray-50 dark:bg-gray-800 rounded-full">
+      <div className="w-full sm:w-auto flex sm:inline-flex items-center gap-2 p-1.5 bg-gray-50 dark:bg-gray-800 rounded-full">
         {tabs.map((tab) => {
           const config = tabConfig[tab];
           const Icon = config.icon;
@@ -37,9 +37,10 @@ export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: Fee
               key={tab}
               onClick={() => onTabChange(tab)}
               className={`
+                flex-1 sm:flex-none
                 relative px-5 py-3 rounded-full font-medium text-sm
                 transition-all duration-300 ease-out
-                flex items-center gap-2
+                flex items-center justify-center gap-2
                 ${isActive 
                   ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg' 
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50'
