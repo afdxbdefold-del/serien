@@ -168,17 +168,17 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6" role="tablist" aria-label="News Kategorien">
+          {/* Tabs - Stylische Pill-Buttons */}
+          <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Kategorien">
             <button
               onClick={() => setActiveTab('all')}
               role="tab"
               aria-selected={activeTab === 'all'}
               aria-controls="tab-panel-all"
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+              className={`relative px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
                 activeTab === 'all'
-                  ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                  : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
+                  ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg dark:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
               data-testid="tab-all-news"
             >
@@ -189,14 +189,19 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               role="tab"
               aria-selected={activeTab === 'feed'}
               aria-controls="tab-panel-feed"
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+              className={`relative px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
                 activeTab === 'feed'
-                  ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                  : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
+                  ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg dark:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
               data-testid="tab-my-feed"
             >
               Mein Feed
+              {followedSeriesIds.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-white/20 dark:bg-white/10 rounded-full">
+                  {followedSeriesIds.length}
+                </span>
+              )}
             </button>
           </div>
 
