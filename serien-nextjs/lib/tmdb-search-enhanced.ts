@@ -141,27 +141,23 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   const keywords = ['Season', 'Staffel', 'Renewed', 'Cancelled', 'um eine', 'bekommt'];
   
   for (const keyword of keywords) {
+    // Check in title
     const keywordIdx = title.indexOf(keyword);
-    if (keywordIdx === -1) continue;
-    
-    // Get text before keyword
-    const beforeKeyword = title.substring(0, keywordIdx).trim();
-    
-    // Remove quotes from the end
-    let cleaned = beforeKeyword;
-    for (const quote of quoteChars) {
-      if (cleaned.endsWith(quote)) {
-        cleaned = cleaned.slice(0, -1).trim();
+    if (keywordIdx !== -1) {
+      const beforeKeyword = title.substring(0, keywordIdx).trim();
+      let cleaned = beforeKeyword;
+      for (const quote of quoteChars) {
+        if (cleaned.endsWith(quote)) {
+          cleaned = cleaned.slice(0, -1).trim();
+        }
       }
-    }
-    
-    // Get last 2-4 words (likely the series name)
-    const words = cleaned.split(/\s+/);
-    if (words.length >= 1) {
-      const lastWords = words.slice(-Math.min(3, words.length)).join(' ');
-      
-      if (lastWords.length >= 3 && lastWords.length <= 40) {
-        candidates.push(lastWords);
+      const words = cleaned.split(/\s+/);
+      if (words.length >= 1) {
+        const lastWords = words.slice(-Math.min(3, words.length)).join(' ');
+        
+        if (lastWords.length >= 3 && lastWords.length <= 40) {
+          candidates.push(lastWords);
+        }
       }
     }
   }
@@ -199,6 +195,36 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   
   // Deduplicate, filter, and clean
   console.log(`   📋 Raw candidates before filter: ${candidates.length}`, candidates.slice(0, 3));
+  
+  // Strategy 5 (NEW): Find any word in quotes that appears before common TV keywords
+  const tvKeywordsInText = ['Season', 'Staffel', 'series', 'Serie', 'show', 'renewed', 'episode'];
+  for (const keyword of tvKeywordsInText) {
+    const keywordLower = keyword.toLowerCase();
+    const textLower = articleText.toLowerCase();
+    const keywordIdx = textLower.indexOf(keywordLower);
+    
+    if (keywordIdx > 20) {
+      // Look backwards for quoted text
+      const beforeKeyword = articleText.substring(Math.max(0, keywordIdx - 100), keywordIdx);
+      
+      for (const openQuote of quoteChars) {
+        for (const closeQuote of quoteChars) {
+          const lastClose = beforeKeyword.lastIndexOf(closeQuote);
+          if (lastClose === -1) continue;
+          
+          const lastOpen = beforeKeyword.lastIndexOf(openQuote, lastClose - 1);
+          if (lastOpen === -1 || lastOpen >= lastClose) continue;
+          
+          const extracted = beforeKeyword.substring(lastOpen + 1, lastClose).trim();
+          if (extracted.length >= 2 && extracted.length <= 40 && !candidates.includes(extracted)) {
+            candidates.push(extracted);
+            console.log(`   🎯 Found via keyword "${keyword}": "${extracted}"`);
+          }
+        }
+      }
+    }
+  }
+  
   const unique = [...new Set(candidates)]
     .filter(c => c.length >= 2 && c.length <= 60) // Increased from 40 to 60 for longer titles
     .filter(c => !c.match(/^(Renewed|Season|Staffel|for|um|eine|bei|verlängert)$/i))
