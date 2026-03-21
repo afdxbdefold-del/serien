@@ -6,6 +6,7 @@ import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-r
 import FeedSwitcher from './FeedSwitcher';
 import NewsCard from './NewsCard';
 import SeriesCard from './SeriesCard';
+import CurrentlyStreaming from './CurrentlyStreaming';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -28,9 +29,10 @@ interface HomeClientProps {
   initialSeries: any[];
   stats: { series_total: number; news_total: number; series_german: number };
   isAuthenticated: boolean;
+  streamingSeries?: any[];
 }
 
-export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated }: HomeClientProps) {
+export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [] }: HomeClientProps) {
   const [activeTab, setActiveTab] = useState('all-news');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -260,6 +262,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           {/* Content based on active tab */}
           {activeTab === 'all-news' && (
             <>
+              {/* Aktuell im Stream Section */}
+              {streamingSeries.length > 0 && (
+                <CurrentlyStreaming series={streamingSeries} />
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredNews.map((item: any) => (
                   <NewsCard 

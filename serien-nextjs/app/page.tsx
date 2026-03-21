@@ -44,10 +44,10 @@ export const revalidate = 60; // Revalidate every 60 seconds
 
 export default async function Page() {
   // Fetch news, series, and stats from database
-  let articles, series, seriesCount, articlesCount;
+  let articles, series, seriesCount, articlesCount, streamingSeries;
   
   try {
-    [articles, series, seriesCount, articlesCount] = await Promise.all([
+    [articles, series, seriesCount, articlesCount, streamingSeries] = await Promise.all([
       prisma.articles.findMany({
         where: { 
           OR: [
@@ -85,6 +85,23 @@ export default async function Page() {
             { status: 'PUBLISHED' }
           ]
         } 
+      }),
+      // Fetch series with status RUNNING or recent ones for "Aktuell im Stream"
+      prisma.series.findMany({
+        where: {
+          OR: [
+            { status: 'RUNNING' },
+            { status: 'Returning Series' },
+          ]
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 12,
+        select: {
+          tmdbId: true,
+          title: true,
+          slug: true,
+          networks: true,
+        }
       })
     ]);
   } catch (error) {
@@ -94,6 +111,7 @@ export default async function Page() {
     series = [];
     seriesCount = 0;
     articlesCount = 0;
+    streamingSeries = [];
   }
 
   const stats = {
@@ -137,6 +155,14 @@ export default async function Page() {
     lastNewsDate: s.lastNewsDate?.toISOString() || null,
   }));
 
+  // Format streaming series for the component
+  const formattedStreamingSeries = streamingSeries.map((s: any) => ({
+    tmdbId: s.tmdbId,
+    title: s.title,
+    slug: s.slug,
+    network: Array.isArray(s.networks) ? s.networks[0] : s.networks,
+  }));
+
   return (
     <>
       <HomeClient 
@@ -144,6 +170,7 @@ export default async function Page() {
         initialSeries={serializedSeries} 
         stats={stats}
         isAuthenticated={isAuthenticated}
+        streamingSeries={formattedStreamingSeries}
       />
     </>
   );
