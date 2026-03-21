@@ -119,15 +119,27 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               >
-                <Image
-                  src={imgUrl}
-                  alt={item.title}
-                  fill
-                  className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
-                  priority={index === 0}
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  sizes="100vw"
-                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {index === 0 ? (
+                  <img
+                    src={imgUrl}
+                    alt={item.title}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
+                    fetchPriority="high"
+                    decoding="async"
+                  />
+                ) : (
+                  <Image
+                    src={imgUrl}
+                    alt={item.title}
+                    fill
+                    className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
+                    loading="lazy"
+                    sizes="100vw"
+                    quality={60}
+                    unoptimized={imgUrl.startsWith('/img/')}
+                  />
+                )}
                 {/* Gradient Scrim - Only in Dark Mode */}
                 <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
               </div>

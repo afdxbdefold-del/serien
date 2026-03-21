@@ -68,7 +68,7 @@ const getHomepageData = unstable_cache(
           }
         },
         orderBy: { publishedAt: 'desc' },
-        take: 20
+        take: 11  // 5 for carousel + 6 for initial grid (reduces LCP)
       }),
       prisma.series.findMany({
         orderBy: { createdAt: 'desc' },
@@ -184,8 +184,22 @@ export default async function Page() {
     network: Array.isArray(s.networks) ? s.networks[0] : s.networks,
   }));
 
+  // Get the first article's hero image for preload
+  const firstArticle = serializedArticles[0];
+  const heroPreloadUrl = firstArticle?.tmdbId && firstArticle?.tmdbType 
+    ? `/img/hero/${firstArticle.tmdbType}/${firstArticle.tmdbId}`
+    : firstArticle?.heroLocalUrl;
+
   return (
     <>
+      {heroPreloadUrl && (
+        <link 
+          rel="preload" 
+          as="image" 
+          href={heroPreloadUrl}
+          fetchPriority="high"
+        />
+      )}
       <HomeClient 
         initialNews={serializedArticles} 
         initialSeries={serializedSeries} 

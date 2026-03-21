@@ -98,6 +98,8 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
                   src={item.posterPath || `/img/card/tv/${item.tmdbId}`}
                   alt={item.title}
                   fill
+                  sizes="180px"
+                  loading="lazy"
                   className="object-cover transition-transform duration-700 ease-out group-hover/card:scale-105"
                 />
                 
