@@ -62,6 +62,40 @@ function TrendingClientInner({ series }: TrendingClientProps) {
     }
   }, [searchParams]);
 
+  // Streaming services available in Germany
+  const GERMAN_STREAMERS = [
+    'Netflix',
+    'Amazon Prime Video',
+    'Prime Video',
+    'Disney+',
+    'Disney Plus',
+    'Apple TV+',
+    'Apple TV',
+    'WOW',
+    'Sky',
+    'Sky Atlantic',
+    'Paramount+',
+    'Paramount Plus',
+    'RTL+',
+    'RTL',
+    'Joyn',
+    'Joyn Plus',
+    'MagentaTV',
+    'Crunchyroll',
+    'HBO Max',
+    'Max',
+    'Peacock',
+    'ARD',
+    'ZDF',
+    'Arte',
+    'ProSieben',
+    'Sat.1',
+    'VOX',
+    'kabel eins',
+    'DAZN',
+    'Discovery+',
+  ];
+
   // Get unique filter options from data
   const filterOptions = useMemo(() => {
     const genres = new Set<string>();
@@ -71,7 +105,12 @@ function TrendingClientInner({ series }: TrendingClientProps) {
     series.forEach(s => {
       s.genres?.forEach(g => genres.add(g));
       if (s.status) statuses.add(s.status);
-      s.networks?.forEach(n => networks.add(n));
+      // Only add German streamers
+      s.networks?.forEach(n => {
+        if (GERMAN_STREAMERS.some(gs => n.toLowerCase().includes(gs.toLowerCase()) || gs.toLowerCase().includes(n.toLowerCase()))) {
+          networks.add(n);
+        }
+      });
     });
 
     return {
