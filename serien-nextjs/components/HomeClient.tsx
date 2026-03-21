@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
 import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
+import NewsHighlightCarousel from './NewsHighlightCarousel';
 
 // All available streamers
 const ALL_STREAMERS = [
@@ -30,7 +30,6 @@ interface HomeClientProps {
 }
 
 export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [] }: HomeClientProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
   
@@ -43,6 +42,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const [loadingMore, setLoadingMore] = useState(false);
 
   const NEWS_PER_PAGE = 20;
+  const HIGHLIGHT_COUNT = 5;
+
+  // Split news: First 5 for carousel, rest for grid
+  const highlightNews = news.slice(0, HIGHLIGHT_COUNT);
+  const gridNews = news.slice(HIGHLIGHT_COUNT);
 
   // Filter by selected streamers
   const filterByStreamers = (items: any[], isNews = false) => {
@@ -60,7 +64,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
     });
   };
 
-  const filteredNews = filterByStreamers(news, true);
+  const filteredGridNews = filterByStreamers(gridNews, true);
 
   const toggleStreamer = (streamerId: string) => {
     setSelectedStreamers(prev => 
@@ -100,37 +104,13 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
     }
   };
 
-  const loadMoreSeries = async () => {
-    if (loadingMoreSeries || !hasMoreSeries) return;
-    
-    setLoadingMoreSeries(true);
-    try {
-      const nextPage = seriesPage + 1;
-      const response = await fetch(`/api/series?page=${nextPage}&limit=${SERIES_PER_PAGE}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.series && data.series.length > 0) {
-          setSeries(prev => [...prev, ...data.series]);
-          setSeriesPage(nextPage);
-          setHasMoreSeries(data.series.length === SERIES_PER_PAGE);
-        } else {
-          setHasMoreSeries(false);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading more series:', error);
-    } finally {
-      setLoadingMoreSeries(false);
-    }
-  };
-
-  const handleFollowToggle = async (seriesId: string, isCurrentlyFollowing: boolean) => {
-    // TODO: Implement follow/unfollow API call
-  };
-
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
+      {/* News Highlight Carousel - Directly under header */}
+      {highlightNews.length > 0 && (
+        <NewsHighlightCarousel news={highlightNews} />
+      )}
+
       {/* Aktuell im Stream - Hero Section */}
       {!isAuthenticated && streamingSeries.length > 0 && (
         <section className="py-8 md:py-10" aria-labelledby="hero-heading">
@@ -171,7 +151,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
           {/* News Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredNews.map((item: any) => (
+                {filteredGridNews.map((item: any) => (
                   <NewsCard 
                     key={item.id}
                     slug={item.slug}
@@ -190,7 +170,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               </div>
               
               {/* Load More Button */}
-              {hasMoreNews && filteredNews.length > 0 && (
+              {hasMoreNews && filteredGridNews.length > 0 && (
                 <div className="mt-12 flex justify-center">
                   <button
                     onClick={loadMoreNews}
