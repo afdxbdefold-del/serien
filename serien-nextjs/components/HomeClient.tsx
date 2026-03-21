@@ -227,6 +227,14 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       {/* News Feed Section */}
       <div className="container mx-auto px-6 md:px-12 py-8">
         <div className="max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="flex items-center gap-4 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Serien News
+            </h2>
+            <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full hidden sm:block" />
+          </div>
+
           {/* Feed Switcher */}
           <FeedSwitcher 
             activeTab={activeTab} 
