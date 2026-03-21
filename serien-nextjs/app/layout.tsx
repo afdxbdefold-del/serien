@@ -62,8 +62,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* DNS Prefetch & Preconnect for Performance */}
         <link rel="dns-prefetch" href="https://image.tmdb.org" />
         <link rel="dns-prefetch" href="https://integrations.emergentagent.com" />
+        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
         <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://integrations.emergentagent.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
+        
+        {/* Google AdSense - Loads only after cookie consent */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+          crossOrigin="anonymous"
+        />
         
         {/* Global Schema.org markup */}
         <script
