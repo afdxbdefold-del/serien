@@ -9,7 +9,7 @@ export default function Footer() {
   return (
     <>
       {/* Main Footer */}
-      <footer className="relative bg-gradient-to-b from-gray-900 to-gray-950 dark:from-[hsl(230,25%,6%)] dark:to-[hsl(230,25%,4%)] text-gray-400 overflow-hidden">
+      <footer className="relative bg-gray-100 dark:bg-gradient-to-b dark:from-[hsl(230,25%,6%)] dark:to-[hsl(230,25%,4%)] text-gray-600 dark:text-gray-400 overflow-hidden border-t border-gray-200 dark:border-transparent">
         {/* Decorative gradient line */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
         
@@ -25,7 +25,7 @@ export default function Footer() {
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/25 group-hover:shadow-cyan-500/40 transition-shadow">
                   <Tv className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-white">serien.de</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white">serien.de</span>
               </Link>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                 Deine Quelle für die neuesten Serien-News, Trailer und Streaming-Tipps.
@@ -34,7 +34,7 @@ export default function Footer() {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Navigation</h4>
+              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Navigation</h4>
               <ul className="space-y-2">
                 {[
                   { href: '/', label: 'News' },
@@ -46,7 +46,7 @@ export default function Footer() {
                   <li key={link.href}>
                     <Link 
                       href={link.href}
-                      className="text-sm text-gray-400 hover:text-cyan-400 transition-colors flex items-center gap-1 group"
+                      className="text-sm text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors flex items-center gap-1 group"
                     >
                       <ChevronRight className="w-3 h-3 opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all" />
                       {link.label}
@@ -58,12 +58,12 @@ export default function Footer() {
 
             {/* Streaming */}
             <div>
-              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Streaming</h4>
+              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Streaming</h4>
               <div className="flex flex-wrap gap-2">
                 {['Netflix', 'Prime', 'Disney+', 'Apple TV+', 'Max'].map((provider) => (
                   <span 
                     key={provider}
-                    className="px-3 py-1 text-xs rounded-full bg-gray-800 dark:bg-[hsl(230,25%,12%)] text-gray-400 hover:text-cyan-400 hover:bg-gray-700 dark:hover:bg-[hsl(230,25%,18%)] transition-colors cursor-default"
+                    className="px-3 py-1 text-xs rounded-full bg-gray-200 dark:bg-[hsl(230,25%,12%)] text-gray-600 dark:text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-gray-300 dark:hover:bg-[hsl(230,25%,18%)] transition-colors cursor-default"
                   >
                     {provider}
                   </span>
@@ -73,10 +73,10 @@ export default function Footer() {
 
             {/* Contact */}
             <div>
-              <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Kontakt</h4>
+              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Kontakt</h4>
               <a 
                 href="mailto:mail@serien.de"
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-cyan-400 transition-colors mb-4"
+                className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors mb-4"
               >
                 <Mail className="w-4 h-4" />
                 mail@serien.de
@@ -84,14 +84,14 @@ export default function Footer() {
               <div className="flex gap-3">
                 <a 
                   href="#" 
-                  className="w-9 h-9 rounded-full bg-gray-800 dark:bg-[hsl(230,25%,12%)] flex items-center justify-center text-gray-400 hover:text-white hover:bg-cyan-500 transition-all"
+                  className="w-9 h-9 rounded-full bg-gray-200 dark:bg-[hsl(230,25%,12%)] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-white hover:bg-cyan-500 transition-all"
                   aria-label="Twitter"
                 >
                   <Twitter className="w-4 h-4" />
                 </a>
                 <a 
                   href="#" 
-                  className="w-9 h-9 rounded-full bg-gray-800 dark:bg-[hsl(230,25%,12%)] flex items-center justify-center text-gray-400 hover:text-white hover:bg-cyan-500 transition-all"
+                  className="w-9 h-9 rounded-full bg-gray-200 dark:bg-[hsl(230,25%,12%)] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-white hover:bg-cyan-500 transition-all"
                   aria-label="GitHub"
                 >
                   <Github className="w-4 h-4" />
@@ -101,7 +101,7 @@ export default function Footer() {
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-gradient-to-r from-transparent via-gray-700 dark:via-[hsl(230,25%,15%)] to-transparent mb-6" />
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-[hsl(230,25%,15%)] to-transparent mb-6" />
 
           {/* Bottom Section */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -110,13 +110,13 @@ export default function Footer() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <Link href="/impressum" className="text-gray-400 hover:text-cyan-400 transition-colors">
+              <Link href="/impressum" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Impressum
               </Link>
-              <Link href="/datenschutz" className="text-gray-400 hover:text-cyan-400 transition-colors">
+              <Link href="/datenschutz" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Datenschutz
               </Link>
-              <Link href="/autoren" className="text-gray-400 hover:text-cyan-400 transition-colors">
+              <Link href="/autoren" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Autoren
               </Link>
             </div>
