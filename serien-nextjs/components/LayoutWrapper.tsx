@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
 import { ThemeProvider } from './ThemeProvider';
+import PushNotificationPrompt from './PushNotificationPrompt';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -24,6 +25,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <PushNotificationPrompt />
     </ThemeProvider>
   );
 }
