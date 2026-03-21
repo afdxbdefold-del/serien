@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Sparkles, Filter, X } from 'lucide-react';
@@ -28,6 +29,7 @@ interface TrendingClientProps {
 type SortOption = 'popularity' | 'rating' | 'newest' | 'alphabetical';
 
 export default function TrendingClient({ series }: TrendingClientProps) {
+  const searchParams = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   
   // Filter states
@@ -38,6 +40,27 @@ export default function TrendingClient({ series }: TrendingClientProps) {
   const [yearRange, setYearRange] = useState<[number, number]>([1990, 2025]);
   const [seasonRange, setSeasonRange] = useState<[number, number]>([1, 20]);
   const [sortBy, setSortBy] = useState<SortOption>('popularity');
+
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    const networkParam = searchParams.get('network');
+    if (networkParam) {
+      setSelectedNetworks([networkParam]);
+      setShowFilters(true); // Show filters when a network is pre-selected
+    }
+    
+    const genreParam = searchParams.get('genre');
+    if (genreParam) {
+      setSelectedGenres([genreParam]);
+      setShowFilters(true);
+    }
+    
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setSelectedStatuses([statusParam]);
+      setShowFilters(true);
+    }
+  }, [searchParams]);
 
   // Get unique filter options from data
   const filterOptions = useMemo(() => {

@@ -20,12 +20,14 @@ interface CurrentlyStreamingProps {
 
 // Streaming provider logos
 const STREAMING_PROVIDERS = [
-  { id: 'netflix', name: 'Netflix', logo: '/img/providers/netflix.svg', color: '#E50914' },
-  { id: 'amazon', name: 'Prime Video', logo: '/img/providers/prime.svg', color: '#00A8E1' },
-  { id: 'disney', name: 'Disney+', logo: '/img/providers/disney.svg', color: '#113CCF' },
-  { id: 'apple', name: 'Apple TV+', logo: '/img/providers/apple.svg', color: '#000000' },
-  { id: 'paramount', name: 'Paramount+', logo: '/img/providers/paramount.svg', color: '#0064FF' },
-  { id: 'rtl', name: 'RTL+', logo: '/img/providers/rtl.svg', color: '#E4003A' },
+  { id: 'netflix', name: 'Netflix', color: '#E50914' },
+  { id: 'amazon', name: 'Prime Video', color: '#00A8E1' },
+  { id: 'disney', name: 'Disney+', color: '#113CCF' },
+  { id: 'apple', name: 'Apple TV', color: '#000000' },
+  { id: 'paramount', name: 'Paramount+', color: '#0064FF' },
+  { id: 'hbo', name: 'Max', color: '#5822B4' },
+  { id: 'hulu', name: 'Hulu', color: '#1CE783' },
+  { id: 'rtl', name: 'RTL+', color: '#E4003A' },
 ];
 
 export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) {
