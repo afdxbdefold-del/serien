@@ -32,6 +32,7 @@ interface HomeClientProps {
 export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [] }: HomeClientProps) {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'feed'>('all');
   
   // Data states
   const [news, setNews] = useState(initialNews);
@@ -134,12 +135,40 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       {/* News Feed Section */}
       <div className="container mx-auto px-6 md:px-12 pt-1 pb-8">
         <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Serien News
-            </h2>
-            <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+          {/* Section Header with Tabs */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                Serien News
+              </h2>
+              <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                activeTab === 'all'
+                  ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                  : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
+              }`}
+              data-testid="tab-all-news"
+            >
+              Alle News
+            </button>
+            <button
+              onClick={() => setActiveTab('feed')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                activeTab === 'feed'
+                  ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                  : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
+              }`}
+              data-testid="tab-my-feed"
+            >
+              Mein Feed
+            </button>
           </div>
 
           {/* Tip Box - Glassmorphism in Dark Mode */}
@@ -149,8 +178,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </p>
           </div>
 
-          {/* News Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Content based on active tab */}
+          {activeTab === 'all' ? (
+            <>
+              {/* News Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGridNews.map((item: any) => (
                   <NewsCard 
                     key={item.id}
@@ -189,6 +221,37 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                   </button>
                 </div>
               )}
+            </>
+          ) : (
+            /* Mein Feed Tab Content */
+            <div className="text-center py-16">
+              {isAuthenticated ? (
+                <div className="space-y-4">
+                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Dein persönlicher Feed</h3>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                    Folge deinen Lieblingsserien, um hier personalisierte News zu sehen.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Melde dich an</h3>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                    Erstelle ein Konto, um Serien zu folgen und einen personalisierten Feed zu erhalten.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
