@@ -315,6 +315,18 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           )}
 
+          {/* Where to Stream Box */}
+          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+            <div className="mb-8">
+              <WhereToStreamBox
+                seriesId={article.primarySeriesId}
+                seriesName={article.series.title || article.series.name || ''}
+                networks={article.series.networks}
+                slug={article.series.slug}
+              />
+            </div>
+          )}
+
           {/* Q&A Section */}
           {article.article_qa && article.article_qa.questions && (
             <ArticleQA 
