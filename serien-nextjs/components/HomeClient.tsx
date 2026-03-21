@@ -132,7 +132,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       )}
 
       {/* News Feed Section */}
-      <div className="container mx-auto px-6 md:px-12 py-8">
+      <div className="container mx-auto px-6 md:px-12 pt-4 pb-8">
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="flex items-center gap-4 mb-6">
