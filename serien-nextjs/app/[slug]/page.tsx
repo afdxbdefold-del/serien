@@ -315,79 +315,50 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Where to Stream */}
-          {article.series?.networks && (article.series.networks as string[]).length > 0 && (
-            <div className="mb-8">
-              <WhereToStreamBox
-                seriesTitle={article.series?.title || article.title}
-                networks={article.series?.networks as string[] || []}
-              />
-            </div>
+          {/* Q&A Section */}
+          {article.article_qa && article.article_qa.questions && (
+            <ArticleQA 
+              questions={article.article_qa.questions as any[]}
+              schemaEnabled={article.article_qa.schemaEnabled}
+            />
           )}
-            seriesName={article.series.title || article.series.name || ''}
-            seriesSlug={article.series.slug}
-          />
-        )}
 
-        {/* Q&A Section */}
-        {article.article_qa && article.article_qa.questions && (
-          <ArticleQA 
-            questions={article.article_qa.questions as any[]}
-            schemaEnabled={article.article_qa.schemaEnabled}
-          />
-        )}
-
-        {/* Sidebar/Related Content */}
-        <aside aria-labelledby="related-content">
-          <h2 id="related-content" className="sr-only">Verwandte Inhalte</h2>
-
-          {/* Where to Stream Box */}
-          {/* Hide for imported articles without real series assignment */}
-          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-          <WhereToStreamBox
-            seriesId={article.primarySeriesId}
-            seriesName={article.series.title || article.series.name || ''}
-            networks={article.series.networks}
-            slug={article.series.slug}
-          />
-        )}
-
-        {/* Related News */}
-        {relatedNews.length > 0 && (
-          <section className="mt-16" aria-labelledby="similar-news">
-            <h3 id="similar-news" className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Ähnliche News</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedNews.map((news) => (
-                <Link key={news.id} href={`/${news.slug}`}>
-                  <article className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all duration-300 overflow-hidden cursor-pointer">
-                    {news.heroLocalUrl && (
-                      <div className="relative aspect-video overflow-hidden">
-                        <Image
-                          src={news.heroLocalUrl}
-                          alt={news.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+          {/* Related News */}
+          {relatedNews.length > 0 && (
+            <section className="mt-12" aria-labelledby="similar-news">
+              <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ähnliche News</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {relatedNews.map((news) => (
+                  <Link key={news.id} href={`/${news.slug}`}>
+                    <article className="group bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer">
+                      {news.heroLocalUrl && (
+                        <div className="relative aspect-video overflow-hidden">
+                          <Image
+                            src={news.heroLocalUrl}
+                            alt={news.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                      )}
+                      <div className="p-3">
+                        <p className="font-semibold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 text-sm">
+                          {news.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
+                            day: 'numeric',
+                            month: 'short',
+                          }) : 'Kein Datum'}
+                        </p>
                       </div>
-                    )}
-                    <div className="p-4">
-                      <p className="font-bold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
-                        {news.title}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                        {news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-DE', {
-                          day: 'numeric',
-                          month: 'short',
-                        }) : 'Kein Datum'}
-                      </p>
-                    </div>
-                  </article>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-        </aside>
+                    </article>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       </article>
     </div>
   );
