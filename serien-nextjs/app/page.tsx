@@ -3,9 +3,10 @@ import HomeClient from '@/components/HomeClient';
 import { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
+import { unstable_cache } from 'next/cache';
 
-// Force dynamic rendering - homepage needs real-time data
-export const dynamic = 'force-dynamic';
+// ISR - Revalidate every 60 seconds for fresh content
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
@@ -40,14 +41,10 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 60; // Revalidate every 60 seconds
-
-export default async function Page() {
-  // Fetch news, series, and stats from database
-  let articles, series, seriesCount, articlesCount, streamingSeries;
-  
-  try {
-    [articles, series, seriesCount, articlesCount, streamingSeries] = await Promise.all([
+// Cached database queries for better performance
+const getHomepageData = unstable_cache(
+  async () => {
+    const [articles, series, seriesCount, articlesCount, streamingSeries] = await Promise.all([
       prisma.articles.findMany({
         where: { 
           OR: [
@@ -86,7 +83,6 @@ export default async function Page() {
           ]
         } 
       }),
-      // Fetch series with status RUNNING or recent ones for "Aktuell im Stream"
       prisma.series.findMany({
         where: {
           OR: [
@@ -104,9 +100,26 @@ export default async function Page() {
         }
       })
     ]);
+
+    return { articles, series, seriesCount, articlesCount, streamingSeries };
+  },
+  ['homepage-data'],
+  { revalidate: 60, tags: ['homepage'] }
+);
+
+export default async function Page() {
+  // Fetch cached homepage data
+  let articles, series, seriesCount, articlesCount, streamingSeries;
+  
+  try {
+    const data = await getHomepageData();
+    articles = data.articles;
+    series = data.series;
+    seriesCount = data.seriesCount;
+    articlesCount = data.articlesCount;
+    streamingSeries = data.streamingSeries;
   } catch (error) {
     console.error('Homepage DB query failed:', error);
-    // Return empty data on error
     articles = [];
     series = [];
     seriesCount = 0;
