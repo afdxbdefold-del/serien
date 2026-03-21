@@ -305,12 +305,8 @@ export default async function ArticlePage({ params }: PageProps) {
             <div className="mb-8">
               <SeriesInfobox
                 seriesId={article.primarySeriesId}
-                title={article.series.title}
-                posterPath={article.series.posterPath}
-                networks={article.series.networks as string[] || []}
-                status={article.series.status}
-                tmdbId={article.series.tmdbId}
-                slug={article.series.slug}
+                seriesName={article.series.title || article.series.name || ''}
+                seriesSlug={article.series.slug || ''}
               />
             </div>
           )}
