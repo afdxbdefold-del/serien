@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play, AlertCircle, Loader2, Volume2, VolumeX } from 'lucide-react';
+import { Play, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 
 interface DirectVideoPlayerProps {
   heroImageUrl: string;
@@ -147,17 +147,12 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
 
   return (
     <div className={containerClass}>
-      {/* Loading State */}
-      {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-black">
-          <Loader2 className="w-12 h-12 animate-spin mb-4" />
-          <p className="text-sm">Trailer wird geladen...</p>
-        </div>
-      )}
+      {/* Hero Image - Always show as background, video overlays when ready */}
+      <Image src={heroImageUrl} alt={title} fill className="object-cover" priority />
 
       {/* Error State */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-white text-center z-10 bg-black">
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-white text-center z-10 bg-black/80">
           <AlertCircle className="w-16 h-16 mb-4 text-red-400" />
           <h3 className="text-xl font-semibold mb-2">Trailer nicht verfügbar</h3>
           <p className="text-sm text-gray-400 mb-4">Das Video konnte nicht geladen werden.</p>
@@ -186,11 +181,11 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         />
       )}
 
-      {/* Local Video - Always render when we have blobUrl */}
+      {/* Local Video - Overlay on top of hero image when ready */}
       {!isYouTube && blobUrl && !error && (
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover z-10"
           playsInline
           loop
           muted={isMuted}
@@ -208,13 +203,8 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         />
       )}
 
-      {/* Fallback Image - Show when video not loaded yet or for YouTube before click */}
-      {(!blobUrl && !isYouTube) || (isYouTube && !showVideo) ? (
-        <Image src={heroImageUrl} alt={title} fill className="object-cover" priority />
-      ) : null}
-
       {/* Play/Unmute Button Overlay */}
-      {!loading && !error && (
+      {!error && (
         <div 
           className={`absolute inset-0 flex items-center justify-center transition-colors cursor-pointer z-20 ${
             isMuted || !isPlaying || (isYouTube && !showVideo) 
