@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
+import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
 const ALL_STREAMERS = [
@@ -33,6 +34,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'feed'>('all');
+  const [followedSeriesIds, setFollowedSeriesIds] = useState<number[]>([]);
   
   // Data states
   const [news, setNews] = useState(initialNews);
@@ -45,9 +47,30 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const NEWS_PER_PAGE = 20;
   const HIGHLIGHT_COUNT = 5;
 
+  // Load followed series from localStorage on mount
+  useEffect(() => {
+    setFollowedSeriesIds(getFollowedIds());
+    
+    // Listen for changes
+    const unsubscribe = onFollowsChanged(() => {
+      setFollowedSeriesIds(getFollowedIds());
+    });
+    
+    return unsubscribe;
+  }, []);
+
   // Split news: First 5 for carousel, rest for grid
   const highlightNews = news.slice(0, HIGHLIGHT_COUNT);
   const gridNews = news.slice(HIGHLIGHT_COUNT);
+
+  // Filter news by followed series for "Mein Feed"
+  const feedNews = useMemo(() => {
+    if (followedSeriesIds.length === 0) return [];
+    return news.filter(item => {
+      const seriesId = item.primarySeries?.tmdbId || item.tmdbId;
+      return seriesId && followedSeriesIds.includes(Number(seriesId));
+    });
+  }, [news, followedSeriesIds]);
 
   // Filter by selected streamers
   const filterByStreamers = (items: any[], isNews = false) => {
@@ -230,30 +253,47 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           ) : (
             /* Mein Feed Tab Content */
-            <div id="tab-panel-feed" role="tabpanel" aria-labelledby="tab-my-feed" className="text-center py-16">
-              {isAuthenticated ? (
-                <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Dein persönlicher Feed</h3>
-                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    Folge deinen Lieblingsserien, um hier personalisierte News zu sehen.
-                  </p>
+            <div id="tab-panel-feed" role="tabpanel" aria-labelledby="tab-my-feed">
+              {followedSeriesIds.length > 0 && feedNews.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {feedNews.map((item: any) => (
+                    <NewsCard 
+                      key={item.id}
+                      slug={item.slug}
+                      title={item.title}
+                      excerpt={item.excerpt}
+                      heroLocalUrl={item.heroLocalUrl}
+                      cardImageUrl={item.cardImageUrl}
+                      tmdbId={item.tmdbId}
+                      tmdbType={item.tmdbType}
+                      publishedAt={item.publishedAt}
+                      category={item.category}
+                      authorName={item.author?.name}
+                      networks={item.primarySeries?.networks || []}
+                    />
+                  ))}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                <div className="text-center py-16">
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {followedSeriesIds.length === 0 ? 'Noch keine Serien gefolgt' : 'Keine News zu deinen Serien'}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                      Gehe zu einer Serien-Seite und klicke auf "Folgen", um News zu dieser Serie hier zu sehen.
+                    </p>
+                    <a 
+                      href="/serienfinder"
+                      className="inline-block mt-4 px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors"
+                    >
+                      Serien entdecken
+                    </a>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Melde dich an</h3>
-                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                    Erstelle ein Konto, um Serien zu folgen und einen personalisierten Feed zu erhalten.
-                  </p>
                 </div>
               )}
             </div>
