@@ -1,56 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { Tv, Mail, RefreshCw, Database, ChevronRight, Github, Twitter } from 'lucide-react';
+import { Tv, Mail, ChevronRight, Github, Twitter } from 'lucide-react';
 
 export default function Footer() {
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const handleReset = () => {
-    if (showConfirm) {
-      localStorage.clear();
-      window.location.reload();
-    } else {
-      setShowConfirm(true);
-      setTimeout(() => setShowConfirm(false), 5000);
-    }
-  };
-
   const currentYear = new Date().getFullYear();
 
   return (
     <>
-      {/* Personalization Bar */}
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-[hsl(230,25%,8%)] dark:to-[hsl(230,25%,10%)] border-t border-gray-200 dark:border-[hsl(230,25%,15%)]">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Database className="w-4 h-4 text-cyan-500" />
-              <span>Deine Daten werden nur lokal gespeichert</span>
-            </div>
-            
-            <button
-              onClick={handleReset}
-              className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${
-                showConfirm 
-                  ? 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25' 
-                  : 'bg-gray-200 dark:bg-[hsl(230,25%,15%)] text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[hsl(230,25%,20%)]'
-              }`}
-            >
-              <RefreshCw className={`w-4 h-4 ${showConfirm ? 'animate-spin' : ''}`} />
-              <span>{showConfirm ? 'Jetzt zurücksetzen?' : 'Personalisierung zurücksetzen'}</span>
-            </button>
-          </div>
-
-          {showConfirm && (
-            <div className="mt-3 text-center text-sm text-orange-500 dark:text-orange-400 font-medium animate-pulse">
-              Klicke erneut, um alle gespeicherten Serien zu löschen
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Main Footer */}
       <footer className="relative bg-gradient-to-b from-gray-900 to-gray-950 dark:from-[hsl(230,25%,6%)] dark:to-[hsl(230,25%,4%)] text-gray-400 overflow-hidden">
         {/* Decorative gradient line */}
