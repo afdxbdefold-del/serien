@@ -18,7 +18,7 @@ export default function FeedSwitcher({ activeTab, onTabChange, isLoggedIn }: Fee
       gradient: 'from-violet-600 via-purple-600 to-pink-600'
     },
     'all-news': {
-      label: 'Alle News',
+      label: 'Serien News',
       icon: Newspaper,
       gradient: 'from-cyan-500 via-cyan-600 to-teal-600'
     }
