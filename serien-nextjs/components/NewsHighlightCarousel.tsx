@@ -81,14 +81,16 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
       ? `/img/hero/${currentNews.tmdbType}/${currentNews.tmdbId}` 
       : '/placeholders/hero.jpg');
 
-  // Format date
-  const formatDate = (dateString: string) => {
+  // Relative time format like NewsCard
+  const getRelativeTime = (dateString: string) => {
+    const now = new Date();
     const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Gerade eben';
+    if (diffHours < 24) return `Vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
+    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -139,7 +141,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
         
         {/* Date */}
         <p className="text-gray-400 text-sm">
-          {formatDate(currentNews.publishedAt)}
+          {getRelativeTime(currentNews.publishedAt)}
         </p>
       </div>
 
