@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -28,7 +28,7 @@ interface TrendingClientProps {
 
 type SortOption = 'popularity' | 'rating' | 'newest' | 'alphabetical';
 
-export default function TrendingClient({ series }: TrendingClientProps) {
+function TrendingClientInner({ series }: TrendingClientProps) {
   const searchParams = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   
@@ -43,19 +43,19 @@ export default function TrendingClient({ series }: TrendingClientProps) {
 
   // Initialize filters from URL parameters
   useEffect(() => {
-    const networkParam = searchParams.get('network');
+    const networkParam = searchParams?.get('network');
     if (networkParam) {
       setSelectedNetworks([networkParam]);
-      setShowFilters(true); // Show filters when a network is pre-selected
+      setShowFilters(true);
     }
     
-    const genreParam = searchParams.get('genre');
+    const genreParam = searchParams?.get('genre');
     if (genreParam) {
       setSelectedGenres([genreParam]);
       setShowFilters(true);
     }
     
-    const statusParam = searchParams.get('status');
+    const statusParam = searchParams?.get('status');
     if (statusParam) {
       setSelectedStatuses([statusParam]);
       setShowFilters(true);
@@ -536,5 +536,14 @@ export default function TrendingClient({ series }: TrendingClientProps) {
         </div>
       )}
     </div>
+  );
+}
+
+// Export with Suspense wrapper for useSearchParams
+export default function TrendingClient({ series }: TrendingClientProps) {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Laden...</div>}>
+      <TrendingClientInner series={series} />
+    </Suspense>
   );
 }

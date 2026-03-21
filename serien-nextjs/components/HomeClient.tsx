@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Loader2, SlidersHorizontal, X, Check } from 'lucide-react';
+import { Search, Loader2, SlidersHorizontal, X, Check, Sparkles } from 'lucide-react';
 import FeedSwitcher from './FeedSwitcher';
 import NewsCard from './NewsCard';
 import SeriesCard from './SeriesCard';
