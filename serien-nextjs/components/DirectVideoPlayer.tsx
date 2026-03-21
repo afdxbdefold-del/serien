@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play, AlertCircle, Volume2, VolumeX } from 'lucide-react';
+import { Play, AlertCircle, Volume2 } from 'lucide-react';
 
 interface DirectVideoPlayerProps {
   heroImageUrl: string;
@@ -208,19 +208,16 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         <div 
           className={`absolute inset-0 flex items-center justify-center transition-colors cursor-pointer z-20 ${
             isMuted || !isPlaying || (isYouTube && !showVideo) 
-              ? 'bg-black/20 hover:bg-black/30' 
+              ? 'bg-black/30 hover:bg-black/40' 
               : 'bg-transparent pointer-events-none'
           }`}
           onClick={handlePlayClick}
         >
           {(isMuted || !isPlaying || (isYouTube && !showVideo)) && (
-            <div className="w-20 h-20 rounded-full bg-white/90 flex items-center justify-center hover:scale-110 transition-transform shadow-2xl">
-              {isPlaying && isMuted ? (
-                <VolumeX className="w-10 h-10" stroke="#111827" strokeWidth={2} />
-              ) : (
-                <Play className="w-10 h-10 ml-1" fill="#111827" stroke="#111827" />
-              )}
-            </div>
+            <button className="flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105">
+              <Play className="w-5 h-5" fill="white" stroke="white" />
+              <span>{isPlaying && isMuted ? 'Ton aktivieren' : 'Video ansehen'}</span>
+            </button>
           )}
         </div>
       )}
