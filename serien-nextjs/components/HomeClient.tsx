@@ -5,7 +5,6 @@ import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
-import AdUnit from './AdUnit';
 
 // All available streamers
 const ALL_STREAMERS = [
@@ -132,11 +131,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
         </section>
       )}
-
-      {/* Ad after Currently Streaming */}
-      <div className="container mx-auto px-6 md:px-12 py-4">
-        <AdUnit slot="1234567890" format="horizontal" className="max-w-4xl mx-auto" />
-      </div>
 
       {/* News Feed Section */}
       <div className="container mx-auto px-6 md:px-12 pt-1 pb-8">
