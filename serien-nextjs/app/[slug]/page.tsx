@@ -229,14 +229,24 @@ export default async function ArticlePage({ params }: PageProps) {
       <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
         <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl">
           
-          {/* Breadcrumb / Category */}
-          <Link 
-            href="/"
-            className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {article.category || 'Serie'}
-          </Link>
+          {/* Breadcrumb - Back to Series */}
+          {article.series ? (
+            <Link 
+              href={`/serie/${article.series.tmdbId}-${article.series.slug}`}
+              className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zu {article.series.title || article.series.name}
+            </Link>
+          ) : (
+            <Link 
+              href="/"
+              className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zur Startseite
+            </Link>
+          )}
 
           {/* Title */}
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-5 leading-tight">
