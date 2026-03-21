@@ -6,6 +6,7 @@ import Footer from './Footer';
 import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import CookieBanner from './CookieBanner';
+import SkipLink from './SkipLink';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -23,8 +24,11 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   // Public routes get the standard header/footer
   return (
     <ThemeProvider>
+      <SkipLink />
       <Header />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
+        {children}
+      </main>
       <Footer />
       <CookieBanner />
       <PushNotificationPrompt />

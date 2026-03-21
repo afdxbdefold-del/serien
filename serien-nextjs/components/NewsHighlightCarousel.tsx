@@ -101,9 +101,16 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       data-testid="news-highlight-carousel"
+      aria-label="Aktuelle News Highlights"
+      aria-roledescription="Karussell"
     >
       {/* Main Image Area */}
-      <Link href={`/${currentNews.slug}`} className="block group" data-testid="carousel-main-link">
+      <Link 
+        href={`/${currentNews.slug}`} 
+        className="block group" 
+        data-testid="carousel-main-link"
+        aria-label={`Artikel lesen: ${currentNews.title}`}
+      >
         <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden">
           {/* Background Images - All preloaded for smooth transitions */}
           {news.map((item, index) => {
@@ -163,8 +170,11 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
       </div>
 
       {/* Navigation Dots */}
-      <div className="bg-gray-900 dark:bg-[hsl(230,25%,5%)] pb-6 flex justify-center gap-2">
-        {news.map((_, index) => (
+      <nav 
+        className="bg-gray-900 dark:bg-[hsl(230,25%,5%)] pb-6 flex justify-center gap-2"
+        aria-label="Karussell Navigation"
+      >
+        {news.map((item, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
@@ -173,11 +183,12 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                 ? 'w-6 bg-cyan-500 dark:shadow-[0_0_10px_rgba(6,182,212,0.6)]' 
                 : 'w-2 bg-gray-600 dark:bg-[hsl(230,25%,20%)] hover:bg-gray-500 dark:hover:bg-[hsl(230,25%,30%)]'
             }`}
-            aria-label={`Slide ${index + 1}`}
+            aria-label={`Zu Slide ${index + 1} wechseln: ${item.title}`}
+            aria-current={index === currentIndex ? 'true' : undefined}
             data-testid={`carousel-dot-${index}`}
           />
         ))}
-      </div>
+      </nav>
     </section>
   );
 }

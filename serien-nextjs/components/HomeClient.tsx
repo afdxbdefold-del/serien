@@ -146,10 +146,13 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6" role="tablist" aria-label="News Kategorien">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+              role="tab"
+              aria-selected={activeTab === 'all'}
+              aria-controls="tab-panel-all"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
                 activeTab === 'all'
                   ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                   : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
@@ -160,7 +163,10 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </button>
             <button
               onClick={() => setActiveTab('feed')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+              role="tab"
+              aria-selected={activeTab === 'feed'}
+              aria-controls="tab-panel-feed"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
                 activeTab === 'feed'
                   ? 'bg-cyan-500 text-white dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                   : 'bg-gray-100 dark:bg-[hsl(230,25%,12%)] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[hsl(230,25%,18%)]'
@@ -172,7 +178,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
 
           {/* Tip Box - Glassmorphism in Dark Mode */}
-          <div className="mb-6 bg-gray-50 dark:bg-[hsl(230,25%,9%)] border border-gray-200 dark:border-[hsl(230,25%,15%)] rounded-lg p-3">
+          <div className="mb-6 bg-gray-50 dark:bg-[hsl(230,25%,9%)] border border-gray-200 dark:border-[hsl(230,25%,15%)] rounded-lg p-3" role="note">
             <p className="text-xs text-gray-600 dark:text-[hsl(215,20%,65%)]">
               💡 <strong>Tipp:</strong> Nutze den Newsfilter, um News nur von bestimmten Streamern anzuzeigen!
             </p>
@@ -180,7 +186,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
           {/* Content based on active tab */}
           {activeTab === 'all' ? (
-            <>
+            <div id="tab-panel-all" role="tabpanel" aria-labelledby="tab-all-news">
               {/* News Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGridNews.map((item: any) => (
@@ -221,10 +227,10 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                   </button>
                 </div>
               )}
-            </>
+            </div>
           ) : (
             /* Mein Feed Tab Content */
-            <div className="text-center py-16">
+            <div id="tab-panel-feed" role="tabpanel" aria-labelledby="tab-my-feed" className="text-center py-16">
               {isAuthenticated ? (
                 <div className="space-y-4">
                   <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
@@ -258,13 +264,14 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       {/* Floating Newsfilter Button - Glassmorphism */}
       <button
         onClick={() => setShowFilterModal(true)}
-        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-cyan-400 dark:from-cyan-500/90 dark:to-cyan-400/90 text-white rounded-full shadow-2xl dark:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] dark:backdrop-blur-sm transition-all duration-300 z-40"
+        className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-500 to-cyan-400 dark:from-cyan-500/90 dark:to-cyan-400/90 text-white rounded-full shadow-2xl dark:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] dark:backdrop-blur-sm transition-all duration-300 z-40 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2"
         data-testid="newsfilter-button"
+        aria-label={`Newsfilter öffnen${selectedStreamers.length > 0 ? `, ${selectedStreamers.length} Filter aktiv` : ''}`}
       >
-        <SlidersHorizontal className="h-5 w-5" />
+        <SlidersHorizontal className="h-5 w-5" aria-hidden="true" />
         <span className="font-semibold">Newsfilter</span>
         {selectedStreamers.length > 0 && (
-          <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full">
+          <span className="ml-1 px-2.5 py-0.5 bg-white text-cyan-600 text-sm font-bold rounded-full" aria-hidden="true">
             {selectedStreamers.length}
           </span>
         )}
@@ -272,61 +279,74 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
       {/* Newsfilter Modal - Glassmorphism in Dark Mode */}
       {showFilterModal && (
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowFilterModal(false)}>
+        <div 
+          className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" 
+          onClick={() => setShowFilterModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="filter-modal-title"
+        >
           <div className="bg-white dark:bg-[hsl(230,25%,9%)] dark:border dark:border-[hsl(230,25%,15%)] rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-200 dark:border-[hsl(230,25%,15%)] flex items-center justify-between sticky top-0 bg-white dark:bg-[hsl(230,25%,9%)]">
-              <h2 className="text-2xl font-bold dark:text-white tracking-tight">Newsfilter nach Streamer</h2>
+              <h2 id="filter-modal-title" className="text-2xl font-bold dark:text-white tracking-tight">Newsfilter nach Streamer</h2>
               <button
                 onClick={() => setShowFilterModal(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-[hsl(230,25%,15%)] rounded-lg transition-colors duration-300"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-[hsl(230,25%,15%)] rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 data-testid="close-filter-modal"
+                aria-label="Filter schließen"
               >
-                <X className="h-6 w-6 dark:text-white" />
+                <X className="h-6 w-6 dark:text-white" aria-hidden="true" />
               </button>
             </div>
 
             <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <fieldset>
+                <legend className="sr-only">Streaming-Dienste auswählen</legend>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {ALL_STREAMERS.map((streamer) => {
                   const isSelected = selectedStreamers.includes(streamer.id);
                   return (
                     <button
                       key={streamer.id}
                       onClick={() => toggleStreamer(streamer.id)}
-                      className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                      className={`p-4 rounded-xl border-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
                         isSelected
                           ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 dark:border-cyan-500'
                           : 'border-gray-200 dark:border-[hsl(230,25%,20%)] hover:border-gray-300 dark:hover:border-[hsl(230,25%,30%)] dark:bg-[hsl(230,25%,12%)]'
                       }`}
                       data-testid={`filter-${streamer.id}`}
+                      aria-pressed={isSelected}
+                      aria-label={`${streamer.label} ${isSelected ? 'ausgewählt' : 'auswählen'}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-8 h-8 ${streamer.color} rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 text-sm`}
+                          aria-hidden="true"
                         >
                           {streamer.label.substring(0, 1)}
                         </div>
                         <span className="font-medium text-left dark:text-white">{streamer.label}</span>
                         {isSelected && (
-                          <Check className="h-5 w-5 text-cyan-600 dark:text-cyan-400 ml-auto" />
+                          <Check className="h-5 w-5 text-cyan-600 dark:text-cyan-400 ml-auto" aria-hidden="true" />
                         )}
                       </div>
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              </fieldset>
 
               <div className="mt-6 flex gap-4">
                 <button
                   onClick={clearFilters}
-                  className="flex-1 px-6 py-3 border border-gray-200 dark:border-[hsl(230,25%,20%)] rounded-lg hover:bg-gray-50 dark:hover:bg-[hsl(230,25%,15%)] dark:text-white transition-colors duration-300"
+                  className="flex-1 px-6 py-3 border border-gray-200 dark:border-[hsl(230,25%,20%)] rounded-lg hover:bg-gray-50 dark:hover:bg-[hsl(230,25%,15%)] dark:text-white transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   data-testid="reset-filters"
                 >
                   Zurücksetzen
                 </button>
                 <button
                   onClick={() => setShowFilterModal(false)}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-cyan-400 text-white rounded-lg hover:from-cyan-400 hover:to-cyan-300 transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-cyan-400 text-white rounded-lg hover:from-cyan-400 hover:to-cyan-300 transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] focus:outline-none focus:ring-2 focus:ring-cyan-300"
                   data-testid="apply-filters"
                 >
                   Anwenden
