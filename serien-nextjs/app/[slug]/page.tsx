@@ -185,7 +185,7 @@ export default async function ArticlePage({ params }: PageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
       {/* JSON-LD Structured Data with ImageObject */}
       <script
         type="application/ld+json"
@@ -194,110 +194,136 @@ export default async function ArticlePage({ params }: PageProps) {
         }}
       />
 
-      {/* Article with proper semantic structure */}
-      <article className="container mx-auto px-6 md:px-12 py-8 max-w-4xl">
-        {/* Back Button (before header) */}
-        <Link 
-          href="/"
-          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
-          aria-label="Zurück zur Startseite"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          <span>Zurück zur Startseite</span>
-        </Link>
-
-        {/* Article Header */}
-        <header className="mb-8">
-
-        {/* Hero Image */}
+      {/* HERO SECTION - Full Width Video/Image */}
+      <div className="relative w-full bg-black">
         {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
-          <div className="mb-8">
-            <InlineVideoPlayer
-              heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-              trailerUrl={article.heroVideoUrl || article.trailerLocalUrl}
-              title={article.title}
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Bild: {article.imageAttribution || 'TMDB'}
-            </p>
+          <InlineVideoPlayer
+            heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+            trailerUrl={article.heroVideoUrl || article.trailerLocalUrl}
+            title={article.title}
+            fullWidth={true}
+          />
+        )}
+        
+        {/* Video/Series Title Overlay at bottom */}
+        {article.series && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-4 py-3">
+            <Link 
+              href={`/serie/${article.series.tmdbId}-${article.series.slug}`}
+              className="text-white/90 hover:text-white text-sm line-clamp-1"
+            >
+              {article.series.title} <span className="text-white/60">... mehr</span>
+            </Link>
           </div>
         )}
+      </div>
 
-        {/* Category Badge */}
-        {article.category && (
-          <div className="mb-4">
-            <span className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold rounded-lg">
-              {article.category}
-            </span>
-          </div>
-        )}
+      {/* Article Content Section */}
+      <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
+        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl">
+          
+          {/* Breadcrumb / Category */}
+          <Link 
+            href="/"
+            className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {article.category || 'Serie'}
+          </Link>
 
-        {/* Title */}
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-          {article.title}
-        </h1>
+          {/* Title */}
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-5 leading-tight">
+            {article.title}
+          </h1>
 
-        {/* Meta Info */}
-        <div className="flex items-center justify-between gap-6 mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-6">
+          {/* Author & Date */}
+          <div className="flex items-center gap-3 mb-6">
             {article.users && (
-              <div className="flex items-center gap-3">
+              <>
                 {article.users.image ? (
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                  <Link href={getAuthorUrl(article.users.name || '')} className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                     <Image
                       src={article.users.image}
                       alt={article.users.name || 'Author'}
                       fill
                       className="object-cover"
                     />
-                  </div>
+                  </Link>
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                  <Link href={getAuthorUrl(article.users.name || '')} className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                     {(article.users.name || 'A').charAt(0).toUpperCase()}
-                  </div>
+                  </Link>
                 )}
-                <div>
+                <div className="text-sm">
                   <Link 
                     href={getAuthorUrl(article.users.name || '')}
-                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
                   >
-                    {article.users.name || 'Anonymous'}
+                    {article.users.name || 'Redaktion'}
                   </Link>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <Clock className="h-4 w-4" />
-                    <span>{getRelativeTime()}</span>
-                  </div>
+                  <span className="text-gray-500 dark:text-gray-400">,</span>
+                  <br className="sm:hidden" />
+                  <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
+                    {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                  </span>
                 </div>
-              </div>
+              </>
             )}
           </div>
-          
-          {/* Share Button */}
-          <ShareButton title={article.title} />
-        </div>
 
-        {/* Excerpt/Lead */}
-        {article.excerpt && (
-          <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-            {article.excerpt}
-          </p>
-        )}
-        </header>
+          {/* Cyan Accent Line */}
+          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
-        {/* Article Body */}
-        <section aria-labelledby="article-content">
-          <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
-          <div 
-            className="prose prose-lg dark:prose-invert max-w-none mb-12 overflow-x-hidden"
-            dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
-          />
-        </section>
+          {/* Excerpt/Lead - Bold Intro */}
+          {article.excerpt && (
+            <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
+              {article.excerpt}
+            </p>
+          )}
 
-        {/* Series Infobox: AFTER content, BEFORE Q&A (Discover-optimized) */}
-        {/* Hide for imported articles without real series assignment */}
-        {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-          <SeriesInfobox
-            seriesId={article.primarySeriesId}
+          {/* Article Body */}
+          <section aria-labelledby="article-content">
+            <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
+            <div 
+              className="prose prose-base md:prose-lg dark:prose-invert max-w-none mb-10 
+                prose-headings:text-gray-900 dark:prose-headings:text-white
+                prose-p:text-gray-700 dark:prose-p:text-gray-300
+                prose-a:text-cyan-600 dark:prose-a:text-cyan-400
+                prose-strong:text-gray-900 dark:prose-strong:text-white
+                prose-img:rounded-lg"
+              dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
+            />
+          </section>
+
+          {/* Share Button - Above Infoboxes */}
+          <div className="flex justify-end mb-8">
+            <ShareButton title={article.title} />
+          </div>
+
+          {/* Series Infobox */}
+          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+            <div className="mb-8">
+              <SeriesInfobox
+                seriesId={article.primarySeriesId}
+                title={article.series.title}
+                posterPath={article.series.posterPath}
+                networks={article.series.networks as string[] || []}
+                status={article.series.status}
+                tmdbId={article.series.tmdbId}
+                slug={article.series.slug}
+              />
+            </div>
+          )}
+
+          {/* Where to Stream */}
+          {article.series?.networks && (article.series.networks as string[]).length > 0 && (
+            <div className="mb-8">
+              <WhereToStreamBox
+                seriesTitle={article.series?.title || article.title}
+                networks={article.series?.networks as string[] || []}
+              />
+            </div>
+          )}
             seriesName={article.series.title || article.series.name || ''}
             seriesSlug={article.series.slug}
           />
