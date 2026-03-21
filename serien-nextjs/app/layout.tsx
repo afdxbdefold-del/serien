@@ -9,6 +9,14 @@ export const metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien.',
   metadataBase: new URL(baseUrl),
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     type: 'website',
     locale: 'de_DE',
