@@ -5,6 +5,7 @@ import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
+import AdUnit from './AdUnit';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -217,7 +218,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             <div id="tab-panel-all" role="tabpanel" aria-labelledby="tab-all-news">
               {/* News Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGridNews.map((item: any) => (
+                {filteredGridNews.slice(0, 6).map((item: any) => (
                   <NewsCard 
                     key={item.id}
                     slug={item.slug}
@@ -234,6 +235,35 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                   />
                 ))}
               </div>
+
+              {/* Ad Unit after first 6 cards */}
+              {filteredGridNews.length > 6 && (
+                <div className="my-8">
+                  <AdUnit slot="1234567890" format="horizontal" className="max-w-4xl mx-auto" />
+                </div>
+              )}
+
+              {/* Remaining News Cards */}
+              {filteredGridNews.length > 6 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredGridNews.slice(6).map((item: any) => (
+                    <NewsCard 
+                      key={item.id}
+                      slug={item.slug}
+                      title={item.title}
+                      excerpt={item.excerpt}
+                      heroLocalUrl={item.heroLocalUrl}
+                      cardImageUrl={item.cardImageUrl}
+                      tmdbId={item.tmdbId}
+                      tmdbType={item.tmdbType}
+                      publishedAt={item.publishedAt}
+                      category={item.category}
+                      authorName={item.author?.name}
+                      networks={item.primarySeries?.networks || []}
+                    />
+                  ))}
+                </div>
+              )}
               
               {/* Load More Button - with Glow */}
               {hasMoreNews && filteredGridNews.length > 0 && (

@@ -13,6 +13,7 @@ import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 import { getAuthorUrl } from '@/lib/author-utils';
 import NewsCard from '@/components/NewsCard';
+import AdUnit from '@/components/AdUnit';
 
 // Force dynamic rendering - articles need real-time data
 export const dynamic = 'force-dynamic';
@@ -311,6 +312,11 @@ export default async function ArticlePage({ params }: PageProps) {
               dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
             />
           </section>
+
+          {/* Ad Unit - After Article Content */}
+          <div className="my-8">
+            <AdUnit slot="9876543210" format="rectangle" />
+          </div>
 
           {/* Share Button - Above Infoboxes */}
           <div className="flex justify-end mb-8">

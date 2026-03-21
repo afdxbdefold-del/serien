@@ -16,8 +16,12 @@ declare global {
 
 export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnitProps) {
   const [hasConsent, setHasConsent] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
 
   useEffect(() => {
+    // Check if we're in production
+    setIsProduction(window.location.hostname !== 'localhost' && !window.location.hostname.includes('preview'));
+    
     // Check for cookie consent
     const consent = localStorage.getItem('ads-consent');
     if (consent === 'true') {
@@ -59,6 +63,22 @@ export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnit
 
   if (!hasConsent) {
     return null;
+  }
+
+  // Show placeholder in development/preview
+  if (!isProduction) {
+    return (
+      <div className={`ad-container ${className}`}>
+        <div className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+            📢 Werbeanzeige
+          </p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
+            (Wird in Produktion angezeigt)
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
