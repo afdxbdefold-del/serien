@@ -14,23 +14,52 @@ export default function PushNotificationPrompt() {
       return;
     }
 
-    // Check if already subscribed or dismissed
-    const dismissed = localStorage.getItem('push-prompt-dismissed');
-    if (dismissed) return;
+    const checkAndShowPrompt = () => {
+      // Check if cookies have been accepted first
+      const cookieConsent = localStorage.getItem('cookie-consent');
+      if (!cookieConsent) return false;
 
-    // Check current subscription status
-    navigator.serviceWorker.ready.then(async (registration) => {
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        setIsSubscribed(true);
-      } else {
-        // Show prompt after 5 seconds
-        setTimeout(() => setShowPrompt(true), 5000);
-      }
-    });
+      // Check if already subscribed or dismissed
+      const dismissed = localStorage.getItem('push-prompt-dismissed');
+      if (dismissed) return false;
 
-    // Register service worker
-    navigator.serviceWorker.register('/sw.js').catch(console.error);
+      // Check current subscription status
+      navigator.serviceWorker.ready.then(async (registration) => {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          setIsSubscribed(true);
+        } else {
+          // Show prompt after 3 seconds
+          setTimeout(() => setShowPrompt(true), 3000);
+        }
+      });
+
+      // Register service worker
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+      return true;
+    };
+
+    // Try immediately
+    if (!checkAndShowPrompt()) {
+      // Listen for storage changes (when cookie consent is given)
+      const handleStorage = () => {
+        checkAndShowPrompt();
+      };
+      
+      window.addEventListener('storage', handleStorage);
+      
+      // Also check periodically in case storage event doesn't fire in same tab
+      const interval = setInterval(() => {
+        if (checkAndShowPrompt()) {
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => {
+        window.removeEventListener('storage', handleStorage);
+        clearInterval(interval);
+      };
+    }
   }, []);
 
   const subscribe = async () => {
