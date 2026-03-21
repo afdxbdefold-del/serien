@@ -77,14 +77,14 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
   // 3. Import characters and cast
   console.log('\n👥 Importing characters and cast...');
   try {
-    await importSeriesCharacters(series.id);
+    await importSeriesCharacters(series.tmdbId);
     console.log('  ✅ Characters imported');
   } catch (e) {
     console.log('  ⚠️ Character import skipped:', (e as Error).message);
   }
 
   try {
-    await importSeriesCast(series.id);
+    await importSeriesCast(series.tmdbId);
     console.log('  ✅ Cast imported');
   } catch (e) {
     console.log('  ⚠️ Cast import skipped:', (e as Error).message);
@@ -145,12 +145,30 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
   let heroVideoUrl: string | null = null;
   
   try {
-    const trailerYouTubeId = await findTrailerYouTubeId(tmdbId, 'tv', details.name);
+    // First try to get trailer from TMDB details (already fetched)
+    let trailerYouTubeId = findTrailerYouTubeId(details.trailers);
+    
+    // If no trailer found, try fetching English videos
+    if (!trailerYouTubeId) {
+      console.log('  ℹ️ No German trailer, trying English...');
+      const videosResponse = await fetch(
+        `https://api.themoviedb.org/3/tv/${tmdbId}/videos?api_key=${process.env.TMDB_API_KEY}`
+      );
+      if (videosResponse.ok) {
+        const videosData = await videosResponse.json();
+        trailerYouTubeId = findTrailerYouTubeId(videosData.results);
+      }
+    }
+    
     if (trailerYouTubeId) {
       console.log(`  ✅ Found trailer: ${trailerYouTubeId}`);
-      trailerLocalUrl = await downloadYouTubeTrailer(trailerYouTubeId, generateSlug(details.name));
-      if (!trailerLocalUrl) {
+      const trailerResult = await downloadYouTubeTrailer(trailerYouTubeId, generateSlug(details.name));
+      if (trailerResult.success && trailerResult.localPath) {
+        trailerLocalUrl = trailerResult.localPath;
+      } else {
+        // Fallback to YouTube URL if download failed
         heroVideoUrl = `https://www.youtube.com/watch?v=${trailerYouTubeId}`;
+        console.log('  ⚠️ Download failed, using YouTube embed');
       }
     } else {
       console.log('  ⚠️ No trailer found');
