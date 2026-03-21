@@ -101,7 +101,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
     >
       {/* Main Image Area */}
       <Link href={`/${currentNews.slug}`} className="block">
-        <div className="relative aspect-[4/5] sm:aspect-[16/9] md:aspect-[21/9] overflow-hidden">
+        <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden">
           {/* Background Images - All preloaded for smooth transitions */}
           {news.map((item, index) => {
             const imgUrl = item.heroLocalUrl || 
