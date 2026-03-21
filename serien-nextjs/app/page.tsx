@@ -150,22 +150,30 @@ export default async function Page() {
   }
 
   // Serialize data for client component (convert Dates to strings)
+  // Handle both Date objects and already-serialized strings from cache
+  const toISOString = (value: any) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (value instanceof Date) return value.toISOString();
+    return null;
+  };
+
   const serializedArticles = articles.map((article: any) => ({
     ...article,
-    publishedAt: article.publishedAt?.toISOString() || null,
-    updatedAt: article.updatedAt?.toISOString() || null,
-    createdAt: article.createdAt?.toISOString() || null,
-    sourcePublishedAt: article.sourcePublishedAt?.toISOString() || null,
+    publishedAt: toISOString(article.publishedAt),
+    updatedAt: toISOString(article.updatedAt),
+    createdAt: toISOString(article.createdAt),
+    sourcePublishedAt: toISOString(article.sourcePublishedAt),
   }));
 
   const serializedSeries = series.map((s: any) => ({
     ...s,
-    firstAirDate: s.firstAirDate?.toISOString() || null,
-    lastAirDate: s.lastAirDate?.toISOString() || null,
-    createdAt: s.createdAt?.toISOString() || null,
-    updatedAt: s.updatedAt?.toISOString() || null,
-    statusLastUpdate: s.statusLastUpdate?.toISOString() || null,
-    lastNewsDate: s.lastNewsDate?.toISOString() || null,
+    firstAirDate: toISOString(s.firstAirDate),
+    lastAirDate: toISOString(s.lastAirDate),
+    createdAt: toISOString(s.createdAt),
+    updatedAt: toISOString(s.updatedAt),
+    statusLastUpdate: toISOString(s.statusLastUpdate),
+    lastNewsDate: toISOString(s.lastNewsDate),
   }));
 
   // Format streaming series for the component
