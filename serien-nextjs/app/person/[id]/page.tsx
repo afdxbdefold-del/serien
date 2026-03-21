@@ -80,46 +80,99 @@ export default async function PersonPage({ params }: PageProps) {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* SECTION 1: HERO */}
-      <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white py-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* SECTION 1: HERO - Mobile optimized */}
+      <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white py-8 md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
-          <div className="flex items-center gap-8">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
             {/* Profile Image */}
             <div className="flex-shrink-0">
               <Image
                 src={getTMDBProfileImageUrl(person.profile_path, 'h632')}
                 alt={person.name}
-                width={200}
-                height={300}
-                className="rounded-lg shadow-2xl"
+                width={150}
+                height={225}
+                className="rounded-lg shadow-2xl w-[120px] h-[180px] sm:w-[150px] sm:h-[225px] md:w-[200px] md:h-[300px] object-cover"
                 priority
               />
             </div>
 
             {/* Name & Subline */}
-            <div>
-              <h1 className="text-5xl font-bold mb-3">{person.name}</h1>
-              <p className="text-xl text-gray-300">
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2 md:mb-3">{person.name}</h1>
+              <p className="text-base md:text-xl text-gray-300">
                 {person.known_for_department} · bekannt aus Serien
               </p>
+              
+              {/* Mobile Infobox - Key facts inline */}
+              <div className="flex flex-wrap gap-3 mt-4 justify-center sm:justify-start sm:hidden">
+                {person.birthday && (
+                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
+                    * {new Date(person.birthday).toLocaleDateString('de-DE', { year: 'numeric' })}
+                  </span>
+                )}
+                {person.place_of_birth && (
+                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm truncate max-w-[200px]">
+                    {person.place_of_birth.split(',')[0]}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-12 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
+        {/* Mobile: Infobox first, then content */}
+        <div className="sm:hidden mb-8">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-5">
+            <h3 className="font-bold text-lg mb-4 dark:text-white">Steckbrief</h3>
+            <dl className="grid grid-cols-2 gap-4 text-sm">
+              {person.birthday && (
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Geboren</dt>
+                  <dd className="font-semibold dark:text-white">
+                    {new Date(person.birthday).toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </dd>
+                </div>
+              )}
+              {person.place_of_birth && (
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Geburtsort</dt>
+                  <dd className="font-semibold dark:text-white text-sm">{person.place_of_birth}</dd>
+                </div>
+              )}
+            </dl>
+            {tvCredits.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <dt className="text-gray-500 dark:text-gray-400 text-sm mb-2">Bekannt für</dt>
+                <div className="flex flex-wrap gap-2">
+                  {tvCredits.slice(0, 3).map((credit, idx) => (
+                    <span key={idx} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs dark:text-white">
+                      {credit.name || credit.title}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Main Content Column */}
-          <div className="md:col-span-2 space-y-12">
+          <div className="md:col-span-2 space-y-10 md:space-y-12">
             {/* SECTION 3: BIOGRAPHY */}
             {bioParagraphs.length > 0 && (
               <section>
-                <h2 className="text-3xl font-bold mb-6">Biografie</h2>
-                <div className="prose prose-lg max-w-none space-y-4">
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">Biografie</h2>
+                <div className="prose prose-base md:prose-lg max-w-none space-y-4 dark:prose-invert">
                   {bioParagraphs.map((para, idx) => (
-                    <p key={idx} className="text-gray-700 leading-relaxed">
+                    <p key={idx} className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">
                       {para}
                     </p>
                   ))}
@@ -130,32 +183,33 @@ export default async function PersonPage({ params }: PageProps) {
             {/* SECTION 4: SERIES CREDITS */}
             {tvCredits.length > 0 && (
               <section>
-                <h2 className="text-3xl font-bold mb-6">
-                  Serien mit {person.name}
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">
+                  Serien mit {person.name.split(' ')[0]}
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 md:gap-6">
                   {tvCredits.map((credit, idx) => (
                     <div key={`${credit.id}-${idx}`} className="group">
-                      <div className="relative aspect-[2/3] mb-3 rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition">
+                      <div className="relative aspect-[2/3] mb-2 md:mb-3 rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition bg-gray-200 dark:bg-gray-800">
                         {credit.poster_path ? (
                           <Image
                             src={`https://image.tmdb.org/t/p/w342${credit.poster_path}`}
                             alt={credit.name || credit.title || ''}
                             fill
-                            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
+                            sizes="(max-width: 640px) 33vw, (max-width: 768px) 33vw, 200px"
                             className="object-cover"
+                            loading="lazy"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-400">Kein Bild</span>
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-gray-400 text-xs">Kein Bild</span>
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-sm line-clamp-2">
+                      <h3 className="font-semibold text-xs md:text-sm line-clamp-2 dark:text-white">
                         {credit.name || credit.title}
                       </h3>
                       {credit.character && (
-                        <p className="text-sm text-gray-600 line-clamp-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
                           als {credit.character}
                         </p>
                       )}
@@ -168,32 +222,33 @@ export default async function PersonPage({ params }: PageProps) {
             {/* SECTION 5: RELATED NEWS */}
             {relatedArticles.length > 0 && (
               <section>
-                <h2 className="text-3xl font-bold mb-6">
-                  Aktuelle News mit {person.name}
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">
+                  News zu {person.name.split(' ')[0]}
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {relatedArticles.map(article => (
                     <a
                       key={article.id}
                       href={`/${article.slug}`}
-                      className="flex gap-4 p-4 bg-white rounded-lg shadow hover:shadow-md transition"
+                      className="flex gap-3 md:gap-4 p-3 md:p-4 bg-white dark:bg-gray-900 rounded-lg shadow hover:shadow-md transition"
                     >
                       {article.heroImageUrl && (
-                        <div className="relative w-24 h-24 flex-shrink-0 rounded overflow-hidden">
+                        <div className="relative w-20 h-20 md:w-24 md:h-24 flex-shrink-0 rounded overflow-hidden">
                           <Image
                             src={article.heroImageUrl}
                             alt={article.title}
                             fill
                             sizes="96px"
                             className="object-cover"
+                            loading="lazy"
                           />
                         </div>
                       )}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm md:text-lg mb-1 line-clamp-2 dark:text-white">
                           {article.title}
                         </h3>
-                        <time className="text-sm text-gray-500">
+                        <time className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
                           {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('de-DE') : ''}
                         </time>
                       </div>
@@ -204,15 +259,15 @@ export default async function PersonPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* SECTION 2: INFOBOX (Sidebar) */}
-          <aside className="md:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-8">
-              <h3 className="font-bold text-lg mb-4">Steckbrief</h3>
+          {/* SECTION 2: INFOBOX (Sidebar) - Hidden on mobile, shown on desktop */}
+          <aside className="hidden sm:block md:col-span-1">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6 sticky top-8">
+              <h3 className="font-bold text-lg mb-4 dark:text-white">Steckbrief</h3>
               <dl className="space-y-3 text-sm">
                 {person.birthday && (
                   <>
-                    <dt className="text-gray-500">Geboren</dt>
-                    <dd className="font-semibold">
+                    <dt className="text-gray-500 dark:text-gray-400">Geboren</dt>
+                    <dd className="font-semibold dark:text-white">
                       {new Date(person.birthday).toLocaleDateString('de-DE', {
                         year: 'numeric',
                         month: 'long',
@@ -224,17 +279,17 @@ export default async function PersonPage({ params }: PageProps) {
                 
                 {person.place_of_birth && (
                   <>
-                    <dt className="text-gray-500 mt-4">Geburtsort</dt>
-                    <dd className="font-semibold">{person.place_of_birth}</dd>
+                    <dt className="text-gray-500 dark:text-gray-400 mt-4">Geburtsort</dt>
+                    <dd className="font-semibold dark:text-white">{person.place_of_birth}</dd>
                   </>
                 )}
                 
                 {tvCredits.length > 0 && (
                   <>
-                    <dt className="text-gray-500 mt-4">Bekannt für</dt>
+                    <dt className="text-gray-500 dark:text-gray-400 mt-4">Bekannt für</dt>
                     <dd className="space-y-1">
                       {tvCredits.slice(0, 3).map((credit, idx) => (
-                        <div key={idx} className="text-sm">
+                        <div key={idx} className="text-sm dark:text-white">
                           {credit.name || credit.title}
                         </div>
                       ))}
