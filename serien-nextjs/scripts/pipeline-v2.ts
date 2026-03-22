@@ -21,7 +21,7 @@ import { extractFacts } from '../lib/fact-extractor';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
-import { findTrailerYouTubeId, downloadYouTubeTrailer } from '../lib/trailer-downloader';
+import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { qualityCheck } from '../lib/quality-checker';
@@ -446,19 +446,39 @@ export async function runPipelineV2(source: PipelineV2Source) {
               console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
             }
           } else {
-            // TMDB has no trailer - Log for manual addition
+            // TMDB has no trailer - Try automatic YouTube search
             console.log(`   ℹ️  No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
-            console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
-            console.log(`   💡 Add via: npx tsx scripts/add-trailer.ts ${slug} [youtube-url]`);
+            console.log(`   🔍 Searching YouTube for trailer...`);
             
-            // TODO: Future enhancement - Automatic YouTube search
-            // const searchResult = await searchYouTubeTrailer(dbSeries.name || dbSeries.title || '');
-            // if (searchResult.found) {
-            //   await prisma.articles.update({
-            //     where: { id: articleId },
-            //     data: { heroVideoUrl: searchResult.url }
-            //   });
-            // }
+            try {
+              const youtubeUrl = await searchYouTubeTrailer(dbSeries.name || dbSeries.title || '');
+              if (youtubeUrl) {
+                console.log(`   ✅ Found trailer on YouTube: ${youtubeUrl}`);
+                // Download and upload to Emergent Storage
+                const downloadResult = await downloadYouTubeTrailer(youtubeUrl);
+                if (downloadResult.success && downloadResult.localPath) {
+                  await prisma.articles.update({
+                    where: { id: articleId },
+                    data: { heroVideoUrl: downloadResult.localPath }
+                  });
+                  console.log(`   ✅ YouTube trailer saved`);
+                } else {
+                  // Fallback: Use YouTube URL directly
+                  await prisma.articles.update({
+                    where: { id: articleId },
+                    data: { heroVideoUrl: youtubeUrl }
+                  });
+                  console.log(`   ✅ YouTube URL saved (no download)`);
+                }
+              } else {
+                console.log(`   ⚠️  No trailer found on YouTube`);
+                console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
+                console.log(`   💡 Add via: npx tsx scripts/add-trailer.ts ${slug} [youtube-url]`);
+              }
+            } catch (searchError: any) {
+              console.log(`   ⚠️  YouTube search failed: ${searchError.message}`);
+              console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
+            }
           }
         } catch (error: any) {
           console.log(`   ❌ Trailer processing error: ${error.message}`);
