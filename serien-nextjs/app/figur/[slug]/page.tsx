@@ -9,9 +9,10 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
+import { unstable_cache } from 'next/cache';
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
+// ISR - Revalidate every 5 minutes
+export const revalidate = 300;
 
 
 interface CharacterPageProps {
@@ -69,6 +70,29 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
   if (!character || character.publishStatus !== 'published') {
     notFound();
   }
+
+  // Topical Cluster: Fetch related characters from the same series
+  const relatedCharacters = await prisma.characters.findMany({
+    where: {
+      seriesTmdbId: character.seriesTmdbId,
+      publishStatus: 'published',
+      id: { not: character.id },
+    },
+    take: 4,
+    orderBy: { orderIndex: 'asc' },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      imageUrl: true,
+      persons: {
+        select: {
+          name: true,
+          profilePath: true,
+        }
+      }
+    }
+  });
 
   // Fetch related articles mentioning this character
   const relatedArticles = await prisma.articles.findMany({
@@ -254,6 +278,53 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                       spielt {character.name} in {seriesName}.
                     </p>
                   </div>
+                </div>
+              </section>
+            )}
+
+            {/* Topical Cluster: Related Characters from same series */}
+            {relatedCharacters.length > 0 && (
+              <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Weitere Figuren aus {seriesName}
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {relatedCharacters.map((relChar) => (
+                    <Link
+                      key={relChar.id}
+                      href={`/figur/${relChar.slug}`}
+                      className="group text-center"
+                    >
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
+                        {relChar.imageUrl ? (
+                          <Image
+                            src={relChar.imageUrl}
+                            alt={relChar.name}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : relChar.persons?.profilePath ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w185${relChar.persons.profilePath}`}
+                            alt={relChar.name}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 line-clamp-1">
+                        {relChar.name}
+                      </p>
+                    </Link>
+                  ))}
                 </div>
               </section>
             )}

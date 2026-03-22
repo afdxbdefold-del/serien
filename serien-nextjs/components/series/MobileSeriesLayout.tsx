@@ -301,6 +301,61 @@ export default function MobileSeriesLayout({
         )}
       </div>
 
+      {/* Topical Cluster: Characters Section - Links to Character Pages */}
+      {characters && characters.length > 0 && (
+        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              Figuren
+            </h2>
+            <Link 
+              href={`/figuren?serie=${series.tmdbId}`}
+              className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline"
+            >
+              Alle →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {characters.slice(0, 6).map((character: any) => (
+              <Link
+                key={character.id}
+                href={`/figur/${character.slug}`}
+                className="group"
+              >
+                <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-1.5 shadow-sm">
+                  {character.imageUrl ? (
+                    <Image
+                      src={character.imageUrl}
+                      alt={character.name}
+                      fill
+                      sizes="33vw"
+                      className="object-cover"
+                    />
+                  ) : character.persons?.profilePath ? (
+                    <Image
+                      src={`https://image.tmdb.org/t/p/w185${character.persons.profilePath}`}
+                      alt={character.name}
+                      fill
+                      sizes="33vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1 group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
+                  {character.name}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="mb-6">
         <SeasonsStatus
           seriesName={series.name || series.title}

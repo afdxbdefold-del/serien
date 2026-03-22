@@ -8,9 +8,10 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
 import Image from 'next/image';
+import Link from 'next/link';
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
+// ISR - Revalidate every 5 minutes
+export const revalidate = 300;
 
 
 interface PageProps {
@@ -71,6 +72,48 @@ export default async function PersonPage({ params }: PageProps) {
       slug: true,
       publishedAt: true,
       heroImageUrl: true
+    }
+  });
+
+  // Topical Cluster: Get characters played by this person
+  const playedCharacters = await prisma.characters.findMany({
+    where: {
+      actorTmdbId: tmdbId,
+      publishStatus: 'published',
+    },
+    take: 6,
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      imageUrl: true,
+      series: {
+        select: {
+          tmdbId: true,
+          name: true,
+          title: true,
+          slug: true,
+        }
+      }
+    }
+  });
+
+  // Topical Cluster: Get series this person appears in (from our DB)
+  const personSeries = await prisma.series.findMany({
+    where: {
+      characters: {
+        some: {
+          actorTmdbId: tmdbId,
+        }
+      }
+    },
+    take: 6,
+    select: {
+      tmdbId: true,
+      name: true,
+      title: true,
+      slug: true,
+      posterPath: true,
     }
   });
 
@@ -175,6 +218,68 @@ export default async function PersonPage({ params }: PageProps) {
                     <p key={idx} className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">
                       {para}
                     </p>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Topical Cluster: Characters played by this person */}
+            {playedCharacters.length > 0 && (
+              <section>
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">
+                  Rollen von {person.name.split(' ')[0]}
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {playedCharacters.map((char) => (
+                    <Link
+                      key={char.id}
+                      href={`/figur/${char.slug}`}
+                      className="group bg-white dark:bg-gray-900 rounded-lg p-3 shadow hover:shadow-md transition"
+                    >
+                      <p className="font-semibold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 line-clamp-1">
+                        {char.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        in {char.series.name || char.series.title}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Topical Cluster: Series this person appears in (linked) */}
+            {personSeries.length > 0 && (
+              <section>
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">
+                  Serien bei serien.de
+                </h2>
+                <div className="grid grid-cols-3 gap-3 md:gap-4">
+                  {personSeries.map((series) => (
+                    <Link
+                      key={series.tmdbId}
+                      href={`/serie/${series.tmdbId}-${series.slug}`}
+                      className="group"
+                    >
+                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition bg-gray-200 dark:bg-gray-800">
+                        {series.posterPath ? (
+                          <Image
+                            src={`https://image.tmdb.org/t/p/w342${series.posterPath}`}
+                            alt={series.name || series.title || ''}
+                            fill
+                            sizes="(max-width: 640px) 33vw, 200px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-gray-400 text-xs">Kein Bild</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="mt-2 font-semibold text-xs md:text-sm text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 line-clamp-2">
+                        {series.name || series.title}
+                      </p>
+                    </Link>
                   ))}
                 </div>
               </section>
