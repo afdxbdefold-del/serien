@@ -91,6 +91,10 @@ export default function Header() {
                   <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D</span>
                   DISNEY+
                 </Link>
+                <Link href="/hbo-serien" className="text-white/80 text-sm font-semibold hover:text-white transition-colors flex items-center gap-1">
+                  <span className="bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">H</span>
+                  HBO
+                </Link>
                 <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   SERIENFINDER
                 </Link>
@@ -250,6 +254,14 @@ export default function Header() {
               >
                 <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D</span>
                 DISNEY+
+              </Link>
+              <Link 
+                href="/hbo-serien" 
+                className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <span className="bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">H</span>
+                HBO MAX
               </Link>
               <Link 
                 href="/serienfinder" 

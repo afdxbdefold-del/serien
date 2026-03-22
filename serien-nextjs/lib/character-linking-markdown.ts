@@ -18,6 +18,9 @@ const STREAMER_HUBS: Record<string, string> = {
   'Amazon Prime Video': '/prime-video-serien',
   'Disney+': '/disney-plus-serien',
   'Disney Plus': '/disney-plus-serien',
+  'HBO': '/hbo-serien',
+  'HBO Max': '/hbo-serien',
+  'Max': '/hbo-serien',
 };
 
 interface CharacterLinkResult {
