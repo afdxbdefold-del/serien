@@ -336,39 +336,42 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Author & Date */}
-          <div className="flex items-center gap-3 mb-6">
-            {article.users && (
-              <>
-                {article.users.image ? (
-                  <Link href={getAuthorUrl(article.users.name || '')} className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={article.users.image}
-                      alt={article.users.name || 'Author'}
-                      fill
-                      className="object-cover"
-                    />
-                  </Link>
-                ) : (
-                  <Link href={getAuthorUrl(article.users.name || '')} className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {(article.users.name || 'A').charAt(0).toUpperCase()}
-                  </Link>
-                )}
-                <div className="text-sm">
-                  <Link 
-                    href={getAuthorUrl(article.users.name || '')}
-                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
-                  >
-                    {article.users.name || 'Redaktion'}
-                  </Link>
-                  <span className="text-gray-500 dark:text-gray-400">,</span>
-                  <br className="sm:hidden" />
-                  <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
-                    {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                  </span>
-                </div>
-              </>
-            )}
+          {/* Author & Date with Share Button */}
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              {article.users && (
+                <>
+                  {article.users.image ? (
+                    <Link href={getAuthorUrl(article.users.name || '')} className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                      <Image
+                        src={article.users.image}
+                        alt={article.users.name || 'Author'}
+                        fill
+                        className="object-cover"
+                      />
+                    </Link>
+                  ) : (
+                    <Link href={getAuthorUrl(article.users.name || '')} className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {(article.users.name || 'A').charAt(0).toUpperCase()}
+                    </Link>
+                  )}
+                  <div className="text-sm">
+                    <Link 
+                      href={getAuthorUrl(article.users.name || '')}
+                      className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                    >
+                      {article.users.name || 'Redaktion'}
+                    </Link>
+                    <span className="text-gray-500 dark:text-gray-400">,</span>
+                    <br className="sm:hidden" />
+                    <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
+                      {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+            <ShareButton title={article.title} />
           </div>
 
           {/* Cyan Accent Line */}
@@ -430,11 +433,6 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Ad Unit */}
           <AdUnit slot="9876543210" format="rectangle" className="my-8" />
-
-          {/* Share Button */}
-          <div className="flex justify-end mb-8">
-            <ShareButton title={article.title} />
-          </div>
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
