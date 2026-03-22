@@ -65,6 +65,8 @@ const STREAMER_HUBS: Record<string, string> = {
   'freenet Video': '/freenet-video-serien',
   'freenet': '/freenet-video-serien',
   'Freenet': '/freenet-video-serien',
+  'Maxdome': '/maxdome-serien',
+  'maxdome': '/maxdome-serien',
 };
 
 interface CharacterLinkResult {
