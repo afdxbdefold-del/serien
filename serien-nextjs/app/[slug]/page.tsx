@@ -407,7 +407,15 @@ export default async function ArticlePage({ params }: PageProps) {
             </span>
           </div>
 
-          {/* Author Box - Directly after article */}
+          {/* Q&A Section - Directly after article content */}
+          {article.article_qa && article.article_qa.questions && (
+            <ArticleQA 
+              questions={article.article_qa.questions as any[]}
+              schemaEnabled={article.article_qa.schemaEnabled}
+            />
+          )}
+
+          {/* Author Box */}
           {article.users && (
             <AuthorBox 
               author={{
@@ -420,10 +428,10 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Ad Unit - After Article Content */}
+          {/* Ad Unit */}
           <AdUnit slot="9876543210" format="rectangle" className="my-8" />
 
-          {/* Share Button - Above Infoboxes */}
+          {/* Share Button */}
           <div className="flex justify-end mb-8">
             <ShareButton title={article.title} />
           </div>
@@ -434,14 +442,6 @@ export default async function ArticlePage({ params }: PageProps) {
               seriesId={article.primarySeriesId}
               seriesName={article.series.title || article.series.name || ''}
               seriesSlug={article.series.slug || ''}
-            />
-          )}
-
-          {/* Q&A Section - After Series Infobox */}
-          {article.article_qa && article.article_qa.questions && (
-            <ArticleQA 
-              questions={article.article_qa.questions as any[]}
-              schemaEnabled={article.article_qa.schemaEnabled}
             />
           )}
 
