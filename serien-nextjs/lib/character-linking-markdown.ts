@@ -28,6 +28,10 @@ const STREAMER_HUBS: Record<string, string> = {
   'RTL': '/rtl-plus-serien',
   'RTL Plus': '/rtl-plus-serien',
   'VOX': '/rtl-plus-serien',
+  'Paramount+': '/paramount-plus-serien',
+  'Paramount Plus': '/paramount-plus-serien',
+  'Paramount Network': '/paramount-plus-serien',
+  'Showtime': '/paramount-plus-serien',
 };
 
 interface CharacterLinkResult {
