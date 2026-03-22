@@ -87,7 +87,11 @@ STRUKTUR:
 
 1. HEADLINE (max 70 Zeichen)
 
-2. META DESCRIPTION (max 155 Zeichen)
+2. META DESCRIPTION (140-160 Zeichen)
+   - MUSS enthalten: Serienname + Anzahl + Keyword
+   - Neugier erzeugen!
+   
+   Beispiel: "14 Serien wie The Big Bang Theory? Die besten Alternativen zum Streamen – von Friends bis Young Sheldon."
 
 3. LEAD (2-3 Sätze)
 
@@ -175,9 +179,14 @@ STRUKTUR-ANFORDERUNGEN:
    - Klar, informativ, SEO-optimiert
    - Keine Clickbait
 
-2. META DESCRIPTION (max 155 Zeichen)
-   - Zusammenfassung mit Hook
-   - Enthält Serie + Hauptfakt
+2. META DESCRIPTION (140-160 Zeichen)
+   - MUSS enthalten: Serienname + Keyword (Start/Handlung/Cast/Staffel)
+   - Neugier erzeugen → User soll klicken wollen!
+   - Sauberes Deutsch, keine Encoding-Probleme
+   
+   Beispiel-Struktur:
+   "Kommt Staffel X von [Serie]? Alle Infos zu Start, Handlung und Cast – aktueller Stand und Prognose."
+   "Wer stirbt in Staffel X von [Serie]? Die schockierenden Todesfälle im Cast und was dahinter steckt."
 
 3. LEAD (2-3 Sätze, ~50 Wörter)
    - Beantwortet: Was ist neu? Warum wichtig?
