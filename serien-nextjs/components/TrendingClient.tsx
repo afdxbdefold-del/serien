@@ -12,6 +12,7 @@ interface Series {
   title: string;
   slug: string;
   posterLocalUrl: string | null;
+  posterPath: string | null;
   status: string | null;
   genres: string[];
   networks: string[];
@@ -307,10 +308,25 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <span className="text-4xl">📺</span>
-                      </div>
+                      // Fallback: Try to load from our poster API proxy
+                      <Image
+                        src={`/img/poster/tv/${show.tmdbId}`}
+                        alt={show.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          // If proxy also fails, show placeholder
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement?.querySelector('.placeholder')?.classList.remove('hidden');
+                        }}
+                      />
                     )}
+                    
+                    {/* Placeholder for when image fails */}
+                    <div className={`placeholder w-full h-full flex items-center justify-center text-gray-400 absolute inset-0 ${(show.posterLocalUrl || show.posterPath) ? 'hidden' : ''}`}>
+                      <span className="text-4xl">📺</span>
+                    </div>
                     
                     {/* Overlay on hover with info */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
