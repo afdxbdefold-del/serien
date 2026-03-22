@@ -13,6 +13,7 @@ import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 import { getAuthorUrl } from '@/lib/author-utils';
+import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 
 // Lazy load heavy client components
@@ -60,7 +61,7 @@ const getArticle = (slug: string) => unstable_cache(
         status: true,
         contentType: true,
         users: {
-          select: { id: true, name: true, image: true }
+          select: { id: true, name: true, image: true, bio: true, expertise: true }
         },
         series: {
           select: { 
@@ -438,6 +439,19 @@ export default async function ArticlePage({ params }: PageProps) {
               seriesName={article.series.title || article.series.name || ''}
               networks={article.series.networks}
               slug={article.series.slug}
+            />
+          )}
+
+          {/* Author Box */}
+          {article.users && (
+            <AuthorBox 
+              author={{
+                id: article.users.id,
+                name: article.users.name,
+                image: article.users.image,
+                bio: (article.users as any).bio || null,
+                expertise: (article.users as any).expertise || [],
+              }}
             />
           )}
 
