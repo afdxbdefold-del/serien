@@ -89,9 +89,45 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
     '\u00AB',   // French left quote
   ];
   
-  // Strategy 0: Use cleaned title as candidate (NEW!)
+  // STRATEGY 0: Check for known series names in title (NEW!)
+  const knownSeries = [
+    'Invincible', 'The Boys', 'Stranger Things', 'Wednesday', 'Squid Game',
+    'House of the Dragon', 'The Last of Us', 'Andor', 'The Mandalorian',
+    'Daredevil', 'Punisher', 'The Punisher', 'Jessica Jones', 'Luke Cage',
+    'Harry Potter', 'Game of Thrones', 'Breaking Bad', 'Better Call Saul',
+    'The Walking Dead', 'Yellowstone', 'The Madison', 'Severance',
+    'The White Lotus', 'Euphoria', 'Succession', 'The Bear',
+    'Cobra Kai', 'Outer Banks', 'You', 'Bridgerton', 'Elite',
+    'Money Heist', 'Dark', 'Babylon Berlin', '1899', 'Tribes of Europa',
+    'Reacher', 'Jack Ryan', 'The Terminal List', 'Citadel',
+    'Rings of Power', 'Wheel of Time', 'Foundation', 'For All Mankind',
+    'Ted Lasso', 'Shrinking', 'The Morning Show', 'Slow Horses',
+    'Bad Monkey', 'The Rookie', 'Smallville', 'Arrow', 'The Flash',
+    'Supernatural', 'Lucifer', 'The Witcher', 'Shadow and Bone',
+    'Arcane', 'Castlevania', 'One Piece', 'Avatar', 'Percy Jackson',
+    'Ahsoka', 'Obi-Wan Kenobi', 'The Book of Boba Fett', 'Skeleton Crew',
+    'Loki', 'WandaVision', 'Moon Knight', 'She-Hulk', 'Ms. Marvel',
+    'Secret Invasion', 'Echo', 'Agatha All Along', 'Ironheart',
+    'Peacemaker', 'Titans', 'Doom Patrol', 'Harley Quinn',
+    'The Handmaid\'s Tale', 'Under the Banner of Heaven',
+    'Only Murders in the Building', 'Abbott Elementary', 'What We Do in the Shadows',
+    'The Penguin', 'Creature Commandos', 'Lanterns'
+  ];
+  
+  const titleLower = title.toLowerCase();
+  const textLower = (articleText || '').toLowerCase().slice(0, 500);
+  
+  for (const series of knownSeries) {
+    const seriesLower = series.toLowerCase();
+    if (titleLower.includes(seriesLower) || textLower.includes(seriesLower)) {
+      candidates.push(series);
+      console.log(`   🎯 Known series found: "${series}"`);
+    }
+  }
+  
+  // Strategy 0b: Use cleaned title as candidate
   console.log(`   🧹 Cleaned title: "${cleanedTitle}" (length: ${cleanedTitle.length})`);
-  if (cleanedTitle.length >= 3 && cleanedTitle.length <= 60) {
+  if (cleanedTitle.length >= 3 && cleanedTitle.length <= 60 && candidates.length === 0) {
     candidates.push(cleanedTitle);
     console.log(`   ✅ Added cleaned title as candidate`);
   }
