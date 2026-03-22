@@ -39,6 +39,9 @@ const STREAMER_HUBS: Record<string, string> = {
   'WOW': '/wow-serien',
   'Sky': '/wow-serien',
   'Sky Atlantic': '/wow-serien',
+  'MagentaTV': '/magenta-tv-serien',
+  'Magenta TV': '/magenta-tv-serien',
+  'Telekom': '/magenta-tv-serien',
 };
 
 interface CharacterLinkResult {
