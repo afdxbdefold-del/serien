@@ -62,6 +62,9 @@ const STREAMER_HUBS: Record<string, string> = {
   'Chili': '/chili-serien',
   'Crunchyroll': '/crunchyroll-serien',
   'Funimation': '/crunchyroll-serien',
+  'freenet Video': '/freenet-video-serien',
+  'freenet': '/freenet-video-serien',
+  'Freenet': '/freenet-video-serien',
 };
 
 interface CharacterLinkResult {
