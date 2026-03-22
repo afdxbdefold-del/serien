@@ -3,15 +3,90 @@
  * 
  * Links character names in Markdown BEFORE HTML conversion
  * This prevents HTML structure corruption
+ * 
+ * Also links streamer names to their hub pages (1x per article)
  */
 
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Streamer Hub URLs - add more as hubs are created
+const STREAMER_HUBS: Record<string, string> = {
+  'Netflix': '/netflix-serien',
+  // Future hubs:
+  // 'Disney+': '/disney-plus-serien',
+  // 'Amazon Prime Video': '/prime-video-serien',
+  // 'Prime Video': '/prime-video-serien',
+};
+
 interface CharacterLinkResult {
   linkedMarkdown: string;
   charactersLinked: number;
+}
+
+interface StreamerLinkResult {
+  linkedMarkdown: string;
+  streamersLinked: string[];
+}
+
+/**
+ * Link streamer names to their hub pages (1x per streamer)
+ */
+export function linkStreamersInMarkdown(markdown: string): StreamerLinkResult {
+  let linkedMarkdown = markdown;
+  const streamersLinked: string[] = [];
+
+  for (const [streamerName, hubUrl] of Object.entries(STREAMER_HUBS)) {
+    const escapedName = streamerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // Match streamer name not already in a link, not in heading
+    const regex = new RegExp(
+      `(?<!\\[)(?<!\\()\\b${escapedName}\\b(?!\\])(?!\\))(?![^\\[]*\\])`,
+      'gi'
+    );
+
+    // Find first valid occurrence (not in heading)
+    regex.lastIndex = 0;
+    let match;
+    let validMatch = null;
+
+    while ((match = regex.exec(linkedMarkdown)) !== null) {
+      const matchIndex = match.index;
+
+      // Check if match is inside a heading
+      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
+      const lastNewline = beforeMatch.lastIndexOf('\n');
+      const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
+
+      // Skip if in heading (starts with #)
+      if (/^#+\s/.test(lineStart.trim())) {
+        continue;
+      }
+
+      // This is the first valid match!
+      validMatch = match;
+      break;
+    }
+
+    if (validMatch) {
+      const matchIndex = validMatch.index;
+      const matchText = validMatch[0];
+
+      linkedMarkdown =
+        linkedMarkdown.substring(0, matchIndex) +
+        `[${matchText}](${hubUrl})` +
+        linkedMarkdown.substring(matchIndex + matchText.length);
+
+      streamersLinked.push(streamerName);
+      console.log(`   ✅ Linked: ${streamerName} → ${hubUrl} (1st valid occurrence)`);
+    }
+  }
+
+  return {
+    linkedMarkdown,
+    streamersLinked,
+  };
 }
 
 /**

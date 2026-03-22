@@ -10,7 +10,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
-import { linkCharactersInMarkdown } from '../lib/character-linking-markdown';
+import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
@@ -286,6 +286,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // DEBUG: Check if links are actually in markdown
     const debugCastLinks = (structuredContent.markdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
     console.log(`🔍 DEBUG: Markdown has ${debugCastLinks} cast links`);
+    
+    // Link streamers to their hub pages (Netflix → /netflix-serien)
+    console.log('🎬 Linking streamers to hub pages...');
+    const streamerLinkResult = linkStreamersInMarkdown(structuredContent.markdown);
+    structuredContent.markdown = streamerLinkResult.linkedMarkdown;
+    if (streamerLinkResult.streamersLinked.length > 0) {
+      console.log(`✅ Linked ${streamerLinkResult.streamersLinked.length} streamers: ${streamerLinkResult.streamersLinked.join(', ')}`);
+    } else {
+      console.log('   ℹ️  No streamers to link');
+    }
     
     console.timeEnd('⏱️  STEP 6: Character Import & Linking');
 
