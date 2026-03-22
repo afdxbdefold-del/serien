@@ -428,20 +428,20 @@ export default async function ArticlePage({ params }: PageProps) {
             <ShareButton title={article.title} />
           </div>
 
-          {/* Q&A Section */}
-          {article.article_qa && article.article_qa.questions && (
-            <ArticleQA 
-              questions={article.article_qa.questions as any[]}
-              schemaEnabled={article.article_qa.schemaEnabled}
-            />
-          )}
-
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
             <SeriesInfobox
               seriesId={article.primarySeriesId}
               seriesName={article.series.title || article.series.name || ''}
               seriesSlug={article.series.slug || ''}
+            />
+          )}
+
+          {/* Q&A Section - After Series Infobox */}
+          {article.article_qa && article.article_qa.questions && (
+            <ArticleQA 
+              questions={article.article_qa.questions as any[]}
+              schemaEnabled={article.article_qa.schemaEnabled}
             />
           )}
 
