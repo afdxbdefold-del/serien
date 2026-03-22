@@ -70,7 +70,7 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6 mb-8">
       <div className="flex items-start gap-3 mb-4">
         <div className="p-2 bg-blue-500 rounded-lg">
           <Tv className="h-5 w-5 text-white" />

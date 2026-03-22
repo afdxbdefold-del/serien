@@ -407,9 +407,7 @@ export default async function ArticlePage({ params }: PageProps) {
           </div>
 
           {/* Ad Unit - After Article Content */}
-          <div className="my-8">
-            <AdUnit slot="9876543210" format="rectangle" />
-          </div>
+          <AdUnit slot="9876543210" format="rectangle" className="my-8" />
 
           {/* Share Button - Above Infoboxes */}
           <div className="flex justify-end mb-8">
@@ -426,25 +424,21 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <div className="mb-8">
-              <SeriesInfobox
-                seriesId={article.primarySeriesId}
-                seriesName={article.series.title || article.series.name || ''}
-                seriesSlug={article.series.slug || ''}
-              />
-            </div>
+            <SeriesInfobox
+              seriesId={article.primarySeriesId}
+              seriesName={article.series.title || article.series.name || ''}
+              seriesSlug={article.series.slug || ''}
+            />
           )}
 
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <div className="mb-8">
-              <WhereToStreamBox
-                seriesId={article.primarySeriesId}
-                seriesName={article.series.title || article.series.name || ''}
-                networks={article.series.networks}
-                slug={article.series.slug}
-              />
-            </div>
+            <WhereToStreamBox
+              seriesId={article.primarySeriesId}
+              seriesName={article.series.title || article.series.name || ''}
+              networks={article.series.networks}
+              slug={article.series.slug}
+            />
           )}
 
           {/* Related News */}

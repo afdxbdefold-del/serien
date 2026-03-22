@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface AdUnitProps {
   slot: string;
@@ -17,6 +17,8 @@ declare global {
 export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnitProps) {
   const [hasConsent, setHasConsent] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const adRef = useRef<HTMLModElement>(null);
 
   useEffect(() => {
     // Check if we're in production
@@ -52,15 +54,27 @@ export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnit
   }, []);
 
   useEffect(() => {
-    if (hasConsent) {
+    if (hasConsent && isProduction) {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
+        
+        // Check if ad actually rendered after a delay
+        const checkTimer = setTimeout(() => {
+          if (adRef.current) {
+            const adHeight = adRef.current.offsetHeight;
+            // Only show if ad has actual content (height > 0)
+            setAdLoaded(adHeight > 0);
+          }
+        }, 2000);
+        
+        return () => clearTimeout(checkTimer);
       } catch (e) {
         console.error('AdSense error:', e);
       }
     }
-  }, [hasConsent]);
+  }, [hasConsent, isProduction]);
 
+  // Don't render anything if no consent
   if (!hasConsent) {
     return null;
   }
@@ -82,10 +96,21 @@ export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnit
   }
 
   return (
-    <div className={`ad-container ${className}`}>
+    <div 
+      className={`ad-container ${className}`} 
+      style={{ 
+        minHeight: 0, 
+        overflow: 'hidden',
+        // Collapse if ad hasn't loaded after timeout
+        maxHeight: adLoaded ? 'none' : 0,
+        opacity: adLoaded ? 1 : 0,
+        transition: 'opacity 0.3s ease'
+      }}
+    >
       <ins
+        ref={adRef}
         className="adsbygoogle"
-        style={{ display: 'block' }}
+        style={{ display: 'block', minHeight: 0 }}
         data-ad-client="ca-pub-8583619451045805"
         data-ad-slot={slot}
         data-ad-format={format}
