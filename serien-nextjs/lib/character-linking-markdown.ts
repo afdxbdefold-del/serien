@@ -32,6 +32,10 @@ const STREAMER_HUBS: Record<string, string> = {
   'Paramount Plus': '/paramount-plus-serien',
   'Paramount Network': '/paramount-plus-serien',
   'Showtime': '/paramount-plus-serien',
+  'Joyn': '/joyn-serien',
+  'ProSieben': '/joyn-serien',
+  'SAT.1': '/joyn-serien',
+  'Kabel Eins': '/joyn-serien',
 };
 
 interface CharacterLinkResult {
