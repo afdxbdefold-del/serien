@@ -1,22 +1,34 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ShareButton from '@/components/ShareButton';
 import { SeriesInfobox } from '@/components/SeriesInfobox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
-import InlineVideoPlayer from '@/components/DirectVideoPlayer';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
 import { getAuthorUrl } from '@/lib/author-utils';
 import NewsCard from '@/components/NewsCard';
-import AdUnit from '@/components/AdUnit';
+
+// Lazy load heavy client components
+const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
+  ssr: true,
+  loading: () => (
+    <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-900 animate-pulse" />
+  ),
+});
+
+const AdUnit = dynamic(() => import('@/components/AdUnit'), {
+  ssr: false,
+  loading: () => null,
+});
 
 // Force dynamic rendering - articles need real-time data
-export const dynamic = 'force-dynamic';
+export const dynamicMode = 'force-dynamic';
 
 interface PageProps {
   params: Promise<{
