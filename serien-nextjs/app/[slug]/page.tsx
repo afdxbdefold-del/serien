@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { unstable_cache } from 'next/cache';
 import ShareButton from '@/components/ShareButton';
 import { SeriesInfobox } from '@/components/SeriesInfobox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
@@ -23,12 +24,110 @@ const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer')
 });
 
 const AdUnit = dynamic(() => import('@/components/AdUnit'), {
-  ssr: false,
   loading: () => null,
 });
 
-// Force dynamic rendering - articles need real-time data
-export const dynamicMode = 'force-dynamic';
+// Helper to safely convert Date or ISO string to Date object
+const toDate = (value: Date | string | null | undefined): Date => {
+  if (!value) return new Date();
+  return value instanceof Date ? value : new Date(value);
+};
+
+// Cached article fetch with optimized select
+const getArticle = (slug: string) => unstable_cache(
+  async () => {
+    return prisma.articles.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        contentHtml: true,
+        heroImageUrl: true,
+        heroLocalUrl: true,
+        heroVideoUrl: true,
+        trailerLocalUrl: true,
+        heroImagePath: true,
+        ogImageUrl: true,
+        tmdbId: true,
+        tmdbType: true,
+        publishedAt: true,
+        updatedAt: true,
+        createdAt: true,
+        category: true,
+        primarySeriesId: true,
+        status: true,
+        contentType: true,
+        users: {
+          select: { id: true, name: true, image: true }
+        },
+        series: {
+          select: { 
+            tmdbId: true, 
+            title: true, 
+            name: true, 
+            slug: true, 
+            networks: true 
+          }
+        },
+        article_qa: {
+          select: { questions: true, schemaEnabled: true }
+        },
+      },
+    });
+  },
+  [`article-${slug}`],
+  { revalidate: 300, tags: ['article', `article-${slug}`] }
+)();
+
+// Cached related news fetch
+const getRelatedNews = (articleId: string, category: string | null, primarySeriesId: number | null) => unstable_cache(
+  async () => {
+    return prisma.articles.findMany({
+      where: {
+        OR: [
+          { status: 'published' },
+          { status: 'PUBLISHED' }
+        ],
+        id: { not: articleId },
+        AND: category || primarySeriesId ? [
+          {
+            OR: [
+              category ? { category } : {},
+              primarySeriesId ? { primarySeriesId } : {},
+            ].filter(o => Object.keys(o).length > 0),
+          }
+        ] : [],
+      },
+      take: 3,
+      orderBy: { publishedAt: 'desc' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        heroLocalUrl: true,
+        cardImageUrl: true,
+        tmdbId: true,
+        tmdbType: true,
+        publishedAt: true,
+        category: true,
+        users: {
+          select: { name: true },
+        },
+        series: {
+          select: { networks: true },
+        },
+      },
+    });
+  },
+  [`related-news-${articleId}`],
+  { revalidate: 300, tags: ['related-news'] }
+)();
+
+// ISR - Revalidate every 5 minutes for near-real-time data with caching
+export const revalidate = 300;
 
 interface PageProps {
   params: Promise<{
@@ -36,20 +135,29 @@ interface PageProps {
   }>;
 }
 
+// Cached metadata fetch (lightweight)
+const getArticleMetadata = (slug: string) => unstable_cache(
+  async () => {
+    return prisma.articles.findUnique({
+      where: { slug },
+      select: {
+        title: true,
+        excerpt: true,
+        heroLocalUrl: true,
+        ogImageUrl: true,
+        tmdbId: true,
+        tmdbType: true,
+      },
+    });
+  },
+  [`article-metadata-${slug}`],
+  { revalidate: 300, tags: ['article-metadata', `article-${slug}`] }
+)();
+
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await prisma.articles.findUnique({
-    where: { slug },
-    select: {
-      title: true,
-      excerpt: true,
-      heroLocalUrl: true,
-      ogImageUrl: true,
-      tmdbId: true,
-      tmdbType: true,
-    },
-  });
+  const article = await getArticleMetadata(slug);
 
   if (!article) {
     return {
@@ -115,61 +223,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   
-  // Fetch article with related data
-  const article = await prisma.articles.findUnique({
-    where: { slug },
-    include: {
-      users: true, // Fixed: use 'users' not 'author' (relation name in schema)
-      series: true, // Fixed: use 'series' not 'primarySeries'
-      article_qa: true, // Fixed: use 'article_qa' not 'articleQA'
-    },
-  });
+  // Fetch article with cached query
+  const article = await getArticle(slug);
 
   if (!article || (article.status?.toLowerCase() !== 'published')) {
     notFound();
   }
 
-  // Fetch related news (same category or same series)
-  const relatedNews = await prisma.articles.findMany({
-    where: {
-      OR: [
-        { status: 'published' },
-        { status: 'PUBLISHED' }
-      ],
-      id: { not: article.id },
-      AND: [
-        {
-          OR: [
-            { category: article.category },
-            { primarySeriesId: article.primarySeriesId },
-          ],
-        }
-      ],
-    },
-    take: 3,
-    orderBy: { publishedAt: 'desc' },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      heroLocalUrl: true,
-      cardImageUrl: true,
-      tmdbId: true,
-      tmdbType: true,
-      publishedAt: true,
-      category: true,
-      users: {
-        select: { name: true },
-      },
-      series: {
-        select: { networks: true },
-      },
-    },
-  });
+  // Fetch related news with cached query
+  const relatedNews = await getRelatedNews(
+    article.id, 
+    article.category, 
+    article.primarySeriesId
+  );
 
-  // Format dates
-  const publishedDate = new Date(article.publishedAt || article.createdAt);
+  // Format dates - handle both Date objects and ISO strings from cache
+  const publishedDate = toDate(article.publishedAt || article.createdAt);
   const formattedDate = publishedDate.toLocaleDateString('de-DE', {
     year: 'numeric',
     month: 'long',
@@ -198,8 +267,8 @@ export default async function ArticlePage({ params }: PageProps) {
     description: article.excerpt || '',
     imageUrl,
     imageDimensions: getImageDimensions(imageUrl),
-    datePublished: (article.publishedAt || article.createdAt).toISOString(),
-    dateModified: article.updatedAt.toISOString(),
+    datePublished: toDate(article.publishedAt || article.createdAt).toISOString(),
+    dateModified: toDate(article.updatedAt).toISOString(),
     slug,
     author: article.users?.name,
   });
@@ -333,7 +402,7 @@ export default async function ArticlePage({ params }: PageProps) {
               </span>
             )}
             <span>
-              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {(article.updatedAt || article.publishedAt) ? new Date(article.updatedAt || article.publishedAt!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Unbekannt'}
+              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </span>
           </div>
 
