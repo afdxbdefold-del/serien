@@ -83,6 +83,10 @@ export default function Header() {
                   <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">N</span>
                   NETFLIX
                 </Link>
+                <Link href="/prime-video-serien" className="text-white/80 text-sm font-semibold hover:text-white transition-colors flex items-center gap-1">
+                  <span className="bg-cyan-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">P</span>
+                  PRIME
+                </Link>
                 <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   SERIENFINDER
                 </Link>
@@ -232,6 +236,14 @@ export default function Header() {
               >
                 <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">N</span>
                 NETFLIX
+              </Link>
+              <Link 
+                href="/prime-video-serien" 
+                className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <span className="bg-cyan-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">P</span>
+                PRIME VIDEO
               </Link>
               <Link 
                 href="/serienfinder" 

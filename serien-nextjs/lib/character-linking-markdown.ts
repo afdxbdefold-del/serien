@@ -14,10 +14,10 @@ const prisma = new PrismaClient();
 // Streamer Hub URLs - add more as hubs are created
 const STREAMER_HUBS: Record<string, string> = {
   'Netflix': '/netflix-serien',
+  'Prime Video': '/prime-video-serien',
+  'Amazon Prime Video': '/prime-video-serien',
   // Future hubs:
   // 'Disney+': '/disney-plus-serien',
-  // 'Amazon Prime Video': '/prime-video-serien',
-  // 'Prime Video': '/prime-video-serien',
 };
 
 interface CharacterLinkResult {
