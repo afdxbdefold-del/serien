@@ -284,6 +284,15 @@ export default async function ArticlePage({ params }: PageProps) {
                   <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
                     {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
                   </span>
+                  {/* Source - Streamer */}
+                  {article.series?.networks && (article.series.networks as string[]).length > 0 && (
+                    <>
+                      <span className="text-gray-400 dark:text-gray-500 mx-2">|</span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Quelle: {(article.series.networks as string[])[0]}
+                      </span>
+                    </>
+                  )}
                 </div>
               </>
             )}
