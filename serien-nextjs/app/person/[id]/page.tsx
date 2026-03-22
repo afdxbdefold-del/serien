@@ -240,7 +240,7 @@ export default async function PersonPage({ params }: PageProps) {
                         {char.name}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        in {char.series.name || char.series.title}
+                        in {char.series?.name || char.series?.title || 'Serie'}
                       </p>
                     </Link>
                   ))}

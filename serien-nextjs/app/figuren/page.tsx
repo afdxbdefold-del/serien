@@ -19,22 +19,24 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     q?: string;
     page?: string;
-  };
+  }>;
 }
 
 const SERIES_PER_PAGE = 20;
 
 export default async function FigurenPage({ searchParams }: PageProps) {
-  const searchQuery = searchParams.q?.toLowerCase() || '';
-  const currentPage = parseInt(searchParams.page || '1', 10);
+  const params = await searchParams;
+  const searchQuery = params.q?.toLowerCase() || '';
+  const currentPage = parseInt(params.page || '1', 10);
 
   // Fetch all published characters with their series and actor
   const allCharacters = await prisma.characters.findMany({
     where: {
       publishStatus: 'published',
+      series: { tmdbId: { not: undefined } }, // Ensure series exists
     },
     include: {
       series: {
@@ -58,9 +60,12 @@ export default async function FigurenPage({ searchParams }: PageProps) {
     ],
   });
 
+  // Filter out characters without valid series data and group by series
+  const validCharacters = allCharacters.filter(char => char.series && (char.series.name || char.series.title));
+  
   // Group characters by series
-  const charactersBySeries = allCharacters.reduce((acc, char) => {
-    const seriesName = char.series.name || char.series.title;
+  const charactersBySeries = validCharacters.reduce((acc, char) => {
+    const seriesName = char.series.name || char.series.title || 'Unbekannte Serie';
     if (!acc[seriesName]) {
       acc[seriesName] = {
         series: char.series,
@@ -69,7 +74,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
     }
     acc[seriesName].characters.push(char);
     return acc;
-  }, {} as Record<string, { series: any; characters: typeof allCharacters }>);
+  }, {} as Record<string, { series: typeof allCharacters[0]['series']; characters: typeof validCharacters }>);
 
   let seriesGroups = Object.values(charactersBySeries);
 
@@ -81,7 +86,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
       
       const hasCharacterMatch = group.characters.some((char) => 
         char.name.toLowerCase().includes(searchQuery) ||
-        char.actor?.name.toLowerCase().includes(searchQuery)
+        (char.actor?.name?.toLowerCase()?.includes(searchQuery) ?? false)
       );
 
       return hasSeriesMatch || hasCharacterMatch;
@@ -95,7 +100,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
   const endIndex = startIndex + SERIES_PER_PAGE;
   const paginatedGroups = seriesGroups.slice(startIndex, endIndex);
 
-  const totalCharacters = allCharacters.length;
+  const totalCharacters = validCharacters.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
