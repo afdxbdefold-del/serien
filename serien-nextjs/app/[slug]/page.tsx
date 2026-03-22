@@ -284,15 +284,6 @@ export default async function ArticlePage({ params }: PageProps) {
                   <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
                     {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
                   </span>
-                  {/* Source - Streamer */}
-                  {article.series?.networks && (article.series.networks as string[]).length > 0 && (
-                    <>
-                      <span className="text-gray-400 dark:text-gray-500 mx-2">|</span>
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Quelle: {(article.series.networks as string[])[0]}
-                      </span>
-                    </>
-                  )}
                 </div>
               </>
             )}
@@ -321,6 +312,18 @@ export default async function ArticlePage({ params }: PageProps) {
               dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
             />
           </section>
+
+          {/* Article Meta - Source & Last Updated */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
+            {article.series?.networks && (article.series.networks as string[]).length > 0 && (
+              <span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">Quelle:</span> {(article.series.networks as string[])[0]}
+              </span>
+            )}
+            <span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {(article.updatedAt || article.publishedAt) ? new Date(article.updatedAt || article.publishedAt!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Unbekannt'}
+            </span>
+          </div>
 
           {/* Ad Unit - After Article Content */}
           <div className="my-8">
