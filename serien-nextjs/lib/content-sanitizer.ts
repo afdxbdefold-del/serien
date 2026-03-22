@@ -85,6 +85,13 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   
   let sanitized = html;
   
+  // STEP 0: Fix escaped Markdown that wasn't converted properly
+  // Pattern: \#\# or \\#\\# followed by text (usually numbered headings)
+  // This happens when Markdown escapes leak into HTML content
+  sanitized = sanitized.replace(/\\#\\#\s*/g, '');  // \\#\\# -> nothing (already in h2 tag)
+  sanitized = sanitized.replace(/\\\#\\\#\s*/g, ''); // \#\# -> nothing
+  sanitized = sanitized.replace(/##\s+(?=\d+\.)/g, ''); // ## 1. -> 1. (markdown heading in HTML)
+  
   // STEP 0a: Make YouTube/Video iframes responsive
   // Remove fixed width/height and wrap in responsive container
   // Don't add inline styles - let CSS handle the positioning
