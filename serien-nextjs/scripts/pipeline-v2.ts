@@ -471,7 +471,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
               if (youtubeUrl) {
                 console.log(`   ✅ Found trailer on YouTube: ${youtubeUrl}`);
                 // Download and upload to Emergent Storage
-                const downloadResult = await downloadYouTubeTrailer(youtubeUrl);
+                const downloadResult = await downloadYouTubeTrailer(youtubeUrl, dbSeries.name || dbSeries.title || 'trailer');
                 if (downloadResult.success && downloadResult.localPath) {
                   await prisma.articles.update({
                     where: { id: articleId },

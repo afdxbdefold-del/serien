@@ -768,12 +768,12 @@ export async function downloadVideoTrailer(
     // Create temp directory for download
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'trailer-'));
     
-    // Sanitize filename
-    const safeFilename = seriesName
+    // Sanitize filename (with fallback for undefined/null seriesName)
+    const safeFilename = (seriesName || 'trailer')
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-')
-      .substring(0, 50);
+      .substring(0, 50) || 'trailer';
 
     tempFilePath = path.join(tempDir, `${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`);
     
