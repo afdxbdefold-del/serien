@@ -89,57 +89,11 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
     '\u00AB',   // French left quote
   ];
   
-  // STRATEGY 0: Check for known series names in title (NEW!)
-  const knownSeries = [
-    'Invincible', 'The Boys', 'Stranger Things', 'Wednesday', 'Squid Game',
-    'House of the Dragon', 'The Last of Us', 'Andor', 'The Mandalorian',
-    'Daredevil', 'Punisher', 'The Punisher', 'Jessica Jones', 'Luke Cage',
-    'Harry Potter', 'Game of Thrones', 'Breaking Bad', 'Better Call Saul',
-    'The Walking Dead', 'Yellowstone', 'The Madison', 'Severance',
-    'The White Lotus', 'Euphoria', 'Succession', 'The Bear',
-    'Cobra Kai', 'Outer Banks', 'You', 'Bridgerton', 'Elite',
-    'Money Heist', 'Dark', 'Babylon Berlin', '1899', 'Tribes of Europa',
-    'Reacher', 'Jack Ryan', 'The Terminal List', 'Citadel',
-    'Rings of Power', 'Wheel of Time', 'Foundation', 'For All Mankind',
-    'Ted Lasso', 'Shrinking', 'The Morning Show', 'Slow Horses',
-    'Bad Monkey', 'The Rookie', 'Smallville', 'Arrow', 'The Flash',
-    'Supernatural', 'Lucifer', 'The Witcher', 'Shadow and Bone',
-    'Arcane', 'Castlevania', 'One Piece', 'Avatar', 'Percy Jackson',
-    'Ahsoka', 'Obi-Wan Kenobi', 'The Book of Boba Fett', 'Skeleton Crew',
-    'Loki', 'WandaVision', 'Moon Knight', 'She-Hulk', 'Ms. Marvel',
-    'Secret Invasion', 'Echo', 'Agatha All Along', 'Ironheart',
-    'Peacemaker', 'Titans', 'Doom Patrol', 'Harley Quinn',
-    'The Handmaid\'s Tale', 'Under the Banner of Heaven',
-    'Only Murders in the Building', 'Abbott Elementary', 'What We Do in the Shadows',
-    'The Penguin', 'Creature Commandos', 'Lanterns',
-    // Neue Serien hinzugefügt
-    'Peaky Blinders', 'ER', 'Walker', 'Walker Texas Ranger', 'Born to Bowl',
-    'The Testaments', 'Dexter', 'True Detective', 'Fargo', 'Shogun',
-    'Fallout', 'The Gentlemen', 'Baby Reindeer', '3 Body Problem',
-    'Ripley', 'Shōgun', 'Halo', 'House', 'Grey\'s Anatomy', 'NCIS',
-    'Criminal Minds', 'Law & Order', 'Chicago Fire', 'Chicago PD',
-    'Blue Bloods', 'SWAT', 'FBI', 'Tracker', 'Fire Country'
-  ];
-  
-  const titleLower = title.toLowerCase();
-  const textLower = (articleText || '').toLowerCase().slice(0, 500);
-  
-  for (const series of knownSeries) {
-    const seriesLower = series.toLowerCase();
-    if (titleLower.includes(seriesLower) || textLower.includes(seriesLower)) {
-      candidates.push(series);
-      console.log(`   🎯 Known series found: "${series}"`);
-    }
-  }
-  
-  // Strategy 0b: Use cleaned title as candidate
-  console.log(`   🧹 Cleaned title: "${cleanedTitle}" (length: ${cleanedTitle.length})`);
-  if (cleanedTitle.length >= 3 && cleanedTitle.length <= 60 && candidates.length === 0) {
-    candidates.push(cleanedTitle);
-    console.log(`   ✅ Added cleaned title as candidate`);
-  }
-  
-  // Strategy 1: Find quoted text in ORIGINAL title
+  // ══════════════════════════════════════════════════════════════════════════
+  // STRATEGY 1 (HIGHEST PRIORITY): Find quoted text in ORIGINAL title
+  // This is the most reliable - if a series name is in quotes, use it!
+  // e.g., 'Prime Video\'s "Deadloch" Gets Perfect Score' → "Deadloch"
+  // ══════════════════════════════════════════════════════════════════════════
   for (const openQuote of quoteChars) {
     const startIdx = title.indexOf(openQuote);
     if (startIdx === -1) continue;
@@ -154,8 +108,76 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
       // Valid series name candidate?
       if (extracted.length >= 2 && extracted.length <= 40 && !extracted.includes('\n')) {
         candidates.push(extracted);
+        console.log(`   📌 Quoted in title (HIGH PRIORITY): "${extracted}"`);
       }
     }
+  }
+  
+  // If we found quoted text in title, it's likely the correct series - return early
+  // to avoid knownSeries overriding it with a wrong match
+  if (candidates.length > 0) {
+    console.log(`   ✅ Using quoted title candidates (skipping knownSeries fallback)`);
+    return candidates;
+  }
+  
+  // ══════════════════════════════════════════════════════════════════════════
+  // STRATEGY 2: Check for known series names in title/text
+  // Only runs if no quoted text found in title!
+  // NOTE: Only include series with 4+ characters to avoid false positives!
+  // ══════════════════════════════════════════════════════════════════════════
+  const knownSeries = [
+    'Invincible', 'The Boys', 'Stranger Things', 'Wednesday', 'Squid Game',
+    'House of the Dragon', 'The Last of Us', 'Andor', 'The Mandalorian',
+    'Daredevil', 'Punisher', 'The Punisher', 'Jessica Jones', 'Luke Cage',
+    'Harry Potter', 'Game of Thrones', 'Breaking Bad', 'Better Call Saul',
+    'The Walking Dead', 'Yellowstone', 'The Madison', 'Severance',
+    'The White Lotus', 'Euphoria', 'Succession', 'The Bear',
+    'Cobra Kai', 'Outer Banks', 'Bridgerton', 'Elite',
+    'Money Heist', 'Dark', 'Babylon Berlin', '1899', 'Tribes of Europa',
+    'Reacher', 'Jack Ryan', 'The Terminal List', 'Citadel',
+    'Rings of Power', 'Wheel of Time', 'Foundation', 'For All Mankind',
+    'Ted Lasso', 'Shrinking', 'The Morning Show', 'Slow Horses',
+    'Bad Monkey', 'The Rookie', 'Smallville', 'Arrow', 'The Flash',
+    'Supernatural', 'Lucifer', 'The Witcher', 'Shadow and Bone',
+    'Arcane', 'Castlevania', 'One Piece', 'Avatar', 'Percy Jackson',
+    'Ahsoka', 'Obi-Wan Kenobi', 'The Book of Boba Fett', 'Skeleton Crew',
+    'Loki', 'WandaVision', 'Moon Knight', 'She-Hulk', 'Ms. Marvel',
+    'Secret Invasion', 'Echo', 'Agatha All Along', 'Ironheart',
+    'Peacemaker', 'Titans', 'Doom Patrol', 'Harley Quinn',
+    'The Handmaid\'s Tale', 'Under the Banner of Heaven',
+    'Only Murders in the Building', 'Abbott Elementary', 'What We Do in the Shadows',
+    'The Penguin', 'Creature Commandos', 'Lanterns',
+    // Neue Serien hinzugefügt (removed short names like 'ER', 'You')
+    'Peaky Blinders', 'Emergency Room', 'Walker', 'Walker Texas Ranger', 'Born to Bowl',
+    'The Testaments', 'Dexter', 'True Detective', 'Fargo', 'Shogun',
+    'Fallout', 'The Gentlemen', 'Baby Reindeer', '3 Body Problem',
+    'Ripley', 'Shōgun', 'Halo', 'House', 'Grey\'s Anatomy', 'NCIS',
+    'Criminal Minds', 'Law & Order', 'Chicago Fire', 'Chicago PD',
+    'Blue Bloods', 'SWAT', 'Tracker', 'Fire Country',
+    // Australische/Prime Serien
+    'Deadloch', 'The Pitt', 'The Rig', 'Clarkson\'s Farm', 'The Grand Tour', 'Good Omens'
+  ];
+  
+  // Only match known series with minimum 4 characters to avoid false positives
+  for (const series of knownSeries) {
+    if (series.length < 4) continue; // Skip short names
+    
+    const seriesLower = series.toLowerCase();
+    
+    // Use word boundary matching to avoid partial matches
+    const wordBoundaryRegex = new RegExp(`\\b${seriesLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    
+    if (wordBoundaryRegex.test(title) || wordBoundaryRegex.test(articleText.slice(0, 500))) {
+      candidates.push(series);
+      console.log(`   🎯 Known series found: "${series}"`);
+    }
+  }
+  
+  // Strategy 2b: Use cleaned title as candidate (fallback)
+  console.log(`   🧹 Cleaned title: "${cleanedTitle}" (length: ${cleanedTitle.length})`);
+  if (cleanedTitle.length >= 3 && cleanedTitle.length <= 60 && candidates.length === 0) {
+    candidates.push(cleanedTitle);
+    console.log(`   ✅ Added cleaned title as candidate`);
   }
   
   // Strategy 2: Find quoted text in article first sentence
