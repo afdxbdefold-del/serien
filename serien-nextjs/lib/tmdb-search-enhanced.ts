@@ -111,7 +111,14 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
     'Peacemaker', 'Titans', 'Doom Patrol', 'Harley Quinn',
     'The Handmaid\'s Tale', 'Under the Banner of Heaven',
     'Only Murders in the Building', 'Abbott Elementary', 'What We Do in the Shadows',
-    'The Penguin', 'Creature Commandos', 'Lanterns'
+    'The Penguin', 'Creature Commandos', 'Lanterns',
+    // Neue Serien hinzugefügt
+    'Peaky Blinders', 'ER', 'Walker', 'Walker Texas Ranger', 'Born to Bowl',
+    'The Testaments', 'Dexter', 'True Detective', 'Fargo', 'Shogun',
+    'Fallout', 'The Gentlemen', 'Baby Reindeer', '3 Body Problem',
+    'Ripley', 'Shōgun', 'Halo', 'House', 'Grey\'s Anatomy', 'NCIS',
+    'Criminal Minds', 'Law & Order', 'Chicago Fire', 'Chicago PD',
+    'Blue Bloods', 'SWAT', 'FBI', 'Tracker', 'Fire Country'
   ];
   
   const titleLower = title.toLowerCase();
