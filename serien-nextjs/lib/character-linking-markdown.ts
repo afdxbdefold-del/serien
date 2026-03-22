@@ -60,6 +60,8 @@ const STREAMER_HUBS: Record<string, string> = {
   'ARTE': '/zdf-mediathek-serien',
   'CHILI': '/chili-serien',
   'Chili': '/chili-serien',
+  'Crunchyroll': '/crunchyroll-serien',
+  'Funimation': '/crunchyroll-serien',
 };
 
 interface CharacterLinkResult {
