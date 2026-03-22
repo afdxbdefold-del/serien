@@ -24,6 +24,10 @@ const STREAMER_HUBS: Record<string, string> = {
   'Apple TV+': '/apple-tv-serien',
   'Apple TV': '/apple-tv-serien',
   'AppleTV+': '/apple-tv-serien',
+  'RTL+': '/rtl-plus-serien',
+  'RTL': '/rtl-plus-serien',
+  'RTL Plus': '/rtl-plus-serien',
+  'VOX': '/rtl-plus-serien',
 };
 
 interface CharacterLinkResult {
