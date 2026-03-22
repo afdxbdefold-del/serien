@@ -87,20 +87,18 @@ export default function Header() {
                   <span className="bg-cyan-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">P</span>
                   PRIME
                 </Link>
+                <Link href="/disney-plus-serien" className="text-white/80 text-sm font-semibold hover:text-white transition-colors flex items-center gap-1">
+                  <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D</span>
+                  DISNEY+
+                </Link>
                 <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   SERIENFINDER
                 </Link>
                 <Link href="/personen" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   PERSONEN
                 </Link>
-                <Link href="/figuren" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
-                  FIGUREN
-                </Link>
                 <Link href="/autoren" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   AUTOREN
-                </Link>
-                <Link href="/kalender" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
-                  KALENDER
                 </Link>
               </nav>
             </div>
@@ -246,6 +244,14 @@ export default function Header() {
                 PRIME VIDEO
               </Link>
               <Link 
+                href="/disney-plus-serien" 
+                className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D</span>
+                DISNEY+
+              </Link>
+              <Link 
                 href="/serienfinder" 
                 className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
@@ -260,25 +266,11 @@ export default function Header() {
                 PERSONEN
               </Link>
               <Link 
-                href="/figuren" 
-                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setShowMobileMenu(false)}
-              >
-                FIGUREN
-              </Link>
-              <Link 
                 href="/autoren" 
                 className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 onClick={() => setShowMobileMenu(false)}
               >
                 AUTOREN
-              </Link>
-              <Link 
-                href="/kalender" 
-                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
-                onClick={() => setShowMobileMenu(false)}
-              >
-                KALENDER
               </Link>
               
               {/* Theme Toggle in Mobile Menu */}

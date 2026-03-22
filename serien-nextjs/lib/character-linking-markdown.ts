@@ -16,8 +16,8 @@ const STREAMER_HUBS: Record<string, string> = {
   'Netflix': '/netflix-serien',
   'Prime Video': '/prime-video-serien',
   'Amazon Prime Video': '/prime-video-serien',
-  // Future hubs:
-  // 'Disney+': '/disney-plus-serien',
+  'Disney+': '/disney-plus-serien',
+  'Disney Plus': '/disney-plus-serien',
 };
 
 interface CharacterLinkResult {
