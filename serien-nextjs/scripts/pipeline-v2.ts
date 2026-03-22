@@ -33,6 +33,29 @@ import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadli
 
 const prisma = new PrismaClient();
 
+// ══════════════════════════════════════════════════════════════════════════
+// AUTHOR ROTATION: Randomly select from real editorial team
+// ══════════════════════════════════════════════════════════════════════════
+const EDITORIAL_AUTHORS = [
+  'author_001', // Sophie Hartmann
+  'author_003', // Laura Klein
+  'author_004', // Marie Weber
+  'author_005', // Lena Bergmann
+  'author_006', // Emma Mueller
+  'author_007', // Anna Schneider
+  'author_008', // Nina Wolf
+  'author_009', // Mia Braun
+  'author_010', // Lea Zimmermann
+  'author_011', // Clara Hoffmann
+  'author_012', // Sarah Becker
+  'author-julia', // Julia Fischer
+];
+
+function getRandomAuthor(): string {
+  const randomIndex = Math.floor(Math.random() * EDITORIAL_AUTHORS.length);
+  return EDITORIAL_AUTHORS[randomIndex];
+}
+
 interface PipelineV2Source {
   title: string;
   url: string;
@@ -378,7 +401,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         tmdbId: dbSeries.tmdbId,
         primarySeriesId: dbSeries.tmdbId, // ✅ Set correct series ID for internal linking
         tmdbType: 'tv',
-        authorId: 'author_001', // System author
+        authorId: getRandomAuthor(), // ✅ Random author from editorial team
         status: 'published', // ✅ Auto-publish articles
         publishedAt: now, // ✅ Set publication timestamp
         createdAt: now,
