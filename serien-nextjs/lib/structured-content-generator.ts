@@ -64,6 +64,57 @@ export async function generateStructuredContent(
 }
 
 /**
+ * Build prompt for list/ranking articles (e.g., "10 Shows like X")
+ */
+function buildListArticlePrompt(
+  input: StructuredContentInput, 
+  targetSections: number, 
+  factsText: string, 
+  characterNames: string
+): string {
+  const { seriesName, originalHeadline, wordCountTarget } = input;
+  
+  return `Du bist ein professioneller TV-Serien-Journalist für serien.de.
+
+AUFGABE: Schreibe einen LISTENARTIKEL über "${originalHeadline}".
+
+HAUPTSERIE: ${seriesName}
+
+FAKTEN:
+${factsText}
+
+STRUKTUR:
+
+1. HEADLINE (max 70 Zeichen)
+
+2. META DESCRIPTION (max 155 Zeichen)
+
+3. LEAD (2-3 Sätze)
+
+4. CONTENT (${targetSections} Sections)
+   
+   WICHTIG: Jede vorgestellte Serie bekommt EINE EIGENE H2-Section!
+   
+   Format pro Serie:
+   ## 1. [Serienname]
+   [2-3 Absätze: Worum geht es? Warum passt sie? Wo streamen?]
+   
+   ## 2. [Nächste Serie]
+   [2-3 Absätze]
+   
+   etc.
+
+5. Q&A (3-4 Fragen)
+
+STIL:
+- Jede Serie mind. 80-100 Wörter
+- Streaming-Plattformen nennen
+- Nicht zu kurz - alle Serien ausführlich vorstellen!
+
+ZIELWORTANZAHL: ~${wordCountTarget} Wörter`;
+}
+
+/**
  * Build prompt based on content type
  */
 function buildPrompt(input: StructuredContentInput): string {
@@ -98,11 +149,16 @@ function buildPrompt(input: StructuredContentInput): string {
   
   const factsText = factsList.slice(0, 15).map((f, i) => `${i + 1}. ${f}`).join('\n') || '(Keine spezifischen Fakten extrahiert)';
   
-  // Calculate sections needed
+  // Calculate sections needed - more for RANKING/list articles
   const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
-  const targetSections = Math.max(3, Math.min(sectionsNeeded, 5)); // 3-5 sections
+  const targetSections = contentType === 'RANKING' 
+    ? Math.max(5, Math.min(sectionsNeeded, 15)) // 5-15 sections for lists
+    : Math.max(3, Math.min(sectionsNeeded, 7)); // 3-7 sections for news
   
-  const basePrompt = `Du bist ein professioneller TV-Serien-Journalist für serien.de.
+  // Special prompt for list/ranking articles
+  const isListArticle = contentType === 'RANKING';
+  
+  const basePrompt = isListArticle ? buildListArticlePrompt(input, targetSections, factsText, characterNames) : `Du bist ein professioneller TV-Serien-Journalist für serien.de.
 
 AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadline}".
 

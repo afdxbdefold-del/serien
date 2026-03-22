@@ -184,7 +184,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
       originalHeadline: source.title,
       sourceText: fullSourceText,
       contentType,
-      wordCountTarget: sourceWordCount > 0 ? Math.min(sourceWordCount * 1.2, 800) : 400,
+      // Listenartikel brauchen mehr Platz - bis zu 1500 Wörter
+      wordCountTarget: contentType === 'RANKING' 
+        ? Math.min(sourceWordCount * 1.3, 1500) 
+        : sourceWordCount > 0 ? Math.min(sourceWordCount * 1.2, 1000) : 500,
     });
     
     console.log(`✅ Generated:`);
