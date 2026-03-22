@@ -21,6 +21,9 @@ const STREAMER_HUBS: Record<string, string> = {
   'HBO': '/hbo-serien',
   'HBO Max': '/hbo-serien',
   'Max': '/hbo-serien',
+  'Apple TV+': '/apple-tv-serien',
+  'Apple TV': '/apple-tv-serien',
+  'AppleTV+': '/apple-tv-serien',
 };
 
 interface CharacterLinkResult {
