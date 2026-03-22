@@ -24,7 +24,13 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Fix Hydration: Only show dynamic content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Minimum swipe distance
   const minSwipeDistance = 50;
@@ -81,8 +87,16 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
       ? `/img/hero/${currentNews.tmdbType}/${currentNews.tmdbId}` 
       : '/placeholders/hero.jpg');
 
-  // Relative time format like NewsCard
+  // Static date format to avoid hydration mismatch
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Dynamic relative time - only shown after mount
   const getRelativeTime = (dateString: string) => {
+    if (!mounted) return formatDate(dateString);
+    
     const now = new Date();
     const date = new Date(dateString);
     const diffMs = now.getTime() - date.getTime();
@@ -90,7 +104,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
     
     if (diffHours < 1) return 'Gerade eben';
     if (diffHours < 24) return `Vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
-    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDate(dateString);
   };
 
   return (
@@ -112,7 +126,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
         aria-label={`Artikel lesen: ${currentNews.title}`}
       >
         <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden">
-          {/* Background Images - All preloaded for smooth transitions */}
+          {/* Background Images - First image is LCP priority */}
           {news.map((item, index) => {
             const imgUrl = item.heroLocalUrl || 
               (item.tmdbId && item.tmdbType 
@@ -126,27 +140,17 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {index === 0 ? (
-                  <img
-                    src={imgUrl}
-                    alt={item.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
-                    fetchPriority="high"
-                    decoding="async"
-                  />
-                ) : (
-                  <Image
-                    src={imgUrl}
-                    alt={item.title}
-                    fill
-                    className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
-                    loading="lazy"
-                    sizes="100vw"
-                    quality={60}
-                    unoptimized={imgUrl.startsWith('/img/')}
-                  />
-                )}
+                <Image
+                  src={imgUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover transition-transform duration-[8000ms] ease-out group-hover:scale-105"
+                  priority={index === 0}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1200px"
+                  quality={index === 0 ? 75 : 60}
+                  unoptimized={imgUrl.startsWith('/img/')}
+                />
                 {/* Gradient Scrim - Only in Dark Mode */}
                 <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
               </div>

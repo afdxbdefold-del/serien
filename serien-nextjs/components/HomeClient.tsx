@@ -218,7 +218,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             <div id="tab-panel-all" role="tabpanel" aria-labelledby="tab-all-news">
               {/* News Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGridNews.slice(0, 6).map((item: any) => (
+                {filteredGridNews.slice(0, 6).map((item: any, index: number) => (
                   <NewsCard 
                     key={item.id}
                     slug={item.slug}
@@ -235,6 +235,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     networks={item.primarySeries?.networks || []}
                     isTrending={item.isTrending}
                     isBreaking={item.isBreaking}
+                    priority={index < 2}
                   />
                 ))}
               </div>

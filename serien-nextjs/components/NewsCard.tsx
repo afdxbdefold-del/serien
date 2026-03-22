@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -30,6 +33,7 @@ interface NewsCardProps {
   networks?: string[];
   isTrending?: boolean;
   isBreaking?: boolean;
+  priority?: boolean;
 }
 
 export default function NewsCard({
@@ -47,8 +51,24 @@ export default function NewsCard({
   networks = [],
   isTrending = false,
   isBreaking = false,
+  priority = false,
 }: NewsCardProps) {
+  const [mounted, setMounted] = useState(false);
+
+  // Fix Hydration: Only show dynamic time after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Static date format for SSR
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Dynamic relative time - only after mount to avoid hydration mismatch
   const getRelativeTime = () => {
+    if (!mounted) return formatDate(publishedAt);
+    
     const now = new Date();
     const date = new Date(publishedAt);
     const diffMs = now.getTime() - date.getTime();
@@ -56,10 +76,10 @@ export default function NewsCard({
     
     if (diffHours < 1) return 'Gerade eben';
     if (diffHours < 24) return `Vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
-    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDate(publishedAt);
   };
 
-  // Check if article is new (< 24h) or updated
+  // Check if article is new (< 24h) - static check based on publishedAt
   const isNew = () => {
     const now = new Date();
     const date = new Date(publishedAt);
@@ -89,9 +109,10 @@ export default function NewsCard({
               src={cardImageUrl || (tmdbId && tmdbType ? `/img/hero/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
               alt={title}
               fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
               className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              priority={priority}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

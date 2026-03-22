@@ -59,13 +59,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
         
-        {/* DNS Prefetch & Preconnect for Performance */}
-        <link rel="dns-prefetch" href="https://image.tmdb.org" />
-        <link rel="dns-prefetch" href="https://integrations.emergentagent.com" />
+        {/* DNS Prefetch & Preconnect for Performance - Only AdSense needs preconnect */}
         <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
-        <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://integrations.emergentagent.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossOrigin="anonymous" />
         
         {/* Google AdSense - Loads only after cookie consent */}
         <script

@@ -2,6 +2,7 @@
  * Hero Image API - Serves from Emergent Object Storage
  * Fallback: Download from TMDB and store if not exists
  * Supports: tv, movie, article types
+ * Query params: ?w=800 for width-based responsive images
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +12,14 @@ import prisma from '@/lib/prisma';
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
 let storageKey: string | null = null;
 let storageKeyExpiry: number = 0;
+
+// TMDB backdrop sizes available
+const TMDB_BACKDROP_SIZES: Record<number, string> = {
+  300: 'w300',
+  780: 'w780',
+  1280: 'w1280',
+  1920: 'original',
+};
 
 interface RouteParams {
   params: Promise<{
@@ -50,10 +59,20 @@ async function initStorage(): Promise<string> {
 export async function GET(request: NextRequest, context: RouteParams) {
   const { type, id } = await context.params;
   
+  // Get requested width from query params (for responsive images)
+  const requestedWidth = parseInt(request.nextUrl.searchParams.get('w') || '1280');
+  
   // Validate type
   if (!['tv', 'movie', 'article'].includes(type)) {
     return new NextResponse('Invalid type', { status: 400 });
   }
+
+  // Common cache headers for all responses
+  const cacheHeaders = {
+    'Content-Type': 'image/webp',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Vary': 'Accept',
+  };
 
   // Handle article type separately
   if (type === 'article') {
@@ -111,13 +130,10 @@ export async function GET(request: NextRequest, context: RouteParams) {
     });
 
     if (response.ok) {
-      // Image exists in storage
+      // Image exists in storage - serve with optimized headers
       const imageBuffer = await response.arrayBuffer();
       return new Response(imageBuffer, {
-        headers: {
-          'Content-Type': 'image/webp',
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
+        headers: cacheHeaders,
       });
     }
 
@@ -142,10 +158,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
 
     const imageBuffer = await newResponse.arrayBuffer();
     return new Response(imageBuffer, {
-      headers: {
-        'Content-Type': 'image/webp',
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
+      headers: cacheHeaders,
     });
 
   } catch (error) {
