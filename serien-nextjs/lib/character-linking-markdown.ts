@@ -148,6 +148,7 @@ export function linkStreamersInMarkdown(markdown: string): StreamerLinkResult {
 /**
  * Link character names in markdown text
  * Works on plain markdown, not HTML
+ * Now also adds actor name in parentheses: "Thomas Shelby (Cillian Murphy)"
  */
 export async function linkCharactersInMarkdown(
   markdown: string,
@@ -155,10 +156,22 @@ export async function linkCharactersInMarkdown(
 ): Promise<CharacterLinkResult> {
   console.log('🔗 Linking characters in markdown...');
   
-  // Get all characters for this series
+  // Get all characters for this series WITH actor info
   const characters = await prisma.characters.findMany({
     where: { seriesTmdbId },
-    select: { id: true, name: true, slug: true },
+    select: { 
+      id: true, 
+      name: true, 
+      slug: true,
+      actorTmdbId: true,
+      persons: {
+        select: {
+          name: true,
+          slug: true,
+          tmdbId: true
+        }
+      }
+    },
   });
   
   if (characters.length === 0) {
@@ -284,13 +297,24 @@ export async function linkCharactersInMarkdown(
       const matchIndex = validMatch.index;
       const matchText = validMatch[0];
       
+      // Build the replacement text with optional actor link
+      let replacement = `[${matchText}](/figur/${char.slug})`;
+      
+      // Add actor name in parentheses if available
+      if (char.persons && char.persons.name) {
+        const actorLink = `/person/${char.persons.tmdbId}-${char.persons.slug.replace(/^\d+-/, '')}`;
+        replacement += ` ([${char.persons.name}](${actorLink}))`;
+        console.log(`   ✅ Linked: ${matchedName} → ${char.name} + Actor: ${char.persons.name}`);
+      } else {
+        console.log(`   ✅ Linked: ${matchedName} → ${char.name} (no actor)`);
+      }
+      
       linkedMarkdown = 
         linkedMarkdown.substring(0, matchIndex) +
-        `[${matchText}](/figur/${char.slug})` +
+        replacement +
         linkedMarkdown.substring(matchIndex + matchText.length);
       
       linkedCount++;
-      console.log(`   ✅ Linked: ${matchedName} → ${char.name} (1st valid occurrence)`);
     }
   });
   
