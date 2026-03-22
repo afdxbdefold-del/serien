@@ -4,6 +4,7 @@
  * Example: /person/287-brad-pitt
  */
 
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
@@ -27,6 +28,58 @@ interface PageProps {
 function parsePersonId(id: string): number | null {
   const match = id.match(/^(\d+)-/);
   return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Generate SEO Metadata for person pages
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const tmdbId = parsePersonId(id);
+  
+  if (!tmdbId) {
+    return {
+      title: 'Person nicht gefunden | serien.de',
+      robots: { index: false, follow: false }
+    };
+  }
+  
+  const person = await getTMDBPersonDetails(tmdbId, false);
+  
+  if (!person) {
+    return {
+      title: 'Person nicht gefunden | serien.de',
+      robots: { index: false, follow: false }
+    };
+  }
+  
+  const title = `${person.name} – Serien, Filme & News | serien.de`;
+  const description = person.biography 
+    ? `${person.biography.slice(0, 150)}...`
+    : `Alle Serien und Filme mit ${person.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
+  
+  return {
+    title,
+    description,
+    robots: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'profile',
+      images: person.profile_path 
+        ? [`https://image.tmdb.org/t/p/w500${person.profile_path}`]
+        : undefined,
+    },
+    alternates: {
+      canonical: `/person/${id}`,
+    },
+  };
 }
 
 export default async function PersonPage({ params }: PageProps) {

@@ -28,18 +28,29 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
       metaTitle: true,
       metaDescription: true,
       name: true,
+      slug: true,
     },
   });
 
   if (!character) {
     return {
       title: 'Figur nicht gefunden',
+      robots: { index: false, follow: false },
     };
   }
 
   return {
     title: character.metaTitle || `${character.name} - Serienfigur`,
     description: character.metaDescription || undefined,
+    robots: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+    alternates: {
+      canonical: `/figur/${character.slug}`,
+    },
   };
 }
 

@@ -14,6 +14,15 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Schauspieler & Stars - Alle Serien-Darsteller | serien.de',
   description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+  alternates: {
+    canonical: '/personen',
+  },
   openGraph: {
     title: 'Schauspieler & Stars - Serien-Darsteller',
     description: 'Alle Schauspieler aus TV-Serien auf einen Blick'

@@ -16,6 +16,15 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Serienfiguren - Charaktere & Rollen | serien.de',
   description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+  alternates: {
+    canonical: '/figuren',
+  },
 };
 
 interface PageProps {
