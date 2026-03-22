@@ -53,6 +53,11 @@ const STREAMER_HUBS: Record<string, string> = {
   'Das Erste': '/ard-mediathek-serien',
   'WDR': '/ard-mediathek-serien',
   'NDR': '/ard-mediathek-serien',
+  'ZDF Mediathek': '/zdf-mediathek-serien',
+  'ZDF': '/zdf-mediathek-serien',
+  'ZDFneo': '/zdf-mediathek-serien',
+  '3sat': '/zdf-mediathek-serien',
+  'ARTE': '/zdf-mediathek-serien',
 };
 
 interface CharacterLinkResult {
