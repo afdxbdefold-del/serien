@@ -452,21 +452,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
             );
             
             if (downloadResult.success && downloadResult.localPath) {
-              // Update article with trailer URL + YouTube fallback ID
-              // Format: localPath|youtubeId (for fallback if local video fails)
+              // Update article with trailer URL
               await prisma.articles.update({
                 where: { id: articleId },
-                data: { heroVideoUrl: `${downloadResult.localPath}|${trailerId}` }
+                data: { heroVideoUrl: downloadResult.localPath }
               });
               console.log(`   ✅ Trailer downloaded and saved: ${downloadResult.localPath}`);
-              console.log(`   ✅ YouTube fallback ID stored: ${trailerId}`);
             } else {
-              // Fallback: Store YouTube ID directly
-              await prisma.articles.update({
-                where: { id: articleId },
-                data: { heroVideoUrl: trailerId }
-              });
-              console.log(`   ⚠️  Download failed, using YouTube ID: ${trailerId}`);
+              console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
             }
           } else {
             // TMDB has no trailer - Try automatic YouTube search

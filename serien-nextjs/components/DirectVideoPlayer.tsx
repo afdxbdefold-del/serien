@@ -26,31 +26,6 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-// Parse trailer URL format: "localPath|youtubeId" or just "youtubeId" or just "localPath"
-function parseTrailerUrl(url: string): { localPath: string | null; youtubeId: string | null } {
-  if (!url) return { localPath: null, youtubeId: null };
-  
-  // Check for pipe-separated format: localPath|youtubeId
-  if (url.includes('|')) {
-    const [localPath, youtubeId] = url.split('|');
-    return { localPath, youtubeId };
-  }
-  
-  // Check if it's a pure YouTube ID (11 chars)
-  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-    return { localPath: null, youtubeId: url };
-  }
-  
-  // Check if it's a YouTube URL
-  const ytId = getYouTubeVideoId(url);
-  if (ytId) {
-    return { localPath: null, youtubeId: ytId };
-  }
-  
-  // It's a local path
-  return { localPath: url, youtubeId: null };
-}
-
 export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth = false, autoPlay = true }: DirectVideoPlayerProps) {
   const [showVideo, setShowVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -59,15 +34,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   const [loading, setLoading] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState(false);
-  const [useYouTubeFallback, setUseYouTubeFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Parse the trailer URL
-  const { localPath, youtubeId: fallbackYouTubeId } = parseTrailerUrl(trailerUrl || '');
-  
-  // Determine if we should use YouTube (either direct YT ID or fallback after error)
-  const shouldUseYouTube = (!localPath && fallbackYouTubeId) || useYouTubeFallback;
-  const activeYouTubeId = fallbackYouTubeId;
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -80,29 +47,23 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
 
   // Auto-load video on mount if autoPlay is enabled
   useEffect(() => {
-    if (autoPlay && trailerUrl && localPath && !shouldUseYouTube) {
+    if (autoPlay && trailerUrl && !getYouTubeVideoId(trailerUrl)) {
       loadVideo();
     }
-  }, [autoPlay, trailerUrl, localPath, shouldUseYouTube]);
+  }, [autoPlay, trailerUrl]);
 
   const loadVideo = async () => {
     if (!trailerUrl) return;
     
-    // If we should use YouTube directly, just show the embed
-    if (shouldUseYouTube && activeYouTubeId) {
+    const youtubeId = getYouTubeVideoId(trailerUrl);
+    if (youtubeId) {
       setShowVideo(true);
       return;
     }
 
-    // Try to load local video
-    if (!localPath) {
-      setShowVideo(true);
-      return;
-    }
-
-    const videoSrc = localPath.startsWith('http') 
-      ? localPath 
-      : `/api/trailer/${localPath}`;
+    const videoSrc = trailerUrl.startsWith('http') 
+      ? trailerUrl 
+      : `/api/trailer/${trailerUrl}`;
 
     setLoading(true);
     setShowVideo(true);
@@ -120,15 +81,8 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       setVideoReady(true);
     } catch (err: any) {
       console.error('Video fetch error:', err);
-      // Try YouTube fallback
-      if (fallbackYouTubeId) {
-        console.log('Falling back to YouTube:', fallbackYouTubeId);
-        setUseYouTubeFallback(true);
-        setLoading(false);
-      } else {
-        setError(err.message || 'Video konnte nicht geladen werden');
-        setLoading(false);
-      }
+      setError(err.message || 'Video konnte nicht geladen werden');
+      setLoading(false);
     }
   };
 
@@ -142,10 +96,14 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
     }
   }, [videoReady, blobUrl]);
 
-  // Build video URL for local videos
-  const videoSrc = localPath && localPath.startsWith('http') 
-    ? localPath 
-    : localPath ? `/api/trailer/${localPath}` : '';
+  // Check if it's a YouTube URL
+  const youtubeId = trailerUrl ? getYouTubeVideoId(trailerUrl) : null;
+  const isYouTube = !!youtubeId;
+
+  // Build video URL for non-YouTube videos
+  const videoSrc = trailerUrl && !isYouTube && trailerUrl.startsWith('http') 
+    ? trailerUrl 
+    : trailerUrl ? `/api/trailer/${trailerUrl}` : '';
 
   const containerClass = fullWidth 
     ? "relative w-full aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-black"
@@ -174,7 +132,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
 
   // Manual play for non-autoplay or YouTube
   const handlePlayClick = async () => {
-    if (shouldUseYouTube && activeYouTubeId) {
+    if (isYouTube) {
       setShowVideo(true);
       setIsMuted(false);
       return;
@@ -212,11 +170,11 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         </div>
       )}
 
-      {/* YouTube Embed - Original or Fallback */}
-      {activeYouTubeId && (shouldUseYouTube || useYouTubeFallback) && showVideo && (
+      {/* YouTube Embed */}
+      {isYouTube && showVideo && (
         <iframe
           className="absolute inset-0 w-full h-full z-10"
-          src={`https://www.youtube.com/embed/${activeYouTubeId}?autoplay=1&rel=0`}
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -224,7 +182,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       )}
 
       {/* Local Video - Overlay on top of hero image when ready */}
-      {localPath && !useYouTubeFallback && blobUrl && !error && (
+      {!isYouTube && blobUrl && !error && (
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover z-10"
@@ -238,16 +196,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               code: video.error?.code,
               message: video.error?.message
             });
-            // Try YouTube fallback if we have a YouTube ID
-            if (fallbackYouTubeId) {
-              console.log('Falling back to YouTube embed:', fallbackYouTubeId);
-              setBlobUrl(null);  // Clear blob to unmount video element
-              setUseYouTubeFallback(true);
-              setShowVideo(true);
-              setIsMuted(false);
-            } else {
-              setError('Video konnte nicht abgespielt werden');
-            }
+            setError('Video konnte nicht abgespielt werden');
           }}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
@@ -258,13 +207,13 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       {!error && (
         <div 
           className={`absolute inset-0 flex items-center justify-center transition-colors cursor-pointer z-20 ${
-            isMuted || !isPlaying || (shouldUseYouTube && !showVideo) 
+            isMuted || !isPlaying || (isYouTube && !showVideo) 
               ? 'bg-black/30 hover:bg-black/40' 
               : 'bg-transparent pointer-events-none'
           }`}
           onClick={handlePlayClick}
         >
-          {(isMuted || !isPlaying || (shouldUseYouTube && !showVideo)) && (
+          {(isMuted || !isPlaying || (isYouTube && !showVideo)) && (
             <button className="flex items-center gap-2 px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105">
               <Play className="w-5 h-5" fill="white" stroke="white" />
               <span>{isPlaying && isMuted ? 'Ton aktivieren' : 'Video ansehen'}</span>
@@ -274,7 +223,7 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       )}
 
       {/* Mute indicator when playing with sound */}
-      {isPlaying && !isMuted && !shouldUseYouTube && (
+      {isPlaying && !isMuted && !isYouTube && (
         <button
           onClick={(e) => {
             e.stopPropagation();
