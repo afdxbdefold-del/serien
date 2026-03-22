@@ -54,13 +54,20 @@ export function linkStreamersInMarkdown(markdown: string): StreamerLinkResult {
     while ((match = regex.exec(linkedMarkdown)) !== null) {
       const matchIndex = match.index;
 
-      // Check if match is inside a heading
-      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
+      // Check if match is inside a heading line
+      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 300), matchIndex);
+      const afterMatch = linkedMarkdown.substring(matchIndex, Math.min(linkedMarkdown.length, matchIndex + 300));
+      
+      // Find the start of the current line
       const lastNewline = beforeMatch.lastIndexOf('\n');
       const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
+      
+      // Find the end of the current line
+      const nextNewline = afterMatch.indexOf('\n');
+      const fullLine = lineStart + (nextNewline === -1 ? afterMatch : afterMatch.substring(0, nextNewline));
 
-      // Skip if in heading (starts with #)
-      if (/^#+\s/.test(lineStart.trim())) {
+      // Skip if line is a heading (starts with # or ##)
+      if (/^#{1,6}\s/.test(fullLine.trimStart())) {
         continue;
       }
 
@@ -201,13 +208,20 @@ export async function linkCharactersInMarkdown(
     while ((match = regex.exec(linkedMarkdown)) !== null) {
       const matchIndex = match.index;
       
-      // Check if match is inside a heading
-      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
+      // Check if match is inside a heading line
+      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 300), matchIndex);
+      const afterMatch = linkedMarkdown.substring(matchIndex, Math.min(linkedMarkdown.length, matchIndex + 300));
+      
+      // Find the start of the current line
       const lastNewline = beforeMatch.lastIndexOf('\n');
       const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
       
-      // Skip if in heading (starts with #)
-      if (/^#+\s/.test(lineStart.trim())) {
+      // Find the end of the current line
+      const nextNewline = afterMatch.indexOf('\n');
+      const fullLine = lineStart + (nextNewline === -1 ? afterMatch : afterMatch.substring(0, nextNewline));
+      
+      // Skip if line is a heading (starts with # or ##)
+      if (/^#{1,6}\s/.test(fullLine.trimStart())) {
         continue;
       }
       
