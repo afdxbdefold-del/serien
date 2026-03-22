@@ -48,6 +48,11 @@ const STREAMER_HUBS: Record<string, string> = {
   'DMAX': '/discovery-plus-serien',
   'Rakuten TV': '/rakuten-tv-serien',
   'Rakuten': '/rakuten-tv-serien',
+  'ARD Mediathek': '/ard-mediathek-serien',
+  'ARD': '/ard-mediathek-serien',
+  'Das Erste': '/ard-mediathek-serien',
+  'WDR': '/ard-mediathek-serien',
+  'NDR': '/ard-mediathek-serien',
 };
 
 interface CharacterLinkResult {
