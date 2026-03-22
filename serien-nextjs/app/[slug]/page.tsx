@@ -407,6 +407,19 @@ export default async function ArticlePage({ params }: PageProps) {
             </span>
           </div>
 
+          {/* Author Box - Directly after article */}
+          {article.users && (
+            <AuthorBox 
+              author={{
+                id: article.users.id,
+                name: article.users.name,
+                image: article.users.image,
+                bio: (article.users as any).bio || null,
+                expertise: (article.users as any).expertise || [],
+              }}
+            />
+          )}
+
           {/* Ad Unit - After Article Content */}
           <AdUnit slot="9876543210" format="rectangle" className="my-8" />
 
@@ -439,19 +452,6 @@ export default async function ArticlePage({ params }: PageProps) {
               seriesName={article.series.title || article.series.name || ''}
               networks={article.series.networks}
               slug={article.series.slug}
-            />
-          )}
-
-          {/* Author Box */}
-          {article.users && (
-            <AuthorBox 
-              author={{
-                id: article.users.id,
-                name: article.users.name,
-                image: article.users.image,
-                bio: (article.users as any).bio || null,
-                expertise: (article.users as any).expertise || [],
-              }}
             />
           )}
 
