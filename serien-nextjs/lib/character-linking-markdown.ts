@@ -58,6 +58,8 @@ const STREAMER_HUBS: Record<string, string> = {
   'ZDFneo': '/zdf-mediathek-serien',
   '3sat': '/zdf-mediathek-serien',
   'ARTE': '/zdf-mediathek-serien',
+  'CHILI': '/chili-serien',
+  'Chili': '/chili-serien',
 };
 
 interface CharacterLinkResult {
