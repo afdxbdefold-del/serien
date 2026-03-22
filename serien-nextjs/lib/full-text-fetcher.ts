@@ -33,22 +33,49 @@ export async function fetchFullArticleText(url: string): Promise<FullTextResult>
 
     // Extract full content
     const result = await page.evaluate(() => {
-      // Try multiple selectors
-      const selectors = [
-        'article',
-        '[itemprop="articleBody"]',
-        '.article-content',
-        '.post-content',
-        '.entry-content',
-        'main article',
-        '.content'
-      ];
-
+      // Site-specific selectors (ordered by preference)
+      const siteSpecificSelectors: Record<string, string[]> = {
+        'screenrant.com': [
+          '.article-body',
+          '.content-block-regular',
+          '[data-content]',
+          '.w-article'
+        ],
+        'thecinemaholic.com': [
+          '.entry-content',
+          '.post-content',
+          'article .content'
+        ]
+      };
+      
+      // Get current domain
+      const domain = window.location.hostname.replace('www.', '');
+      
+      // Try site-specific selectors first
       let contentElement: Element | null = null;
-
-      for (const selector of selectors) {
+      const specificSelectors = siteSpecificSelectors[domain] || [];
+      
+      for (const selector of specificSelectors) {
         contentElement = document.querySelector(selector);
         if (contentElement) break;
+      }
+      
+      // Fallback to generic selectors
+      if (!contentElement) {
+        const selectors = [
+          'article',
+          '[itemprop="articleBody"]',
+          '.article-content',
+          '.post-content',
+          '.entry-content',
+          'main article',
+          '.content'
+        ];
+
+        for (const selector of selectors) {
+          contentElement = document.querySelector(selector);
+          if (contentElement) break;
+        }
       }
 
       if (!contentElement) {
@@ -59,10 +86,16 @@ export async function fetchFullArticleText(url: string): Promise<FullTextResult>
         return { fullText: '', title: '', sourceDomain: '' };
       }
 
-      // Remove unwanted elements
+      // Remove unwanted elements - extended for Screenrant
       contentElement.querySelectorAll(
         'script, style, iframe, nav, header, footer, aside, .ad, .advertisement, ' +
-        '.social-share, .comments, .related-posts, button, form'
+        '.social-share, .comments, .related-posts, button, form, ' +
+        // Screenrant specific
+        '.author-bio, .author-info, .author-box, [class*="author"], ' +
+        '.tag-cloud, .tags, .article-tags, .trending, .popular, ' +
+        '.newsletter, .subscribe, .promo, .sponsored, ' +
+        '.w-read-next, .read-next, .more-articles, ' +
+        '.valnet-group, .external-link, .affiliate'
       ).forEach(el => el.remove());
 
       // Get all paragraphs
