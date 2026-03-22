@@ -20,6 +20,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${genreName} Serien – News & Empfehlungen | serien.de`,
     description: `Aktuelle ${genreName}-Serien: News, Empfehlungen, Trailer und neue Highlights aus Streaming & TV.`,
+    robots: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+    alternates: {
+      canonical: `/genre/${genre}`,
+    },
   };
 }
 

@@ -9,6 +9,15 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Serienfinder | serien.de',
   description: 'Finde deine nächste Lieblingsserie - mit umfangreichen Filtern nach Genre, Sender, Bewertung und mehr.',
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+  alternates: {
+    canonical: '/serienfinder',
+  },
 };
 
 export const revalidate = 3600; // Revalidate every hour

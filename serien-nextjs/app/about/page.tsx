@@ -4,6 +4,15 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Über uns | serien.de',
   description: 'Erfahre mehr über serien.de - dein Portal für Serien-News, Trailer und Updates.',
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+  alternates: {
+    canonical: '/about',
+  },
 };
 
 export default function AboutPage() {

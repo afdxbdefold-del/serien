@@ -7,6 +7,15 @@ import { CalendarDays, Tv, ChevronLeft, ChevronRight } from 'lucide-react';
 export const metadata: Metadata = {
   title: 'Serien-Kalender – Neue Folgen & Staffeln | serien.de',
   description: 'Übersicht aller neuen Serien-Folgen auf Netflix, Prime Video, Disney+ und mehr. Verpasse keine neue Staffel deiner Lieblingsserie!',
+  robots: {
+    index: true,
+    follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+  alternates: {
+    canonical: '/kalender',
+  },
   openGraph: {
     title: 'Serien-Kalender – Neue Folgen & Staffeln',
     description: 'Übersicht aller neuen Serien-Folgen auf Netflix, Prime Video, Disney+ und mehr.',

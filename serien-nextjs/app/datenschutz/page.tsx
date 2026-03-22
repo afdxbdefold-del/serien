@@ -3,6 +3,13 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Datenschutzerklärung | serien.de',
   description: 'Datenschutzerklärung von serien.de - Informationen zum Umgang mit Ihren Daten.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+  alternates: {
+    canonical: '/datenschutz',
+  },
 };
 
 export default function DatenschutzPage() {
