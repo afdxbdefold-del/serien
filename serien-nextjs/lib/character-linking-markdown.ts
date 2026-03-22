@@ -42,6 +42,10 @@ const STREAMER_HUBS: Record<string, string> = {
   'MagentaTV': '/magenta-tv-serien',
   'Magenta TV': '/magenta-tv-serien',
   'Telekom': '/magenta-tv-serien',
+  'Discovery+': '/discovery-plus-serien',
+  'Discovery': '/discovery-plus-serien',
+  'TLC': '/discovery-plus-serien',
+  'DMAX': '/discovery-plus-serien',
 };
 
 interface CharacterLinkResult {

@@ -119,6 +119,10 @@ export default function Header() {
                   <span className="bg-fuchsia-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">M</span>
                   MAGENTA
                 </Link>
+                <Link href="/discovery-plus-serien" className="text-white/80 text-sm font-semibold hover:text-white transition-colors flex items-center gap-1">
+                  <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D+</span>
+                  DISCOVERY
+                </Link>
                 <Link href="/serienfinder" className="text-white/80 text-sm font-semibold hover:text-white transition-colors">
                   SERIENFINDER
                 </Link>
@@ -334,6 +338,14 @@ export default function Header() {
               >
                 <span className="bg-fuchsia-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">M</span>
                 MAGENTA TV
+              </Link>
+              <Link 
+                href="/discovery-plus-serien" 
+                className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">D+</span>
+                DISCOVERY+
               </Link>
               <Link 
                 href="/serienfinder" 
