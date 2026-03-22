@@ -485,33 +485,3 @@ export default async function PersonPage({ params }: PageProps) {
     </div>
   );
 }
-
-// Generate metadata for SEO
-export async function generateMetadata({ params }: PageProps) {
-  const { id } = await params;
-  const tmdbId = parsePersonId(id);
-  
-  if (!tmdbId) {
-    return {
-      title: 'Person nicht gefunden'
-    };
-  }
-
-  const person = await getTMDBPersonDetails(tmdbId, false);
-  
-  if (!person) {
-    return {
-      title: 'Person nicht gefunden'
-    };
-  }
-
-  return {
-    title: `${person.name} – Serien, Rollen & aktuelle News`,
-    description: `${person.name} in Serien: bekannte Rollen, aktuelle Projekte und alle News auf serien.de`,
-    openGraph: {
-      title: `${person.name} – Serien, Rollen & News`,
-      description: `Alle Informationen zu ${person.name}: Serien-Rollen, Biografie und aktuelle News`,
-      images: person.profile_path ? [getTMDBProfileImageUrl(person.profile_path, 'h632')] : []
-    }
-  };
-}
