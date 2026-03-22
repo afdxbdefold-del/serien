@@ -46,6 +46,8 @@ const STREAMER_HUBS: Record<string, string> = {
   'Discovery': '/discovery-plus-serien',
   'TLC': '/discovery-plus-serien',
   'DMAX': '/discovery-plus-serien',
+  'Rakuten TV': '/rakuten-tv-serien',
+  'Rakuten': '/rakuten-tv-serien',
 };
 
 interface CharacterLinkResult {
