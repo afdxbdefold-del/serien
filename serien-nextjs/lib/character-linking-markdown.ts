@@ -36,6 +36,9 @@ const STREAMER_HUBS: Record<string, string> = {
   'ProSieben': '/joyn-serien',
   'SAT.1': '/joyn-serien',
   'Kabel Eins': '/joyn-serien',
+  'WOW': '/wow-serien',
+  'Sky': '/wow-serien',
+  'Sky Atlantic': '/wow-serien',
 };
 
 interface CharacterLinkResult {
