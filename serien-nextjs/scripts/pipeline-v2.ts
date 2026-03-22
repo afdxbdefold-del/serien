@@ -403,16 +403,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
       (async () => {
         if (structuredContent.qa.length > 0) {
           const qaId = `qa-${articleId}`;
+          
+          // Determine heading type based on title/content
+          const titleLower = (structuredContent.headline || '').toLowerCase();
+          let headingType = 'default';
+          
+          if (titleLower.includes('episode') || titleLower.includes('folge') || /s\d+e\d+/i.test(titleLower)) {
+            headingType = 'episode';
+          } else if (titleLower.includes('finale') || titleLower.includes('final')) {
+            headingType = 'finale';
+          } else if (titleLower.includes('staffel') || titleLower.includes('season')) {
+            headingType = 'season';
+          } else if (titleLower.includes('ende') || titleLower.includes('ending') || titleLower.includes('erklärt')) {
+            headingType = 'ending';
+          }
+          
           await prisma.article_qa.create({
             data: {
               id: qaId,
               articleId,
               questions: structuredContent.qa, // Store as JSON array
               schemaEnabled: true,
+              headingType,
               updatedAt: now,
             },
           });
-          console.log(`   ✅ Q&A saved: ${structuredContent.qa.length} questions`);
+          console.log(`   ✅ Q&A saved: ${structuredContent.qa.length} questions (${headingType})`);
         }
       })(),
       

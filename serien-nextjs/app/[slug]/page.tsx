@@ -73,7 +73,7 @@ const getArticle = (slug: string) => unstable_cache(
           }
         },
         article_qa: {
-          select: { questions: true, schemaEnabled: true }
+          select: { questions: true, schemaEnabled: true, headingType: true }
         },
       },
     });
@@ -415,6 +415,7 @@ export default async function ArticlePage({ params }: PageProps) {
             <ArticleQA 
               questions={article.article_qa.questions as any[]}
               schemaEnabled={article.article_qa.schemaEnabled}
+              headingType={(article.article_qa as any).headingType}
             />
           )}
 

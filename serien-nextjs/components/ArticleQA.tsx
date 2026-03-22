@@ -15,12 +15,31 @@ interface QAItem {
 interface ArticleQAProps {
   questions: QAItem[];
   schemaEnabled: boolean;
+  headingType?: string | null;
 }
 
-export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) {
+// Dynamic heading based on article type
+function getHeading(type: string | null | undefined): string {
+  switch (type) {
+    case 'episode':
+      return 'Fragen zur Episode';
+    case 'finale':
+      return 'Fragen zum Finale';
+    case 'season':
+      return 'Fragen zur Staffel';
+    case 'ending':
+      return 'Fragen zur Handlung';
+    default:
+      return 'Fragen & Antworten';
+  }
+}
+
+export default function ArticleQA({ questions, schemaEnabled, headingType }: ArticleQAProps) {
   if (!questions || questions.length === 0) {
     return null;
   }
+
+  const heading = getHeading(headingType);
 
   return (
     <section 
@@ -31,7 +50,7 @@ export default function ArticleQA({ questions, schemaEnabled }: ArticleQAProps) 
         id="qa-article" 
         className="text-2xl font-bold mb-6 text-gray-900 dark:text-white"
       >
-        Fragen & Antworten
+        {heading}
       </h2>
 
       <div 
