@@ -78,6 +78,8 @@ model articles {
   isRankingArticle          Boolean                     @default(false)
   metaDescription           String?
   ogImagePath               String?
+  isTrending                Boolean                     @default(false)
+  isBreaking                Boolean                     @default(false)
   article_persons           article_persons[]
   article_qa                article_qa?
   article_series            article_series[]

@@ -24,9 +24,12 @@ interface NewsCardProps {
   tmdbId?: number;
   tmdbType?: string;
   publishedAt: Date;
+  updatedAt?: Date;
   category?: string;
   authorName?: string;
-  networks?: string[]; // Add networks from series
+  networks?: string[];
+  isTrending?: boolean;
+  isBreaking?: boolean;
 }
 
 export default function NewsCard({
@@ -38,9 +41,12 @@ export default function NewsCard({
   tmdbId,
   tmdbType,
   publishedAt,
+  updatedAt,
   category,
   authorName,
   networks = [],
+  isTrending = false,
+  isBreaking = false,
 }: NewsCardProps) {
   const getRelativeTime = () => {
     const now = new Date();
@@ -51,6 +57,22 @@ export default function NewsCard({
     if (diffHours < 1) return 'Gerade eben';
     if (diffHours < 24) return `Vor ${diffHours} ${diffHours === 1 ? 'Stunde' : 'Stunden'}`;
     return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Check if article is new (< 24h) or updated
+  const isNew = () => {
+    const now = new Date();
+    const date = new Date(publishedAt);
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    return diffHours < 24;
+  };
+
+  const isUpdated = () => {
+    if (!updatedAt) return false;
+    const published = new Date(publishedAt);
+    const updated = new Date(updatedAt);
+    // Consider updated if more than 1 hour difference
+    return (updated.getTime() - published.getTime()) > (1000 * 60 * 60);
   };
 
   // Use category first, fallback to first network
@@ -85,6 +107,30 @@ export default function NewsCard({
               </span>
             </div>
           )}
+
+          {/* Status Badges - NEU / AKTUALISIERT / TRENDING / BREAKING */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            {isBreaking && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-red-600 text-white shadow-lg animate-pulse">
+                ⚡ BREAKING
+              </span>
+            )}
+            {isTrending && !isBreaking && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-orange-500 text-white shadow-lg">
+                🔥 TRENDING
+              </span>
+            )}
+            {isNew() && !isBreaking && !isTrending && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-cyan-500 text-white shadow-lg">
+                NEU
+              </span>
+            )}
+            {isUpdated() && !isNew() && !isBreaking && !isTrending && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500 text-white shadow-lg">
+                AKTUALISIERT
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Content */}

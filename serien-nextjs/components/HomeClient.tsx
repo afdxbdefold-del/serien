@@ -229,9 +229,12 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     tmdbId={item.tmdbId}
                     tmdbType={item.tmdbType}
                     publishedAt={item.publishedAt}
+                    updatedAt={item.updatedAt}
                     category={item.category}
                     authorName={item.author?.name}
                     networks={item.primarySeries?.networks || []}
+                    isTrending={item.isTrending}
+                    isBreaking={item.isBreaking}
                   />
                 ))}
               </div>
@@ -257,9 +260,12 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                       tmdbId={item.tmdbId}
                       tmdbType={item.tmdbType}
                       publishedAt={item.publishedAt}
+                      updatedAt={item.updatedAt}
                       category={item.category}
                       authorName={item.author?.name}
                       networks={item.primarySeries?.networks || []}
+                      isTrending={item.isTrending}
+                      isBreaking={item.isBreaking}
                     />
                   ))}
                 </div>
