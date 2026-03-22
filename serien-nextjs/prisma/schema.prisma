@@ -357,3 +357,22 @@ model PushSubscription {
 
   @@map("push_subscriptions")
 }
+
+model streaming_releases {
+  id            String   @id @default(cuid())
+  tmdbId        Int
+  provider      String
+  date          DateTime @db.Date
+  name          String
+  overview      String?
+  posterPath    String?
+  backdropPath  String?
+  firstAirDate  DateTime?
+  voteAverage   Float?
+  releaseType   String   @default("new_episode")
+  fetchedAt     DateTime @default(now())
+  
+  @@unique([tmdbId, provider, date], name: "tmdbId_provider_date")
+  @@index([date])
+  @@index([provider])
+}
