@@ -323,6 +323,14 @@ export default async function ArticlePage({ params }: PageProps) {
             <ShareButton title={article.title} />
           </div>
 
+          {/* Q&A Section */}
+          {article.article_qa && article.article_qa.questions && (
+            <ArticleQA 
+              questions={article.article_qa.questions as any[]}
+              schemaEnabled={article.article_qa.schemaEnabled}
+            />
+          )}
+
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
             <div className="mb-8">
@@ -344,14 +352,6 @@ export default async function ArticlePage({ params }: PageProps) {
                 slug={article.series.slug}
               />
             </div>
-          )}
-
-          {/* Q&A Section */}
-          {article.article_qa && article.article_qa.questions && (
-            <ArticleQA 
-              questions={article.article_qa.questions as any[]}
-              schemaEnabled={article.article_qa.schemaEnabled}
-            />
           )}
 
           {/* Related News */}
