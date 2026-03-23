@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Configuration
-const INTERVAL_HOURS = parseInt(process.env.NEWS_INTERVAL_HOURS || '4');
+const INTERVAL_HOURS = parseInt(process.env.NEWS_INTERVAL_HOURS || '1');
 const ARTICLES_PER_RUN = parseInt(process.env.NEWS_LIMIT || '5');
 const LOG_FILE = path.join(process.cwd(), 'logs', 'news-scheduler.log');
 

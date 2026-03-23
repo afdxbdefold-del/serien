@@ -39,20 +39,84 @@ const SKIP_KEYWORDS = [
   'real housewives', 'bachelor', 'bachelorette', 'survivor', 'big brother',
   'american idol', 'the voice', 'dancing with the stars',
   'late night', 'talk show', 'snl', 'saturday night live',
-  'news anchor', 'cable news', 'fox news', 'cnn', 'msnbc'
+  'news anchor', 'cable news', 'fox news', 'cnn', 'msnbc',
+  // Skip movies - only series!
+  'movie', 'film', 'mcu movie', 'dceu', 'box office',
+  'theatrical', 'in theaters', 'coming to theaters'
 ];
+
+/**
+ * Check if article is less than 24 hours old based on timeAgo string
+ */
+function isWithin24Hours(timeAgo: string): boolean {
+  if (!timeAgo) return true; // If no time, include it
+  
+  const timeLower = timeAgo.toLowerCase().trim();
+  
+  // "X hours ago" - include if less than 24
+  const hoursMatch = timeLower.match(/(\d+)\s*(?:hour|hr|h)/);
+  if (hoursMatch) {
+    return parseInt(hoursMatch[1]) <= 24;
+  }
+  
+  // "X minutes ago" - always include
+  if (timeLower.includes('minute') || timeLower.includes('min')) {
+    return true;
+  }
+  
+  // "just now", "now" - always include
+  if (timeLower.includes('just') || timeLower === 'now') {
+    return true;
+  }
+  
+  // "X days ago" - only include if 1 day
+  const daysMatch = timeLower.match(/(\d+)\s*day/);
+  if (daysMatch) {
+    return parseInt(daysMatch[1]) <= 1;
+  }
+  
+  // "yesterday" - include
+  if (timeLower.includes('yesterday')) {
+    return true;
+  }
+  
+  // Anything with "week", "month", "year" - skip
+  if (timeLower.includes('week') || timeLower.includes('month') || timeLower.includes('year')) {
+    return false;
+  }
+  
+  // Default: include if unsure
+  return true;
+}
 
 function isRelevantArticle(article: NewsArticle): boolean {
   const titleLower = article.title.toLowerCase();
   
-  // Skip if contains skip keywords
+  // FIRST: Check if article is within 24 hours
+  if (!isWithin24Hours(article.timeAgo)) {
+    return false;
+  }
+  
+  // Skip if contains skip keywords (including movies)
   for (const skip of SKIP_KEYWORDS) {
     if (titleLower.includes(skip)) {
       return false;
     }
   }
   
-  // Check if contains relevant keywords
+  // Must be about TV SERIES - check for series indicators
+  const seriesIndicators = [
+    'season', 'episode', 'series', 'show', 'tv',
+    'finale', 'premiere', 'renewed', 'cancelled', 'canceled',
+    'netflix', 'prime', 'disney', 'hbo', 'max', 'apple tv',
+    'amazon', 'paramount', 'peacock', 'hulu', 'streaming'
+  ];
+  
+  const hasSeriesIndicator = seriesIndicators.some(indicator => 
+    titleLower.includes(indicator)
+  );
+  
+  // Check if contains relevant series names
   for (const keyword of RELEVANT_KEYWORDS) {
     if (titleLower.includes(keyword)) {
       return true;
@@ -64,8 +128,8 @@ function isRelevantArticle(article: NewsArticle): boolean {
     return true;
   }
   
-  // Default: include if it's about a specific show (usually has colon or quotes)
-  if (titleLower.includes(':') || titleLower.includes('"') || titleLower.includes("'")) {
+  // Must have a series indicator AND specific show reference (colon/quotes)
+  if (hasSeriesIndicator && (titleLower.includes(':') || titleLower.includes('"') || titleLower.includes("'"))) {
     return true;
   }
   
