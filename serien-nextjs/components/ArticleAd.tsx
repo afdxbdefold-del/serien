@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 
+// Global counter to stagger ad loading
+let adCounter = 0;
+
 interface ArticleAdProps {
   slot: string;
   width: number;
@@ -11,10 +14,11 @@ interface ArticleAdProps {
 
 /**
  * Article Ad Unit - Client Component
- * Handles its own adsbygoogle.push() call
+ * Handles its own adsbygoogle.push() call with staggered timing
  */
 export default function ArticleAd({ slot, width, height, className = '' }: ArticleAdProps) {
   const adPushed = useRef(false);
+  const adIndex = useRef(adCounter++);
 
   useEffect(() => {
     if (adPushed.current) return;
@@ -24,13 +28,15 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
     
     if (isProd) {
       adPushed.current = true;
+      // Stagger ads: 500ms base + 300ms per ad index
+      const delay = 500 + (adIndex.current * 300);
       setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
           console.error('ArticleAd error:', e);
         }
-      }, 100);
+      }, delay);
     }
   }, []);
 

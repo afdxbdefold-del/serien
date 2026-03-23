@@ -57,7 +57,8 @@ export default function ContentWithAds({
       }
     });
 
-    // Push ads with delay between each
+    // Push ads with longer delay between each to prevent conflicts
+    // Start at 2000ms to let ArticleAd components initialize first
     adElements.forEach((_, index) => {
       setTimeout(() => {
         try {
@@ -65,7 +66,7 @@ export default function ContentWithAds({
         } catch (e) {
           console.error('Ad error:', e);
         }
-      }, index * 200); // 200ms delay between each ad
+      }, 2000 + (index * 400)); // Start at 2s, then 400ms between each
     });
   }, [html]);
 

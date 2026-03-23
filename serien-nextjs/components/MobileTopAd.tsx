@@ -17,9 +17,15 @@ export default function MobileTopAd() {
     setIsProduction(isProd);
 
     if (isProd) {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      // Delay to ensure DOM is ready and AdSense script is loaded
+      setTimeout(() => {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.error('Ad loading error:', e);
+        }
         
+        // Check if ad was filled after 4 seconds
         setTimeout(() => {
           if (containerRef.current) {
             const ins = containerRef.current.querySelector('ins.adsbygoogle');
@@ -30,10 +36,8 @@ export default function MobileTopAd() {
               }
             }
           }
-        }, 3000);
-      } catch (e) {
-        console.error('Ad loading error:', e);
-      }
+        }, 4000);
+      }, 200);
     }
   }, []);
 
