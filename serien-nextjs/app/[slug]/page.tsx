@@ -418,8 +418,6 @@ export default async function ArticlePage({ params }: PageProps) {
                 prose-a:text-cyan-600 dark:prose-a:text-cyan-400
                 prose-strong:text-gray-900 dark:prose-strong:text-white
                 prose-img:rounded-lg"
-              adSlot="CONTENT_AD_SLOT"
-              paragraphInterval={3}
             />
           </section>
 

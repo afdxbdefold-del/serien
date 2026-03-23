@@ -5,42 +5,36 @@ import { useEffect, useRef } from 'react';
 interface ContentWithAdsProps {
   html: string;
   className?: string;
-  adSlot?: string;
-  paragraphInterval?: number; // Ad after every X paragraphs
 }
 
 /**
- * Renders article content with ads inserted between paragraphs
+ * Renders article content with ads inserted after every 2nd paragraph
+ * Ad size: 336x280
  */
 export default function ContentWithAds({ 
   html, 
-  className = '',
-  adSlot = 'CONTENT_AD_SLOT',
-  paragraphInterval = 3 // Ad after every 3 paragraphs
+  className = ''
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Find all paragraphs and headings
-    const elements = containerRef.current.querySelectorAll('p, h2, h3');
+    // Find all paragraphs
+    const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
-    const maxAds = 3; // Maximum ads to insert
+    const maxAds = 4; // Maximum ads to insert
 
-    elements.forEach((el) => {
-      // Only count paragraphs, not headings
-      if (el.tagName === 'P') {
-        paragraphCount++;
-      }
+    paragraphs.forEach((el) => {
+      paragraphCount++;
 
-      // Insert ad after every X paragraphs (but not after headings)
-      if (paragraphCount > 0 && paragraphCount % paragraphInterval === 0 && el.tagName === 'P' && adsInserted < maxAds) {
+      // Insert ad after every 2nd paragraph
+      if (paragraphCount % 2 === 0 && adsInserted < maxAds) {
         // Check if ad already exists after this element
         const nextEl = el.nextElementSibling;
         if (nextEl && nextEl.classList.contains('content-ad-unit')) {
-          return; // Already has an ad
+          return;
         }
 
         // Create ad container
@@ -48,11 +42,9 @@ export default function ContentWithAds({
         adContainer.className = 'content-ad-unit my-6 flex justify-center';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
-               style="display:block; min-height:100px;"
+               style="display:inline-block;width:336px;height:280px"
                data-ad-client="ca-pub-8583619451045805"
-               data-ad-slot="${adSlot}"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
+               data-ad-slot="9591890570"></ins>
         `;
 
         // Insert after paragraph
@@ -67,7 +59,7 @@ export default function ContentWithAds({
         }
       }
     });
-  }, [html, adSlot, paragraphInterval]);
+  }, [html]);
 
   return (
     <div 
