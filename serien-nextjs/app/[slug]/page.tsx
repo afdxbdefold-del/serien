@@ -15,6 +15,8 @@ import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generato
 import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
+import ContentWithAds from '@/components/ContentWithAds';
+import ArticleAd from '@/components/ArticleAd';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
@@ -27,8 +29,6 @@ const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer')
 const AdUnit = dynamic(() => import('@/components/AdUnit'), {
   loading: () => null,
 });
-
-import ContentWithAds from '@/components/ContentWithAds';
 
 // Helper to safely convert Date or ISO string to Date object
 const toDate = (value: Date | string | null | undefined): Date => {
@@ -380,15 +380,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
           {/* Ad Unit - Before Intro (320x180 video possible) */}
-          <div className="flex justify-center mb-6">
-            <ins
-              className="adsbygoogle"
-              style={{ display: 'inline-block', width: '320px', height: '180px' }}
-              data-ad-client="ca-pub-8583619451045805"
-              data-ad-slot="7589244469"
-            />
-          </div>
-          <script dangerouslySetInnerHTML={{ __html: '(adsbygoogle = window.adsbygoogle || []).push({});' }} />
+          <ArticleAd slot="7589244469" width={320} height={180} className="mb-6" />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
@@ -398,14 +390,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Intro (320x480) */}
-          <div className="flex justify-center mb-8">
-            <ins
-              className="adsbygoogle"
-              style={{ display: 'inline-block', width: '320px', height: '480px' }}
-              data-ad-client="ca-pub-8583619451045805"
-              data-ad-slot="1770208474"
-            />
-          </div>
+          <ArticleAd slot="1770208474" width={320} height={480} className="mb-8" />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
@@ -456,14 +441,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Author (300x250) */}
-          <div className="flex justify-center my-8">
-            <ins
-              className="adsbygoogle"
-              style={{ display: 'inline-block', width: '300px', height: '250px' }}
-              data-ad-client="ca-pub-8583619451045805"
-              data-ad-slot="1713400553"
-            />
-          </div>
+          <ArticleAd slot="1713400553" width={300} height={250} className="my-8" />
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -475,14 +453,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Series Info (300x250) */}
-          <div className="flex justify-center my-8">
-            <ins
-              className="adsbygoogle"
-              style={{ display: 'inline-block', width: '300px', height: '250px' }}
-              data-ad-client="ca-pub-8583619451045805"
-              data-ad-slot="5461073872"
-            />
-          </div>
+          <ArticleAd slot="5461073872" width={300} height={250} className="my-8" />
 
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
