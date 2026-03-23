@@ -15,6 +15,8 @@ import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generato
 import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
+import MobileTopAd from '@/components/MobileTopAd';
+import StickyBottomAd from '@/components/StickyBottomAd';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
@@ -286,6 +288,9 @@ export default async function ArticlePage({ params }: PageProps) {
         }}
       />
 
+      {/* Mobile Top Ad - Only on Article Pages */}
+      <MobileTopAd />
+
       {/* HERO SECTION - Full Width Video/Image */}
       <div className="relative w-full bg-black">
         {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
@@ -519,6 +524,9 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
         </div>
       </article>
+
+      {/* Sticky Bottom Ad - Only on Article Pages */}
+      <StickyBottomAd />
     </div>
   );
 }

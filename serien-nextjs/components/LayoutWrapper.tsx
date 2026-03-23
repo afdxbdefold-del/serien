@@ -6,9 +6,6 @@ import Footer from './Footer';
 import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
-import MobileTopAd from './MobileTopAd';
-import AboveFooterAd from './AboveFooterAd';
-import StickyBottomAd from './StickyBottomAd';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -27,14 +24,11 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <ThemeProvider>
       <SkipLink />
-      <MobileTopAd />
       <Header />
-      <main id="main-content" className="flex-1 pb-24" role="main" tabIndex={-1}>
+      <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
-      <AboveFooterAd />
       <Footer />
-      <StickyBottomAd />
       <PushNotificationPrompt />
     </ThemeProvider>
   );
