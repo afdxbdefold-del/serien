@@ -4,11 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 
 /**
  * Mobile Top Banner Ad - 320x100 FIXED
- * Hidden when no ad is displayed
+ * Shows by default, hides only if ad fails to load
  */
 export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
-  const [adLoaded, setAdLoaded] = useState(false);
+  const [hideAd, setHideAd] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,33 +21,25 @@ export default function MobileTopAd() {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
         
         // Check if ad loaded after delay
-        const checkAd = setInterval(() => {
+        setTimeout(() => {
           if (containerRef.current) {
             const ins = containerRef.current.querySelector('ins.adsbygoogle');
             if (ins) {
               const status = ins.getAttribute('data-ad-status');
-              const hasHeight = ins.clientHeight > 0;
-              
-              if (status === 'filled' || hasHeight) {
-                setAdLoaded(true);
-                clearInterval(checkAd);
-              } else if (status === 'unfilled') {
-                setAdLoaded(false);
-                clearInterval(checkAd);
+              // Only hide if explicitly unfilled
+              if (status === 'unfilled') {
+                setHideAd(true);
               }
             }
           }
-        }, 500);
-        
-        // Stop checking after 5 seconds
-        setTimeout(() => clearInterval(checkAd), 5000);
+        }, 3000);
       } catch (e) {
         console.error('Ad loading error:', e);
       }
     }
   }, []);
 
-  if (!isProduction) {
+  if (!isProduction || hideAd) {
     return null;
   }
 
@@ -55,7 +47,6 @@ export default function MobileTopAd() {
     <div 
       ref={containerRef}
       className="lg:hidden w-full flex justify-center bg-white dark:bg-gray-900"
-      style={{ display: adLoaded ? 'flex' : 'none' }}
     >
       <div 
         style={{ 
