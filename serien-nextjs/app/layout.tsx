@@ -30,9 +30,18 @@ export const metadata = {
     type: 'website',
     locale: 'de_DE',
     siteName: 'serien.de',
+    images: [
+      {
+        url: '/og-image.png?v=2',
+        width: 1536,
+        height: 1024,
+        alt: 'serien.de - Serien-News, Trailer & Updates',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
+    images: ['/og-image.png?v=2'],
   },
 };
 
