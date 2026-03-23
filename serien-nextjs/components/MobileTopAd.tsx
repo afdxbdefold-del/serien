@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Mobile Top Banner Ad - 320x100 fixed size
- * Displays only on mobile devices, directly above the header
+ * Mobile Top Banner Ad - 320x100 FIXED
+ * Hard container that cuts off anything larger
  */
 export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
@@ -28,13 +28,27 @@ export default function MobileTopAd() {
   }
 
   return (
-    <div className="lg:hidden w-full flex justify-center py-1 bg-gray-100 dark:bg-gray-900">
-      <ins
-        className="adsbygoogle"
-        style={{ display: 'inline-block', width: '320px', height: '100px' }}
-        data-ad-client="ca-pub-8583619451045805"
-        data-ad-slot="4650555080"
-      />
+    <div className="lg:hidden w-full flex justify-center bg-white dark:bg-gray-900">
+      {/* Hard container - anything bigger gets cut off */}
+      <div 
+        style={{ 
+          width: '320px', 
+          height: '100px', 
+          overflow: 'hidden',
+          position: 'relative'
+        }}
+      >
+        <ins
+          className="adsbygoogle"
+          style={{ 
+            display: 'inline-block', 
+            width: '320px', 
+            height: '100px' 
+          }}
+          data-ad-client="ca-pub-8583619451045805"
+          data-ad-slot="4650555080"
+        />
+      </div>
     </div>
   );
 }
