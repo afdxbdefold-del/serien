@@ -384,6 +384,9 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
+          {/* Ad Unit - After Intro */}
+          <AdUnit slot="AFTER_INTRO_SLOT" format="horizontal" className="mb-8" />
+
           {/* Article Body */}
           <section aria-labelledby="article-content">
             <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
