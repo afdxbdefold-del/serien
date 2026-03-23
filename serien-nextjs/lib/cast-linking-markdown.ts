@@ -1,6 +1,12 @@
 /**
- * CAST LINKING FOR MARKDOWN
+ * CAST LINKING FOR MARKDOWN v2
+ * 
  * Links actor/actress names in Markdown to their person pages
+ * 
+ * Strategy:
+ * 1. First try series-specific cast (via characters table)
+ * 2. Then scan for ALL known persons in DB (global match)
+ * 3. Match both full names AND last names
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -21,111 +27,131 @@ export async function linkCastInMarkdown(
 ): Promise<CastLinkResult> {
   console.log('🎭 Linking cast members in markdown...');
   
-  // Get cast via characters (persons who play characters in this series)
+  // STEP 1: Get series-specific cast via characters
   const characters = await prisma.characters.findMany({
     where: { seriesTmdbId },
-    select: { 
-      actorTmdbId: true,
-    },
+    select: { actorTmdbId: true },
   });
   
-  const actorIds = [...new Set(characters.map(c => c.actorTmdbId).filter(Boolean))];
+  const seriesActorIds = [...new Set(characters.map(c => c.actorTmdbId).filter(Boolean))];
   
-  if (actorIds.length === 0) {
-    console.log('   ℹ️  No cast members found for series');
+  // STEP 2: Get ALL known persons from DB (for global matching)
+  // Prioritize series cast, but also check other known actors
+  const allPersons = await prisma.persons.findMany({
+    select: { id: true, name: true, slug: true, tmdbId: true },
+    orderBy: { name: 'asc' },
+  });
+  
+  if (allPersons.length === 0) {
+    console.log('   ℹ️  No persons in database');
     return { linkedMarkdown: markdown, castLinked: 0 };
   }
   
-  const cast = await prisma.persons.findMany({
-    where: { tmdbId: { in: actorIds } },
-    select: { id: true, name: true, slug: true },
-  });
+  // Separate into series cast and other known persons
+  const seriesCast = allPersons.filter(p => seriesActorIds.includes(p.tmdbId));
+  const otherPersons = allPersons.filter(p => !seriesActorIds.includes(p.tmdbId));
   
-  if (cast.length === 0) {
-    console.log('   ℹ️  No cast members found for series');
-    return { linkedMarkdown: markdown, castLinked: 0 };
-  }
+  // Combine: Series cast first (priority), then others
+  const cast = [...seriesCast, ...otherPersons];
   
-  console.log(`   Found ${cast.length} cast members`);
+  console.log(`   Found ${seriesCast.length} series cast, ${otherPersons.length} other known persons`);
   
   let linkedMarkdown = markdown;
   let linkedCount = 0;
+  const linkedNames = new Set<string>(); // Track already linked names
   
   // Sort by name length (longest first) to avoid partial matches
   const sortedCast = cast.sort((a, b) => b.name.length - a.name.length);
   
-  sortedCast.forEach(member => {
+  for (const member of sortedCast) {
     // Skip very short names (likely too generic)
     if (member.name.length < 4) {
-      return;
+      continue;
     }
     
-    const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
-    let regex = new RegExp(
-      `(?<!\\[)(?<!\\()\\b${escapedName}\\b(?!\\])(?!\\))`,
-      'gim'
-    );
-    
-    let matchedName = member.name;
-    
-    // Try last name if full name not found
-    if (member.name.includes(' ')) {
-      const firstName = member.name.split(' ')[0];
-      const lastName = member.name.split(' ').pop();
-      
-      if (lastName && lastName !== firstName) {
-        const escapedLastName = lastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const lastNameRegex = new RegExp(
-          `(?<!\\[)(?<!\\()\\b${escapedLastName}\\b(?!\\])(?!\\))`,
-          'gim'
-        );
-        
-        const testMatch = lastNameRegex.exec(linkedMarkdown);
-        if (testMatch) {
-          regex = lastNameRegex;
-          matchedName = lastName;
-        }
-      }
+    // Skip if we already linked this person
+    if (linkedNames.has(member.name.toLowerCase())) {
+      continue;
     }
     
-    // Find first valid occurrence (not in heading)
-    regex.lastIndex = 0;
-    let match;
-    let validMatch = null;
+    const nameParts = member.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : null;
     
-    while ((match = regex.exec(linkedMarkdown)) !== null) {
-      const matchIndex = match.index;
-      
-      // Check if match is inside a heading
-      const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
-      const lastNewline = beforeMatch.lastIndexOf('\n');
-      const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
-      
-      // Skip if in heading
-      if (/^#+\s/.test(lineStart.trim())) {
+    // Try multiple matching strategies
+    // IMPORTANT: Only use lastName if fullName is NOT found anywhere in text
+    const fullNameRegex = new RegExp(`\\b${member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const fullNameExists = fullNameRegex.test(markdown);
+    
+    const strategies = [
+      { name: member.name, type: 'full' },                    // Full name: "Elisabeth Moss"
+    ];
+    
+    // Only try lastName as fallback if:
+    // 1. Full name NOT in text
+    // 2. lastName is unique enough (>= 5 chars)
+    // 3. This is a series cast member (not random global match)
+    if (!fullNameExists && lastName && lastName.length >= 5 && seriesActorIds.includes(member.tmdbId)) {
+      strategies.push({ name: lastName, type: 'last' });
+    }
+    
+    for (const strategy of strategies) {
+      // Skip if this partial name was already linked to someone else
+      if (linkedNames.has(strategy.name.toLowerCase())) {
         continue;
       }
       
-      // This is the first valid match!
-      validMatch = match;
-      break;
-    }
-    
-    if (validMatch) {
-      // Replace only this occurrence using string slicing
-      const matchIndex = validMatch.index;
-      const matchText = validMatch[0];
+      const escapedName = strategy.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      linkedMarkdown = 
-        linkedMarkdown.substring(0, matchIndex) +
-        `[${matchText}](/person/${member.slug})` +
-        linkedMarkdown.substring(matchIndex + matchText.length);
+      const regex = new RegExp(
+        `(?<!\\[)(?<!\\()\\b${escapedName}\\b(?!\\])(?!\\))`,
+        'gim'
+      );
       
-      linkedCount++;
-      console.log(`   ✅ Linked: ${matchedName} → ${member.name} (1st valid occurrence)`);
+      // Find first valid occurrence (not in heading, not already linked)
+      regex.lastIndex = 0;
+      let match;
+      let validMatch = null;
+      
+      while ((match = regex.exec(linkedMarkdown)) !== null) {
+        const matchIndex = match.index;
+        
+        // Check if match is inside a heading
+        const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
+        const lastNewline = beforeMatch.lastIndexOf('\n');
+        const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
+        
+        // Skip if in heading
+        if (/^#+\s/.test(lineStart.trim())) {
+          continue;
+        }
+        
+        // This is the first valid match!
+        validMatch = match;
+        break;
+      }
+      
+      if (validMatch) {
+        const matchIndex = validMatch.index;
+        const matchText = validMatch[0];
+        
+        linkedMarkdown = 
+          linkedMarkdown.substring(0, matchIndex) +
+          `[${matchText}](/person/${member.slug})` +
+          linkedMarkdown.substring(matchIndex + matchText.length);
+        
+        linkedCount++;
+        linkedNames.add(member.name.toLowerCase());
+        linkedNames.add(strategy.name.toLowerCase());
+        
+        const fromSeries = seriesActorIds.includes(member.tmdbId) ? '(series)' : '(global)';
+        console.log(`   ✅ Linked: ${matchText} → ${member.name} ${fromSeries}`);
+        
+        // Found a match for this person, no need to try other strategies
+        break;
+      }
     }
-  });
+  }
   
   console.log(`   ✅ Total cast linked: ${linkedCount}`);
   
