@@ -455,8 +455,15 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Ad Unit */}
-          <AdUnit slot="9876543210" format="rectangle" className="my-8" />
+          {/* Ad Unit - Below Author (300x250) */}
+          <div className="flex justify-center my-8">
+            <ins
+              className="adsbygoogle"
+              style={{ display: 'inline-block', width: '300px', height: '250px' }}
+              data-ad-client="ca-pub-8583619451045805"
+              data-ad-slot="1713400553"
+            />
+          </div>
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
