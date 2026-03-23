@@ -474,6 +474,16 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
+          {/* Ad Unit - Below Series Info (300x250) */}
+          <div className="flex justify-center my-8">
+            <ins
+              className="adsbygoogle"
+              style={{ display: 'inline-block', width: '300px', height: '250px' }}
+              data-ad-client="ca-pub-8583619451045805"
+              data-ad-slot="5461073872"
+            />
+          </div>
+
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
             <WhereToStreamBox
