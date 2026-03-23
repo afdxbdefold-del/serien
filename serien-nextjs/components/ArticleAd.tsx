@@ -24,7 +24,6 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
     
     if (isProd) {
       adPushed.current = true;
-      // Small delay to ensure DOM is ready
       setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -36,7 +35,7 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
   }, []);
 
   return (
-    <div className={`flex justify-center ${className}`}>
+    <div className={className}>
       <ins
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
