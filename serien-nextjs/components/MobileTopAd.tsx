@@ -42,7 +42,7 @@ export default function MobileTopAd() {
   }
 
   return (
-    <div ref={containerRef} className="lg:hidden">
+    <div ref={containerRef} className="lg:hidden flex justify-center">
       <ins
         className="adsbygoogle"
         style={{ display: 'inline-block', width: '320px', height: '100px' }}

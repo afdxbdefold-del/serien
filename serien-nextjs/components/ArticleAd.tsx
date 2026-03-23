@@ -35,7 +35,7 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
   }, []);
 
   return (
-    <div className={className}>
+    <div className={`flex justify-center ${className}`}>
       <ins
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}

@@ -42,7 +42,7 @@ export default function ContentWithAds({
 
         // Create ad container
         const adContainer = document.createElement('div');
-        adContainer.className = 'content-ad-unit my-6';
+        adContainer.className = 'content-ad-unit my-6 flex justify-center';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
                style="display:inline-block;width:336px;height:280px"
