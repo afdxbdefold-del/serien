@@ -397,6 +397,16 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
+          {/* Ad Unit - Below Intro (320x480) */}
+          <div className="flex justify-center mb-8">
+            <ins
+              className="adsbygoogle"
+              style={{ display: 'inline-block', width: '320px', height: '480px' }}
+              data-ad-client="ca-pub-8583619451045805"
+              data-ad-slot="1770208474"
+            />
+          </div>
+
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
             <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
