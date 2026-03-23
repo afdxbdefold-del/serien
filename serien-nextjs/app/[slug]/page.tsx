@@ -377,6 +377,9 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Cyan Accent Line */}
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
+          {/* Ad Unit - Before Intro */}
+          <AdUnit slot="BEFORE_INTRO_SLOT" format="horizontal" className="mb-6" />
+
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
             <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
