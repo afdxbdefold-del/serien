@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'integrations.emergentagent.com' },
     ]
   },
+
+  // Rewrites for ads.txt
+  async rewrites() {
+    return [
+      {
+        source: '/ads.txt',
+        destination: '/api/ads',
+      },
+    ];
+  },
   
   // Performance headers
   async headers() {
