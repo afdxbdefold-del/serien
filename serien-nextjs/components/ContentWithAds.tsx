@@ -37,12 +37,13 @@ export default function ContentWithAds({
           return;
         }
 
-        // Create ad container
+        // Create ad container - use not-prose to escape prose styling
         const adContainer = document.createElement('div');
-        adContainer.className = 'content-ad-unit my-6 flex justify-center';
+        adContainer.className = 'content-ad-unit my-6 flex justify-center not-prose overflow-visible';
+        adContainer.style.cssText = 'overflow: visible !important; max-width: none !important;';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
-               style="display:inline-block;width:336px;height:280px"
+               style="display:inline-block;width:336px;height:280px;overflow:visible"
                data-ad-client="ca-pub-8583619451045805"
                data-ad-slot="9591890570"></ins>
         `;
