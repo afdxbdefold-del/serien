@@ -5,7 +5,6 @@ import Header from './Header';
 import Footer from './Footer';
 import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
-import CookieBanner from './CookieBanner';
 import SkipLink from './SkipLink';
 
 interface LayoutWrapperProps {
@@ -30,7 +29,6 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         {children}
       </main>
       <Footer />
-      <CookieBanner />
       <PushNotificationPrompt />
     </ThemeProvider>
   );
