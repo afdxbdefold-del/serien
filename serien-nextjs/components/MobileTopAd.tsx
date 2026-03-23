@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from 'react';
  * Mobile Top Banner Ad
  * Displays only on mobile devices, directly above the header
  * Invisible when no ad is shown
+ * Max height limited for better UX
  */
 export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
@@ -45,19 +46,20 @@ export default function MobileTopAd() {
   }
 
   // Only render on mobile (hidden on lg and up)
+  // Max height 100px to prevent huge ads
   return (
     <div 
       ref={containerRef}
-      className={`lg:hidden w-full ${hasAd ? 'block' : ''}`}
-      style={{ minHeight: hasAd ? 'auto' : 0 }}
+      className={`lg:hidden w-full overflow-hidden ${hasAd ? 'block' : ''}`}
+      style={{ minHeight: hasAd ? 'auto' : 0, maxHeight: '100px' }}
     >
       <div className="flex justify-center">
         <ins
           className="adsbygoogle"
-          style={{ display: 'block', width: '100%' }}
+          style={{ display: 'block', width: '100%', maxHeight: '100px' }}
           data-ad-client="ca-pub-8583619451045805"
           data-ad-slot="MOBILE_TOP_SLOT"
-          data-ad-format="auto"
+          data-ad-format="horizontal"
           data-full-width-responsive="true"
         />
       </div>
