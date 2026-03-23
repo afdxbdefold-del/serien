@@ -1,42 +1,36 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Sticky Bottom Ad
  * Fixed at the bottom of the viewport
  */
 export default function StickyBottomAd() {
-  const [isProduction, setIsProduction] = useState(false);
   const adPushed = useRef(false);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
-    setIsProduction(isProd);
-  }, []);
-
-  useEffect(() => {
-    // Push ad only once after component is mounted and in production
-    if (isProduction && !adPushed.current) {
+    
+    if (isProd && !adPushed.current) {
       adPushed.current = true;
       setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
-          console.error('Ad loading error:', e);
+          console.error('Sticky ad error:', e);
         }
-      }, 500);
+      }, 1000);
     }
-  }, [isProduction]);
+  }, []);
 
-  if (!isProduction) {
-    return null;
-  }
-
+  // Always render on server, hide on client if not production
+  // This ensures the element exists for Google to find
   return (
     <div 
       className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-lg border-t border-gray-200 dark:border-gray-700"
+      id="sticky-bottom-ad"
     >
       <div className="flex justify-center py-1">
         <ins
