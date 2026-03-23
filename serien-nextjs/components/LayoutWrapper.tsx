@@ -7,7 +7,6 @@ import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
-import StickyBottomAd from './StickyBottomAd';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -42,7 +41,6 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         {children}
       </main>
       <Footer />
-      {isArticlePage && <StickyBottomAd />}
       <PushNotificationPrompt />
     </ThemeProvider>
   );
