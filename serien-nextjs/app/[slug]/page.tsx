@@ -379,8 +379,16 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Cyan Accent Line */}
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
-          {/* Ad Unit - Before Intro */}
-          <AdUnit slot="BEFORE_INTRO_SLOT" format="horizontal" className="mb-6" />
+          {/* Ad Unit - Before Intro (320x180 video possible) */}
+          <div className="flex justify-center mb-6">
+            <ins
+              className="adsbygoogle"
+              style={{ display: 'inline-block', width: '320px', height: '180px' }}
+              data-ad-client="ca-pub-8583619451045805"
+              data-ad-slot="7589244469"
+            />
+          </div>
+          <script dangerouslySetInnerHTML={{ __html: '(adsbygoogle = window.adsbygoogle || []).push({});' }} />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
