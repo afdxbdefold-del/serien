@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 /**
  * Mobile Top Banner Ad
  * Displays only on mobile devices, directly above the header
+ * Invisible when no ad is shown
  */
 export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
-  const [adLoaded, setAdLoaded] = useState(false);
+  const [hasAd, setHasAd] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check if we're in production
@@ -19,34 +21,45 @@ export default function MobileTopAd() {
     if (isProd) {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
-        setAdLoaded(true);
+        
+        // Check if ad was loaded after a delay
+        setTimeout(() => {
+          if (containerRef.current) {
+            const adElement = containerRef.current.querySelector('ins.adsbygoogle');
+            if (adElement) {
+              const adStatus = adElement.getAttribute('data-ad-status');
+              const hasContent = adElement.clientHeight > 0;
+              setHasAd(adStatus === 'filled' || hasContent);
+            }
+          }
+        }, 1500);
       } catch (e) {
         console.error('Ad loading error:', e);
       }
     }
   }, []);
 
+  // Don't render anything in dev mode
+  if (!isProduction) {
+    return null;
+  }
+
   // Only render on mobile (hidden on lg and up)
   return (
-    <div className="lg:hidden w-full bg-gray-100 dark:bg-gray-900">
-      <div className="flex justify-center py-1">
-        {isProduction ? (
-          <ins
-            className="adsbygoogle"
-            style={{ display: 'block', width: '320px', height: '50px' }}
-            data-ad-client="ca-pub-8583619451045805"
-            data-ad-slot="MOBILE_TOP_SLOT"
-            data-ad-format="horizontal"
-            data-full-width-responsive="false"
-          />
-        ) : (
-          <div 
-            className="bg-gray-200 dark:bg-gray-800 border-2 border-dashed border-gray-400 dark:border-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs font-medium"
-            style={{ width: '320px', height: '50px' }}
-          >
-            Mobile Ad (320x50)
-          </div>
-        )}
+    <div 
+      ref={containerRef}
+      className={`lg:hidden w-full ${hasAd ? 'block' : ''}`}
+      style={{ minHeight: hasAd ? 'auto' : 0 }}
+    >
+      <div className="flex justify-center">
+        <ins
+          className="adsbygoogle"
+          style={{ display: 'block', width: '100%' }}
+          data-ad-client="ca-pub-8583619451045805"
+          data-ad-slot="MOBILE_TOP_SLOT"
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
       </div>
     </div>
   );
