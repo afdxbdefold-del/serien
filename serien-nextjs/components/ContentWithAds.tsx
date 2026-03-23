@@ -16,15 +16,18 @@ export default function ContentWithAds({
   className = ''
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const adsInitialized = useRef(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || adsInitialized.current) return;
+    adsInitialized.current = true;
 
     // Find all paragraphs
     const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
-    const maxAds = 4; // Maximum ads to insert
+    const maxAds = 4;
+    const adElements: HTMLElement[] = [];
 
     paragraphs.forEach((el) => {
       paragraphCount++;
@@ -37,7 +40,7 @@ export default function ContentWithAds({
           return;
         }
 
-        // Create ad container - use not-prose to escape prose styling
+        // Create ad container
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit my-6 flex justify-center not-prose overflow-visible';
         adContainer.style.cssText = 'overflow: visible !important; max-width: none !important;';
@@ -50,15 +53,20 @@ export default function ContentWithAds({
 
         // Insert after paragraph
         el.after(adContainer);
+        adElements.push(adContainer);
         adsInserted++;
+      }
+    });
 
-        // Push ad
+    // Push ads with delay between each
+    adElements.forEach((_, index) => {
+      setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
           console.error('Ad error:', e);
         }
-      }
+      }, index * 200); // 200ms delay between each ad
     });
   }, [html]);
 
