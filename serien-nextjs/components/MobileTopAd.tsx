@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 /**
  * Mobile Top Banner Ad - 320x100 FIXED
- * Hard container that cuts off anything larger
+ * Hidden when no ad is displayed
  */
 export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
@@ -17,6 +19,28 @@ export default function MobileTopAd() {
     if (isProd) {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
+        
+        // Check if ad loaded after delay
+        const checkAd = setInterval(() => {
+          if (containerRef.current) {
+            const ins = containerRef.current.querySelector('ins.adsbygoogle');
+            if (ins) {
+              const status = ins.getAttribute('data-ad-status');
+              const hasHeight = ins.clientHeight > 0;
+              
+              if (status === 'filled' || hasHeight) {
+                setAdLoaded(true);
+                clearInterval(checkAd);
+              } else if (status === 'unfilled') {
+                setAdLoaded(false);
+                clearInterval(checkAd);
+              }
+            }
+          }
+        }, 500);
+        
+        // Stop checking after 5 seconds
+        setTimeout(() => clearInterval(checkAd), 5000);
       } catch (e) {
         console.error('Ad loading error:', e);
       }
@@ -28,14 +52,16 @@ export default function MobileTopAd() {
   }
 
   return (
-    <div className="lg:hidden w-full flex justify-center bg-white dark:bg-gray-900">
-      {/* Hard container - anything bigger gets cut off */}
+    <div 
+      ref={containerRef}
+      className="lg:hidden w-full flex justify-center bg-white dark:bg-gray-900"
+      style={{ display: adLoaded ? 'flex' : 'none' }}
+    >
       <div 
         style={{ 
           width: '320px', 
           height: '100px', 
-          overflow: 'hidden',
-          position: 'relative'
+          overflow: 'hidden'
         }}
       >
         <ins
