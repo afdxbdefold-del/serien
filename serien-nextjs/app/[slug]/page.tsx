@@ -465,6 +465,9 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
+          {/* Ad Unit - Above Similar News (300x600) */}
+          <ArticleAd slot="8047708763" width={300} height={600} className="my-8" />
+
           {/* Related News */}
           {relatedNews.length > 0 && (
             <section className="mt-12" aria-labelledby="similar-news">
