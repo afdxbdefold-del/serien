@@ -28,6 +28,8 @@ const AdUnit = dynamic(() => import('@/components/AdUnit'), {
   loading: () => null,
 });
 
+import ContentWithAds from '@/components/ContentWithAds';
+
 // Helper to safely convert Date or ISO string to Date object
 const toDate = (value: Date | string | null | undefined): Date => {
   if (!value) return new Date();
@@ -387,20 +389,19 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
-          {/* Ad Unit - After Intro */}
-          <AdUnit slot="AFTER_INTRO_SLOT" format="horizontal" className="mb-8" />
-
-          {/* Article Body */}
+          {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
             <h2 id="article-content" className="sr-only">Artikel-Inhalt</h2>
-            <div 
+            <ContentWithAds 
+              html={sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined)}
               className="prose prose-base md:prose-lg dark:prose-invert max-w-none mb-10 
                 prose-headings:text-gray-900 dark:prose-headings:text-white
                 prose-p:text-gray-700 dark:prose-p:text-gray-300
                 prose-a:text-cyan-600 dark:prose-a:text-cyan-400
                 prose-strong:text-gray-900 dark:prose-strong:text-white
                 prose-img:rounded-lg"
-              dangerouslySetInnerHTML={{ __html: sanitizeArticleContent(article.contentHtml || '', article.excerpt || undefined) }}
+              adSlot="CONTENT_AD_SLOT"
+              paragraphInterval={3}
             />
           </section>
 
