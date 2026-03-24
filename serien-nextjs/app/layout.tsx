@@ -68,18 +68,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
         
-        {/* DNS Prefetch & Preconnect for Performance - Only AdSense needs preconnect */}
-        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
-        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossOrigin="anonymous" />
-        
-        {/* Google AdSense - Loads only after cookie consent */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-          crossOrigin="anonymous"
-        />
-        
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"

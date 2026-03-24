@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import Script from 'next/script';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -278,6 +279,14 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
+      {/* Google AdSense Script - Only on article pages */}
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+
       {/* JSON-LD Structured Data with ImageObject */}
       <script
         type="application/ld+json"
