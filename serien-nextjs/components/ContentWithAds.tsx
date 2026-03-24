@@ -9,7 +9,7 @@ interface ContentWithAdsProps {
 
 /**
  * Renders article content with ads inserted after every 2nd paragraph
- * Ad size: 336x280
+ * Ad size: 300x250 FIXED
  */
 export default function ContentWithAds({ 
   html, 
