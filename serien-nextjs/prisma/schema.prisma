@@ -392,3 +392,51 @@ model ad_slots {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model analytics_events {
+  id          String   @id @default(cuid())
+  sessionId   String   // Unique session identifier
+  visitorId   String   // Persistent visitor ID (cookie)
+  event       String   // page_view, click, scroll, etc.
+  path        String   // URL path
+  referrer    String?  // Where they came from
+  userAgent   String?
+  country     String?
+  city        String?
+  device      String?  // mobile, tablet, desktop
+  browser     String?
+  os          String?
+  duration    Int?     // Time on page in seconds
+  scrollDepth Int?     // Max scroll percentage
+  articleId   String?  // If on article page
+  seriesId    String?  // If on series page
+  metadata    Json?    // Extra data
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([path])
+  @@index([event])
+}
+
+model analytics_sessions {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  visitorId   String
+  startedAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  pageViews   Int      @default(1)
+  entryPage   String
+  exitPage    String?
+  referrer    String?
+  userAgent   String?
+  country     String?
+  device      String?
+  browser     String?
+  isActive    Boolean  @default(true)
+
+  @@index([lastSeenAt])
+  @@index([isActive])
+  @@index([visitorId])
+}

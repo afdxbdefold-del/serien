@@ -7,6 +7,7 @@ import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
+import AnalyticsTracker from './AnalyticsTracker';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -35,6 +36,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <ThemeProvider>
       <SkipLink />
+      <AnalyticsTracker />
       {isArticlePage && <MobileTopAd />}
       <Header />
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
