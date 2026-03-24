@@ -57,27 +57,25 @@ export default function MobileTopAd() {
     
     adPushed.current = true;
     
-    // Delay to ensure DOM is ready and AdSense script is loaded
+    // Push immediately
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.error('Ad loading error:', e);
+    }
+    
+    // Check if ad was filled after 4 seconds
     setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.error('Ad loading error:', e);
-      }
-      
-      // Check if ad was filled after 4 seconds
-      setTimeout(() => {
-        if (containerRef.current) {
-          const ins = containerRef.current.querySelector('ins.adsbygoogle');
-          if (ins) {
-            const status = ins.getAttribute('data-ad-status');
-            if (status === 'unfilled') {
-              setHideAd(true);
-            }
+      if (containerRef.current) {
+        const ins = containerRef.current.querySelector('ins.adsbygoogle');
+        if (ins) {
+          const status = ins.getAttribute('data-ad-status');
+          if (status === 'unfilled') {
+            setHideAd(true);
           }
         }
-      }, 4000);
-    }, 200);
+      }
+    }, 4000);
   }, [config, isProduction]);
 
   if (!isProduction || hideAd || !config) {

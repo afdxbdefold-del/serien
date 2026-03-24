@@ -92,16 +92,13 @@ export default function ContentWithAds({
       }
     });
 
-    // Push ads with longer delay between each to prevent conflicts
-    // Start at 2000ms to let other ads initialize first
-    adElements.forEach((_, index) => {
-      setTimeout(() => {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          console.error('Ad error:', e);
-        }
-      }, 2000 + (index * 400)); // Start at 2s, then 400ms between each
+    // Push all ads immediately
+    adElements.forEach(() => {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error('Ad error:', e);
+      }
     });
   }, [html, adConfig]);
 

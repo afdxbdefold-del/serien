@@ -102,29 +102,13 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
                    !window.location.hostname.includes('preview');
     
     if (isProd) {
-      // Use IntersectionObserver to load ads when they come into view
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting && !adPushed.current) {
-              adPushed.current = true;
-              setTimeout(() => {
-                try {
-                  (window.adsbygoogle = window.adsbygoogle || []).push({});
-                } catch (e) {
-                  console.error('DynamicAd error:', e);
-                }
-              }, 200);
-              observer.disconnect();
-            }
-          });
-        },
-        { rootMargin: '200px' }
-      );
-      
-      observer.observe(adRef.current);
-      
-      return () => observer.disconnect();
+      adPushed.current = true;
+      // Push immediately
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error('DynamicAd error:', e);
+      }
     }
   }, [config]);
 
