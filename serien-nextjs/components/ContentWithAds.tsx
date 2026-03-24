@@ -22,7 +22,7 @@ interface AdConfig {
 
 /**
  * Renders article content with ads inserted after every 2nd paragraph
- * Ad configuration loaded from database
+ * Ad configuration loaded from database with fallback
  */
 export default function ContentWithAds({ 
   html, 
@@ -30,9 +30,15 @@ export default function ContentWithAds({
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const adsInitialized = useRef(false);
-  const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
+  const [adConfig, setAdConfig] = useState<AdConfig>({
+    // Default fallback values
+    adClient: 'ca-pub-8583619451045805',
+    adSlot: '9591890570',
+    width: 300,
+    height: 250,
+  });
 
-  // Fetch ad config on mount
+  // Fetch ad config on mount (override defaults if found)
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -45,7 +51,7 @@ export default function ContentWithAds({
           }
         }
       } catch (error) {
-        console.error('Failed to load in-content ad config:', error);
+        console.error('Failed to load in-content ad config, using defaults');
       }
     };
     
@@ -53,15 +59,18 @@ export default function ContentWithAds({
   }, []);
 
   useEffect(() => {
-    if (!containerRef.current || adsInitialized.current || !adConfig) return;
+    if (!containerRef.current || adsInitialized.current) return;
     adsInitialized.current = true;
+
+    const isProd = window.location.hostname !== 'localhost' && 
+                   !window.location.hostname.includes('preview');
+    if (!isProd) return;
 
     // Find all paragraphs
     const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
     const maxAds = 4;
-    const adElements: HTMLElement[] = [];
 
     paragraphs.forEach((el) => {
       paragraphCount++;
@@ -74,10 +83,11 @@ export default function ContentWithAds({
           return;
         }
 
-        // Create ad container with config from DB
+        // Create ad container with fixed 300x250 size
         const adContainer = document.createElement('div');
-        adContainer.className = 'content-ad-unit my-6 flex justify-center not-prose';
+        adContainer.className = 'content-ad-unit my-6 not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
+        adContainer.style.cssText = 'display:flex;justify-content:center;min-height:250px;';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
                style="display:inline-block;width:${adConfig.width}px;height:${adConfig.height}px"
@@ -87,17 +97,14 @@ export default function ContentWithAds({
 
         // Insert after paragraph
         el.after(adContainer);
-        adElements.push(adContainer);
         adsInserted++;
-      }
-    });
 
-    // Push all ads immediately
-    adElements.forEach(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.error('Ad error:', e);
+        // Push ad immediately
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.error('Ad error:', e);
+        }
       }
     });
   }, [html, adConfig]);
