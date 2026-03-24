@@ -376,3 +376,19 @@ model streaming_releases {
   @@index([date])
   @@index([provider])
 }
+
+model ad_slots {
+  id          String   @id @default(cuid())
+  position    String   @unique // mobile_top, above_intro, below_intro, in_content, below_author, below_series_info, above_similar_news, above_footer
+  name        String   // Anzeigename für Admin
+  description String?  // Beschreibung der Position
+  adClient    String   @default("ca-pub-8583619451045805")
+  adSlot      String   // Die Slot-ID von AdSense
+  width       Int      // Breite in px
+  height      Int      // Höhe in px
+  isActive    Boolean  @default(true)
+  mobileOnly  Boolean  @default(false)
+  desktopOnly Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

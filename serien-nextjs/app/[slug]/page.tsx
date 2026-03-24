@@ -16,7 +16,7 @@ import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
-import ArticleAd from '@/components/ArticleAd';
+import DynamicAd from '@/components/DynamicAd';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
@@ -379,8 +379,8 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Cyan Accent Line */}
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
-          {/* Ad Unit - Before Intro (320x180 video possible) */}
-          <ArticleAd slot="7589244469" width={320} height={180} className="mb-6" />
+          {/* Ad Unit - Above Intro */}
+          <DynamicAd position="above_intro" className="mb-6" />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
@@ -389,8 +389,8 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
-          {/* Ad Unit - Below Intro (320x480) */}
-          <ArticleAd slot="1770208474" width={320} height={480} className="mb-8" />
+          {/* Ad Unit - Below Intro */}
+          <DynamicAd position="below_intro" className="mb-8" />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
@@ -440,8 +440,8 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Ad Unit - Below Author (300x250) */}
-          <ArticleAd slot="1713400553" width={300} height={250} className="my-8" />
+          {/* Ad Unit - Below Author */}
+          <DynamicAd position="below_author" className="my-8" />
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -452,8 +452,8 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Ad Unit - Below Series Info (300x250) */}
-          <ArticleAd slot="5461073872" width={300} height={250} className="my-8" />
+          {/* Ad Unit - Below Series Info */}
+          <DynamicAd position="below_series_info" className="my-8" />
 
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -465,8 +465,8 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Ad Unit - Above Similar News (300x600) */}
-          <ArticleAd slot="8047708763" width={300} height={600} className="my-8" />
+          {/* Ad Unit - Above Similar News */}
+          <DynamicAd position="above_similar_news" className="my-8" />
 
           {/* Related News */}
           {relatedNews.length > 0 && (
@@ -491,6 +491,9 @@ export default async function ArticlePage({ params }: PageProps) {
               </div>
             </section>
           )}
+
+          {/* Ad Unit - Above Footer */}
+          <DynamicAd position="above_footer" className="my-8" />
         </div>
       </article>
     </div>

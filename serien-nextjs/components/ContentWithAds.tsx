@@ -1,15 +1,28 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+declare global {
+  interface Window {
+    adsbygoogle: any[];
+  }
+}
 
 interface ContentWithAdsProps {
   html: string;
   className?: string;
 }
 
+interface AdConfig {
+  adClient: string;
+  adSlot: string;
+  width: number;
+  height: number;
+}
+
 /**
  * Renders article content with ads inserted after every 2nd paragraph
- * Ad size: 300x250 FIXED
+ * Ad configuration loaded from database
  */
 export default function ContentWithAds({ 
   html, 
@@ -17,9 +30,30 @@ export default function ContentWithAds({
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const adsInitialized = useRef(false);
+  const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
+
+  // Fetch ad config on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/api/ads/slots');
+        if (res.ok) {
+          const slots = await res.json();
+          const inContentConfig = slots['in_content'];
+          if (inContentConfig) {
+            setAdConfig(inContentConfig);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load in-content ad config:', error);
+      }
+    };
+    
+    loadConfig();
+  }, []);
 
   useEffect(() => {
-    if (!containerRef.current || adsInitialized.current) return;
+    if (!containerRef.current || adsInitialized.current || !adConfig) return;
     adsInitialized.current = true;
 
     // Find all paragraphs
@@ -40,14 +74,15 @@ export default function ContentWithAds({
           return;
         }
 
-        // Create ad container
+        // Create ad container with config from DB
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit my-6 flex justify-center not-prose';
+        adContainer.setAttribute('data-ad-position', 'in_content');
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
-               style="display:inline-block;width:300px;height:250px"
-               data-ad-client="ca-pub-8583619451045805"
-               data-ad-slot="9591890570"></ins>
+               style="display:inline-block;width:${adConfig.width}px;height:${adConfig.height}px"
+               data-ad-client="${adConfig.adClient}"
+               data-ad-slot="${adConfig.adSlot}"></ins>
         `;
 
         // Insert after paragraph
@@ -58,7 +93,7 @@ export default function ContentWithAds({
     });
 
     // Push ads with longer delay between each to prevent conflicts
-    // Start at 2000ms to let ArticleAd components initialize first
+    // Start at 2000ms to let other ads initialize first
     adElements.forEach((_, index) => {
       setTimeout(() => {
         try {
@@ -68,7 +103,7 @@ export default function ContentWithAds({
         }
       }, 2000 + (index * 400)); // Start at 2s, then 400ms between each
     });
-  }, [html]);
+  }, [html, adConfig]);
 
   return (
     <div 

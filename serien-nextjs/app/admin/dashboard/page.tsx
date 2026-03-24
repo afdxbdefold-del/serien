@@ -1,13 +1,6 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
-
-// Force client-side only rendering
-export const dynamic = 'force-dynamic';
-// TEMPORARY: Edge runtime disabled due to Vercel incident (Mar 2, 2026)
-// Re-enable once Vercel fixes: export const runtime = 'edge';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -100,6 +93,7 @@ export default function AdminDashboardPage() {
               { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
               { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
+              { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
               { id: 'users', label: '👥 Users', href: null },
             ].map(({ id, label, href }) => (
               href ? (
