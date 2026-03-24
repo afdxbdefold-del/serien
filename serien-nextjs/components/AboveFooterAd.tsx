@@ -28,14 +28,12 @@ export default function AboveFooterAd() {
   }
 
   return (
-    <div className="w-full py-4">
+    <div className="w-full py-4 flex justify-center">
       <ins
         className="adsbygoogle"
-        style={{ display: 'block' }}
+        style={{ display: 'inline-block', width: '728px', height: '90px' }}
         data-ad-client="ca-pub-8583619451045805"
         data-ad-slot="1034743707"
-        data-ad-format="auto"
-        data-full-width-responsive="true"
       />
     </div>
   );

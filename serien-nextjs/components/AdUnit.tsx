@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 
 interface AdUnitProps {
   slot: string;
-  format?: 'auto' | 'horizontal' | 'vertical' | 'rectangle';
+  width: number;
+  height: number;
   className?: string;
 }
 
@@ -14,7 +15,7 @@ declare global {
   }
 }
 
-export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnitProps) {
+export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
   const [hasConsent, setHasConsent] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
@@ -110,11 +111,9 @@ export default function AdUnit({ slot, format = 'auto', className = '' }: AdUnit
       <ins
         ref={adRef}
         className="adsbygoogle"
-        style={{ display: 'block', minHeight: 0 }}
+        style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client="ca-pub-8583619451045805"
         data-ad-slot={slot}
-        data-ad-format={format}
-        data-full-width-responsive="true"
       />
     </div>
   );

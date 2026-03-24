@@ -27,16 +27,14 @@ export default function StickyBottomAd() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 z-50"
+      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center"
       id="sticky-bottom-ad"
     >
       <ins
         className="adsbygoogle"
-        style={{ display: 'block' }}
+        style={{ display: 'inline-block', width: '320px', height: '100px' }}
         data-ad-client="ca-pub-8583619451045805"
         data-ad-slot="3358622315"
-        data-ad-format="auto"
-        data-full-width-responsive="true"
       />
     </div>
   );
