@@ -1,11 +1,11 @@
 /**
- * Screenrant TV News Scraper
+ * Screenrant TV News Scraper (Serverless Version)
  * 
- * Fetches latest TV news from screenrant.com/tv-news/
- * and runs them through pipeline-v2
+ * Uses fetch + cheerio instead of Playwright
+ * Works on Vercel and other serverless platforms
  */
 
-import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 import { runPipelineV2 } from './pipeline-v2';
 
@@ -29,7 +29,10 @@ const RELEVANT_KEYWORDS = [
   'daredevil', 'marvel', 'star wars', 'game of thrones',
   'invincible', 'boys', 'yellowstone', 'severance', 'white lotus',
   'bridgerton', 'you', 'cobra kai', 'outer banks', 'elite',
-  'money heist', 'dark', 'babylon berlin', '1899', 'tribes of europa'
+  'money heist', 'dark', 'babylon berlin', '1899', 'tribes of europa',
+  'one piece', 'avatar', 'the witcher', 'arcane', 'fallout',
+  'shogun', 'slow horses', 'true detective', 'fargo', 'the bear',
+  'abbott elementary', 'what we do in the shadows', 'reservation dogs'
 ];
 
 // Keywords to SKIP (not relevant for German streaming audience)
@@ -49,7 +52,7 @@ const SKIP_KEYWORDS = [
  * Check if article is less than 24 hours old based on timeAgo string
  */
 function isWithin24Hours(timeAgo: string): boolean {
-  if (!timeAgo) return true; // If no time, include it
+  if (!timeAgo) return true;
   
   const timeLower = timeAgo.toLowerCase().trim();
   
@@ -85,7 +88,6 @@ function isWithin24Hours(timeAgo: string): boolean {
     return false;
   }
   
-  // Default: include if unsure
   return true;
 }
 
@@ -123,7 +125,7 @@ function isRelevantArticle(article: NewsArticle): boolean {
     }
   }
   
-  // Also check if it has a series tag (from screenrant structure)
+  // Also check if it has a series tag
   if (article.series) {
     return true;
   }
@@ -137,114 +139,106 @@ function isRelevantArticle(article: NewsArticle): boolean {
 }
 
 async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
-  console.log('🔍 Scraping Screenrant TV News...\n');
+  console.log('🔍 Scraping Screenrant TV News (serverless)...\n');
   
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  
-  // Set a realistic user agent
-  await page.setExtraHTTPHeaders({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  const response = await fetch('https://screenrant.com/tv-news/', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Cache-Control': 'no-cache',
+    }
   });
   
-  try {
-    await page.goto('https://screenrant.com/tv-news/', { 
-      waitUntil: 'networkidle',
-      timeout: 60000 
-    });
-    
-    // Wait for content to load
-    await page.waitForTimeout(3000);
-    
-    // Scroll to load more content
-    await page.evaluate(() => window.scrollBy(0, 1000));
-    await page.waitForTimeout(1000);
-    
-    // Extract articles using multiple strategies
-    const articles = await page.evaluate(() => {
-      const results: { title: string; url: string; timeAgo: string; series?: string }[] = [];
-      const seenUrls = new Set<string>();
-      
-      // Strategy 1: Find all h3/h5 headlines with links
-      document.querySelectorAll('h3 a, h5 a, h2 a').forEach(link => {
-        const href = (link as HTMLAnchorElement).href;
-        const title = link.textContent?.trim();
-        
-        if (href && title && title.length > 15 && 
-            href.includes('screenrant.com/') && 
-            !href.includes('/tv-news/') &&
-            !href.includes('/author/') &&
-            !href.includes('/tag/') &&
-            !href.includes('/db/') &&
-            !href.endsWith('/tv-news') &&
-            !seenUrls.has(href)) {
-          
-          seenUrls.add(href);
-          
-          // Find parent container for metadata
-          const card = link.closest('article, li, .valnet-content-card, [class*="card"]');
-          const timeEl = card?.querySelector('time, [class*="date"], [class*="time"]');
-          const seriesEl = card?.querySelector('a[href*="/db/tv-show/"]');
-          
-          results.push({
-            title,
-            url: href,
-            timeAgo: timeEl?.textContent?.trim() || '',
-            series: seriesEl?.textContent?.trim()
-          });
-        }
-      });
-      
-      // Strategy 2: Find article cards by image + link pattern
-      document.querySelectorAll('img[src*="srcdn.com"]').forEach(img => {
-        const card = img.closest('a, article, li, div');
-        const link = card?.querySelector('a[href*="screenrant.com/"]') || (card as HTMLAnchorElement);
-        
-        if (link && (link as HTMLAnchorElement).href) {
-          const href = (link as HTMLAnchorElement).href;
-          const titleEl = card?.querySelector('h3, h5, h2, [class*="title"]');
-          const title = titleEl?.textContent?.trim() || link.textContent?.trim();
-          
-          if (href && title && title.length > 15 && 
-              !href.includes('/tv-news/') &&
-              !href.includes('/author/') &&
-              !seenUrls.has(href)) {
-            
-            seenUrls.add(href);
-            
-            const timeEl = card?.querySelector('time, [class*="date"]');
-            
-            results.push({
-              title,
-              url: href,
-              timeAgo: timeEl?.textContent?.trim() || '',
-              series: undefined
-            });
-          }
-        }
-      });
-      
-      return results;
-    });
-    
-    await browser.close();
-    
-    // Clean up results - remove duplicates and invalid entries
-    const cleanArticles = articles.filter((article, index, self) => 
-      article.title && 
-      article.url && 
-      article.title.length > 20 &&
-      self.findIndex(a => a.url === article.url) === index
-    );
-    
-    console.log(`📰 Found ${cleanArticles.length} articles total\n`);
-    
-    return cleanArticles;
-    
-  } catch (error) {
-    await browser.close();
-    throw error;
+  if (!response.ok) {
+    throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
   }
+  
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  
+  const results: NewsArticle[] = [];
+  const seenUrls = new Set<string>();
+  
+  // Strategy 1: Find article cards with headlines
+  $('article, .display-card, .sentinel-listing-page-list li').each((_, element) => {
+    const $el = $(element);
+    const $link = $el.find('a[href*="screenrant.com"]').first();
+    const $headline = $el.find('h3, h5, h2, .display-card-title').first();
+    
+    let href = $link.attr('href') || '';
+    const title = $headline.text().trim() || $link.text().trim();
+    
+    // Make sure URL is absolute
+    if (href && !href.startsWith('http')) {
+      href = `https://screenrant.com${href}`;
+    }
+    
+    // Find time element
+    const timeText = $el.find('time, .display-card-date, [class*="date"]').first().text().trim();
+    
+    if (href && title && 
+        title.length > 15 && 
+        !href.includes('/tv-news/') &&
+        !href.includes('/author/') &&
+        !href.includes('/tag/') &&
+        !href.includes('/db/') &&
+        !href.endsWith('/tv-news') &&
+        !seenUrls.has(href)) {
+      
+      seenUrls.add(href);
+      results.push({
+        title,
+        url: href,
+        timeAgo: timeText,
+        series: undefined
+      });
+    }
+  });
+  
+  // Strategy 2: Direct headline links
+  $('h3 a, h5 a, h2 a').each((_, element) => {
+    const $link = $(element);
+    let href = $link.attr('href') || '';
+    const title = $link.text().trim();
+    
+    if (href && !href.startsWith('http')) {
+      href = `https://screenrant.com${href}`;
+    }
+    
+    // Find parent for time
+    const $parent = $link.closest('article, li, div');
+    const timeText = $parent.find('time, [class*="date"]').first().text().trim();
+    
+    if (href && title && 
+        title.length > 15 && 
+        href.includes('screenrant.com/') &&
+        !href.includes('/tv-news/') &&
+        !href.includes('/author/') &&
+        !href.includes('/tag/') &&
+        !seenUrls.has(href)) {
+      
+      seenUrls.add(href);
+      results.push({
+        title,
+        url: href,
+        timeAgo: timeText,
+        series: undefined
+      });
+    }
+  });
+  
+  // Clean up - remove duplicates
+  const cleanArticles = results.filter((article, index, self) => 
+    article.title && 
+    article.url && 
+    article.title.length > 20 &&
+    self.findIndex(a => a.url === article.url) === index
+  );
+  
+  console.log(`📰 Found ${cleanArticles.length} articles total\n`);
+  
+  return cleanArticles;
 }
 
 async function checkIfArticleExists(url: string): Promise<boolean> {
@@ -255,7 +249,7 @@ async function checkIfArticleExists(url: string): Promise<boolean> {
   return !!existing;
 }
 
-async function processScreenrantNews(options: { 
+export async function processScreenrantNews(options: { 
   limit?: number;
   dryRun?: boolean;
   onlyNew?: boolean;
@@ -263,9 +257,15 @@ async function processScreenrantNews(options: {
   const { limit = 5, dryRun = false, onlyNew = true } = options;
   
   console.log('='.repeat(70));
-  console.log('🎬 SCREENRANT TV NEWS IMPORTER');
+  console.log('🎬 SCREENRANT TV NEWS IMPORTER (Serverless)');
   console.log('='.repeat(70));
   console.log(`📋 Options: limit=${limit}, dryRun=${dryRun}, onlyNew=${onlyNew}\n`);
+  
+  const stats = {
+    processed: 0,
+    failed: 0,
+    skipped: 0,
+  };
   
   try {
     // Step 1: Scrape news
@@ -280,88 +280,63 @@ async function processScreenrantNews(options: {
     
     if (onlyNew) {
       const newArticles: NewsArticle[] = [];
-      
       for (const article of relevantArticles) {
         const exists = await checkIfArticleExists(article.url);
         if (!exists) {
           newArticles.push(article);
         } else {
-          console.log(`   ⏭️  Already exists: ${article.title.slice(0, 50)}...`);
+          console.log(`⏭️  SKIP (exists): ${article.title.substring(0, 50)}...`);
+          stats.skipped++;
         }
       }
-      
       articlesToProcess = newArticles;
       console.log(`\n🆕 ${articlesToProcess.length} new articles to process\n`);
     }
     
-    // Step 4: Limit articles
+    // Step 4: Limit
     const finalArticles = articlesToProcess.slice(0, limit);
     
     if (finalArticles.length === 0) {
-      console.log('ℹ️  No new articles to process.');
-      return { processed: 0, skipped: articlesToProcess.length };
+      console.log('ℹ️  No new articles to import');
+      return stats;
     }
     
-    // Step 5: Process each article
-    console.log('━'.repeat(70));
-    console.log(`Processing ${finalArticles.length} articles:`);
-    console.log('━'.repeat(70));
+    console.log('='.repeat(70));
+    console.log(`📝 Processing ${finalArticles.length} articles:`);
+    console.log('='.repeat(70));
     
     for (const article of finalArticles) {
-      console.log(`\n📰 ${article.title}`);
-      console.log(`   🔗 ${article.url}`);
-      if (article.series) console.log(`   📺 Series: ${article.series}`);
-      if (article.timeAgo) console.log(`   ⏰ ${article.timeAgo}`);
-    }
-    
-    if (dryRun) {
-      console.log('\n⚠️  DRY RUN - No articles will be processed.');
-      return { processed: 0, skipped: finalArticles.length, dryRun: true };
-    }
-    
-    console.log('\n' + '━'.repeat(70));
-    console.log('Starting Pipeline Processing...');
-    console.log('━'.repeat(70));
-    
-    let processed = 0;
-    let failed = 0;
-    
-    for (let i = 0; i < finalArticles.length; i++) {
-      const article = finalArticles[i];
+      console.log(`\n🔄 ${article.title}`);
+      console.log(`   ${article.url}`);
       
-      console.log(`\n[${i + 1}/${finalArticles.length}] Processing: ${article.title.slice(0, 60)}...`);
+      if (dryRun) {
+        console.log('   [DRY RUN - skipping pipeline]');
+        stats.processed++;
+        continue;
+      }
       
       try {
-        await runPipelineV2({
-          title: article.title,
-          url: article.url,
-          text: '',
-          useFullTextMode: true
-        });
-        
-        processed++;
-        console.log(`   ✅ Success!`);
-        
-        // Small delay between articles to avoid rate limiting
-        if (i < finalArticles.length - 1) {
-          console.log('   ⏳ Waiting 5 seconds before next article...');
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        
+        await runPipelineV2(article.url, { dryRun: false });
+        stats.processed++;
+        console.log('   ✅ SUCCESS');
       } catch (error: any) {
-        failed++;
-        console.log(`   ❌ Failed: ${error.message}`);
+        stats.failed++;
+        console.log(`   ❌ FAILED: ${error.message}`);
       }
+      
+      // Small delay between articles
+      await new Promise(r => setTimeout(r, 2000));
     }
     
     console.log('\n' + '='.repeat(70));
     console.log('📊 IMPORT COMPLETE');
     console.log('='.repeat(70));
-    console.log(`✅ Processed: ${processed}`);
-    console.log(`❌ Failed: ${failed}`);
-    console.log(`⏭️  Skipped (existing): ${relevantArticles.length - finalArticles.length}`);
+    console.log(`   Processed: ${stats.processed}`);
+    console.log(`   Failed: ${stats.failed}`);
+    console.log(`   Skipped: ${stats.skipped}`);
+    console.log('='.repeat(70));
     
-    return { processed, failed, skipped: relevantArticles.length - finalArticles.length };
+    return stats;
     
   } catch (error: any) {
     console.error('❌ Scraper error:', error.message);
@@ -371,41 +346,13 @@ async function processScreenrantNews(options: {
   }
 }
 
-// CLI runner
+// CLI usage
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const limit = parseInt(args.find(a => a.startsWith('--limit='))?.split('=')[1] || '5');
+  const dryRun = args.includes('--dry-run');
   
-  const limit = args.find(a => a.startsWith('--limit='))?.split('=')[1];
-  const dryRun = args.includes('--dry-run') || args.includes('-d');
-  const all = args.includes('--all') || args.includes('-a');
-  
-  if (args.includes('--help') || args.includes('-h')) {
-    console.log(`
-Screenrant TV News Importer
-
-Usage: npx tsx scripts/screenrant-scraper.ts [options]
-
-Options:
-  --limit=N     Process max N articles (default: 5)
-  --dry-run, -d Show articles but don't process them
-  --all, -a     Process all articles (ignore existing check)
-  --help, -h    Show this help
-
-Examples:
-  npx tsx scripts/screenrant-scraper.ts --dry-run
-  npx tsx scripts/screenrant-scraper.ts --limit=10
-  npx tsx scripts/screenrant-scraper.ts --limit=3 --all
-`);
-    process.exit(0);
-  }
-  
-  processScreenrantNews({
-    limit: limit ? parseInt(limit) : 5,
-    dryRun,
-    onlyNew: !all
-  })
+  processScreenrantNews({ limit, dryRun, onlyNew: true })
     .then(() => process.exit(0))
     .catch(() => process.exit(1));
 }
-
-export { processScreenrantNews, scrapeScreenrantNews };
