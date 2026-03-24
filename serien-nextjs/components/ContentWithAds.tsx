@@ -22,7 +22,7 @@ interface AdConfig {
 
 /**
  * Renders article content with ads inserted after every 2nd paragraph
- * Ad configuration loaded from database with fallback
+ * Ad configuration loaded from database
  */
 export default function ContentWithAds({ 
   html, 
@@ -30,15 +30,9 @@ export default function ContentWithAds({
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const adsInitialized = useRef(false);
-  const [adConfig, setAdConfig] = useState<AdConfig>({
-    // Default fallback values
-    adClient: 'ca-pub-8583619451045805',
-    adSlot: '9591890570',
-    width: 300,
-    height: 250,
-  });
+  const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
 
-  // Fetch ad config on mount (override defaults if found)
+  // Fetch ad config on mount
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -51,7 +45,7 @@ export default function ContentWithAds({
           }
         }
       } catch (error) {
-        console.error('Failed to load in-content ad config, using defaults');
+        console.error('Failed to load in-content ad config:', error);
       }
     };
     
@@ -59,7 +53,7 @@ export default function ContentWithAds({
   }, []);
 
   useEffect(() => {
-    if (!containerRef.current || adsInitialized.current) return;
+    if (!containerRef.current || adsInitialized.current || !adConfig) return;
     adsInitialized.current = true;
 
     const isProd = window.location.hostname !== 'localhost' && 
@@ -83,11 +77,11 @@ export default function ContentWithAds({
           return;
         }
 
-        // Create ad container with fixed 300x250 size
+        // Create ad container
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit my-6 not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        adContainer.style.cssText = 'display:flex;justify-content:center;min-height:250px;';
+        adContainer.style.cssText = 'display:flex;justify-content:center;';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
                style="display:inline-block;width:${adConfig.width}px;height:${adConfig.height}px"
