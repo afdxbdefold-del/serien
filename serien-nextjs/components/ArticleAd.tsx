@@ -60,7 +60,6 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client="ca-pub-8583619451045805"
         data-ad-slot={slot}
-        data-ad-format="auto"
       />
     </div>
   );
