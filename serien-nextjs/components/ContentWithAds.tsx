@@ -42,12 +42,13 @@ export default function ContentWithAds({
 
         // Create ad container
         const adContainer = document.createElement('div');
-        adContainer.className = 'content-ad-unit my-6 flex justify-center';
+        adContainer.className = 'content-ad-unit my-6 flex justify-center not-prose';
         adContainer.innerHTML = `
           <ins class="adsbygoogle"
-               style="display:inline-block;width:300px;height:250px"
+               style="display:block;width:300px;min-height:250px"
                data-ad-client="ca-pub-8583619451045805"
-               data-ad-slot="9591890570"></ins>
+               data-ad-slot="9591890570"
+               data-full-width-responsive="false"></ins>
         `;
 
         // Insert after paragraph
