@@ -112,6 +112,27 @@ const getHomepageData = unstable_cache(
       distinct: ['tmdbId'],
     });
 
+    // Get TMDB IDs to look up real slugs
+    const tmdbIds = trendingReleases.map(r => r.tmdbId);
+    const existingSeries = await prisma.series.findMany({
+      where: { tmdbId: { in: tmdbIds } },
+      select: { tmdbId: true, slug: true }
+    });
+    const slugMap = new Map(existingSeries.map(s => [s.tmdbId, s.slug]));
+
+    // Helper to generate slug from title
+    const generateSlug = (title: string, tmdbId: number): string => {
+      const slug = title
+        .toLowerCase()
+        .replace(/[äÄ]/g, 'ae')
+        .replace(/[öÖ]/g, 'oe')
+        .replace(/[üÜ]/g, 'ue')
+        .replace(/[ß]/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      return `${tmdbId}-${slug}`;
+    };
+
     // Map to the expected format and deduplicate by tmdbId
     // Also filter out anime by checking for common anime indicators in the name
     const animeKeywords = ['anime', 'dragon ball', 'naruto', 'one piece anime', 'attack on titan', 'demon slayer', 'jujutsu', 'my hero academia', 'bleach', 'hunter x hunter'];
@@ -129,7 +150,7 @@ const getHomepageData = unstable_cache(
       .map(r => ({
         tmdbId: r.tmdbId,
         title: r.name,
-        slug: r.tmdbId.toString(),
+        slug: slugMap.get(r.tmdbId) || generateSlug(r.name, r.tmdbId),
         networks: [r.provider],
       }));
 

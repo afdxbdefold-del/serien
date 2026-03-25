@@ -12,6 +12,7 @@ import { unstable_cache } from 'next/cache';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Star, Play, Sparkles, Clock, Filter, Tv, RefreshCw } from 'lucide-react';
+import { generateSeriesSlug } from '@/lib/slug-utils';
 
 // ISR - Revalidate every hour
 export const revalidate = 3600;
@@ -328,7 +329,7 @@ export default async function NeueSerienPage() {
                     {releases.slice(0, 12).map((release) => (
                       <Link
                         key={`${release.tmdbId}-${provider}`}
-                        href={`/serie/${release.tmdbId}`}
+                        href={`/serie/${generateSeriesSlug(release.name, release.tmdbId)}`}
                         className="group"
                       >
                         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">

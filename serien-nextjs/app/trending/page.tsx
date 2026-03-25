@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Metadata } from 'next';
 import { TrendingUp, Flame, Clock, ExternalLink, Sparkles } from 'lucide-react';
 import { unstable_cache } from 'next/cache';
+import { generateSeriesSlug } from '@/lib/slug-utils';
 
 export const revalidate = 3600; // Revalidate every hour
 
@@ -158,7 +159,7 @@ export default async function TrendingHubPage() {
               {topReleases.map((release, index) => (
                 <Link
                   key={`${release.tmdbId}-${index}`}
-                  href={`/serie/${release.tmdbId}`}
+                  href={`/serie/${generateSeriesSlug(release.name, release.tmdbId)}`}
                   className="group"
                 >
                   <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">
