@@ -210,15 +210,19 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
     // ══════════════════════════════════════════════════════════════════
     console.log('   📡 DuckDuckGo (direkte URLs)...');
     
-    // Multiple search queries for better coverage
+    // Multiple search queries for maximum coverage on trending topics
     const ddgQueries = [
       `${query} serie news`,
       `${query} staffel neuigkeiten`,
       `${query} TV series news`,
+      `${query} start datum`,
+      `${query} cast besetzung`,
+      `${query} handlung inhalt`,
+      `"${query}" 2025`, // Exact match with year
     ];
     
     for (const ddgQuery of ddgQueries) {
-      if (results.length >= 10) break;
+      if (results.length >= 20) break; // Increased limit for trends
       
       const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
       
@@ -237,7 +241,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       const $ = cheerio.load(html);
       
       $('.result, .web-result').each((i, el) => {
-        if (results.length >= 12) return;
+        if (results.length >= 25) return; // More results for trends
         
         const $el = $(el);
         const linkEl = $el.find('a.result__a, a.result__url').first();
@@ -259,6 +263,8 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
             !href.includes('facebook.com') &&
             !href.includes('twitter.com') &&
             !href.includes('instagram.com') &&
+            !href.includes('pinterest.') &&
+            !href.includes('reddit.com') &&
             !results.some(r => r.url === href)) {
           results.push({ 
             title, 
@@ -535,9 +541,9 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
     .filter(r => r.snippet && r.snippet.length > 30)
     .map(r => `[${r.source}] ${r.title}\n${r.snippet}`);
   
-  // Step 3: Scrape direct URLs in parallel batches of 3
-  for (let i = 0; i < Math.min(directUrls.length, 9); i += 3) {
-    const batch = directUrls.slice(i, i + 3);
+  // Step 3: Scrape ALL direct URLs in parallel batches of 4 (more aggressive for trends)
+  for (let i = 0; i < Math.min(directUrls.length, 20); i += 4) {
+    const batch = directUrls.slice(i, i + 4);
     
     const scraped = await Promise.all(
       batch.map(async (result) => {
@@ -547,47 +553,39 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
     );
     
     for (const { result, article } of scraped) {
-      if (article && article.wordCount >= 100) {
+      if (article && article.wordCount >= 80) { // Lower threshold for trends
         info.articles.push(article);
         info.totalWordCount += article.wordCount;
         console.log(`      ✓ ${article.source}: ${article.wordCount} Wörter`);
       }
     }
     
-    // Stop if we have enough content
-    if (info.totalWordCount >= 1500) {
+    // For trends: Don't stop early - scrape ALL available URLs
+    // Only stop if we have a LOT of content (3000+ words)
+    if (info.totalWordCount >= 3000) {
       console.log(`      ✓ Genug Content (${info.totalWordCount} Wörter)`);
       break;
     }
   }
   
-  // Step 4: If we got some articles but not much, add snippets as supplementary
-  if (info.articles.length > 0 && info.totalWordCount < 800 && allSnippets.length > 0) {
-    console.log('   📋 Ergänze mit News-Snippets...');
-    const supplementarySnippets = allSnippets.slice(0, 5).join('\n\n');
+  // Step 4: ALWAYS add snippets for trends (they contain fresh info)
+  if (allSnippets.length > 0) {
+    console.log('   📋 Kombiniere mit News-Snippets...');
+    const allSnippetsText = allSnippets.join('\n\n');
     info.articles.push({
-      title: 'News-Zusammenfassung',
-      content: supplementarySnippets,
+      title: 'Aktuelle News-Zusammenfassung',
+      content: allSnippetsText,
       url: '',
-      source: 'News Snippets',
-      wordCount: supplementarySnippets.split(/\s+/).length
+      source: 'News Aggregation',
+      wordCount: allSnippetsText.split(/\s+/).length
     });
     info.totalWordCount += info.articles[info.articles.length - 1].wordCount;
+    console.log(`      ✓ +${info.articles[info.articles.length - 1].wordCount} Wörter aus ${allSnippets.length} Snippets`);
   }
   
   // Step 5: If NO articles could be scraped, use only snippets
-  if (info.articles.length === 0 && allSnippets.length > 0) {
-    console.log('   📋 Verwende nur News-Snippets als Quelle...');
-    const combinedSnippets = allSnippets.join('\n\n');
-    info.articles.push({
-      title: searchTerm,
-      content: combinedSnippets,
-      url: searchResults[0]?.url || '',
-      source: 'News Aggregation',
-      wordCount: combinedSnippets.split(/\s+/).length
-    });
-    info.totalWordCount = info.articles[0].wordCount;
-    console.log(`      ✓ ${info.totalWordCount} Wörter aus ${allSnippets.length} Snippets`);
+  if (info.articles.length === 1 && info.articles[0].source === 'News Aggregation') {
+    console.log('   ⚠️ Nur Snippets verfügbar (keine Volltext-Quellen)');
   }
   
   // Step 3: Try to resolve TMDB series with direct API call
