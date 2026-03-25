@@ -90,6 +90,26 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
   ];
   
   // ══════════════════════════════════════════════════════════════════════════
+  // STRATEGY 0 (NEW): Extract "also known as" alternative titles
+  // e.g., "'That Night,' also known as 'Esa Noche,'" → ["That Night", "Esa Noche"]
+  // ══════════════════════════════════════════════════════════════════════════
+  const alsoKnownPatterns = [
+    /also known as ['\u2018\u2019\u201C\u201D"']([^'\u2018\u2019\u201C\u201D"']+)['\u2018\u2019\u201C\u201D"']/gi,
+    /auch bekannt als ['\u2018\u2019\u201C\u201D"']([^'\u2018\u2019\u201C\u201D"']+)['\u2018\u2019\u201C\u201D"']/gi,
+  ];
+  
+  for (const pattern of alsoKnownPatterns) {
+    const matches = articleText.matchAll(pattern);
+    for (const match of matches) {
+      const altName = match[1].trim();
+      if (altName.length >= 2 && altName.length <= 40) {
+        candidates.push(altName);
+        console.log(`   🌍 Alternative name found: "${altName}"`);
+      }
+    }
+  }
+  
+  // ══════════════════════════════════════════════════════════════════════════
   // STRATEGY 1 (HIGHEST PRIORITY): Find quoted text in ORIGINAL title
   // This is the most reliable - if a series name is in quotes, use it!
   // e.g., 'Prime Video\'s "Deadloch" Gets Perfect Score' → "Deadloch"
@@ -113,10 +133,35 @@ function extractSeriesNameFromContext(title: string, articleText: string): strin
     }
   }
   
-  // If we found quoted text in title, it's likely the correct series - return early
-  // to avoid knownSeries overriding it with a wrong match
+  // ══════════════════════════════════════════════════════════════════════════
+  // STRATEGY 1.5 (NEW): Find quoted text in first 500 chars of article
+  // e.g., "Netflix's 'That Night,' also known as 'Esa Noche,'"
+  // ══════════════════════════════════════════════════════════════════════════
+  const firstPart = articleText.substring(0, 500);
+  for (const openQuote of quoteChars) {
+    let searchStart = 0;
+    while (searchStart < firstPart.length) {
+      const startIdx = firstPart.indexOf(openQuote, searchStart);
+      if (startIdx === -1) break;
+      
+      for (const closeQuote of quoteChars) {
+        const endIdx = firstPart.indexOf(closeQuote, startIdx + 1);
+        if (endIdx === -1 || endIdx === startIdx) continue;
+        
+        const extracted = firstPart.substring(startIdx + 1, endIdx).trim();
+        
+        if (extracted.length >= 2 && extracted.length <= 40 && !extracted.includes('\n') && !candidates.includes(extracted)) {
+          candidates.push(extracted);
+          console.log(`   📝 Quoted in intro: "${extracted}"`);
+        }
+      }
+      searchStart = startIdx + 1;
+    }
+  }
+  
+  // If we found quoted text, prioritize those
   if (candidates.length > 0) {
-    console.log(`   ✅ Using quoted title candidates (skipping knownSeries fallback)`);
+    console.log(`   ✅ Using quoted/alternative candidates`);
     return candidates;
   }
   
@@ -344,20 +389,53 @@ function calculateEnhancedConfidence(
   const nameSimilarity = stringSimilarity(query, result.name);
   const originalNameSimilarity = stringSimilarity(query, result.original_name);
   
+  // EXACT MATCH BOOST - if query exactly matches name or original_name
+  const queryLower = query.toLowerCase().trim();
+  const nameLower = result.name.toLowerCase().trim();
+  const originalLower = result.original_name.toLowerCase().trim();
+  
+  let exactMatchBoost = 0;
+  if (queryLower === nameLower || queryLower === originalLower) {
+    exactMatchBoost = 0.3; // Strong boost for exact match
+  }
+  
   // Check if series name appears in article
   const contextBoost = articleContext.toLowerCase().includes(result.name.toLowerCase()) ? 0.15 : 0;
+  
+  // Check if original name (e.g., "Esa noche") appears in article
+  const originalContextBoost = articleContext.toLowerCase().includes(result.original_name.toLowerCase()) ? 0.2 : 0;
+  
+  // RECENCY BOOST - prefer series released in the last 2 years
+  let recencyBoost = 0;
+  if (result.first_air_date) {
+    const airDate = new Date(result.first_air_date);
+    const now = new Date();
+    const yearsDiff = (now.getTime() - airDate.getTime()) / (365 * 24 * 60 * 60 * 1000);
+    if (yearsDiff <= 1) {
+      recencyBoost = 0.15; // Very recent
+    } else if (yearsDiff <= 2) {
+      recencyBoost = 0.1;
+    }
+  }
+  
+  // STREAMING MENTION BOOST - if Netflix/Prime/etc mentioned and series is from that platform
+  let streamingBoost = 0;
+  const articleLower = articleContext.toLowerCase();
+  if (articleLower.includes('netflix') && result.overview?.toLowerCase().includes('netflix')) {
+    streamingBoost = 0.1;
+  }
   
   // Best string match
   let bestMatch = Math.max(nameSimilarity, originalNameSimilarity);
   
-  // Apply context boost
-  bestMatch = Math.min(bestMatch + contextBoost, 1.0);
+  // Apply all boosts (capped at 1.0)
+  bestMatch = Math.min(bestMatch + contextBoost + originalContextBoost + exactMatchBoost + recencyBoost + streamingBoost, 1.0);
   
-  // Normalize popularity
+  // Normalize popularity (reduced weight)
   const popularityScore = Math.min(Math.log10(result.popularity + 1) / 3, 1);
   
-  // Weight: 75% string match, 25% popularity (more weight on matching)
-  return bestMatch * 0.75 + popularityScore * 0.25;
+  // Weight: 80% string match + boosts, 20% popularity (less reliance on popularity)
+  return bestMatch * 0.8 + popularityScore * 0.2;
 }
 
 /**
