@@ -1,10 +1,13 @@
 import { Metadata } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Flame, TrendingUp, Sparkles, Clock, ExternalLink, Search, Newspaper } from 'lucide-react';
 import { generateSeriesSlug } from '@/lib/slug-utils';
+
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const prisma = new PrismaClient();
 
@@ -13,31 +16,30 @@ export const metadata: Metadata = {
   description: 'Entdecke die Serien, die Deutschland gerade sucht. Aktuelle Trends und News basierend auf echten Google-Suchanfragen.',
 };
 
-// Get trending data with articles
-const getTrendingData = unstable_cache(
-  async () => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+// Get trending data with articles - no caching
+async function getTrendingData() {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // Get trending topics WITH their articles
-    const trends = await prisma.trending_topics.findMany({
-      where: {
-        date: { gte: sevenDaysAgo },
-        category: 'series',
-      },
-      orderBy: { date: 'desc' },
-      take: 20,
-    });
+  // Get trending topics WITH their articles
+  const trends = await prisma.trending_topics.findMany({
+    where: {
+      date: { gte: sevenDaysAgo },
+      category: 'series',
+    },
+    orderBy: { date: 'desc' },
+    take: 20,
+  });
 
-    // Get article IDs from trends
-    const articleIds = trends
-      .filter(t => t.articleId)
-      .map(t => t.articleId as string);
+  // Get article IDs from trends
+  const articleIds = trends
+    .filter(t => t.articleId)
+    .map(t => t.articleId as string);
 
-    // Fetch full article data for trends that have articles
-    const trendArticles = articleIds.length > 0 
-      ? await prisma.articles.findMany({
-          where: { 
+  // Fetch full article data for trends that have articles
+  const trendArticles = articleIds.length > 0 
+    ? await prisma.articles.findMany({
+        where: { 
             id: { in: articleIds },
             status: { in: ['published', 'PUBLISHED'] }
           },
@@ -116,10 +118,7 @@ const getTrendingData = unstable_cache(
     }));
 
     return { trends: enrichedTrends, recentTrendingArticles, topReleases: enrichedReleases };
-  },
-  ['trending-hub-data-v2'],
-  { revalidate: 1800, tags: ['trending'] } // 30 min cache
-);
+}
 
 // Article Card Component
 function TrendArticleCard({ article }: { article: any }) {

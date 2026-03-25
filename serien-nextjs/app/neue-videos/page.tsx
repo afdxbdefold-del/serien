@@ -1,9 +1,12 @@
 import { Metadata } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Play, Youtube, Clock, ExternalLink, Tv, Film } from 'lucide-react';
+
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const prisma = new PrismaClient();
 
@@ -12,22 +15,21 @@ export const metadata: Metadata = {
   description: 'Die neuesten Trailer, Teaser und Ankündigungen von Netflix, Prime Video, Disney+ und mehr. Automatisch aktualisiert.',
 };
 
-// Get new videos data
-const getNewVideosData = unstable_cache(
-  async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+// Get new videos data - no caching, always fresh
+async function getNewVideosData() {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Get recent YouTube videos with their articles
-    const videos = await prisma.youtube_videos.findMany({
-      where: {
-        publishedAt: { gte: thirtyDaysAgo },
-      },
-      orderBy: { publishedAt: 'desc' },
-      take: 30,
-      include: {
-        channel: {
-          select: {
+  // Get recent YouTube videos with their articles
+  const videos = await prisma.youtube_videos.findMany({
+    where: {
+      publishedAt: { gte: thirtyDaysAgo },
+    },
+    orderBy: { publishedAt: 'desc' },
+    take: 30,
+    include: {
+      channel: {
+        select: {
             name: true,
             thumbnailUrl: true,
           },
@@ -85,10 +87,7 @@ const getNewVideosData = unstable_cache(
         articlesGenerated: processedVideos,
       },
     };
-  },
-  ['new-videos-data'],
-  { revalidate: 300, tags: ['new-videos'] }
-);
+}
 
 // Format date - ensure date is a Date object
 function formatDate(dateInput: Date | string): string {
