@@ -514,6 +514,9 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
     const articleId = `yt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
+    // Only set primarySeriesId if series exists in DB (foreign key constraint)
+    const seriesIdForArticle = dbSeries ? dbSeries.tmdbId : null;
+    
     const article = await prisma.articles.create({
       data: {
         id: articleId,
@@ -526,7 +529,7 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
         status: 'published',
         authorId: getRandomAuthor(),
         sourceUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
-        primarySeriesId: tmdbData?.tmdbId || null,
+        primarySeriesId: seriesIdForArticle,
         tmdbId: tmdbData?.tmdbId || null,
         heroImageUrl: video.thumbnailUrl,
         heroVideoUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
