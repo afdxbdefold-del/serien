@@ -67,14 +67,14 @@ const getNewReleasesData = unstable_cache(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Get yesterday for comparison
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Get 7 days ago for wider range
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
     // Get releases for last 7 days grouped by provider
     const releases = await prisma.streaming_releases.findMany({
       where: {
-        date: { gte: yesterday }
+        date: { gte: sevenDaysAgo }
       },
       orderBy: [
         { date: 'desc' },
@@ -92,7 +92,7 @@ const getNewReleasesData = unstable_cache(
       releasesByProvider[release.provider].push(release);
     }
     
-    // Get total counts
+    // Get today's releases count
     const todayReleases = releases.filter(r => {
       const releaseDate = new Date(r.date);
       releaseDate.setHours(0, 0, 0, 0);
