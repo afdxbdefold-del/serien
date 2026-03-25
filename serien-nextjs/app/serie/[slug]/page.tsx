@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import { generateSeriesSchema } from '@/lib/schema-generator';
@@ -33,6 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         tmdbType: true,
         networks: true,
         tmdbId: true,
+        slug: true,
       },
     });
   } else {
@@ -47,6 +48,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         tmdbType: true,
         networks: true,
         tmdbId: true,
+        slug: true,
       },
     });
     if (series) {
@@ -71,6 +73,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? series.networks[0] 
     : 'Streaming';
 
+  // Use canonical slug for URLs
+  const canonicalSlug = series.slug || slug;
+
   return {
     title: `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`,
     description: `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`,
@@ -83,13 +88,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       'max-video-preview': -1,
     },
     alternates: {
-      canonical: `/serie/${slug}`,
+      canonical: `/serie/${canonicalSlug}`,
     },
     openGraph: {
       title: `${seriesName} | serien.de`,
       description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
       type: 'website',
-      url: `/serie/${slug}`,
+      url: `/serie/${canonicalSlug}`,
       images: [
         {
           url: ogImage,
@@ -115,9 +120,10 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const possibleTmdbId = parseInt(slug.split('-')[0]);
   
   let series;
+  let shouldRedirect = false;
   
   if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
-    // Looks like a TMDB ID
+    // Looks like a TMDB ID - find series and redirect to new slug
     series = await prisma.series.findUnique({
       where: { tmdbId: possibleTmdbId },
       include: {
@@ -140,6 +146,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         }
       },
     });
+    
+    // If found and slug doesn't match, redirect to canonical URL
+    if (series && series.slug && series.slug !== slug) {
+      redirect(`/serie/${series.slug}`);
+    }
   }
   
   // If not found by TMDB ID, try by slug
