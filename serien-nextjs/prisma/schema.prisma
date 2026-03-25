@@ -70,7 +70,7 @@ model articles {
   sourceUrl                 String?                     @unique
   sourcePublishedAt         DateTime?
   contentType               String?
-  primarySeriesId           Int                         @default(119051)
+  primarySeriesId           Int?
   publishMode               String                      @default("DISCOVER")
   wasBedeutetDasText        String?
   trailerLocalUrl           String?
@@ -85,7 +85,7 @@ model articles {
   article_qa                article_qa?
   article_series            article_series[]
   users                     users                       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  series                    series                      @relation(fields: [primarySeriesId], references: [tmdbId])
+  series                    series?                     @relation(fields: [primarySeriesId], references: [tmdbId])
   comments                  comments[]
   discover_audits           discover_audits?
   discover_score_dashboards discover_score_dashboards[]
