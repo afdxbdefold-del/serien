@@ -183,6 +183,9 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // Get tmdbId from series for use in templates
+  const tmdbId = series.tmdbId;
+
   const cast = (series.cast as any[]) || [];
   const crew = (series.crew as any[]) || [];
   const trailers = (series.trailers as any[]) || [];
