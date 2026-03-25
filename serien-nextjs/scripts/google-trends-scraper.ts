@@ -44,21 +44,6 @@ const SERIES_KEYWORDS = [
   'rolle', 'charakter', 'figur', 'ausstieg', 'einstieg',
 ];
 
-// Bekannte deutsche TV-Formate
-const KNOWN_SERIES = [
-  'tatort', 'polizeiruf 110', 'alarm für cobra 11', 'soko', 'der bergdoktor',
-  'in aller freundschaft', 'sturm der liebe', 'gzsz', 'gute zeiten schlechte zeiten',
-  'unter uns', 'alles was zählt', 'rote rosen', 'verbotene liebe',
-  'das boot', 'dark', 'babylon berlin', 'how to sell drugs online',
-  'kleo', 'biohackers', 'barbaren', 'tribes of europa', '1899',
-  'stranger things', 'wednesday', 'squid game', 'the crown', 'bridgerton',
-  'house of the dragon', 'the last of us', 'the bear', 'shogun',
-  'fallout', 'rings of power', 'andor', 'mandalorian', 'ahsoka',
-  'greys anatomy', 'grey\'s anatomy', 'breaking bad', 'better call saul',
-  'game of thrones', 'the witcher', 'vikings', 'peaky blinders',
-  'money heist', 'haus des geldes', 'elite', 'lupin', 'emily in paris',
-];
-
 const EXCLUDE_KEYWORDS = [
   'fußball', 'football', 'bundesliga', 'champions league', 'dfb', 'em 2024',
   'formel 1', 'f1', 'tennis', 'basketball', 'handball', 'olympia',
@@ -68,6 +53,38 @@ const EXCLUDE_KEYWORDS = [
   'unfall', 'polizei', 'festnahme', 'mord', 'prozess',
   'rezept', 'kochen', 'backen',
 ];
+
+// Cache for DB series names
+let dbSeriesNames: string[] = [];
+let dbSeriesLoaded = false;
+
+/**
+ * Load all series names from database
+ */
+async function loadSeriesFromDB(): Promise<string[]> {
+  if (dbSeriesLoaded) return dbSeriesNames;
+  
+  try {
+    const series = await prisma.series.findMany({
+      select: { name: true, title: true },
+    });
+    
+    dbSeriesNames = series.flatMap(s => {
+      const names: string[] = [];
+      if (s.name) names.push(s.name.toLowerCase());
+      if (s.title && s.title !== s.name) names.push(s.title.toLowerCase());
+      return names;
+    }).filter(n => n.length > 3); // Skip very short names
+    
+    dbSeriesLoaded = true;
+    console.log(`   📺 ${dbSeriesNames.length} Serien aus DB geladen`);
+    
+  } catch (error) {
+    console.error('   ⚠️ Konnte Serien nicht aus DB laden');
+  }
+  
+  return dbSeriesNames;
+}
 
 /**
  * Fetch Google Trends RSS feed
@@ -139,7 +156,10 @@ async function scrapeTrendsExplore(): Promise<TrendingTopic[]> {
 /**
  * Filter trends to only include TV series related topics
  */
-function filterSeriesTrends(trends: string[]): string[] {
+async function filterSeriesTrends(trends: string[]): Promise<string[]> {
+  // Load series from DB
+  const dbSeries = await loadSeriesFromDB();
+  
   return trends.filter(trend => {
     const lower = trend.toLowerCase();
     
@@ -153,12 +173,15 @@ function filterSeriesTrends(trends: string[]): string[] {
       return true;
     }
     
-    // Include if matches known series
-    if (KNOWN_SERIES.some(series => lower.includes(series))) {
+    // Include if matches any series from DB
+    if (dbSeries.some(series => {
+      // Check if trend contains series name or vice versa
+      return lower.includes(series) || series.includes(lower);
+    })) {
       return true;
     }
     
-    // Include if looks like a show/person title (capitalized words, no numbers at start)
+    // Include if looks like a show/person title (capitalized words)
     if (/^[A-ZÄÖÜ][a-zäöüß]+ /.test(trend) && !trend.match(/^\d/)) {
       return true;
     }
@@ -213,7 +236,7 @@ async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; t
  * Enhanced filter that also checks TMDB
  */
 async function filterSeriesTrendsEnhanced(trends: string[]): Promise<string[]> {
-  const basicFiltered = filterSeriesTrends(trends);
+  const basicFiltered = await filterSeriesTrends(trends);
   const results: string[] = [...basicFiltered];
   
   // For trends that didn't pass basic filter, check TMDB
