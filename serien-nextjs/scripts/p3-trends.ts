@@ -10,6 +10,7 @@
  * - Vollautomatisch: Trend → Artikel → Veröffentlicht
  */
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as cheerio from 'cheerio';
 import { generateStructuredContent } from '../lib/structured-content-generator';
@@ -354,7 +355,7 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
     console.log(`      ✓ ${info.totalWordCount} Wörter aus ${snippetContent.length} Snippets`);
   }
   
-  // Step 3: Try to resolve TMDB series
+  // Step 3: Try to resolve TMDB series with direct API call
   console.log('   🎬 Suche TMDB Serie...');
   try {
     // Extract potential series name from search term
@@ -362,20 +363,34 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
       .replace(/staffel\s*\d+/gi, '')
       .replace(/season\s*\d+/gi, '')
       .replace(/serie/gi, '')
-      .replace(/netflix|prime|disney/gi, '')
+      .replace(/netflix|prime|disney|amazon|hbo|sky/gi, '')
       .trim();
     
     if (cleanedTerm.length > 2) {
-      const tmdbResult = await searchTvEnhanced(cleanedTerm);
-      if (tmdbResult && tmdbResult.confidence >= 0.5) {
-        info.seriesName = tmdbResult.name;
-        const details = await getTvDetailsComplete(tmdbResult.tmdbId);
-        info.tmdbData = { ...tmdbResult, ...details };
-        console.log(`      ✓ TMDB: ${info.seriesName} (ID: ${tmdbResult.tmdbId})`);
+      const apiKey = process.env.TMDB_API_KEY;
+      if (apiKey) {
+        const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanedTerm)}&language=de-DE`;
+        const response = await fetch(tmdbUrl);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+          const series = data.results[0];
+          info.seriesName = series.name;
+          info.tmdbData = {
+            tmdbId: series.id,
+            name: series.name,
+            overview: series.overview,
+            posterPath: series.poster_path,
+            backdropPath: series.backdrop_path,
+            firstAirDate: series.first_air_date,
+            voteAverage: series.vote_average,
+          };
+          console.log(`      ✓ TMDB: ${info.seriesName} (ID: ${series.id})`);
+        }
       }
     }
   } catch (error) {
-    console.log('      ⚠️ TMDB Suche fehlgeschlagen');
+    console.log('      ⚠️ TMDB Suche fehlgeschlagen:', error instanceof Error ? error.message : '');
   }
   
   console.log(`   📊 Gesamt: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter`);
@@ -615,7 +630,9 @@ export async function runP3TrendsPipeline(
         sourceUrl: uniqueSourceUrl,
         heroImageUrl: dbSeries?.backdropPath 
           ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`
-          : null,
+          : info.tmdbData?.backdropPath
+            ? `https://image.tmdb.org/t/p/w1280${info.tmdbData.backdropPath}`
+            : null,
         isTrending: true,
         publishedAt: now,
         createdAt: now,
