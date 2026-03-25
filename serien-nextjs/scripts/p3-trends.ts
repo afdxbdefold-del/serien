@@ -358,18 +358,37 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
   // Step 3: Try to resolve TMDB series with direct API call
   console.log('   🎬 Suche TMDB Serie...');
   try {
-    // Extract potential series name from search term
-    const cleanedTerm = searchTerm
-      .replace(/staffel\s*\d+/gi, '')
-      .replace(/season\s*\d+/gi, '')
-      .replace(/serie/gi, '')
-      .replace(/netflix|prime|disney|amazon|hbo|sky/gi, '')
-      .trim();
-    
-    if (cleanedTerm.length > 2) {
-      const apiKey = process.env.TMDB_API_KEY;
-      if (apiKey) {
-        const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanedTerm)}&language=de-DE`;
+    const apiKey = process.env.TMDB_API_KEY;
+    if (apiKey) {
+      // Strategy 1: Search for known series keywords in the search term
+      const seriesKeywords = ['tatort', 'polizeiruf', 'krimi', 'serie', 'show'];
+      let seriesName = '';
+      
+      for (const keyword of seriesKeywords) {
+        if (searchTerm.toLowerCase().includes(keyword)) {
+          seriesName = keyword;
+          break;
+        }
+      }
+      
+      // Strategy 2: Extract series name (remove person names, staffel numbers)
+      if (!seriesName) {
+        seriesName = searchTerm
+          .replace(/staffel\s*\d+/gi, '')
+          .replace(/season\s*\d+/gi, '')
+          .replace(/netflix|prime|disney|amazon|hbo|sky|ard|zdf/gi, '')
+          .trim();
+      }
+      
+      // Strategy 3: Try multiple searches
+      const searchTerms = [
+        seriesName,
+        searchTerm.split(' ').slice(-1)[0], // Last word (often the series name)
+        searchTerm.replace(/\s+/g, ' ').trim()
+      ].filter(t => t.length > 2);
+      
+      for (const term of searchTerms) {
+        const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(term)}&language=de-DE`;
         const response = await fetch(tmdbUrl);
         const data = await response.json();
         
@@ -386,6 +405,7 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
             voteAverage: series.vote_average,
           };
           console.log(`      ✓ TMDB: ${info.seriesName} (ID: ${series.id})`);
+          break;
         }
       }
     }
