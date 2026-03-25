@@ -273,6 +273,48 @@ export default async function TrendingHubPage() {
             </p>
           </div>
         )}
+
+        {/* Trending Search Terms Box - Above Footer */}
+        {trends.length > 0 && (
+          <section className="mt-16 mb-8">
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 rounded-2xl p-8 border border-orange-200 dark:border-orange-800/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Trending Suchbegriffe in Deutschland
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Das suchen die Deutschen gerade bei Google
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {trends.map((trend, index) => (
+                  <Link
+                    key={trend.id}
+                    href={`/suche?q=${encodeURIComponent(trend.query)}`}
+                    className="group flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 border border-gray-100 dark:border-gray-700"
+                  >
+                    <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-gradient-to-br from-orange-500 to-red-500 text-white text-xs font-bold rounded-md">
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      {trend.title}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+              
+              <p className="mt-6 text-xs text-gray-500 dark:text-gray-400 text-center">
+                Datenquelle: Google Trends Deutschland • Aktualisiert alle 8 Stunden
+              </p>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
