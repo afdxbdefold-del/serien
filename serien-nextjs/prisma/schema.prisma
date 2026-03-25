@@ -450,9 +450,11 @@ model trending_topics {
   tmdbId      Int?     // Matched TMDB series ID
   seriesSlug  String?  // Link to internal series
   articleSlugs String[] // Generated articles for this trend
+  articleId   String?  // Main article generated for this trend
   date        DateTime
   fetchedAt   DateTime @default(now())
   processed   Boolean  @default(false)
+  processedAt DateTime? // When the article was generated
 
   @@unique([query, date])
   @@index([date])
