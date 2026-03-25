@@ -678,12 +678,12 @@ export async function runP3TrendsPipeline(
     let htmlContent = markdownToHtml(markdownString);
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: ANTI-AI FILTER ==========
+    // ========== STEP 7: ANTI-AI FILTER (Check only) ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 7: ANTI-AI FILTER');
+    console.log('STEP 7: ANTI-AI CHECK');
     console.log('━'.repeat(60));
     
-    let antiAiResult = await antiAiFilter({
+    const antiAiResult = await antiAiFilter({
       articleHtml: htmlContent,
       headline: structuredContent.headline,
       seriesName: info.seriesName || searchTerm,
@@ -693,37 +693,7 @@ export async function runP3TrendsPipeline(
     console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
     
     if (antiAiResult.failReasons.length > 0) {
-      console.log(`   ❌ Probleme:`);
-      antiAiResult.failReasons.slice(0, 3).forEach(r => console.log(`      - ${r}`));
-    }
-    
-    // ========== STEP 7b: AUTO-REWRITE IF SCORE < 80 ==========
-    if (antiAiResult.antiAiScore < 80) {
-      console.log('\n' + '━'.repeat(60));
-      console.log('STEP 7b: AUTO-REWRITE (Score < 80)');
-      console.log('━'.repeat(60));
-      
-      const rewrittenMarkdown = await rewriteForHumanTone(
-        markdownString,
-        structuredContent.headline,
-        info.seriesName || searchTerm,
-        antiAiResult.failReasons
-      );
-      
-      if (rewrittenMarkdown && rewrittenMarkdown !== markdownString) {
-        markdownString = rewrittenMarkdown;
-        htmlContent = markdownToHtml(markdownString);
-        
-        // Re-check score
-        antiAiResult = await antiAiFilter({
-          articleHtml: htmlContent,
-          headline: structuredContent.headline,
-          seriesName: info.seriesName || searchTerm,
-        });
-        
-        console.log(`   📊 Neuer Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
-        console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
-      }
+      console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
     }
     
     // ========== STEP 8: SAVE ARTICLE ==========

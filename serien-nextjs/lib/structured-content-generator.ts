@@ -192,12 +192,13 @@ STRUKTUR-ANFORDERUNGEN:
    - Beantwortet: Was ist neu? Warum wichtig?
    - NICHT den ersten Absatz wiederholen
    - Eigenständig und unique
+   - MUSS einen konkreten Fakt enthalten (Datum, Name, Zahl)
 
 4. CONTENT (${targetSections} Sections mit H2-Überschriften)
    
    Jede Section:
    - H2-ÜBERSCHRIFT: Max 6 Wörter, prägnant, informativ
-   - 2-3 ABSÄTZE: Je 2-4 Sätze
+   - 2-3 ABSÄTZE: Je 2-3 Sätze (NIEMALS mehr als 3 Sätze pro Absatz!)
    - Fließender Übergang zur nächsten Section
    
    🚨 KRITISCH - NAMEN VERWENDEN:
@@ -218,10 +219,30 @@ STRUKTUR-ANFORDERUNGEN:
    - Häufige User-Fragen
    - Kurze, klare Antworten (2-3 Sätze)
 
+🚫 ANTI-AI REGELN (STRIKT BEFOLGEN):
+
+VERBOTENE WÖRTER/PHRASEN (NIEMALS verwenden):
+- "tauchen ein", "eintauchen"
+- "spannend", "aufregend", "fesselnd"
+- "Darüber hinaus", "Insgesamt", "Zusammenfassend"
+- "Es ist wichtig zu beachten", "Es bleibt abzuwarten"
+- "verspricht", "sorgt für Aufsehen", "begeistert Fans"
+- "emotional", "mitreißend", "packend"
+
+SATZANFÄNGE:
+- NIEMALS zwei aufeinanderfolgende Sätze gleich beginnen
+- Variiere: "Die", "Nach", "Mit", "Im", "Laut", "Bereits", Name + Verb
+- Statt "Die Serie zeigt... Die Fans..." → "Die Serie zeigt... Fans erwarten..."
+
+ABSÄTZE:
+- Max 3 Sätze pro Absatz
+- Erster Absatz = konkreter Fakt (Datum, Zahl, Name)
+- Kurz und direkt, keine Füllsätze
+
 STIL:
-- Professionell wie Serienjunkies
-- Faktisch, nicht spekulativ
-- Keine AI-Phrasen ("tauchen ein", "spannende Entwicklung")
+- Schreibe wie ein erfahrener Redakteur, nicht wie eine KI
+- Fakten vor Meinungen
+- Konkret vor abstrakt
 - Deutsche Anführungszeichen: „..." nicht "..."
 - 🎯 KONKRETE NAMEN VERWENDEN, NICHT GENERISCH SCHREIBEN
 
