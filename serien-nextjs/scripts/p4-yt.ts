@@ -86,85 +86,77 @@ function generateSlug(title: string): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// SERIES NEWS FILTER - Nur Serien-relevante Videos
+// SERIES NEWS FILTER - NUR echte Trailer/Teaser/Ankündigungen
 // ══════════════════════════════════════════════════════════════════════════
 function isSeriesNews(title: string, description: string): { valid: boolean; reason: string } {
   const titleLower = title.toLowerCase();
-  const descLower = (description || '').toLowerCase();
-  const combined = titleLower + ' ' + descLower;
   
-  // ❌ AUSSCHLIESSEN: Kurze Titel ohne klare Keywords (meist Shorts/Clips)
-  if (title.length < 25 && !titleLower.includes('trailer') && !titleLower.includes('teaser') && !titleLower.includes('staffel')) {
-    return { valid: false, reason: 'Zu kurzer Titel (wahrscheinlich Short)' };
+  // ✅ WHITELIST: Nur diese Muster sind erlaubt
+  
+  // Pattern 1: "Name | Trailer | Netflix" oder "Name | Teaser | Streamer"
+  const trailerPattern = /\|\s*(offiziell(er|e)?|official)?\s*(trailer|teaser)/i;
+  
+  // Pattern 2: "Name | Ankündigung | Netflix" oder "Name | Announcement"
+  const announcementPattern = /\|\s*(offizielle?\s*)?(ankündigung|announcement)/i;
+  
+  // Pattern 3: "Name: Staffel X | ..." oder "Name Season X | ..."
+  const seasonPattern = /(staffel|season)\s*\d/i;
+  
+  // Pattern 4: "Name | Sneak Peek | ..."
+  const sneakPeekPattern = /\|\s*sneak\s*peek/i;
+  
+  // Pattern 5: "Name — Official Teaser/Trailer"
+  const dashPattern = /—\s*(official\s*)?(trailer|teaser)/i;
+  
+  // Pattern 6: "Jetzt streamen" oder "Jetzt auf Disney+" (Neustart-Ankündigungen)
+  const streamingStartPattern = /jetzt\s+(streamen|auf\s+(disney|netflix|prime|apple))/i;
+  
+  // Pattern 7: "Neu auf/bei Netflix/Disney+" etc.
+  const newOnPattern = /neu\s+(auf|bei|&\s*exklusiv)/i;
+  
+  // Prüfe ob MINDESTENS ein Whitelist-Pattern matched
+  const isTrailer = trailerPattern.test(title);
+  const isAnnouncement = announcementPattern.test(title);
+  const hasSeason = seasonPattern.test(title);
+  const isSneakPeek = sneakPeekPattern.test(title);
+  const isDashFormat = dashPattern.test(title);
+  const isStreamingStart = streamingStartPattern.test(title);
+  const isNewOn = newOnPattern.test(title);
+  
+  // Kombiniere: Muss Trailer/Teaser/Ankündigung ODER Staffel-Bezug haben
+  const isValid = isTrailer || isAnnouncement || isSneakPeek || isDashFormat || 
+                  (hasSeason && (title.includes('|') || title.includes('—'))) ||
+                  isStreamingStart || isNewOn;
+  
+  if (!isValid) {
+    return { valid: false, reason: 'Kein Trailer/Teaser/Ankündigung-Format' };
   }
   
-  // ❌ AUSSCHLIESSEN: Emojis ohne Keywords (meist Shorts)
-  const emojiHeavy = (title.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length >= 2;
-  if (emojiHeavy && !titleLower.includes('trailer') && !titleLower.includes('staffel')) {
-    return { valid: false, reason: 'Emoji-lastig (wahrscheinlich Short)' };
-  }
-  
-  // ❌ AUSSCHLIESSEN: Filme (nicht Serien)
-  const moviePatterns = [
-    /\b(der film|the movie|kinofilm|im kino)\b/i,
-    /\bfilm\b.*\btrailer\b/i,
-    /\bkinostart\b/i,
-  ];
-  for (const pattern of moviePatterns) {
-    if (pattern.test(combined)) {
-      return { valid: false, reason: 'Film, keine Serie' };
-    }
-  }
-  
-  // ❌ AUSSCHLIESSEN: Shorts/Clips/Behind-the-Scenes
+  // ❌ BLACKLIST: Trotzdem ausschließen
   const excludePatterns = [
-    /^#\w+/,                                // Hashtag-Titel (Shorts)
-    /würfel|skills|pov:|challenge/i,        // Random Clips
-    /behind the scenes|making of|bts(?!:)/i, // BTS (aber nicht "BTS: THE RETURN")
-    /interview|q&a|react|reacts/i,          // Interviews
-    /best of|compilation|recap|zusammenfassung/i, // Compilations
-    /podcast|episode \d+ preview/i,         // Podcasts
-    /live\s*(stream|event|concert)/i,       // Live Events
-    /music video|soundtrack|ost|lyric/i,    // Musik
-    /unboxing|review(?!s)|ranking|top \d+/i, // Reviews (aber "reviews" ok)
-    /bloopers|gag reel|outtakes/i,          // Bloopers
-    /live\s*on\s*netflix/i,                 // Live Events
-    /community\s*post/i,                    // Community posts
+    /podcast/i,
+    /episode\s*\d+\s*preview/i,
+    /live\s*(stream|event|concert|on\s*netflix)/i,
+    /behind the scenes|making of/i,
+    /best of|compilation|recap|zusammenfassung/i,
+    /interview|q&a/i,
+    /bloopers|gag reel|outtakes/i,
+    /community\s*(post|video)/i,
+    /soundtrack|ost|lyric|music\s*video/i,
   ];
   
   for (const pattern of excludePatterns) {
     if (pattern.test(titleLower)) {
-      return { valid: false, reason: `Ausgeschlossen: ${pattern.toString()}` };
+      return { valid: false, reason: `Blacklist: ${pattern.toString()}` };
     }
   }
   
-  // ✅ MUSS EINES DIESER KEYWORDS HABEN (streng)
-  const requiredKeywords = [
-    // Trailer/Ankündigungen (primär)
-    'trailer', 'teaser', 'ankündigung', 'announcement',
-    'sneak peek', 'first look', 'offiziell',
-    // Staffel-bezogen
-    'staffel', 'season',
-    // Start-Termine  
-    'start', 'startet', 'neu auf', 'neu bei', 'jetzt streamen',
-    'ab heute', 'jetzt auf', 'coming',
-    // Serien-spezifisch
-    'serie', 'series',
-  ];
-  
-  const hasRequiredKeyword = requiredKeywords.some(k => combined.includes(k));
-  
-  // Oder: Typisches Trailer-Format "Name | Trailer | Netflix"
-  const trailerFormat = /^.+\s*\|\s*(offizieller?\s*)?(trailer|teaser|ankündigung)/i.test(title);
-  
-  // Oder: Typisches Ankündigungs-Format "Name: Staffel X"
-  const seasonFormat = /staffel\s*\d|season\s*\d/i.test(title);
-  
-  if (!hasRequiredKeyword && !trailerFormat && !seasonFormat) {
-    return { valid: false, reason: 'Keine Serien-News Keywords' };
+  // ❌ Filme ausschließen
+  if (/\b(der film|the movie|kinofilm|im kino)\b/i.test(titleLower)) {
+    return { valid: false, reason: 'Film, keine Serie' };
   }
   
-  return { valid: true, reason: 'Serien-News' };
+  return { valid: true, reason: 'Serien-Trailer/Ankündigung' };
 }
 
 // ══════════════════════════════════════════════════════════════════════════
