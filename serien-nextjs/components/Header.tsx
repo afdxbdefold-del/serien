@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, X, Menu, Loader2, ChevronDown, Tv, Users, PenLine, Compass, Play } from 'lucide-react';
+import { Search, X, Menu, Loader2, ChevronDown, Tv, Users, PenLine, Compass, Play, Flame } from 'lucide-react';
 import Logo from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -31,6 +31,7 @@ const STREAMING_PROVIDERS = [
 
 // More menu items
 const MORE_ITEMS = [
+  { name: 'Trending', href: '/trending', icon: Flame, description: 'Was Deutschland gerade schaut' },
   { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
   { name: 'Personen', href: '/personen', icon: Users, description: 'Schauspieler & Crew' },
   { name: 'Figuren', href: '/figuren', icon: Tv, description: 'Beliebte Seriencharaktere' },

@@ -440,3 +440,22 @@ model analytics_sessions {
   @@index([isActive])
   @@index([visitorId])
 }
+
+model trending_topics {
+  id          String   @id @default(cuid())
+  query       String   // Original search query
+  title       String   // Display title
+  category    String   // series, film, other
+  growth      String?  // +650%, Ausreißer, etc.
+  tmdbId      Int?     // Matched TMDB series ID
+  seriesSlug  String?  // Link to internal series
+  articleSlugs String[] // Generated articles for this trend
+  date        DateTime
+  fetchedAt   DateTime @default(now())
+  processed   Boolean  @default(false)
+
+  @@unique([query, date])
+  @@index([date])
+  @@index([category])
+  @@index([processed])
+}
