@@ -120,17 +120,17 @@ const getHomepageData = unstable_cache(
     });
     const slugMap = new Map(existingSeries.map(s => [s.tmdbId, s.slug]));
 
-    // Helper to generate slug from title
-    const generateSlug = (title: string, tmdbId: number): string => {
-      const slug = title
+    // Helper to generate slug from title (without ID)
+    const generateSlug = (title: string): string => {
+      return title
         .toLowerCase()
         .replace(/[äÄ]/g, 'ae')
         .replace(/[öÖ]/g, 'oe')
         .replace(/[üÜ]/g, 'ue')
         .replace(/[ß]/g, 'ss')
         .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-      return `${tmdbId}-${slug}`;
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 60);
     };
 
     // Map to the expected format and deduplicate by tmdbId
@@ -150,7 +150,7 @@ const getHomepageData = unstable_cache(
       .map(r => ({
         tmdbId: r.tmdbId,
         title: r.name,
-        slug: slugMap.get(r.tmdbId) || generateSlug(r.name, r.tmdbId),
+        slug: slugMap.get(r.tmdbId) || generateSlug(r.name),
         networks: [r.provider],
       }));
 

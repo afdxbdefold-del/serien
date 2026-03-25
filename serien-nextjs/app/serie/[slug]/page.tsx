@@ -13,31 +13,54 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const tmdbId = parseInt(slug.split('-')[0]);
   
-  if (isNaN(tmdbId)) {
-    return {
-      title: 'Serie nicht gefunden | serien.de',
-    };
+  // Try to parse as TMDB ID first (legacy URLs like "259819-serienname")
+  const possibleTmdbId = parseInt(slug.split('-')[0]);
+  
+  let series;
+  let tmdbId: number;
+  
+  if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
+    // Looks like a TMDB ID
+    tmdbId = possibleTmdbId;
+    series = await prisma.series.findUnique({
+      where: { tmdbId },
+      select: {
+        name: true,
+        title: true,
+        overview: true,
+        backdropPath: true,
+        tmdbType: true,
+        networks: true,
+        tmdbId: true,
+      },
+    });
+  } else {
+    // Search by slug
+    series = await prisma.series.findFirst({
+      where: { slug },
+      select: {
+        name: true,
+        title: true,
+        overview: true,
+        backdropPath: true,
+        tmdbType: true,
+        networks: true,
+        tmdbId: true,
+      },
+    });
+    if (series) {
+      tmdbId = series.tmdbId;
+    }
   }
-
-  const series = await prisma.series.findUnique({
-    where: { tmdbId },
-    select: {
-      name: true,
-      title: true,
-      overview: true,
-      backdropPath: true,
-      tmdbType: true,
-      networks: true,
-    },
-  });
-
+  
   if (!series) {
     return {
       title: 'Serie nicht gefunden | serien.de',
     };
   }
+  
+  tmdbId = series.tmdbId;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   const seriesName = series.name || series.title;
@@ -88,37 +111,62 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function SeriesDetailPage({ params }: PageProps) {
   const { slug } = await params;
   
-  // Extract TMDB ID from slug (format: "123456-series-name")
-  const tmdbId = parseInt(slug.split('-')[0]);
+  // Try to parse as TMDB ID first (legacy URLs like "259819-serienname")
+  const possibleTmdbId = parseInt(slug.split('-')[0]);
   
-  if (isNaN(tmdbId)) {
-    notFound();
-  }
-
-  // Fetch series with all details
-  const series = await prisma.series.findUnique({
-    where: { tmdbId },
-    include: {
-      articles: {
-        where: { status: 'published' },
-        orderBy: { publishedAt: 'desc' },
-        take: 10,
-        select: {
-          slug: true,
-          title: true,
-          excerpt: true,
-          publishedAt: true,
-          heroLocalUrl: true,
-          cardImageUrl: true,
-          authorId: true,
-          users: {
-            select: { name: true, image: true }
+  let series;
+  
+  if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
+    // Looks like a TMDB ID
+    series = await prisma.series.findUnique({
+      where: { tmdbId: possibleTmdbId },
+      include: {
+        articles: {
+          where: { status: 'published' },
+          orderBy: { publishedAt: 'desc' },
+          take: 10,
+          select: {
+            slug: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            heroLocalUrl: true,
+            cardImageUrl: true,
+            authorId: true,
+            users: {
+              select: { name: true, image: true }
+            }
           }
         }
-      }
-    },
-    // Select all series fields including extendedOverview
-  });
+      },
+    });
+  }
+  
+  // If not found by TMDB ID, try by slug
+  if (!series) {
+    series = await prisma.series.findFirst({
+      where: { slug },
+      include: {
+        articles: {
+          where: { status: 'published' },
+          orderBy: { publishedAt: 'desc' },
+          take: 10,
+          select: {
+            slug: true,
+            title: true,
+            excerpt: true,
+            publishedAt: true,
+            heroLocalUrl: true,
+            cardImageUrl: true,
+            authorId: true,
+            users: {
+              select: { name: true, image: true }
+            }
+          }
+        }
+      },
+    });
+  }
 
   if (!series) {
     notFound();
