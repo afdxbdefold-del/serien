@@ -98,7 +98,11 @@ const getHomepageData = unstable_cache(
     
     const trendingReleases = await prisma.streaming_releases.findMany({
       where: {
-        date: { gte: sevenDaysAgo }
+        date: { gte: sevenDaysAgo },
+        // Exclude anime providers
+        NOT: {
+          provider: { in: ['Crunchyroll', 'Anime on Demand', 'Wakanim'] }
+        }
       },
       orderBy: [
         { voteAverage: 'desc' },
@@ -109,10 +113,15 @@ const getHomepageData = unstable_cache(
     });
 
     // Map to the expected format and deduplicate by tmdbId
+    // Also filter out anime by checking for common anime indicators in the name
+    const animeKeywords = ['anime', 'dragon ball', 'naruto', 'one piece anime', 'attack on titan', 'demon slayer', 'jujutsu', 'my hero academia', 'bleach', 'hunter x hunter'];
     const seen = new Set<number>();
     const streamingSeries = trendingReleases
       .filter(r => {
         if (seen.has(r.tmdbId)) return false;
+        // Filter out anime by name
+        const nameLower = r.name.toLowerCase();
+        if (animeKeywords.some(kw => nameLower.includes(kw))) return false;
         seen.add(r.tmdbId);
         return true;
       })
