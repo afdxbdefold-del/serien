@@ -3,6 +3,7 @@
  * Fetches trending TV-related searches in Germany
  */
 
+import 'dotenv/config';
 import * as cheerio from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 
@@ -24,14 +25,48 @@ const TRENDS_URLS = [
 
 // Keywords to identify TV series content
 const SERIES_KEYWORDS = [
-  'serie', 'series', 'staffel', 'season', 'folge', 'episode',
-  'netflix', 'prime', 'disney+', 'amazon', 'streaming',
-  'fernsehserie', 'tv-serie', 'show'
+  // Allgemein
+  'serie', 'series', 'staffel', 'season', 'folge', 'episode', 'finale',
+  'fernsehserie', 'tv-serie', 'tv serie', 'show', 'sendung',
+  // Streaming
+  'netflix', 'prime', 'prime video', 'disney+', 'disney plus', 'amazon',
+  'streaming', 'stream', 'hbo', 'sky', 'paramount', 'apple tv', 'wow',
+  'ard', 'zdf', 'mediathek', 'rtl+', 'joyn', 'magenta',
+  // Bekannte Serien-Formate
+  'tatort', 'polizeiruf', 'krimi', 'soap', 'daily', 'sitcom',
+  'reality', 'doku-soap', 'castingshow', 'talkshow',
+  // Serien-spezifisch
+  'darsteller', 'besetzung', 'cast', 'schauspieler', 'hauptrolle',
+  'dreharbeiten', 'dreh', 'fortsetzung', 'spin-off', 'spinoff',
+  'prequel', 'sequel', 'reboot', 'remake', 'neuauflage',
+  'abgesetzt', 'cancelled', 'verlängert', 'renewed',
+  // Akteure (häufig in Serien-Kontext)
+  'rolle', 'charakter', 'figur', 'ausstieg', 'einstieg',
+];
+
+// Bekannte deutsche TV-Formate
+const KNOWN_SERIES = [
+  'tatort', 'polizeiruf 110', 'alarm für cobra 11', 'soko', 'der bergdoktor',
+  'in aller freundschaft', 'sturm der liebe', 'gzsz', 'gute zeiten schlechte zeiten',
+  'unter uns', 'alles was zählt', 'rote rosen', 'verbotene liebe',
+  'das boot', 'dark', 'babylon berlin', 'how to sell drugs online',
+  'kleo', 'biohackers', 'barbaren', 'tribes of europa', '1899',
+  'stranger things', 'wednesday', 'squid game', 'the crown', 'bridgerton',
+  'house of the dragon', 'the last of us', 'the bear', 'shogun',
+  'fallout', 'rings of power', 'andor', 'mandalorian', 'ahsoka',
+  'greys anatomy', 'grey\'s anatomy', 'breaking bad', 'better call saul',
+  'game of thrones', 'the witcher', 'vikings', 'peaky blinders',
+  'money heist', 'haus des geldes', 'elite', 'lupin', 'emily in paris',
 ];
 
 const EXCLUDE_KEYWORDS = [
-  'fußball', 'football', 'bundesliga', 'champions league',
-  'wetter', 'politik', 'aktie', 'börse', 'news'
+  'fußball', 'football', 'bundesliga', 'champions league', 'dfb', 'em 2024',
+  'formel 1', 'f1', 'tennis', 'basketball', 'handball', 'olympia',
+  'wetter', 'unwetter', 'sturm',
+  'politik', 'bundestag', 'regierung', 'minister', 'partei', 'wahl',
+  'aktie', 'börse', 'dax', 'bitcoin', 'krypto',
+  'unfall', 'polizei', 'festnahme', 'mord', 'prozess',
+  'rezept', 'kochen', 'backen',
 ];
 
 /**
@@ -118,13 +153,81 @@ function filterSeriesTrends(trends: string[]): string[] {
       return true;
     }
     
-    // Include if looks like a show title (capitalized words, no numbers at start)
+    // Include if matches known series
+    if (KNOWN_SERIES.some(series => lower.includes(series))) {
+      return true;
+    }
+    
+    // Include if looks like a show/person title (capitalized words, no numbers at start)
     if (/^[A-ZÄÖÜ][a-zäöüß]+ /.test(trend) && !trend.match(/^\d/)) {
       return true;
     }
     
     return false;
   });
+}
+
+/**
+ * Check if a trend is related to TV via TMDB search
+ */
+async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; tmdbId?: number; name?: string }> {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) return { isSeries: false };
+  
+  // Skip very short or generic terms
+  if (trend.length < 4 || ['teams', 'news', 'live', 'app', 'video'].includes(trend.toLowerCase())) {
+    return { isSeries: false };
+  }
+  
+  try {
+    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(trend)}&language=de-DE`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      const series = data.results[0];
+      const trendLower = trend.toLowerCase();
+      const seriesLower = series.name.toLowerCase();
+      
+      // Check for strong match: series name starts with trend or vice versa
+      const isStrongMatch = seriesLower.startsWith(trendLower) || 
+                            trendLower.startsWith(seriesLower) ||
+                            seriesLower.includes(trendLower) && trendLower.length > 5;
+      
+      // Also accept if series is very popular and trend matches first word
+      const firstWord = seriesLower.split(' ')[0];
+      const isPopularMatch = series.vote_count > 500 && trendLower.includes(firstWord) && firstWord.length > 3;
+      
+      if (isStrongMatch || isPopularMatch) {
+        return { isSeries: true, tmdbId: series.id, name: series.name };
+      }
+    }
+  } catch (error) {
+    // Ignore errors
+  }
+  
+  return { isSeries: false };
+}
+
+/**
+ * Enhanced filter that also checks TMDB
+ */
+async function filterSeriesTrendsEnhanced(trends: string[]): Promise<string[]> {
+  const basicFiltered = filterSeriesTrends(trends);
+  const results: string[] = [...basicFiltered];
+  
+  // For trends that didn't pass basic filter, check TMDB
+  const unchecked = trends.filter(t => !basicFiltered.includes(t));
+  
+  for (const trend of unchecked.slice(0, 10)) { // Limit API calls
+    const tmdbCheck = await checkTMDBForSeries(trend);
+    if (tmdbCheck.isSeries) {
+      console.log(`   ✓ TMDB match: "${trend}" → ${tmdbCheck.name}`);
+      results.push(trend);
+    }
+  }
+  
+  return results;
 }
 
 /**
@@ -216,8 +319,8 @@ export async function fetchGoogleTrends(): Promise<{
   const rssTrends = await fetchTrendsRSS();
   console.log(`   Found ${rssTrends.length} trends from RSS`);
   
-  // Filter for series-related
-  const seriesTrends = filterSeriesTrends(rssTrends);
+  // Filter for series-related (basic + TMDB check)
+  const seriesTrends = await filterSeriesTrendsEnhanced(rssTrends);
   console.log(`   ${seriesTrends.length} are series-related`);
   
   // Find news for each trend
@@ -232,7 +335,7 @@ export async function fetchGoogleTrends(): Promise<{
     }
     
     // Rate limiting
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 500));
   }
   
   // Save to DB
