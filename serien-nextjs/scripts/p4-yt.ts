@@ -99,8 +99,8 @@ function isSeriesNews(title: string, description: string): { valid: boolean; rea
   // Pattern 2: "Name | Ankündigung | Netflix" oder "Name | Announcement"
   const announcementPattern = /\|\s*(offizielle?\s*)?(ankündigung|announcement)/i;
   
-  // Pattern 3: "Name: Staffel X | ..." oder "Name Season X | ..."
-  const seasonPattern = /(staffel|season)\s*\d/i;
+  // Pattern 3: "Name: Staffel X | Trailer/Teaser" (Staffel NUR mit Trailer/Teaser)
+  const seasonWithTrailerPattern = /(staffel|season)\s*\d.*\|\s*(offiziell)?\s*(trailer|teaser|ankündigung)/i;
   
   // Pattern 4: "Name | Sneak Peek | ..."
   const sneakPeekPattern = /\|\s*sneak\s*peek/i;
@@ -108,25 +108,23 @@ function isSeriesNews(title: string, description: string): { valid: boolean; rea
   // Pattern 5: "Name — Official Teaser/Trailer"
   const dashPattern = /—\s*(official\s*)?(trailer|teaser)/i;
   
-  // Pattern 6: "Jetzt streamen" oder "Jetzt auf Disney+" (Neustart-Ankündigungen)
-  const streamingStartPattern = /jetzt\s+(streamen|auf\s+(disney|netflix|prime|apple))/i;
+  // Pattern 6: "Jetzt streamen" mit Pipe-Format (Neustart-Ankündigungen)
+  const streamingStartPattern = /\|\s*jetzt\s+(streamen|auf)/i;
   
-  // Pattern 7: "Neu auf/bei Netflix/Disney+" etc.
-  const newOnPattern = /neu\s+(auf|bei|&\s*exklusiv)/i;
+  // Pattern 7: "Neu & exklusiv auf" (echte Neuankündigungen)
+  const newExclusivePattern = /neu\s*&?\s*exklusiv\s+(auf|bei)/i;
   
   // Prüfe ob MINDESTENS ein Whitelist-Pattern matched
   const isTrailer = trailerPattern.test(title);
   const isAnnouncement = announcementPattern.test(title);
-  const hasSeason = seasonPattern.test(title);
+  const isSeasonTrailer = seasonWithTrailerPattern.test(title);
   const isSneakPeek = sneakPeekPattern.test(title);
   const isDashFormat = dashPattern.test(title);
   const isStreamingStart = streamingStartPattern.test(title);
-  const isNewOn = newOnPattern.test(title);
+  const isNewExclusive = newExclusivePattern.test(title);
   
-  // Kombiniere: Muss Trailer/Teaser/Ankündigung ODER Staffel-Bezug haben
-  const isValid = isTrailer || isAnnouncement || isSneakPeek || isDashFormat || 
-                  (hasSeason && (title.includes('|') || title.includes('—'))) ||
-                  isStreamingStart || isNewOn;
+  const isValid = isTrailer || isAnnouncement || isSeasonTrailer || 
+                  isSneakPeek || isDashFormat || isStreamingStart || isNewExclusive;
   
   if (!isValid) {
     return { valid: false, reason: 'Kein Trailer/Teaser/Ankündigung-Format' };
@@ -143,6 +141,8 @@ function isSeriesNews(title: string, description: string): { valid: boolean; rea
     /bloopers|gag reel|outtakes/i,
     /community\s*(post|video)/i,
     /soundtrack|ost|lyric|music\s*video/i,
+    /krassesten|lustigsten|besten\s+momente/i,  // "Die krassesten Lacher"
+    /anniversary|jubiläum/i,  // Jubiläums-Specials
   ];
   
   for (const pattern of excludePatterns) {
