@@ -90,8 +90,14 @@ const getNewVideosData = unstable_cache(
   { revalidate: 300, tags: ['new-videos'] }
 );
 
-// Format date
-function formatDate(date: Date): string {
+// Format date - ensure date is a Date object
+function formatDate(dateInput: Date | string): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  
+  if (isNaN(date.getTime())) {
+    return 'Unbekannt';
+  }
+  
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));

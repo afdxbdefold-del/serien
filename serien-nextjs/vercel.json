@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/trends?secret=serien-trends-process-2024",
       "schedule": "0 9,13,18,22 * * *"
+    },
+    {
+      "path": "/api/cron/youtube?secret=serien-youtube-pipeline-2024",
+      "schedule": "0 8,11,14,17,20,23 * * *"
     }
   ]
 }
