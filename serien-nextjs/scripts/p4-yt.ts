@@ -96,8 +96,8 @@ function isSeriesNews(title: string, description: string): { valid: boolean; rea
   // Pattern 1: "Name | Trailer | Netflix" oder "Name | Teaser | Streamer"
   const trailerPattern = /\|\s*(offiziell(er|e)?|official)?\s*(trailer|teaser)/i;
   
-  // Pattern 2: "Name | Ankündigung | Netflix" oder "Name | Announcement"
-  const announcementPattern = /\|\s*(offizielle?\s*)?(ankündigung|announcement)/i;
+  // Pattern 2: "Name | Ankündigung | Netflix" oder "Name | Official Announcement"
+  const announcementPattern = /\|\s*(offizielle?|official)?\s*(ankündigung|announcement)/i;
   
   // Pattern 3: "Name: Staffel X | Trailer/Teaser" (Staffel NUR mit Trailer/Teaser)
   const seasonWithTrailerPattern = /(staffel|season)\s*\d.*\|\s*(offiziell)?\s*(trailer|teaser|ankündigung)/i;
