@@ -103,6 +103,77 @@ function getRandomAuthor(): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// LLM REWRITE FOR HUMAN TONE
+// ══════════════════════════════════════════════════════════════════════════
+async function rewriteForHumanTone(
+  markdown: string,
+  headline: string,
+  seriesName: string,
+  problems: string[]
+): Promise<string | null> {
+  console.log('   🔄 Rewrite für menschlicheren Ton...');
+  
+  const problemList = problems.slice(0, 5).join('\n- ');
+  
+  const systemPrompt = `Du bist ein erfahrener deutscher TV-Redakteur. Deine Aufgabe ist es, KI-generierte Texte menschlicher zu machen.
+
+REGELN:
+1. Variiere Satzanfänge - nie zwei gleiche hintereinander
+2. Maximal 3 Sätze pro Absatz
+3. Erster Absatz MUSS einen konkreten Fakt enthalten (Datum, Name, Zahl)
+4. Keine Füllwörter: "Es ist wichtig", "Insgesamt", "Darüber hinaus"
+5. Direkt und knapp schreiben
+6. Behalte alle Links [Text](URL) exakt bei
+7. Behalte die Markdown-Struktur (## Überschriften)
+
+VERMEIDE:
+- Generische Einleitungen
+- "spannend", "aufregend", "interessant"
+- Wiederholungen des Seriennamens (max 2x pro Absatz)`;
+
+  const userPrompt = `HEADLINE: ${headline}
+SERIE: ${seriesName}
+
+PROBLEME IM TEXT:
+- ${problemList}
+
+ORIGINALER MARKDOWN:
+${markdown.substring(0, 3000)}
+
+Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Markdown:`;
+
+  try {
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({
+      apiKey: process.env.EMERGENT_LLM_KEY,
+      baseURL: 'http://localhost:8002/v1',
+    });
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    const rewritten = response.choices?.[0]?.message?.content;
+    
+    if (rewritten && rewritten.length > 500) {
+      console.log('   ✅ Rewrite erfolgreich');
+      return rewritten;
+    }
+    
+    return null;
+  } catch (error) {
+    console.log('   ⚠️ Rewrite fehlgeschlagen:', error instanceof Error ? error.message : '');
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // SLUG GENERATOR
 // ══════════════════════════════════════════════════════════════════════════
 function generateSlug(title: string): string {
@@ -600,11 +671,11 @@ export async function runP3TrendsPipeline(
     console.log('━'.repeat(60));
     
     // Ensure processedMarkdown is a string
-    const markdownString = typeof processedMarkdown === 'string' 
+    let markdownString = typeof processedMarkdown === 'string' 
       ? processedMarkdown 
       : (structuredContent.markdown || '');
     
-    const htmlContent = markdownToHtml(markdownString);
+    let htmlContent = markdownToHtml(markdownString);
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
     // ========== STEP 7: ANTI-AI FILTER ==========
@@ -612,7 +683,7 @@ export async function runP3TrendsPipeline(
     console.log('STEP 7: ANTI-AI FILTER');
     console.log('━'.repeat(60));
     
-    const antiAiResult = await antiAiFilter({
+    let antiAiResult = await antiAiFilter({
       articleHtml: htmlContent,
       headline: structuredContent.headline,
       seriesName: info.seriesName || searchTerm,
@@ -623,11 +694,36 @@ export async function runP3TrendsPipeline(
     
     if (antiAiResult.failReasons.length > 0) {
       console.log(`   ❌ Probleme:`);
-      antiAiResult.failReasons.forEach(r => console.log(`      - ${r}`));
+      antiAiResult.failReasons.slice(0, 3).forEach(r => console.log(`      - ${r}`));
     }
     
-    if (antiAiResult.details.hardBlocklist.found.length > 0) {
-      console.log(`   🚫 Blocklist-Treffer: ${antiAiResult.details.hardBlocklist.found.join(', ')}`);
+    // ========== STEP 7b: AUTO-REWRITE IF SCORE < 80 ==========
+    if (antiAiResult.antiAiScore < 80) {
+      console.log('\n' + '━'.repeat(60));
+      console.log('STEP 7b: AUTO-REWRITE (Score < 80)');
+      console.log('━'.repeat(60));
+      
+      const rewrittenMarkdown = await rewriteForHumanTone(
+        markdownString,
+        structuredContent.headline,
+        info.seriesName || searchTerm,
+        antiAiResult.failReasons
+      );
+      
+      if (rewrittenMarkdown && rewrittenMarkdown !== markdownString) {
+        markdownString = rewrittenMarkdown;
+        htmlContent = markdownToHtml(markdownString);
+        
+        // Re-check score
+        antiAiResult = await antiAiFilter({
+          articleHtml: htmlContent,
+          headline: structuredContent.headline,
+          seriesName: info.seriesName || searchTerm,
+        });
+        
+        console.log(`   📊 Neuer Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
+        console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
+      }
     }
     
     // ========== STEP 8: SAVE ARTICLE ==========
