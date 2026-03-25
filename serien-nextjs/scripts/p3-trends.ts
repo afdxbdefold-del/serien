@@ -22,7 +22,6 @@ import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
 import { getTvDetailsComplete } from '../lib/tmdb';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
-import { generateInternalLinks } from '../lib/internal-linking-engine';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
@@ -30,64 +29,32 @@ import { antiAiFilter } from '../lib/anti-ai-filter';
 const prisma = new PrismaClient();
 
 // ══════════════════════════════════════════════════════════════════════════
-// NEWS SOURCES - Bekannte Serien-News-Seiten
+// JINA AI READER - Universal Web Scraper
 // ══════════════════════════════════════════════════════════════════════════
-const NEWS_SOURCES = [
-  { 
-    domain: 'screenrant.com',
-    name: 'Screen Rant',
-    selectors: {
-      title: 'h1',
-      content: '.article-body p, .content-block p',
-      date: 'time'
-    }
-  },
-  { 
-    domain: 'collider.com',
-    name: 'Collider',
-    selectors: {
-      title: 'h1',
-      content: '.article-body p, .content p',
-      date: 'time'
-    }
-  },
-  { 
-    domain: 'tvline.com',
-    name: 'TVLine',
-    selectors: {
-      title: 'h1',
-      content: '.entry-content p, article p',
-      date: 'time'
-    }
-  },
-  {
-    domain: 'deadline.com',
-    name: 'Deadline',
-    selectors: {
-      title: 'h1',
-      content: '.entry-content p, .post-content p',
-      date: 'time'
-    }
-  },
-  {
-    domain: 'variety.com',
-    name: 'Variety',
-    selectors: {
-      title: 'h1',
-      content: '.c-content p, article p',
-      date: 'time'
-    }
-  },
-  {
-    domain: 'ew.com',
-    name: 'Entertainment Weekly',
-    selectors: {
-      title: 'h1',
-      content: '.article-body-content p, .content p',
-      date: 'time'
-    }
-  }
-];
+const JINA_READER_URL = 'https://r.jina.ai/';
+
+// Known sources for better logging (optional)
+const KNOWN_SOURCES: Record<string, string> = {
+  'screenrant.com': 'Screen Rant',
+  'collider.com': 'Collider',
+  'tvline.com': 'TVLine',
+  'deadline.com': 'Deadline',
+  'variety.com': 'Variety',
+  'ew.com': 'Entertainment Weekly',
+  'hollywoodreporter.com': 'Hollywood Reporter',
+  'ign.com': 'IGN',
+  'cbr.com': 'CBR',
+  'gamesradar.com': 'GamesRadar',
+  'digitalspy.com': 'Digital Spy',
+  'denofgeek.com': 'Den of Geek',
+  'indiewire.com': 'IndieWire',
+  'thewrap.com': 'The Wrap',
+  'cinemablend.com': 'CinemaBlend',
+  'serienjunkies.de': 'Serienjunkies',
+  'moviepilot.de': 'Moviepilot',
+  'kino.de': 'Kino.de',
+  'filmstarts.de': 'Filmstarts',
+};
 
 // ══════════════════════════════════════════════════════════════════════════
 // AUTHOR ROTATION
@@ -186,7 +153,7 @@ function generateSlug(title: string): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// WEB SEARCH: DuckDuckGo HTML
+// WEB SEARCH: Google News RSS + DuckDuckGo
 // ══════════════════════════════════════════════════════════════════════════
 interface SearchResult {
   title: string;
@@ -195,13 +162,48 @@ interface SearchResult {
   source: string;
 }
 
+// Resolve Google News redirect to get actual article URL
+async function resolveGoogleNewsUrl(gnUrl: string): Promise<string | null> {
+  if (!gnUrl.includes('news.google.com')) return gnUrl;
+  
+  try {
+    // Follow the redirect with a short timeout
+    const response = await fetch(gnUrl, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    const finalUrl = response.url;
+    if (finalUrl && !finalUrl.includes('google.com')) {
+      return finalUrl;
+    }
+  } catch {
+    // If HEAD fails, try GET
+    try {
+      const response = await fetch(gnUrl, {
+        redirect: 'follow',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
+      });
+      const finalUrl = response.url;
+      if (finalUrl && !finalUrl.includes('google.com')) {
+        return finalUrl;
+      }
+    } catch {}
+  }
+  
+  return null;
+}
+
 async function searchWeb(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
   
   console.log(`   🔍 Suche: "${query}"`);
   
   try {
-    // Method 1: Google News RSS (most reliable)
+    // Method 1: Google News RSS (best for current news headlines + snippets)
     console.log('   📡 Google News RSS...');
     const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' serie')}&hl=de&gl=DE&ceid=DE:de`;
     
@@ -214,18 +216,18 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       const xml = await response.text();
       const $ = cheerio.load(xml, { xmlMode: true });
       
+      // Collect raw results first
+      const rawResults: Array<{title: string, gnLink: string, desc: string, source: string}> = [];
+      
       $('item').each((i, el) => {
-        if (i >= 10) return;
+        if (i >= 8) return; // Limit to 8 for faster processing
         const title = $(el).find('title').text().trim();
-        const link = $(el).find('link').text().trim();
+        const gnLink = $(el).find('link').text().trim();
         const description = $(el).find('description').text().trim();
-        const pubDate = $(el).find('pubDate').text().trim();
         
-        // Extract source from title (usually format: "Title - Source")
         const sourceMatch = title.match(/ - ([^-]+)$/);
         const sourceName = sourceMatch ? sourceMatch[1].trim() : 'News';
         
-        // Clean description (remove HTML tags)
         const cleanDesc = description
           .replace(/<[^>]*>/g, '')
           .replace(/&nbsp;/g, ' ')
@@ -233,66 +235,104 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
           .replace(/&quot;/g, '"')
           .trim();
         
-        if (title && link) {
-          results.push({
-            title: title.replace(/ - [^-]+$/, '').trim(), // Remove source from title
-            url: link,
-            snippet: cleanDesc || `Veröffentlicht: ${pubDate}`,
+        if (title && gnLink) {
+          rawResults.push({
+            title: title.replace(/ - [^-]+$/, '').trim(),
+            gnLink,
+            desc: cleanDesc,
             source: sourceName
           });
         }
       });
       
+      // Resolve Google News URLs in parallel (batch of 4)
+      console.log(`      ⏳ Löse ${rawResults.length} URLs auf...`);
+      
+      for (let i = 0; i < rawResults.length; i += 4) {
+        const batch = rawResults.slice(i, i + 4);
+        const resolved = await Promise.all(
+          batch.map(async (r) => {
+            // Try to extract URL from href in description first
+            const hrefMatch = r.desc.match(/href="([^"]+)"/);
+            if (hrefMatch && hrefMatch[1].startsWith('http') && !hrefMatch[1].includes('google.com')) {
+              return { ...r, url: hrefMatch[1] };
+            }
+            
+            // Otherwise resolve the redirect
+            const realUrl = await resolveGoogleNewsUrl(r.gnLink);
+            return { ...r, url: realUrl || r.gnLink };
+          })
+        );
+        
+        for (const r of resolved) {
+          if (r.url && !r.url.includes('news.google.com')) {
+            results.push({
+              title: r.title,
+              url: r.url,
+              snippet: r.desc,
+              source: r.source || getSourceName(r.url)
+            });
+          } else {
+            // Keep Google News link but mark as snippet-only
+            results.push({
+              title: r.title,
+              url: r.gnLink,
+              snippet: r.desc,
+              source: r.source
+            });
+          }
+        }
+      }
+      
       console.log(`      ✓ ${results.length} News gefunden`);
     }
     
-    // Method 2: DuckDuckGo (if Google News fails)
-    if (results.length === 0) {
-      console.log('   📡 DuckDuckGo...');
-      const sourceDomains = NEWS_SOURCES.map(s => `site:${s.domain}`).join(' OR ');
-      const searchQuery = `${query} serie (${sourceDomains})`;
-      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchQuery)}`;
+    // Method 2: DuckDuckGo HTML Search (gets direct URLs to articles)
+    console.log('   📡 DuckDuckGo...');
+    const ddgQuery = `${query} serie news 2025`;
+    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
+    
+    response = await fetch(ddgUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(15000)
+    }).catch(() => null);
+    
+    if (response?.ok) {
+      const html = await response.text();
+      const $ = cheerio.load(html);
       
-      response = await fetch(ddgUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html',
-        },
-        signal: AbortSignal.timeout(15000)
-      }).catch(() => null);
+      $('.result, .web-result').each((i, el) => {
+        if (results.length >= 15) return; // Combine both sources, max 15
+        
+        const $el = $(el);
+        const linkEl = $el.find('a.result__a, a.result__url').first();
+        let href = linkEl.attr('href') || '';
+        const title = $el.find('.result__title, h2').text().trim();
+        const snippet = $el.find('.result__snippet').text().trim();
+        
+        // Decode DuckDuckGo redirect
+        if (href.includes('uddg=')) {
+          const match = href.match(/uddg=([^&]+)/);
+          if (match) href = decodeURIComponent(match[1]);
+        }
+        
+        // Only add if it's a real article URL and not duplicate
+        if (href && title && href.startsWith('http') && 
+            !href.includes('google.com') &&
+            !results.some(r => r.url === href)) {
+          results.push({ 
+            title, 
+            url: href, 
+            snippet, 
+            source: getSourceName(href)
+          });
+        }
+      });
       
-      if (response?.ok) {
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        
-        $('.result, .web-result').each((i, el) => {
-          if (i >= 10) return;
-          
-          const $el = $(el);
-          const linkEl = $el.find('a.result__a, a.result__url').first();
-          let href = linkEl.attr('href') || '';
-          const title = $el.find('.result__title, h2').text().trim();
-          const snippet = $el.find('.result__snippet').text().trim();
-          
-          if (href.includes('uddg=')) {
-            const match = href.match(/uddg=([^&]+)/);
-            if (match) href = decodeURIComponent(match[1]);
-          }
-          
-          const source = NEWS_SOURCES.find(s => href.includes(s.domain));
-          
-          if (href && title) {
-            results.push({ 
-              title, 
-              url: href, 
-              snippet, 
-              source: source?.name || 'Web' 
-            });
-          }
-        });
-        
-        console.log(`      ✓ ${results.length} Ergebnisse`);
-      }
+      console.log(`      ✓ Gesamt: ${results.length} Quellen`);
     }
     
     console.log(`   📰 ${results.length} News-Quellen gefunden`);
@@ -305,7 +345,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ARTICLE SCRAPER: Extrahiert Volltext von News-Seite
+// ARTICLE SCRAPER: Jina AI Reader + Cheerio Fallback
 // ══════════════════════════════════════════════════════════════════════════
 interface ScrapedArticle {
   title: string;
@@ -315,15 +355,23 @@ interface ScrapedArticle {
   wordCount: number;
 }
 
-async function scrapeArticle(url: string): Promise<ScrapedArticle | null> {
+function getSourceName(url: string): string {
   try {
-    const source = NEWS_SOURCES.find(s => url.includes(s.domain));
-    if (!source) return null;
-    
+    const hostname = new URL(url).hostname.replace('www.', '');
+    return KNOWN_SOURCES[hostname] || hostname;
+  } catch {
+    return 'Web';
+  }
+}
+
+// Direct cheerio scraper as fallback
+async function scrapeWithCheerio(url: string): Promise<ScrapedArticle | null> {
+  try {
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
       },
       signal: AbortSignal.timeout(10000)
     });
@@ -333,36 +381,128 @@ async function scrapeArticle(url: string): Promise<ScrapedArticle | null> {
     const html = await response.text();
     const $ = cheerio.load(html);
     
-    // Remove unwanted elements
-    $('script, style, nav, footer, aside, .ad, .advertisement, .related-articles, .comments').remove();
+    // Remove noise
+    $('script, style, nav, footer, aside, header, .ad, .advertisement, .sidebar, .comments, .related, .newsletter, [role="navigation"], [role="banner"]').remove();
     
     // Extract title
-    const title = $(source.selectors.title).first().text().trim();
+    const title = $('h1').first().text().trim() || 
+                  $('meta[property="og:title"]').attr('content') || 
+                  $('title').text().trim();
     
-    // Extract content paragraphs
+    // Universal content extraction - try multiple selectors
+    const contentSelectors = [
+      'article p',
+      '.article-body p',
+      '.entry-content p',
+      '.post-content p',
+      '.content p',
+      'main p',
+      '.story-body p',
+      '[itemprop="articleBody"] p',
+    ];
+    
     const paragraphs: string[] = [];
-    $(source.selectors.content).each((_, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 50) { // Skip short paragraphs
-        paragraphs.push(text);
-      }
-    });
+    
+    for (const selector of contentSelectors) {
+      $(selector).each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.length > 40 && !paragraphs.includes(text)) {
+          paragraphs.push(text);
+        }
+      });
+      if (paragraphs.length >= 5) break; // Got enough content
+    }
     
     const content = paragraphs.join('\n\n');
-    const wordCount = content.split(/\s+/).length;
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
     
-    if (wordCount < 100) return null;
+    if (wordCount < 80) return null;
     
     return {
-      title,
+      title: title || 'Untitled',
       content,
       url,
-      source: source.name,
+      source: getSourceName(url),
       wordCount
     };
+  } catch {
+    return null;
+  }
+}
+
+async function scrapeArticle(url: string): Promise<ScrapedArticle | null> {
+  try {
+    // Skip non-http URLs and Google redirect URLs
+    if (!url.startsWith('http') || url.includes('google.com/url')) {
+      return null;
+    }
+    
+    // Try Jina Reader first (best quality)
+    const jinaUrl = `${JINA_READER_URL}${url}`;
+    
+    const jinaResponse = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'markdown',
+      },
+      signal: AbortSignal.timeout(12000)
+    }).catch(() => null);
+    
+    if (jinaResponse?.ok) {
+      const markdown = await jinaResponse.text();
+      
+      // Extract title
+      let title = '';
+      const titleMatch = markdown.match(/^#\s+(.+)$/m);
+      if (titleMatch) {
+        title = titleMatch[1].trim();
+      } else {
+        const firstLine = markdown.split('\n')[0];
+        title = firstLine.replace(/^[#\s]+/, '').trim();
+      }
+      
+      // Clean content
+      let content = markdown
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/(\n\s*){3,}/g, '\n\n')
+        .trim();
+      
+      // Remove noise
+      const noisePatterns = [
+        /^(Menu|Navigation|Search|Advertisement|Subscribe|Newsletter|Follow us|Share|Related|Tags|Categories).*$/gim,
+        /^(Copyright|©|All rights reserved).*$/gim,
+        /^Read more:.*$/gim,
+      ];
+      
+      for (const pattern of noisePatterns) {
+        content = content.replace(pattern, '');
+      }
+      
+      const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+      
+      if (wordCount >= 100) {
+        return {
+          title: title || 'Untitled',
+          content,
+          url,
+          source: getSourceName(url),
+          wordCount
+        };
+      }
+    }
+    
+    // Fallback: Direct cheerio scraping
+    console.log(`      ↳ Fallback: Cheerio für ${getSourceName(url)}`);
+    return await scrapeWithCheerio(url);
     
   } catch (error) {
-    return null;
+    const msg = error instanceof Error ? error.message : 'Unknown';
+    if (!msg.includes('timeout')) {
+      console.log(`      ⚠️ Scrape Fehler: ${msg}`);
+    }
+    // Try fallback on error
+    return await scrapeWithCheerio(url);
   }
 }
 
@@ -589,12 +729,14 @@ export async function runP3TrendsPipeline(
     const facts = await extractFacts(searchTerm, combinedSourceText || 'Keine Details verfügbar');
     console.log(`   ✓ Fakten: ${facts.key_statements?.length || 0} Statements`);
     
-    // Step 3b: Classify content type (use simple classification since we don't have URL)
-    let contentType = 'NEWS';
+    // Step 3b: Classify content type
+    let contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING' = 'NEWS';
     if (searchTerm.toLowerCase().includes('staffel') || searchTerm.toLowerCase().includes('season')) {
       contentType = 'NEWS';
     } else if (searchTerm.toLowerCase().includes('erklär') || searchTerm.toLowerCase().includes('ende')) {
-      contentType = 'ANALYSIS';
+      contentType = 'ENDING_EXPLAINED';
+    } else if (searchTerm.toLowerCase().includes('beste') || searchTerm.toLowerCase().includes('top')) {
+      contentType = 'RANKING';
     }
     console.log(`   ✓ Content-Typ: ${contentType}`);
     
@@ -606,7 +748,7 @@ export async function runP3TrendsPipeline(
       seriesName: info.seriesName || searchTerm,
       originalHeadline: searchTerm,
       sourceText: combinedSourceText || searchTerm,
-      contentType: contentType === 'SKIP' ? 'NEWS' : contentType,
+      contentType: contentType,
       wordCountTarget: 800, // Ausführlicher Artikel
     });
     
@@ -628,42 +770,36 @@ export async function runP3TrendsPipeline(
     
     if (dbSeries) {
       try {
-        const { markdown: charLinked } = await linkCharactersInMarkdown(
+        // Character linking - returns { linkedMarkdown, charactersLinked }
+        const charResult = await linkCharactersInMarkdown(
           processedMarkdown,
-          dbSeries.tmdbId,
-          { maxLinks: 5, skipHeadings: true }
+          dbSeries.tmdbId
         );
-        processedMarkdown = charLinked;
+        processedMarkdown = charResult.linkedMarkdown;
+        console.log(`   ✓ ${charResult.charactersLinked} Characters verlinkt`);
         
-        const { markdown: castLinked } = await linkCastInMarkdown(
+        // Cast linking - returns { linkedMarkdown, castLinked }
+        const castResult = await linkCastInMarkdown(
           processedMarkdown,
-          dbSeries.tmdbId,
-          { maxLinks: 5, skipHeadings: true }
+          dbSeries.tmdbId
         );
-        processedMarkdown = castLinked;
-        
-        console.log('   ✓ Character & Cast verlinkt');
+        processedMarkdown = castResult.linkedMarkdown;
+        console.log(`   ✓ ${castResult.castLinked} Cast verlinkt`);
       } catch (e) {
-        console.log('   ⚠️ Linking fehlgeschlagen');
+        console.log('   ⚠️ Linking fehlgeschlagen:', e instanceof Error ? e.message : '');
       }
     }
     
-    // Link streamers
-    processedMarkdown = linkStreamersInMarkdown(processedMarkdown);
+    // Link streamers - returns { linkedMarkdown, streamersLinked }
+    const streamerResult = linkStreamersInMarkdown(processedMarkdown);
+    processedMarkdown = streamerResult.linkedMarkdown;
+    if (streamerResult.streamersLinked.length > 0) {
+      console.log(`   ✓ Streamer verlinkt: ${streamerResult.streamersLinked.join(', ')}`);
+    }
     
     // ========== STEP 5: INTERNAL LINKS ==========
-    if (dbSeries) {
-      try {
-        const { markdown: internalLinked } = await generateInternalLinks(processedMarkdown, {
-          primarySeriesSlug: dbSeries.slug || undefined,
-          maxLinks: 8
-        });
-        processedMarkdown = internalLinked;
-        console.log('   ✓ Interne Links hinzugefügt');
-      } catch (e) {
-        console.log('   ⚠️ Internal Linking fehlgeschlagen');
-      }
-    }
+    // Note: Internal linking requires article ID and full config - skip for now
+    // The article will get internal links on next page view via middleware
     
     // ========== STEP 6: CONVERT TO HTML ==========
     console.log('\n' + '━'.repeat(60));
