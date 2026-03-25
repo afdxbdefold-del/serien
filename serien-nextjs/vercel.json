@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/news?secret=serien-news-import-2024",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/releases?secret=serien-releases-update-2024",
+      "schedule": "0 6 * * *"
     }
   ]
 }
