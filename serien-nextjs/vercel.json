@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/news?secret=serien-news-import-2024",
-      "schedule": "0 * * * *"
+      "schedule": "0 */2 * * *"
     },
     {
       "path": "/api/cron/releases?secret=serien-releases-update-2024",
@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/trends?secret=serien-trends-process-2024",
-      "schedule": "0 8,14,20 * * *"
+      "schedule": "0 9,13,18,22 * * *"
     }
   ]
 }
