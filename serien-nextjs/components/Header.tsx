@@ -300,7 +300,7 @@ export default function Header() {
                   {searchResults.map((series: any) => (
                     <Link
                       key={series.tmdbId}
-                      href={`/serie/${series.tmdbId}-${series.slug}`}
+                      href={`/serie/${series.slug}`}
                       onClick={() => {
                         closeSearch();
                         setShowSearch(false);

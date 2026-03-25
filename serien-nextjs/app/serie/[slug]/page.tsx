@@ -267,6 +267,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     description: series.overview || '',
     posterUrl: `/img/poster/${series.tmdbType}/${tmdbId}`,
     tmdbId,
+    slug: series.slug || slug, // Use clean slug for canonical URL
     startYear,
     endYear,
     genres,

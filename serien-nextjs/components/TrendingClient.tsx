@@ -299,7 +299,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                 {/* Series Card */}
                 <article className="group bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden">
                   {/* Poster Image */}
-                  <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block relative aspect-[2/3] overflow-hidden bg-gray-200">
+                  <Link href={`/serie/${show.slug}`} className="block relative aspect-[2/3] overflow-hidden bg-gray-200">
                     {(show.posterLocalUrl || show.posterPath) ? (
                       <Image
                         src={show.posterLocalUrl || `https://image.tmdb.org/t/p/w500${show.posterPath}`}
@@ -353,7 +353,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                   </Link>
                   
                   {/* Series Info Below Cover */}
-                  <Link href={`/serie/${show.tmdbId}-${show.slug}`} className="block p-3">
+                  <Link href={`/serie/${show.slug}`} className="block p-3">
                     <p className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-cyan-600 transition-colors">
                       {show.title}
                     </p>

@@ -309,7 +309,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {followedSeries.map((show: any) => (
                     <div key={show.tmdbId} className="relative group">
-                      <Link href={`/serie/${show.tmdbId}-${show.slug}`}>
+                      <Link href={`/serie/${show.slug}`}>
                         <div className="relative aspect-[2/3] rounded-lg overflow-hidden">
                           {show.posterLocalUrl ? (
                             <Image

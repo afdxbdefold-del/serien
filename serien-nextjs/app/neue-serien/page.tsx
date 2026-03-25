@@ -83,10 +83,24 @@ const getNewReleasesData = unstable_cache(
       ]
     });
     
-    // Group by provider using a plain object (Maps don't serialize in unstable_cache)
-    const releasesByProvider: Record<string, typeof releases> = {};
+    // Get slugs from series table for all releases
+    const tmdbIds = [...new Set(releases.map(r => r.tmdbId))];
+    const seriesSlugs = await prisma.series.findMany({
+      where: { tmdbId: { in: tmdbIds } },
+      select: { tmdbId: true, slug: true },
+    });
+    const slugMap = new Map(seriesSlugs.map(s => [s.tmdbId, s.slug]));
     
-    for (const release of releases) {
+    // Enrich releases with slugs
+    const enrichedReleases = releases.map(release => ({
+      ...release,
+      slug: slugMap.get(release.tmdbId) || generateSeriesSlug(release.name, release.tmdbId),
+    }));
+    
+    // Group by provider using a plain object (Maps don't serialize in unstable_cache)
+    const releasesByProvider: Record<string, typeof enrichedReleases> = {};
+    
+    for (const release of enrichedReleases) {
       if (!releasesByProvider[release.provider]) {
         releasesByProvider[release.provider] = [];
       }
@@ -94,20 +108,20 @@ const getNewReleasesData = unstable_cache(
     }
     
     // Get today's releases count
-    const todayReleases = releases.filter(r => {
+    const todayReleases = enrichedReleases.filter(r => {
       const releaseDate = new Date(r.date);
       releaseDate.setHours(0, 0, 0, 0);
       return releaseDate.getTime() === today.getTime();
     });
     
     // Get most recent fetch timestamp
-    const latestFetch = releases.length > 0 
-      ? Math.max(...releases.map(r => r.fetchedAt.getTime()))
+    const latestFetch = enrichedReleases.length > 0 
+      ? Math.max(...enrichedReleases.map(r => r.fetchedAt.getTime()))
       : null;
     
     return {
       releasesByProvider,
-      totalCount: releases.length,
+      totalCount: enrichedReleases.length,
       todayCount: todayReleases.length,
       providerCount: Object.keys(releasesByProvider).length,
       lastUpdated: latestFetch ? new Date(latestFetch) : null
@@ -329,7 +343,7 @@ export default async function NeueSerienPage() {
                     {releases.slice(0, 12).map((release) => (
                       <Link
                         key={`${release.tmdbId}-${provider}`}
-                        href={`/serie/${generateSeriesSlug(release.name, release.tmdbId)}`}
+                        href={`/serie/${release.slug}`}
                         className="group"
                       >
                         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">

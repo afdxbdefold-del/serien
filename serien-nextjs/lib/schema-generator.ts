@@ -172,6 +172,7 @@ export function generateSeriesSchema(data: {
   description: string;
   posterUrl: string;
   tmdbId: number;
+  slug: string; // NEW: Use clean slug for URL
   startYear?: number;
   endYear?: number;
   genres?: string[];
@@ -189,7 +190,7 @@ export function generateSeriesSchema(data: {
       { width: 500, height: 750 }, // TMDB poster dimensions
       { representativeOfPage: true }
     ),
-    url: `${baseUrl}/serie/${data.tmdbId}`,
+    url: `${baseUrl}/serie/${data.slug}`, // Use clean slug instead of tmdbId
     ...(data.startYear && { startDate: `${data.startYear}-01-01` }),
     ...(data.endYear && { endDate: `${data.endYear}-12-31` }),
     ...(data.genres && data.genres.length > 0 && { genre: data.genres }),

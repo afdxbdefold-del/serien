@@ -69,7 +69,7 @@ export default async function GenrePage({ params }: PageProps) {
         {series.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {series.map((show) => (
-              <Link key={show.tmdbId} href={`/serie/${show.tmdbId}-${show.slug}`}>
+              <Link key={show.tmdbId} href={`/serie/${show.slug}`}>
                 <article className="group relative bg-white rounded-xl border hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer">
                   <div className="aspect-[2/3] overflow-hidden bg-gray-200">
                     {show.posterLocalUrl && (

@@ -179,7 +179,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                     {/* Series Header */}
                     <div className="flex items-center gap-4">
                       {group.series.posterPath && (
-                        <Link href={`/serie/${group.series.tmdbId}`}>
+                        <Link href={`/serie/${group.series.slug}`}>
                           <Image
                             src={`https://image.tmdb.org/t/p/w185${group.series.posterPath}`}
                             alt={seriesName}
@@ -191,7 +191,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                       )}
                       <div>
                         <Link
-                          href={`/serie/${group.series.tmdbId}`}
+                          href={`/serie/${group.series.slug}`}
                           className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
                         >
                           {seriesName}

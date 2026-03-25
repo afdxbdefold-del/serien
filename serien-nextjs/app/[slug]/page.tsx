@@ -310,7 +310,7 @@ export default async function ArticlePage({ params }: PageProps) {
         {article.series && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-4 py-3">
             <Link 
-              href={`/serie/${article.series.tmdbId}-${article.series.slug}`}
+              href={`/serie/${article.series.slug}`}
               className="text-white/90 hover:text-white text-sm line-clamp-1"
             >
               {article.series.title} <span className="text-white/60">... mehr</span>
@@ -326,7 +326,7 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Breadcrumb - Back to Series */}
           {article.series ? (
             <Link 
-              href={`/serie/${article.series.tmdbId}-${article.series.slug}`}
+              href={`/serie/${article.series.slug}`}
               className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />

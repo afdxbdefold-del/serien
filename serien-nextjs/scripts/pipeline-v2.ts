@@ -30,6 +30,7 @@ import { discoverGate } from '../lib/discover-gate';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
+import { generateSeriesSlug } from '../lib/slug-utils';
 
 const prisma = new PrismaClient();
 
@@ -168,7 +169,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           tmdbId: searchResult.tmdbId,
           name: completeDetails.name,
           title: completeDetails.name,
-          slug: generateSlug(completeDetails.name),
+          slug: generateSeriesSlug(completeDetails.name, searchResult.tmdbId), // Use slug-utils
           posterPath: completeDetails.posterPath,
           backdropPath: completeDetails.backdropPath,
           overview: completeDetails.overview || '',

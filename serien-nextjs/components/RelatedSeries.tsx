@@ -60,7 +60,7 @@ export default async function RelatedSeries({ currentSeriesId, genres, networks 
         {relatedSeries.map((series) => (
           <Link
             key={series.tmdbId}
-            href={`/serie/${series.tmdbId}-${series.slug}`}
+            href={`/serie/${series.slug}`}
             className="group"
           >
             <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">

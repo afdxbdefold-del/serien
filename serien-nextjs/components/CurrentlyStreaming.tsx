@@ -5,6 +5,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Play, ChevronRight, ChevronLeft } from 'lucide-react';
 
+// Client-side slug generation (matches slug-utils.ts logic)
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[äÄ]/g, 'ae')
+    .replace(/[öÖ]/g, 'oe')
+    .replace(/[üÜ]/g, 'ue')
+    .replace(/[ß]/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 60);
+}
+
 interface StreamingSeries {
   tmdbId: number;
   title: string;
@@ -88,7 +101,7 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
           {series.map((item) => (
             <Link
               key={item.tmdbId}
-              href={item.slug ? `/serie/${item.tmdbId}-${item.slug}` : `/serie/${item.tmdbId}`}
+              href={`/serie/${item.slug || generateSlug(item.title)}`}
               className="group/card flex-shrink-0 w-[160px] sm:w-[180px] relative"
               data-testid={`series-card-${item.tmdbId}`}
             >

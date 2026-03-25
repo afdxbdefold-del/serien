@@ -322,7 +322,7 @@ export default async function NetflixSerienPage() {
                 {recentSeries.map((series) => (
                   <Link
                     key={series.tmdbId}
-                    href={`/serie/${series.tmdbId}-${series.slug}`}
+                    href={`/serie/${series.slug}`}
                     className="group"
                   >
                     <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
@@ -477,7 +477,7 @@ export default async function NetflixSerienPage() {
                 {topRatedSeries.map((series, index) => (
                   <Link
                     key={series.tmdbId}
-                    href={`/serie/${series.tmdbId}-${series.slug}`}
+                    href={`/serie/${series.slug}`}
                     className="group flex gap-4 bg-white dark:bg-[hsl(230,25%,10%)] rounded-xl p-4 shadow-md hover:shadow-lg transition-all border border-gray-200 dark:border-gray-800"
                   >
                     {/* Rank */}
@@ -560,7 +560,7 @@ export default async function NetflixSerienPage() {
               {allNetflixSeries.map((series) => (
                 <Link
                   key={series.tmdbId}
-                  href={`/serie/${series.tmdbId}-${series.slug}`}
+                  href={`/serie/${series.slug}`}
                   className="group"
                 >
                   <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 shadow group-hover:shadow-lg transition-all group-hover:-translate-y-1">

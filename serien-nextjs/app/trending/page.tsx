@@ -70,7 +70,21 @@ const getTrendingData = unstable_cache(
       distinct: ['tmdbId'],
     });
 
-    return { trends, trendingArticles, topReleases };
+    // Get slugs from series table for releases
+    const tmdbIds = topReleases.map(r => r.tmdbId);
+    const seriesSlugs = await prisma.series.findMany({
+      where: { tmdbId: { in: tmdbIds } },
+      select: { tmdbId: true, slug: true },
+    });
+    const slugMap = new Map(seriesSlugs.map(s => [s.tmdbId, s.slug]));
+    
+    // Enrich releases with slugs
+    const enrichedReleases = topReleases.map(release => ({
+      ...release,
+      slug: slugMap.get(release.tmdbId) || generateSeriesSlug(release.name, release.tmdbId),
+    }));
+
+    return { trends, trendingArticles, topReleases: enrichedReleases };
   },
   ['trending-hub-data'],
   { revalidate: 3600, tags: ['trending'] }
@@ -159,7 +173,7 @@ export default async function TrendingHubPage() {
               {topReleases.map((release, index) => (
                 <Link
                   key={`${release.tmdbId}-${index}`}
-                  href={`/serie/${generateSeriesSlug(release.name, release.tmdbId)}`}
+                  href={`/serie/${release.slug}`}
                   className="group"
                 >
                   <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">

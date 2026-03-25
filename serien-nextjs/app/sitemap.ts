@@ -75,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Series pages
   const seriesPages = series.map((show) => ({
-    url: `${baseUrl}/serie/${show.tmdbId}-${show.slug}`,
+    url: `${baseUrl}/serie/${show.slug}`,
     lastModified: show.updatedAt,
     changeFrequency: 'weekly' as const,
     priority: 0.6,

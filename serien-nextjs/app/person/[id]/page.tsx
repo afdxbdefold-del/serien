@@ -311,7 +311,7 @@ export default async function PersonPage({ params }: PageProps) {
                   {personSeries.map((series) => (
                     <Link
                       key={series.tmdbId}
-                      href={`/serie/${series.tmdbId}-${series.slug}`}
+                      href={`/serie/${series.slug}`}
                       className="group"
                     >
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition bg-gray-200 dark:bg-gray-800">
