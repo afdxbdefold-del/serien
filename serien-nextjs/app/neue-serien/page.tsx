@@ -326,8 +326,9 @@ export default async function NeueSerienPage() {
                   
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {releases.slice(0, 12).map((release) => (
-                      <div
+                      <Link
                         key={`${release.tmdbId}-${provider}`}
+                        href={`/serie/${release.tmdbId}`}
                         className="group"
                       >
                         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
@@ -388,7 +389,7 @@ export default async function NeueSerienPage() {
                             </p>
                           )}
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                   
