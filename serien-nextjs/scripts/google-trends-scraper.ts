@@ -25,23 +25,27 @@ const TRENDS_URLS = [
 
 // Keywords to identify TV series content
 const SERIES_KEYWORDS = [
-  // Allgemein
-  'serie', 'series', 'staffel', 'season', 'folge', 'episode', 'finale',
-  'fernsehserie', 'tv-serie', 'tv serie', 'show', 'sendung',
+  // Serien-Formate
+  'serie', 'series', 'show', 'sendung',
+  'tatort', 'polizeiruf', 'krimi', 'soap',
+];
+
+// Keywords für konkreten Serien-Anlass (MUSS vorhanden sein)
+const EVENT_KEYWORDS = [
+  // Staffeln & Folgen
+  'staffel', 'season', 'folge', 'episode', 'finale', 'start',
+  // Cast & Crew
+  'cast', 'besetzung', 'darsteller', 'schauspieler', 'ausstieg', 'einstieg',
+  'hauptrolle', 'rolle', 'ersetzt', 'verlässt', 'kehrt zurück',
+  // Produktion
+  'dreharbeiten', 'dreh', 'fortsetzung', 'spin-off', 'reboot', 'remake',
+  'abgesetzt', 'cancelled', 'verlängert', 'renewed', 'bestätigt',
   // Streaming
-  'netflix', 'prime', 'prime video', 'disney+', 'disney plus', 'amazon',
-  'streaming', 'stream', 'hbo', 'sky', 'paramount', 'apple tv', 'wow',
-  'ard', 'zdf', 'mediathek', 'rtl+', 'joyn', 'magenta',
-  // Bekannte Serien-Formate
-  'tatort', 'polizeiruf', 'krimi', 'soap', 'daily', 'sitcom',
-  'reality', 'doku-soap', 'castingshow', 'talkshow',
-  // Serien-spezifisch
-  'darsteller', 'besetzung', 'cast', 'schauspieler', 'hauptrolle',
-  'dreharbeiten', 'dreh', 'fortsetzung', 'spin-off', 'spinoff',
-  'prequel', 'sequel', 'reboot', 'remake', 'neuauflage',
-  'abgesetzt', 'cancelled', 'verlängert', 'renewed',
-  // Akteure (häufig in Serien-Kontext)
-  'rolle', 'charakter', 'figur', 'ausstieg', 'einstieg',
+  'netflix', 'prime', 'disney+', 'disney plus', 'amazon', 'streaming',
+  'hbo', 'sky', 'paramount', 'apple tv', 'ard', 'zdf', 'mediathek',
+  // Release
+  'trailer', 'teaser', 'erscheint', 'startet', 'kommt', 'release',
+  'neuheiten', 'neu bei', 'ab sofort',
 ];
 
 const EXCLUDE_KEYWORDS = [
@@ -50,8 +54,9 @@ const EXCLUDE_KEYWORDS = [
   'wetter', 'unwetter', 'sturm',
   'politik', 'bundestag', 'regierung', 'minister', 'partei', 'wahl',
   'aktie', 'börse', 'dax', 'bitcoin', 'krypto',
-  'unfall', 'polizei', 'festnahme', 'mord', 'prozess',
+  'unfall', 'polizei', 'festnahme', 'mord', 'prozess', 'gericht',
   'rezept', 'kochen', 'backen',
+  'konzert', 'tour', 'album', 'song', 'musik',
 ];
 
 // Cache for DB series names
@@ -154,7 +159,8 @@ async function scrapeTrendsExplore(): Promise<TrendingTopic[]> {
 }
 
 /**
- * Filter trends to only include TV series related topics
+ * Filter trends to only include TV series related topics WITH a concrete event
+ * Must have: Series reference + Event keyword (new season, cast change, etc.)
  */
 async function filterSeriesTrends(trends: string[]): Promise<string[]> {
   // Load series from DB
@@ -168,56 +174,71 @@ async function filterSeriesTrends(trends: string[]): Promise<string[]> {
       return false;
     }
     
-    // Include if contains series keywords
-    if (SERIES_KEYWORDS.some(kw => lower.includes(kw))) {
-      return true;
+    // MUST have an event keyword (staffel, cast, start, etc.)
+    const hasEventKeyword = EVENT_KEYWORDS.some(kw => lower.includes(kw));
+    
+    if (!hasEventKeyword) {
+      return false; // No concrete series event = skip
     }
     
-    // Include if matches any series from DB
-    if (dbSeries.some(series => {
-      // Check if trend contains series name or vice versa
-      return lower.includes(series) || series.includes(lower);
-    })) {
-      return true;
-    }
+    // Check if it's about a known series
+    const isKnownSeries = dbSeries.some(series => {
+      // Series name must be in trend (not just partial match)
+      const seriesWords = series.split(' ');
+      return seriesWords.some(word => word.length > 3 && lower.includes(word));
+    });
     
-    // Include if looks like a show/person title (capitalized words)
-    if (/^[A-ZÄÖÜ][a-zäöüß]+ /.test(trend) && !trend.match(/^\d/)) {
-      return true;
-    }
+    // Or contains a series keyword
+    const hasSeriesKeyword = SERIES_KEYWORDS.some(kw => lower.includes(kw));
     
-    return false;
+    return isKnownSeries || hasSeriesKeyword;
   });
 }
 
 /**
  * Check if a trend is related to TV via TMDB search
+ * Only accepts if trend also has an event keyword
  */
 async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; tmdbId?: number; name?: string }> {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey) return { isSeries: false };
   
+  const lower = trend.toLowerCase();
+  
+  // MUST have event keyword even for TMDB matches
+  const hasEventKeyword = EVENT_KEYWORDS.some(kw => lower.includes(kw));
+  if (!hasEventKeyword) {
+    return { isSeries: false };
+  }
+  
   // Skip very short or generic terms
-  if (trend.length < 4 || ['teams', 'news', 'live', 'app', 'video'].includes(trend.toLowerCase())) {
+  if (trend.length < 4 || ['teams', 'news', 'live', 'app', 'video'].includes(lower)) {
     return { isSeries: false };
   }
   
   try {
-    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(trend)}&language=de-DE`;
+    // Remove event keywords to get series name
+    let searchTerm = trend;
+    for (const kw of EVENT_KEYWORDS) {
+      searchTerm = searchTerm.replace(new RegExp(kw, 'gi'), '').trim();
+    }
+    
+    if (searchTerm.length < 3) return { isSeries: false };
+    
+    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(searchTerm)}&language=de-DE`;
     const response = await fetch(url);
     const data = await response.json();
     
     if (data.results && data.results.length > 0) {
       const series = data.results[0];
-      const trendLower = trend.toLowerCase();
+      const trendLower = searchTerm.toLowerCase();
       const seriesLower = series.name.toLowerCase();
       
-      // Check for strong match: series name starts with trend or vice versa
+      // Check for strong match
       const isStrongMatch = seriesLower.startsWith(trendLower) || 
                             trendLower.startsWith(seriesLower) ||
                             seriesLower.includes(trendLower) && trendLower.length > 5;
       
-      // Also accept if series is very popular and trend matches first word
       const firstWord = seriesLower.split(' ')[0];
       const isPopularMatch = series.vote_count > 500 && trendLower.includes(firstWord) && firstWord.length > 3;
       
