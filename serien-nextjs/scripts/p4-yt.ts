@@ -86,6 +86,88 @@ function generateSlug(title: string): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// SERIES NEWS FILTER - Nur Serien-relevante Videos
+// ══════════════════════════════════════════════════════════════════════════
+function isSeriesNews(title: string, description: string): { valid: boolean; reason: string } {
+  const titleLower = title.toLowerCase();
+  const descLower = (description || '').toLowerCase();
+  const combined = titleLower + ' ' + descLower;
+  
+  // ❌ AUSSCHLIESSEN: Kurze Titel ohne klare Keywords (meist Shorts/Clips)
+  if (title.length < 25 && !titleLower.includes('trailer') && !titleLower.includes('teaser') && !titleLower.includes('staffel')) {
+    return { valid: false, reason: 'Zu kurzer Titel (wahrscheinlich Short)' };
+  }
+  
+  // ❌ AUSSCHLIESSEN: Emojis ohne Keywords (meist Shorts)
+  const emojiHeavy = (title.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length >= 2;
+  if (emojiHeavy && !titleLower.includes('trailer') && !titleLower.includes('staffel')) {
+    return { valid: false, reason: 'Emoji-lastig (wahrscheinlich Short)' };
+  }
+  
+  // ❌ AUSSCHLIESSEN: Filme (nicht Serien)
+  const moviePatterns = [
+    /\b(der film|the movie|kinofilm|im kino)\b/i,
+    /\bfilm\b.*\btrailer\b/i,
+    /\bkinostart\b/i,
+  ];
+  for (const pattern of moviePatterns) {
+    if (pattern.test(combined)) {
+      return { valid: false, reason: 'Film, keine Serie' };
+    }
+  }
+  
+  // ❌ AUSSCHLIESSEN: Shorts/Clips/Behind-the-Scenes
+  const excludePatterns = [
+    /^#\w+/,                                // Hashtag-Titel (Shorts)
+    /würfel|skills|pov:|challenge/i,        // Random Clips
+    /behind the scenes|making of|bts(?!:)/i, // BTS (aber nicht "BTS: THE RETURN")
+    /interview|q&a|react|reacts/i,          // Interviews
+    /best of|compilation|recap|zusammenfassung/i, // Compilations
+    /podcast|episode \d+ preview/i,         // Podcasts
+    /live\s*(stream|event|concert)/i,       // Live Events
+    /music video|soundtrack|ost|lyric/i,    // Musik
+    /unboxing|review(?!s)|ranking|top \d+/i, // Reviews (aber "reviews" ok)
+    /bloopers|gag reel|outtakes/i,          // Bloopers
+    /live\s*on\s*netflix/i,                 // Live Events
+    /community\s*post/i,                    // Community posts
+  ];
+  
+  for (const pattern of excludePatterns) {
+    if (pattern.test(titleLower)) {
+      return { valid: false, reason: `Ausgeschlossen: ${pattern.toString()}` };
+    }
+  }
+  
+  // ✅ MUSS EINES DIESER KEYWORDS HABEN (streng)
+  const requiredKeywords = [
+    // Trailer/Ankündigungen (primär)
+    'trailer', 'teaser', 'ankündigung', 'announcement',
+    'sneak peek', 'first look', 'offiziell',
+    // Staffel-bezogen
+    'staffel', 'season',
+    // Start-Termine  
+    'start', 'startet', 'neu auf', 'neu bei', 'jetzt streamen',
+    'ab heute', 'jetzt auf', 'coming',
+    // Serien-spezifisch
+    'serie', 'series',
+  ];
+  
+  const hasRequiredKeyword = requiredKeywords.some(k => combined.includes(k));
+  
+  // Oder: Typisches Trailer-Format "Name | Trailer | Netflix"
+  const trailerFormat = /^.+\s*\|\s*(offizieller?\s*)?(trailer|teaser|ankündigung)/i.test(title);
+  
+  // Oder: Typisches Ankündigungs-Format "Name: Staffel X"
+  const seasonFormat = /staffel\s*\d|season\s*\d/i.test(title);
+  
+  if (!hasRequiredKeyword && !trailerFormat && !seasonFormat) {
+    return { valid: false, reason: 'Keine Serien-News Keywords' };
+  }
+  
+  return { valid: true, reason: 'Serien-News' };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // YOUTUBE RSS FEED FETCHER
 // ══════════════════════════════════════════════════════════════════════════
 interface YouTubeVideo {
@@ -215,6 +297,14 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
       });
       
       if (!existing) {
+        // Filter: Nur Serien-News
+        const filterResult = isSeriesNews(video.title, video.description);
+        
+        if (!filterResult.valid) {
+          console.log(`   ⏭️ Übersprungen: ${video.title.substring(0, 40)}... (${filterResult.reason})`);
+          continue;
+        }
+        
         // New video! Save to database
         await prisma.youtube_videos.create({
           data: {
@@ -229,7 +319,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
         });
         
         newVideos.push(video);
-        console.log(`   🆕 Neues Video: ${video.title.substring(0, 50)}...`);
+        console.log(`   🆕 Serien-News: ${video.title.substring(0, 50)}...`);
       }
     }
     
