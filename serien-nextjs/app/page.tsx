@@ -51,7 +51,7 @@ export const metadata: Metadata = {
 // Cached database queries for better performance
 const getHomepageData = unstable_cache(
   async () => {
-    const [articles, series, seriesCount, articlesCount, streamingSeries] = await Promise.all([
+    const [articles, series, seriesCount, articlesCount] = await Promise.all([
       prisma.articles.findMany({
         where: { 
           OR: [
@@ -90,23 +90,39 @@ const getHomepageData = unstable_cache(
           ]
         } 
       }),
-      prisma.series.findMany({
-        where: {
-          OR: [
-            { status: 'RUNNING' },
-            { status: 'Returning Series' },
-          ]
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 12,
-        select: {
-          tmdbId: true,
-          title: true,
-          slug: true,
-          networks: true,
-        }
-      })
     ]);
+
+    // Fetch trending series from streaming_releases (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const trendingReleases = await prisma.streaming_releases.findMany({
+      where: {
+        date: { gte: sevenDaysAgo }
+      },
+      orderBy: [
+        { voteAverage: 'desc' },
+        { date: 'desc' }
+      ],
+      take: 50,
+      distinct: ['tmdbId'],
+    });
+
+    // Map to the expected format and deduplicate by tmdbId
+    const seen = new Set<number>();
+    const streamingSeries = trendingReleases
+      .filter(r => {
+        if (seen.has(r.tmdbId)) return false;
+        seen.add(r.tmdbId);
+        return true;
+      })
+      .slice(0, 12)
+      .map(r => ({
+        tmdbId: r.tmdbId,
+        title: r.name,
+        slug: r.tmdbId.toString(),
+        networks: [r.provider],
+      }));
 
     return { articles, series, seriesCount, articlesCount, streamingSeries };
   },
