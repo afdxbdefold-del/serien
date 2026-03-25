@@ -199,30 +199,101 @@ async function resolveGoogleNewsUrl(gnUrl: string): Promise<string | null> {
 
 async function searchWeb(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
+  const snippetResults: SearchResult[] = []; // Separate container for snippet-only results
   
   console.log(`   🔍 Suche: "${query}"`);
   
   try {
-    // Method 1: Google News RSS (best for current news headlines + snippets)
-    console.log('   📡 Google News RSS...');
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 1: DuckDuckGo (PRIORITÄT - liefert direkte URLs für Volltext)
+    // ══════════════════════════════════════════════════════════════════
+    console.log('   📡 DuckDuckGo (direkte URLs)...');
+    
+    // Multiple search queries for better coverage
+    const ddgQueries = [
+      `${query} serie news`,
+      `${query} staffel neuigkeiten`,
+      `${query} TV series news`,
+    ];
+    
+    for (const ddgQuery of ddgQueries) {
+      if (results.length >= 10) break;
+      
+      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
+      
+      const response = await fetch(ddgUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+        },
+        signal: AbortSignal.timeout(12000)
+      }).catch(() => null);
+      
+      if (!response?.ok) continue;
+      
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      $('.result, .web-result').each((i, el) => {
+        if (results.length >= 12) return;
+        
+        const $el = $(el);
+        const linkEl = $el.find('a.result__a, a.result__url').first();
+        let href = linkEl.attr('href') || '';
+        const title = $el.find('.result__title, h2').text().trim();
+        const snippet = $el.find('.result__snippet').text().trim();
+        
+        // Decode DuckDuckGo redirect URL
+        if (href.includes('uddg=')) {
+          const match = href.match(/uddg=([^&]+)/);
+          if (match) href = decodeURIComponent(match[1]);
+        }
+        
+        // Filter: Only valid article URLs, no duplicates
+        if (href && title && 
+            href.startsWith('http') && 
+            !href.includes('google.com') &&
+            !href.includes('youtube.com') &&
+            !href.includes('facebook.com') &&
+            !href.includes('twitter.com') &&
+            !href.includes('instagram.com') &&
+            !results.some(r => r.url === href)) {
+          results.push({ 
+            title, 
+            url: href, 
+            snippet, 
+            source: getSourceName(href)
+          });
+        }
+      });
+      
+      // Small delay between queries
+      await new Promise(r => setTimeout(r, 300));
+    }
+    
+    console.log(`      ✓ ${results.length} direkte URLs gefunden`);
+    
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 2: Google News RSS (nur für Snippets/Fakten als Ergänzung)
+    // ══════════════════════════════════════════════════════════════════
+    console.log('   📡 Google News (Snippets)...');
     const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' serie')}&hl=de&gl=DE&ceid=DE:de`;
     
-    let response = await fetch(googleNewsUrl, {
+    const gnResponse = await fetch(googleNewsUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(10000)
     }).catch(() => null);
     
-    if (response?.ok) {
-      const xml = await response.text();
+    if (gnResponse?.ok) {
+      const xml = await gnResponse.text();
       const $ = cheerio.load(xml, { xmlMode: true });
       
-      // Collect raw results first
-      const rawResults: Array<{title: string, gnLink: string, desc: string, source: string}> = [];
-      
       $('item').each((i, el) => {
-        if (i >= 8) return; // Limit to 8 for faster processing
+        if (i >= 10) return;
+        
         const title = $(el).find('title').text().trim();
-        const gnLink = $(el).find('link').text().trim();
+        const link = $(el).find('link').text().trim();
         const description = $(el).find('description').text().trim();
         
         const sourceMatch = title.match(/ - ([^-]+)$/);
@@ -235,107 +306,28 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
           .replace(/&quot;/g, '"')
           .trim();
         
-        if (title && gnLink) {
-          rawResults.push({
+        if (title && cleanDesc) {
+          snippetResults.push({
             title: title.replace(/ - [^-]+$/, '').trim(),
-            gnLink,
-            desc: cleanDesc,
+            url: link, // Google News redirect - won't be scraped
+            snippet: cleanDesc,
             source: sourceName
           });
         }
       });
       
-      // Resolve Google News URLs in parallel (batch of 4)
-      console.log(`      ⏳ Löse ${rawResults.length} URLs auf...`);
-      
-      for (let i = 0; i < rawResults.length; i += 4) {
-        const batch = rawResults.slice(i, i + 4);
-        const resolved = await Promise.all(
-          batch.map(async (r) => {
-            // Try to extract URL from href in description first
-            const hrefMatch = r.desc.match(/href="([^"]+)"/);
-            if (hrefMatch && hrefMatch[1].startsWith('http') && !hrefMatch[1].includes('google.com')) {
-              return { ...r, url: hrefMatch[1] };
-            }
-            
-            // Otherwise resolve the redirect
-            const realUrl = await resolveGoogleNewsUrl(r.gnLink);
-            return { ...r, url: realUrl || r.gnLink };
-          })
-        );
-        
-        for (const r of resolved) {
-          if (r.url && !r.url.includes('news.google.com')) {
-            results.push({
-              title: r.title,
-              url: r.url,
-              snippet: r.desc,
-              source: r.source || getSourceName(r.url)
-            });
-          } else {
-            // Keep Google News link but mark as snippet-only
-            results.push({
-              title: r.title,
-              url: r.gnLink,
-              snippet: r.desc,
-              source: r.source
-            });
-          }
-        }
+      console.log(`      ✓ ${snippetResults.length} News-Snippets`);
+    }
+    
+    // Add snippet results at the end (they have lower priority for scraping)
+    // but their snippets will still be used for fact extraction
+    for (const sr of snippetResults) {
+      if (!results.some(r => r.title === sr.title)) {
+        results.push(sr);
       }
-      
-      console.log(`      ✓ ${results.length} News gefunden`);
     }
     
-    // Method 2: DuckDuckGo HTML Search (gets direct URLs to articles)
-    console.log('   📡 DuckDuckGo...');
-    const ddgQuery = `${query} serie news 2025`;
-    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
-    
-    response = await fetch(ddgUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html',
-      },
-      signal: AbortSignal.timeout(15000)
-    }).catch(() => null);
-    
-    if (response?.ok) {
-      const html = await response.text();
-      const $ = cheerio.load(html);
-      
-      $('.result, .web-result').each((i, el) => {
-        if (results.length >= 15) return; // Combine both sources, max 15
-        
-        const $el = $(el);
-        const linkEl = $el.find('a.result__a, a.result__url').first();
-        let href = linkEl.attr('href') || '';
-        const title = $el.find('.result__title, h2').text().trim();
-        const snippet = $el.find('.result__snippet').text().trim();
-        
-        // Decode DuckDuckGo redirect
-        if (href.includes('uddg=')) {
-          const match = href.match(/uddg=([^&]+)/);
-          if (match) href = decodeURIComponent(match[1]);
-        }
-        
-        // Only add if it's a real article URL and not duplicate
-        if (href && title && href.startsWith('http') && 
-            !href.includes('google.com') &&
-            !results.some(r => r.url === href)) {
-          results.push({ 
-            title, 
-            url: href, 
-            snippet, 
-            source: getSourceName(href)
-          });
-        }
-      });
-      
-      console.log(`      ✓ Gesamt: ${results.length} Quellen`);
-    }
-    
-    console.log(`   📰 ${results.length} News-Quellen gefunden`);
+    console.log(`   📰 Gesamt: ${results.length} Quellen`);
     
   } catch (error) {
     console.error('   ❌ Suchfehler:', error instanceof Error ? error.message : error);
@@ -528,43 +520,73 @@ async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
     totalWordCount: 0
   };
   
-  // Step 1: Web Search
+  // Step 1: Web Search (DuckDuckGo URLs first, then Google News snippets)
   const searchResults = await searchWeb(searchTerm);
   
-  // Step 2: Try to scrape articles, but also collect snippets as backup
-  console.log('   📄 Scrape Artikel...');
-  const snippetContent: string[] = [];
+  // Step 2: Separate direct URLs from Google News (snippets only)
+  const directUrls = searchResults.filter(r => !r.url.includes('news.google.com'));
+  const snippetOnlyResults = searchResults.filter(r => r.url.includes('news.google.com'));
   
-  for (const result of searchResults.slice(0, 8)) {
-    // Always save the snippet
-    if (result.snippet && result.snippet.length > 20) {
-      snippetContent.push(`${result.title}\n${result.snippet}`);
+  console.log(`   📄 Scrape ${directUrls.length} direkte URLs...`);
+  
+  // Collect all snippets for backup
+  const allSnippets: string[] = searchResults
+    .filter(r => r.snippet && r.snippet.length > 30)
+    .map(r => `[${r.source}] ${r.title}\n${r.snippet}`);
+  
+  // Step 3: Scrape direct URLs in parallel batches of 3
+  for (let i = 0; i < Math.min(directUrls.length, 9); i += 3) {
+    const batch = directUrls.slice(i, i + 3);
+    
+    const scraped = await Promise.all(
+      batch.map(async (result) => {
+        const article = await scrapeArticle(result.url);
+        return { result, article };
+      })
+    );
+    
+    for (const { result, article } of scraped) {
+      if (article && article.wordCount >= 100) {
+        info.articles.push(article);
+        info.totalWordCount += article.wordCount;
+        console.log(`      ✓ ${article.source}: ${article.wordCount} Wörter`);
+      }
     }
     
-    // Try to scrape the full article
-    const article = await scrapeArticle(result.url);
-    if (article) {
-      info.articles.push(article);
-      info.totalWordCount += article.wordCount;
-      console.log(`      ✓ ${article.source}: ${article.wordCount} Wörter`);
+    // Stop if we have enough content
+    if (info.totalWordCount >= 1500) {
+      console.log(`      ✓ Genug Content (${info.totalWordCount} Wörter)`);
+      break;
     }
-    
-    await new Promise(r => setTimeout(r, 300));
   }
   
-  // If no articles could be scraped, use snippets as content
-  if (info.articles.length === 0 && snippetContent.length > 0) {
-    console.log('   📋 Verwende News-Snippets als Quelle...');
-    const combinedSnippets = snippetContent.join('\n\n');
+  // Step 4: If we got some articles but not much, add snippets as supplementary
+  if (info.articles.length > 0 && info.totalWordCount < 800 && allSnippets.length > 0) {
+    console.log('   📋 Ergänze mit News-Snippets...');
+    const supplementarySnippets = allSnippets.slice(0, 5).join('\n\n');
+    info.articles.push({
+      title: 'News-Zusammenfassung',
+      content: supplementarySnippets,
+      url: '',
+      source: 'News Snippets',
+      wordCount: supplementarySnippets.split(/\s+/).length
+    });
+    info.totalWordCount += info.articles[info.articles.length - 1].wordCount;
+  }
+  
+  // Step 5: If NO articles could be scraped, use only snippets
+  if (info.articles.length === 0 && allSnippets.length > 0) {
+    console.log('   📋 Verwende nur News-Snippets als Quelle...');
+    const combinedSnippets = allSnippets.join('\n\n');
     info.articles.push({
       title: searchTerm,
       content: combinedSnippets,
       url: searchResults[0]?.url || '',
-      source: 'Google News',
+      source: 'News Aggregation',
       wordCount: combinedSnippets.split(/\s+/).length
     });
     info.totalWordCount = info.articles[0].wordCount;
-    console.log(`      ✓ ${info.totalWordCount} Wörter aus ${snippetContent.length} Snippets`);
+    console.log(`      ✓ ${info.totalWordCount} Wörter aus ${allSnippets.length} Snippets`);
   }
   
   // Step 3: Try to resolve TMDB series with direct API call
