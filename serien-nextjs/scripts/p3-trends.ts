@@ -25,6 +25,7 @@ import { importSeriesCast } from '../lib/cast-importer';
 import { generateInternalLinks } from '../lib/internal-linking-engine';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
+import { antiAiFilter } from '../lib/anti-ai-filter';
 
 const prisma = new PrismaClient();
 
@@ -606,9 +607,32 @@ export async function runP3TrendsPipeline(
     const htmlContent = markdownToHtml(markdownString);
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: SAVE ARTICLE ==========
+    // ========== STEP 7: ANTI-AI FILTER ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 7: ARTIKEL SPEICHERN');
+    console.log('STEP 7: ANTI-AI FILTER');
+    console.log('━'.repeat(60));
+    
+    const antiAiResult = await antiAiFilter({
+      articleHtml: htmlContent,
+      headline: structuredContent.headline,
+      seriesName: info.seriesName || searchTerm,
+    });
+    
+    console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
+    console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
+    
+    if (antiAiResult.failReasons.length > 0) {
+      console.log(`   ❌ Probleme:`);
+      antiAiResult.failReasons.forEach(r => console.log(`      - ${r}`));
+    }
+    
+    if (antiAiResult.details.hardBlocklist.found.length > 0) {
+      console.log(`   🚫 Blocklist-Treffer: ${antiAiResult.details.hardBlocklist.found.join(', ')}`);
+    }
+    
+    // ========== STEP 8: SAVE ARTICLE ==========
+    console.log('\n' + '━'.repeat(60));
+    console.log('STEP 8: ARTIKEL SPEICHERN');
     console.log('━'.repeat(60));
     
     const slug = generateSlug(structuredContent.headline);
@@ -665,7 +689,7 @@ export async function runP3TrendsPipeline(
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     
-    // ========== STEP 8: UPDATE TREND ==========
+    // ========== STEP 9: UPDATE TREND ==========
     // Only update if this is a real trend from the database
     if (!trendId.startsWith('manual-')) {
       try {
