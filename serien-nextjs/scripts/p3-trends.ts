@@ -25,6 +25,7 @@ import { importSeriesCast } from '../lib/cast-importer';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
+import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 
 const prisma = new PrismaClient();
 
@@ -913,7 +914,82 @@ export async function runP3TrendsPipeline(
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     
-    // ========== STEP 9: UPDATE TREND ==========
+    // ========== STEP 9: TRAILER DOWNLOAD ==========
+    console.log('\n' + '━'.repeat(60));
+    console.log('STEP 9: TRAILER DOWNLOAD');
+    console.log('━'.repeat(60));
+    
+    if (dbSeries) {
+      try {
+        // Fetch series with trailers from DB using tmdbId
+        const seriesWithTrailers = await prisma.series.findUnique({
+          where: { tmdbId: dbSeries.tmdbId },
+          select: { tmdbId: true, name: true, title: true, trailers: true }
+        });
+        
+        if (seriesWithTrailers) {
+          // Try to get trailer ID from TMDB trailers
+          const trailerId = findTrailerYouTubeId(seriesWithTrailers.trailers);
+          
+          if (trailerId) {
+            console.log(`   🎬 TMDB Trailer gefunden: ${trailerId}`);
+            const downloadResult = await downloadYouTubeTrailer(
+              trailerId,
+              seriesWithTrailers.name || seriesWithTrailers.title || searchTerm
+            );
+            
+            if (downloadResult.success && downloadResult.localPath) {
+              await prisma.articles.update({
+                where: { id: article.id },
+                data: { heroVideoUrl: downloadResult.localPath }
+              });
+              console.log(`   ✅ Trailer heruntergeladen: ${downloadResult.localPath}`);
+            } else {
+              console.log(`   ⚠️ Trailer-Download fehlgeschlagen: ${downloadResult.error}`);
+            }
+          } else {
+            // No TMDB trailer - search YouTube
+            console.log(`   ℹ️ Kein TMDB-Trailer, suche auf YouTube...`);
+            const seriesName = seriesWithTrailers.name || seriesWithTrailers.title || searchTerm;
+            
+            try {
+              const youtubeId = await searchYouTubeTrailer(seriesName);
+              
+              if (youtubeId) {
+                console.log(`   🔍 YouTube-Trailer gefunden: ${youtubeId}`);
+                const downloadResult = await downloadYouTubeTrailer(youtubeId, seriesName);
+                
+                if (downloadResult.success && downloadResult.localPath) {
+                  await prisma.articles.update({
+                    where: { id: article.id },
+                    data: { heroVideoUrl: downloadResult.localPath }
+                  });
+                  console.log(`   ✅ YouTube-Trailer gespeichert`);
+                } else {
+                  // Fallback: Save YouTube URL directly
+                  const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
+                  await prisma.articles.update({
+                    where: { id: article.id },
+                    data: { heroVideoUrl: youtubeUrl }
+                  });
+                  console.log(`   ✅ YouTube-URL gespeichert (kein Download)`);
+                }
+              } else {
+                console.log(`   ⚠️ Kein Trailer gefunden für "${seriesName}"`);
+              }
+            } catch (searchError: any) {
+              console.log(`   ⚠️ YouTube-Suche fehlgeschlagen: ${searchError.message}`);
+            }
+          }
+        }
+      } catch (trailerError: any) {
+        console.log(`   ❌ Trailer-Verarbeitung fehlgeschlagen: ${trailerError.message}`);
+      }
+    } else {
+      console.log(`   ℹ️ Keine Serie gefunden - überspringe Trailer`);
+    }
+    
+    // ========== STEP 10: UPDATE TREND ==========
     // Only update if this is a real trend from the database
     if (!trendId.startsWith('manual-')) {
       try {
