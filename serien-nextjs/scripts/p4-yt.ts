@@ -1,13 +1,14 @@
 /**
  * P4-YT PIPELINE
  * 
- * YouTube-basierte Artikel-Generierung
+ * YouTube-Kanal-basierte Artikel-Generierung
  * 
- * Unterschied zu p3-trends:
- * - Fokus auf YouTube-Videos als Hauptquelle
- * - Extrahiert Transkripte/Untertitel von YouTube
- * - Ideal für Video-Reviews, Trailer-Analysen, Interviews
- * - Vollautomatisch: YouTube-Video → Artikel → Veröffentlicht
+ * Features:
+ * - Folgt YouTube-Kanälen (Netflix, Prime, Disney+ etc.)
+ * - Erkennt neue Videos automatisch via RSS Feed
+ * - Generiert Artikel basierend auf Video-Titel & Beschreibung
+ * - Bettet YouTube-Video direkt im Artikel ein
+ * - Verknüpft mit TMDB-Serien wenn möglich
  */
 
 import 'dotenv/config';
@@ -17,45 +18,47 @@ import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
-import { resolveTmdbSeries } from '../lib/tmdb-resolver';
-import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
-import { getTvDetailsComplete } from '../lib/tmdb';
-import { importSeriesCharacters } from './import-characters';
-import { importSeriesCast } from '../lib/cast-importer';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
-import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 
 const prisma = new PrismaClient();
 
 // ══════════════════════════════════════════════════════════════════════════
-// JINA AI READER - Universal Web Scraper
+// PREDEFINED CHANNELS TO FOLLOW
 // ══════════════════════════════════════════════════════════════════════════
-const JINA_READER_URL = 'https://r.jina.ai/';
-
-// Known sources for better logging (optional)
-const KNOWN_SOURCES: Record<string, string> = {
-  'screenrant.com': 'Screen Rant',
-  'collider.com': 'Collider',
-  'tvline.com': 'TVLine',
-  'deadline.com': 'Deadline',
-  'variety.com': 'Variety',
-  'ew.com': 'Entertainment Weekly',
-  'hollywoodreporter.com': 'Hollywood Reporter',
-  'ign.com': 'IGN',
-  'cbr.com': 'CBR',
-  'gamesradar.com': 'GamesRadar',
-  'digitalspy.com': 'Digital Spy',
-  'denofgeek.com': 'Den of Geek',
-  'indiewire.com': 'IndieWire',
-  'thewrap.com': 'The Wrap',
-  'cinemablend.com': 'CinemaBlend',
-  'serienjunkies.de': 'Serienjunkies',
-  'moviepilot.de': 'Moviepilot',
-  'kino.de': 'Kino.de',
-  'filmstarts.de': 'Filmstarts',
-};
+const DEFAULT_CHANNELS = [
+  {
+    channelId: 'UCZqgRlLcvO3Fnx_npQJygcQ', // Netflix Deutschland, Österreich und Schweiz
+    name: 'Netflix DACH',
+    url: 'https://www.youtube.com/@Netflixdach',
+  },
+  {
+    channelId: 'UCWOA1ZGywLbqmigxE4Qlvuw', // Netflix (Global)
+    name: 'Netflix',
+    url: 'https://www.youtube.com/@Netflix',
+  },
+  {
+    channelId: 'UCNJwYVhTNX23AULBnfwnc9A', // Prime Video DE
+    name: 'Prime Video DE',
+    url: 'https://www.youtube.com/@PrimeVideoDE',
+  },
+  {
+    channelId: 'UCOJJq47ie4y0HC5hH4JSQ6w', // Disney+ Deutschland
+    name: 'Disney+ DE',
+    url: 'https://www.youtube.com/@DisneyPlusDE',
+  },
+  {
+    channelId: 'UCx-KWLTKlB83hDI6UKECtJQ', // Max (Stream On Max)
+    name: 'Max',
+    url: 'https://www.youtube.com/@StreamOnMax',
+  },
+  {
+    channelId: 'UC1Myj674wRVXB9I4c6Hm5zA', // Apple TV
+    name: 'Apple TV',
+    url: 'https://www.youtube.com/@AppleTV',
+  },
+];
 
 // ══════════════════════════════════════════════════════════════════════════
 // AUTHOR ROTATION
@@ -71,77 +74,6 @@ function getRandomAuthor(): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// LLM REWRITE FOR HUMAN TONE
-// ══════════════════════════════════════════════════════════════════════════
-async function rewriteForHumanTone(
-  markdown: string,
-  headline: string,
-  seriesName: string,
-  problems: string[]
-): Promise<string | null> {
-  console.log('   🔄 Rewrite für menschlicheren Ton...');
-  
-  const problemList = problems.slice(0, 5).join('\n- ');
-  
-  const systemPrompt = `Du bist ein erfahrener deutscher TV-Redakteur. Deine Aufgabe ist es, KI-generierte Texte menschlicher zu machen.
-
-REGELN:
-1. Variiere Satzanfänge - nie zwei gleiche hintereinander
-2. Maximal 3 Sätze pro Absatz
-3. Erster Absatz MUSS einen konkreten Fakt enthalten (Datum, Name, Zahl)
-4. Keine Füllwörter: "Es ist wichtig", "Insgesamt", "Darüber hinaus"
-5. Direkt und knapp schreiben
-6. Behalte alle Links [Text](URL) exakt bei
-7. Behalte die Markdown-Struktur (## Überschriften)
-
-VERMEIDE:
-- Generische Einleitungen
-- "spannend", "aufregend", "interessant"
-- Wiederholungen des Seriennamens (max 2x pro Absatz)`;
-
-  const userPrompt = `HEADLINE: ${headline}
-SERIE: ${seriesName}
-
-PROBLEME IM TEXT:
-- ${problemList}
-
-ORIGINALER MARKDOWN:
-${markdown.substring(0, 3000)}
-
-Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Markdown:`;
-
-  try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.EMERGENT_LLM_KEY,
-      baseURL: 'http://localhost:8002/v1',
-    });
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    const rewritten = response.choices?.[0]?.message?.content;
-    
-    if (rewritten && rewritten.length > 500) {
-      console.log('   ✅ Rewrite erfolgreich');
-      return rewritten;
-    }
-    
-    return null;
-  } catch (error) {
-    console.log('   ⚠️ Rewrite fehlgeschlagen:', error instanceof Error ? error.message : '');
-    return null;
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
 // SLUG GENERATOR
 // ══════════════════════════════════════════════════════════════════════════
 function generateSlug(title: string): string {
@@ -154,707 +86,399 @@ function generateSlug(title: string): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// WEB SEARCH: Google News RSS + DuckDuckGo
+// YOUTUBE RSS FEED FETCHER
 // ══════════════════════════════════════════════════════════════════════════
-interface SearchResult {
+interface YouTubeVideo {
+  videoId: string;
   title: string;
-  url: string;
-  snippet: string;
-  source: string;
+  description: string;
+  thumbnailUrl: string;
+  publishedAt: Date;
+  channelId: string;
+  channelName: string;
 }
 
-// Resolve Google News redirect to get actual article URL
-async function resolveGoogleNewsUrl(gnUrl: string): Promise<string | null> {
-  if (!gnUrl.includes('news.google.com')) return gnUrl;
+async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
+  const videos: YouTubeVideo[] = [];
   
   try {
-    // Follow the redirect with a short timeout
-    const response = await fetch(gnUrl, {
-      method: 'HEAD',
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(5000)
+    // YouTube RSS Feed - no API key needed!
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    
+    const response = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+      },
+      signal: AbortSignal.timeout(15000)
     });
     
-    const finalUrl = response.url;
-    if (finalUrl && !finalUrl.includes('google.com')) {
-      return finalUrl;
+    if (!response.ok) {
+      console.log(`   ⚠️ RSS Feed nicht verfügbar: ${response.status}`);
+      return videos;
     }
-  } catch {
-    // If HEAD fails, try GET
-    try {
-      const response = await fetch(gnUrl, {
-        redirect: 'follow',
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(5000)
-      });
-      const finalUrl = response.url;
-      if (finalUrl && !finalUrl.includes('google.com')) {
-        return finalUrl;
+    
+    const xml = await response.text();
+    const $ = cheerio.load(xml, { xmlMode: true });
+    
+    // Get channel name from feed
+    const channelName = $('feed > title').text() || 'Unknown Channel';
+    
+    $('entry').each((i, el) => {
+      if (i >= 15) return; // Max 15 videos per channel
+      
+      const videoId = $(el).find('yt\\:videoId, videoId').text();
+      const title = $(el).find('title').text();
+      const published = $(el).find('published').text();
+      const description = $(el).find('media\\:description, description').text() || '';
+      
+      // Get thumbnail (try different qualities)
+      const thumbnailUrl = $(el).find('media\\:thumbnail').attr('url') ||
+                          `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+      
+      if (videoId && title) {
+        videos.push({
+          videoId,
+          title,
+          description: description.substring(0, 2000), // Limit description length
+          thumbnailUrl,
+          publishedAt: new Date(published),
+          channelId,
+          channelName,
+        });
       }
-    } catch {}
+    });
+    
+    console.log(`   ✓ ${videos.length} Videos von ${channelName}`);
+    
+  } catch (error) {
+    console.error(`   ❌ Fehler beim Laden des Feeds:`, error instanceof Error ? error.message : error);
+  }
+  
+  return videos;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// INITIALIZE CHANNELS IN DATABASE
+// ══════════════════════════════════════════════════════════════════════════
+export async function initializeChannels(): Promise<void> {
+  console.log('\n📺 Initialisiere YouTube-Kanäle...');
+  
+  for (const channel of DEFAULT_CHANNELS) {
+    const existing = await prisma.youtube_channels.findUnique({
+      where: { channelId: channel.channelId }
+    });
+    
+    if (!existing) {
+      await prisma.youtube_channels.create({
+        data: {
+          channelId: channel.channelId,
+          name: channel.name,
+          url: channel.url,
+          isActive: true,
+        }
+      });
+      console.log(`   ✓ Kanal hinzugefügt: ${channel.name}`);
+    } else {
+      console.log(`   ℹ️ Kanal existiert: ${channel.name}`);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CHECK FOR NEW VIDEOS
+// ══════════════════════════════════════════════════════════════════════════
+export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
+  console.log('\n🔍 Prüfe auf neue Videos...');
+  
+  const newVideos: YouTubeVideo[] = [];
+  
+  // Get all active channels
+  const channels = await prisma.youtube_channels.findMany({
+    where: { isActive: true }
+  });
+  
+  if (channels.length === 0) {
+    console.log('   ⚠️ Keine aktiven Kanäle gefunden. Initialisiere...');
+    await initializeChannels();
+    return checkForNewVideos();
+  }
+  
+  for (const channel of channels) {
+    console.log(`\n📡 Prüfe: ${channel.name}`);
+    
+    const videos = await fetchChannelVideos(channel.channelId);
+    
+    for (const video of videos) {
+      // Check if video already exists
+      const existing = await prisma.youtube_videos.findUnique({
+        where: { videoId: video.videoId }
+      });
+      
+      if (!existing) {
+        // New video! Save to database
+        await prisma.youtube_videos.create({
+          data: {
+            videoId: video.videoId,
+            channelId: video.channelId,
+            title: video.title,
+            description: video.description,
+            thumbnailUrl: video.thumbnailUrl,
+            publishedAt: video.publishedAt,
+            processed: false,
+          }
+        });
+        
+        newVideos.push(video);
+        console.log(`   🆕 Neues Video: ${video.title.substring(0, 50)}...`);
+      }
+    }
+    
+    // Update last checked timestamp
+    await prisma.youtube_channels.update({
+      where: { channelId: channel.channelId },
+      data: { lastCheckedAt: new Date() }
+    });
+  }
+  
+  console.log(`\n📊 ${newVideos.length} neue Videos gefunden`);
+  return newVideos;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// EXTRACT SERIES NAME FROM VIDEO TITLE
+// ══════════════════════════════════════════════════════════════════════════
+function extractSeriesFromTitle(title: string): string | null {
+  // Common patterns in trailer/announcement titles:
+  // "Squid Game: Staffel 2 | Offizieller Trailer | Netflix"
+  // "Wednesday Staffel 2 | Teaser | Netflix"
+  // "ADOLESCENCE | Offizieller Trailer | Netflix"
+  
+  // Remove common suffixes
+  let cleaned = title
+    .replace(/\s*\|\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung|Clip|Sneak Peek).*$/i, '')
+    .replace(/\s*-\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung).*$/i, '')
+    .replace(/\s*:\s*Staffel\s*\d+.*$/i, '')
+    .replace(/\s+Staffel\s*\d+.*$/i, '')
+    .replace(/\s*\(.*?\)\s*$/g, '') // Remove parentheses at end
+    .trim();
+  
+  // If still too long, take first part before | or :
+  if (cleaned.length > 50) {
+    const parts = cleaned.split(/[|:]/);
+    cleaned = parts[0].trim();
+  }
+  
+  return cleaned.length > 2 ? cleaned : null;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SEARCH TMDB FOR SERIES
+// ══════════════════════════════════════════════════════════════════════════
+async function findTmdbSeries(seriesName: string): Promise<{
+  tmdbId: number;
+  name: string;
+  backdropPath: string | null;
+} | null> {
+  try {
+    const apiKey = process.env.TMDB_API_KEY;
+    if (!apiKey) return null;
+    
+    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(seriesName)}&language=de-DE`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      const series = data.results[0];
+      return {
+        tmdbId: series.id,
+        name: series.name,
+        backdropPath: series.backdrop_path,
+      };
+    }
+  } catch (error) {
+    console.log(`   ⚠️ TMDB Suche fehlgeschlagen: ${error instanceof Error ? error.message : ''}`);
   }
   
   return null;
 }
 
-async function searchWeb(query: string): Promise<SearchResult[]> {
-  const results: SearchResult[] = [];
-  const snippetResults: SearchResult[] = []; // Separate container for snippet-only results
-  
-  console.log(`   🔍 Suche: "${query}"`);
-  
-  try {
-    // ══════════════════════════════════════════════════════════════════
-    // STEP 1: DuckDuckGo (PRIORITÄT - liefert direkte URLs für Volltext)
-    // ══════════════════════════════════════════════════════════════════
-    console.log('   📡 DuckDuckGo (direkte URLs)...');
-    
-    // Multiple search queries for maximum coverage on trending topics
-    const ddgQueries = [
-      `${query} serie news`,
-      `${query} staffel neuigkeiten`,
-      `${query} TV series news`,
-      `${query} start datum`,
-      `${query} cast besetzung`,
-      `${query} handlung inhalt`,
-      `"${query}" 2025`, // Exact match with year
-    ];
-    
-    for (const ddgQuery of ddgQueries) {
-      if (results.length >= 20) break; // Increased limit for trends
-      
-      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
-      
-      const response = await fetch(ddgUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-        },
-        signal: AbortSignal.timeout(12000)
-      }).catch(() => null);
-      
-      if (!response?.ok) continue;
-      
-      const html = await response.text();
-      const $ = cheerio.load(html);
-      
-      $('.result, .web-result').each((i, el) => {
-        if (results.length >= 25) return; // More results for trends
-        
-        const $el = $(el);
-        const linkEl = $el.find('a.result__a, a.result__url').first();
-        let href = linkEl.attr('href') || '';
-        const title = $el.find('.result__title, h2').text().trim();
-        const snippet = $el.find('.result__snippet').text().trim();
-        
-        // Decode DuckDuckGo redirect URL
-        if (href.includes('uddg=')) {
-          const match = href.match(/uddg=([^&]+)/);
-          if (match) href = decodeURIComponent(match[1]);
-        }
-        
-        // Filter: Only valid article URLs, no duplicates
-        if (href && title && 
-            href.startsWith('http') && 
-            !href.includes('google.com') &&
-            !href.includes('youtube.com') &&
-            !href.includes('facebook.com') &&
-            !href.includes('twitter.com') &&
-            !href.includes('instagram.com') &&
-            !href.includes('pinterest.') &&
-            !href.includes('reddit.com') &&
-            !results.some(r => r.url === href)) {
-          results.push({ 
-            title, 
-            url: href, 
-            snippet, 
-            source: getSourceName(href)
-          });
-        }
-      });
-      
-      // Small delay between queries
-      await new Promise(r => setTimeout(r, 300));
-    }
-    
-    console.log(`      ✓ ${results.length} direkte URLs gefunden`);
-    
-    // ══════════════════════════════════════════════════════════════════
-    // STEP 2: Google News RSS (nur für Snippets/Fakten als Ergänzung)
-    // ══════════════════════════════════════════════════════════════════
-    console.log('   📡 Google News (Snippets)...');
-    const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' serie')}&hl=de&gl=DE&ceid=DE:de`;
-    
-    const gnResponse = await fetch(googleNewsUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' },
-      signal: AbortSignal.timeout(10000)
-    }).catch(() => null);
-    
-    if (gnResponse?.ok) {
-      const xml = await gnResponse.text();
-      const $ = cheerio.load(xml, { xmlMode: true });
-      
-      $('item').each((i, el) => {
-        if (i >= 10) return;
-        
-        const title = $(el).find('title').text().trim();
-        const link = $(el).find('link').text().trim();
-        const description = $(el).find('description').text().trim();
-        
-        const sourceMatch = title.match(/ - ([^-]+)$/);
-        const sourceName = sourceMatch ? sourceMatch[1].trim() : 'News';
-        
-        const cleanDesc = description
-          .replace(/<[^>]*>/g, '')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&amp;/g, '&')
-          .replace(/&quot;/g, '"')
-          .trim();
-        
-        if (title && cleanDesc) {
-          snippetResults.push({
-            title: title.replace(/ - [^-]+$/, '').trim(),
-            url: link, // Google News redirect - won't be scraped
-            snippet: cleanDesc,
-            source: sourceName
-          });
-        }
-      });
-      
-      console.log(`      ✓ ${snippetResults.length} News-Snippets`);
-    }
-    
-    // Add snippet results at the end (they have lower priority for scraping)
-    // but their snippets will still be used for fact extraction
-    for (const sr of snippetResults) {
-      if (!results.some(r => r.title === sr.title)) {
-        results.push(sr);
-      }
-    }
-    
-    console.log(`   📰 Gesamt: ${results.length} Quellen`);
-    
-  } catch (error) {
-    console.error('   ❌ Suchfehler:', error instanceof Error ? error.message : error);
-  }
-  
-  return results;
-}
-
 // ══════════════════════════════════════════════════════════════════════════
-// ARTICLE SCRAPER: Jina AI Reader + Cheerio Fallback
+// GENERATE ARTICLE FROM YOUTUBE VIDEO
 // ══════════════════════════════════════════════════════════════════════════
-interface ScrapedArticle {
-  title: string;
-  content: string;
-  url: string;
-  source: string;
-  wordCount: number;
-}
-
-function getSourceName(url: string): string {
-  try {
-    const hostname = new URL(url).hostname.replace('www.', '');
-    return KNOWN_SOURCES[hostname] || hostname;
-  } catch {
-    return 'Web';
-  }
-}
-
-// Direct cheerio scraper as fallback
-async function scrapeWithCheerio(url: string): Promise<ScrapedArticle | null> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-    
-    if (!response.ok) return null;
-    
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    
-    // Remove noise
-    $('script, style, nav, footer, aside, header, .ad, .advertisement, .sidebar, .comments, .related, .newsletter, [role="navigation"], [role="banner"]').remove();
-    
-    // Extract title
-    const title = $('h1').first().text().trim() || 
-                  $('meta[property="og:title"]').attr('content') || 
-                  $('title').text().trim();
-    
-    // Universal content extraction - try multiple selectors
-    const contentSelectors = [
-      'article p',
-      '.article-body p',
-      '.entry-content p',
-      '.post-content p',
-      '.content p',
-      'main p',
-      '.story-body p',
-      '[itemprop="articleBody"] p',
-    ];
-    
-    const paragraphs: string[] = [];
-    
-    for (const selector of contentSelectors) {
-      $(selector).each((_, el) => {
-        const text = $(el).text().trim();
-        if (text.length > 40 && !paragraphs.includes(text)) {
-          paragraphs.push(text);
-        }
-      });
-      if (paragraphs.length >= 5) break; // Got enough content
-    }
-    
-    const content = paragraphs.join('\n\n');
-    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
-    
-    if (wordCount < 80) return null;
-    
-    return {
-      title: title || 'Untitled',
-      content,
-      url,
-      source: getSourceName(url),
-      wordCount
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function scrapeArticle(url: string): Promise<ScrapedArticle | null> {
-  try {
-    // Skip non-http URLs and Google redirect URLs
-    if (!url.startsWith('http') || url.includes('google.com/url')) {
-      return null;
-    }
-    
-    // Try Jina Reader first (best quality)
-    const jinaUrl = `${JINA_READER_URL}${url}`;
-    
-    const jinaResponse = await fetch(jinaUrl, {
-      headers: {
-        'Accept': 'text/plain',
-        'X-Return-Format': 'markdown',
-      },
-      signal: AbortSignal.timeout(12000)
-    }).catch(() => null);
-    
-    if (jinaResponse?.ok) {
-      const markdown = await jinaResponse.text();
-      
-      // Extract title
-      let title = '';
-      const titleMatch = markdown.match(/^#\s+(.+)$/m);
-      if (titleMatch) {
-        title = titleMatch[1].trim();
-      } else {
-        const firstLine = markdown.split('\n')[0];
-        title = firstLine.replace(/^[#\s]+/, '').trim();
-      }
-      
-      // Clean content
-      let content = markdown
-        .replace(/!\[.*?\]\(.*?\)/g, '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/(\n\s*){3,}/g, '\n\n')
-        .trim();
-      
-      // Remove noise
-      const noisePatterns = [
-        /^(Menu|Navigation|Search|Advertisement|Subscribe|Newsletter|Follow us|Share|Related|Tags|Categories).*$/gim,
-        /^(Copyright|©|All rights reserved).*$/gim,
-        /^Read more:.*$/gim,
-      ];
-      
-      for (const pattern of noisePatterns) {
-        content = content.replace(pattern, '');
-      }
-      
-      const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
-      
-      if (wordCount >= 100) {
-        return {
-          title: title || 'Untitled',
-          content,
-          url,
-          source: getSourceName(url),
-          wordCount
-        };
-      }
-    }
-    
-    // Fallback: Direct cheerio scraping
-    console.log(`      ↳ Fallback: Cheerio für ${getSourceName(url)}`);
-    return await scrapeWithCheerio(url);
-    
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown';
-    if (!msg.includes('timeout')) {
-      console.log(`      ⚠️ Scrape Fehler: ${msg}`);
-    }
-    // Try fallback on error
-    return await scrapeWithCheerio(url);
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// GATHER ALL INFO: Sammelt Infos von mehreren Quellen
-// ══════════════════════════════════════════════════════════════════════════
-interface GatheredInfo {
-  searchTerm: string;
-  articles: ScrapedArticle[];
-  totalWordCount: number;
-  seriesName?: string;
-  tmdbData?: any;
-}
-
-async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
-  console.log('\n' + '─'.repeat(60));
-  console.log(`📊 Sammle Infos für: "${searchTerm}"`);
-  console.log('─'.repeat(60));
-  
-  const info: GatheredInfo = {
-    searchTerm,
-    articles: [],
-    totalWordCount: 0
-  };
-  
-  // Step 1: Web Search (DuckDuckGo URLs first, then Google News snippets)
-  const searchResults = await searchWeb(searchTerm);
-  
-  // Step 2: Separate direct URLs from Google News (snippets only)
-  const directUrls = searchResults.filter(r => !r.url.includes('news.google.com'));
-  const snippetOnlyResults = searchResults.filter(r => r.url.includes('news.google.com'));
-  
-  console.log(`   📄 Scrape ${directUrls.length} direkte URLs...`);
-  
-  // Collect all snippets for backup
-  const allSnippets: string[] = searchResults
-    .filter(r => r.snippet && r.snippet.length > 30)
-    .map(r => `[${r.source}] ${r.title}\n${r.snippet}`);
-  
-  // Step 3: Scrape ALL direct URLs in parallel batches of 4 (more aggressive for trends)
-  for (let i = 0; i < Math.min(directUrls.length, 20); i += 4) {
-    const batch = directUrls.slice(i, i + 4);
-    
-    const scraped = await Promise.all(
-      batch.map(async (result) => {
-        const article = await scrapeArticle(result.url);
-        return { result, article };
-      })
-    );
-    
-    for (const { result, article } of scraped) {
-      if (article && article.wordCount >= 80) { // Lower threshold for trends
-        info.articles.push(article);
-        info.totalWordCount += article.wordCount;
-        console.log(`      ✓ ${article.source}: ${article.wordCount} Wörter`);
-      }
-    }
-    
-    // For trends: Don't stop early - scrape ALL available URLs
-    // Only stop if we have a LOT of content (3000+ words)
-    if (info.totalWordCount >= 3000) {
-      console.log(`      ✓ Genug Content (${info.totalWordCount} Wörter)`);
-      break;
-    }
-  }
-  
-  // Step 4: ALWAYS add snippets for trends (they contain fresh info)
-  if (allSnippets.length > 0) {
-    console.log('   📋 Kombiniere mit News-Snippets...');
-    const allSnippetsText = allSnippets.join('\n\n');
-    info.articles.push({
-      title: 'Aktuelle News-Zusammenfassung',
-      content: allSnippetsText,
-      url: '',
-      source: 'News Aggregation',
-      wordCount: allSnippetsText.split(/\s+/).length
-    });
-    info.totalWordCount += info.articles[info.articles.length - 1].wordCount;
-    console.log(`      ✓ +${info.articles[info.articles.length - 1].wordCount} Wörter aus ${allSnippets.length} Snippets`);
-  }
-  
-  // Step 5: If NO articles could be scraped, use only snippets
-  if (info.articles.length === 1 && info.articles[0].source === 'News Aggregation') {
-    console.log('   ⚠️ Nur Snippets verfügbar (keine Volltext-Quellen)');
-  }
-  
-  // Step 3: Try to resolve TMDB series with direct API call
-  console.log('   🎬 Suche TMDB Serie...');
-  try {
-    const apiKey = process.env.TMDB_API_KEY;
-    if (apiKey) {
-      // Strategy 1: Search for known series keywords in the search term
-      const seriesKeywords = ['tatort', 'polizeiruf', 'krimi', 'serie', 'show'];
-      let seriesName = '';
-      
-      for (const keyword of seriesKeywords) {
-        if (searchTerm.toLowerCase().includes(keyword)) {
-          seriesName = keyword;
-          break;
-        }
-      }
-      
-      // Strategy 2: Extract series name (remove person names, staffel numbers)
-      if (!seriesName) {
-        seriesName = searchTerm
-          .replace(/staffel\s*\d+/gi, '')
-          .replace(/season\s*\d+/gi, '')
-          .replace(/netflix|prime|disney|amazon|hbo|sky|ard|zdf/gi, '')
-          .trim();
-      }
-      
-      // Strategy 3: Try multiple searches
-      const searchTerms = [
-        seriesName,
-        searchTerm.split(' ').slice(-1)[0], // Last word (often the series name)
-        searchTerm.replace(/\s+/g, ' ').trim()
-      ].filter(t => t.length > 2);
-      
-      for (const term of searchTerms) {
-        const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(term)}&language=de-DE`;
-        const response = await fetch(tmdbUrl);
-        const data = await response.json();
-        
-        if (data.results && data.results.length > 0) {
-          const series = data.results[0];
-          info.seriesName = series.name;
-          info.tmdbData = {
-            tmdbId: series.id,
-            name: series.name,
-            overview: series.overview,
-            posterPath: series.poster_path,
-            backdropPath: series.backdrop_path,
-            firstAirDate: series.first_air_date,
-            voteAverage: series.vote_average,
-          };
-          console.log(`      ✓ TMDB: ${info.seriesName} (ID: ${series.id})`);
-          break;
-        }
-      }
-    }
-  } catch (error) {
-    console.log('      ⚠️ TMDB Suche fehlgeschlagen:', error instanceof Error ? error.message : '');
-  }
-  
-  console.log(`   📊 Gesamt: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter`);
-  
-  return info;
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// MAIN PIPELINE: Generiert Artikel aus gesammelten Infos
-// ══════════════════════════════════════════════════════════════════════════
-export interface TrendArticleResult {
+export interface YTArticleResult {
   success: boolean;
   articleId?: string;
   slug?: string;
   title?: string;
-  trendId: string;
+  videoId: string;
   error?: string;
 }
 
-export async function runP3TrendsPipeline(
-  trendId: string,
-  searchTerm: string
-): Promise<TrendArticleResult> {
+export async function generateArticleFromVideo(video: YouTubeVideo): Promise<YTArticleResult> {
   console.log('\n' + '═'.repeat(70));
-  console.log('🔥 P3-TRENDS PIPELINE');
+  console.log('🎬 P4-YT: ARTIKEL AUS VIDEO GENERIEREN');
   console.log('═'.repeat(70));
-  console.log(`📌 Trend: "${searchTerm}"`);
-  console.log(`🆔 Trend-ID: ${trendId}\n`);
+  console.log(`📺 Video: "${video.title}"`);
+  console.log(`🆔 Video-ID: ${video.videoId}`);
+  console.log(`📡 Kanal: ${video.channelName}\n`);
   
   const now = new Date();
   
   try {
-    // ========== STEP 1: GATHER INFO ==========
-    const info = await gatherInfoForTrend(searchTerm);
-    
-    if (info.articles.length === 0) {
-      console.log('❌ Keine Artikel gefunden - überspringe');
-      return { success: false, trendId, error: 'Keine Quellen gefunden' };
-    }
-    
-    if (info.totalWordCount < 100) {
-      console.log('❌ Zu wenig Content - überspringe');
-      return { success: false, trendId, error: 'Zu wenig Quellmaterial' };
-    }
-    
-    // ========== STEP 2: RESOLVE SERIES ==========
-    console.log('\n' + '━'.repeat(60));
-    console.log('STEP 2: SERIE AUFLÖSEN');
+    // ========== STEP 1: EXTRACT SERIES NAME ==========
+    console.log('━'.repeat(60));
+    console.log('STEP 1: SERIE EXTRAHIEREN');
     console.log('━'.repeat(60));
     
-    let dbSeries = null;
+    const seriesName = extractSeriesFromTitle(video.title);
+    console.log(`   📺 Extrahierter Serienname: ${seriesName || '(nicht erkannt)'}`);
     
-    if (info.tmdbData) {
-      // Check if series exists in DB
-      dbSeries = await prisma.series.findFirst({
-        where: { tmdbId: info.tmdbData.tmdbId }
-      });
+    // ========== STEP 2: FIND TMDB SERIES ==========
+    let tmdbData: { tmdbId: number; name: string; backdropPath: string | null } | null = null;
+    let dbSeries: any = null;
+    
+    if (seriesName) {
+      console.log('\n━'.repeat(60));
+      console.log('STEP 2: TMDB SUCHE');
+      console.log('━'.repeat(60));
       
-      if (!dbSeries) {
-        // Create series
-        console.log('   📺 Erstelle neue Serie...');
-        dbSeries = await prisma.series.create({
-          data: {
-            tmdbId: info.tmdbData.tmdbId,
-            name: info.tmdbData.name,
-            title: info.tmdbData.name,
-            slug: generateSeriesSlug(info.tmdbData.name, info.tmdbData.tmdbId),
-            posterPath: info.tmdbData.posterPath,
-            backdropPath: info.tmdbData.backdropPath,
-            overview: info.tmdbData.overview || '',
-            status: info.tmdbData.status || 'Unknown',
-            firstAirDate: info.tmdbData.firstAirDate ? new Date(info.tmdbData.firstAirDate) : null,
-            updatedAt: now,
-          }
-        });
-        console.log(`   ✓ Serie erstellt: ${dbSeries.name}`);
+      tmdbData = await findTmdbSeries(seriesName);
+      
+      if (tmdbData) {
+        console.log(`   ✓ TMDB: ${tmdbData.name} (ID: ${tmdbData.tmdbId})`);
         
-        // Import characters and cast in parallel
-        try {
-          await Promise.all([
-            importSeriesCharacters(info.tmdbData.tmdbId),
-            importSeriesCast(info.tmdbData.tmdbId)
-          ]);
-        } catch (e) {
-          console.log('   ⚠️ Character/Cast Import fehlgeschlagen');
+        // Check if series exists in DB
+        dbSeries = await prisma.series.findUnique({
+          where: { tmdbId: tmdbData.tmdbId }
+        });
+        
+        if (dbSeries) {
+          console.log(`   ✓ Serie in DB gefunden`);
         }
       } else {
-        console.log(`   ✓ Serie existiert: ${dbSeries.name}`);
+        console.log(`   ⚠️ Keine TMDB-Serie gefunden`);
       }
     }
     
     // ========== STEP 3: GENERATE CONTENT ==========
-    console.log('\n' + '━'.repeat(60));
+    console.log('\n━'.repeat(60));
     console.log('STEP 3: CONTENT GENERIEREN');
     console.log('━'.repeat(60));
     
-    // Combine all source texts
-    const combinedSourceText = info.articles
-      .map(a => `[Quelle: ${a.source}]\n${a.content}`)
-      .join('\n\n---\n\n');
+    // Combine video info as source text
+    const sourceText = `
+VIDEO-TITEL: ${video.title}
+KANAL: ${video.channelName}
+VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE')}
+
+VIDEO-BESCHREIBUNG:
+${video.description || 'Keine Beschreibung verfügbar.'}
+    `.trim();
     
-    // Step 3a: Extract facts from source text
+    // Extract facts from video info
     console.log('   📊 Extrahiere Fakten...');
-    const facts = await extractFacts(searchTerm, combinedSourceText || 'Keine Details verfügbar');
-    console.log(`   ✓ Fakten: ${facts.key_statements?.length || 0} Statements`);
+    const facts = await extractFacts(
+      seriesName || video.title,
+      sourceText
+    );
+    console.log(`   ✓ ${facts.key_statements?.length || 0} Statements extrahiert`);
     
-    // Step 3b: Classify content type
+    // Determine content type from video title
     let contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING' = 'NEWS';
-    if (searchTerm.toLowerCase().includes('staffel') || searchTerm.toLowerCase().includes('season')) {
+    const titleLower = video.title.toLowerCase();
+    if (titleLower.includes('trailer') || titleLower.includes('teaser') || titleLower.includes('ankündigung')) {
       contentType = 'NEWS';
-    } else if (searchTerm.toLowerCase().includes('erklär') || searchTerm.toLowerCase().includes('ende')) {
-      contentType = 'ENDING_EXPLAINED';
-    } else if (searchTerm.toLowerCase().includes('beste') || searchTerm.toLowerCase().includes('top')) {
-      contentType = 'RANKING';
     }
-    console.log(`   ✓ Content-Typ: ${contentType}`);
     
-    // Step 3c: Generate structured content
+    // Generate article
     console.log('   🤖 Generiere Artikel via LLM...');
     
     const structuredContent = await generateStructuredContent({
       facts,
-      seriesName: info.seriesName || searchTerm,
-      originalHeadline: searchTerm,
-      sourceText: combinedSourceText || searchTerm,
-      contentType: contentType,
-      wordCountTarget: 800, // Ausführlicher Artikel
+      seriesName: tmdbData?.name || seriesName || video.title,
+      originalHeadline: video.title,
+      sourceText,
+      contentType,
+      wordCountTarget: 600,
     });
     
     if (!structuredContent || !structuredContent.markdown) {
       console.log('❌ Content-Generierung fehlgeschlagen');
-      return { success: false, trendId, error: 'LLM Fehler' };
+      return { success: false, videoId: video.videoId, error: 'LLM Fehler' };
     }
     
     console.log(`   ✓ Headline: ${structuredContent.headline}`);
-    console.log(`   ✓ Sections: ${structuredContent.sections?.length || 0}`);
-    console.log(`   ✓ Q&A: ${structuredContent.qa?.length || 0}`);
     
-    // ========== STEP 4: LINK CHARACTERS & CAST ==========
-    console.log('\n' + '━'.repeat(60));
-    console.log('STEP 4: CHARACTER & CAST LINKING');
+    // ========== STEP 4: ADD VIDEO EMBED ==========
+    console.log('\n━'.repeat(60));
+    console.log('STEP 4: VIDEO EINBETTEN');
     console.log('━'.repeat(60));
     
+    // Add YouTube embed at the beginning of the article
+    const youtubeEmbed = `
+<div class="youtube-embed" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0;">
+  <iframe 
+    src="https://www.youtube.com/embed/${video.videoId}" 
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+    allowfullscreen>
+  </iframe>
+</div>
+`;
+    
+    // ========== STEP 5: LINK CHARACTERS & STREAMERS ==========
     let processedMarkdown = structuredContent.markdown;
     
     if (dbSeries) {
       try {
-        // Character linking - returns { linkedMarkdown, charactersLinked }
-        const charResult = await linkCharactersInMarkdown(
-          processedMarkdown,
-          dbSeries.tmdbId
-        );
+        const charResult = await linkCharactersInMarkdown(processedMarkdown, dbSeries.tmdbId);
         processedMarkdown = charResult.linkedMarkdown;
-        console.log(`   ✓ ${charResult.charactersLinked} Characters verlinkt`);
         
-        // Cast linking - returns { linkedMarkdown, castLinked }
-        const castResult = await linkCastInMarkdown(
-          processedMarkdown,
-          dbSeries.tmdbId
-        );
+        const castResult = await linkCastInMarkdown(processedMarkdown, dbSeries.tmdbId);
         processedMarkdown = castResult.linkedMarkdown;
-        console.log(`   ✓ ${castResult.castLinked} Cast verlinkt`);
       } catch (e) {
-        console.log('   ⚠️ Linking fehlgeschlagen:', e instanceof Error ? e.message : '');
+        // Linking failed, continue without
       }
     }
     
-    // Link streamers - returns { linkedMarkdown, streamersLinked }
     const streamerResult = linkStreamersInMarkdown(processedMarkdown);
     processedMarkdown = streamerResult.linkedMarkdown;
-    if (streamerResult.streamersLinked.length > 0) {
-      console.log(`   ✓ Streamer verlinkt: ${streamerResult.streamersLinked.join(', ')}`);
-    }
-    
-    // ========== STEP 5: INTERNAL LINKS ==========
-    // Note: Internal linking requires article ID and full config - skip for now
-    // The article will get internal links on next page view via middleware
+    console.log(`   ✓ Video eingebettet, Streamer verlinkt`);
     
     // ========== STEP 6: CONVERT TO HTML ==========
-    console.log('\n' + '━'.repeat(60));
+    console.log('\n━'.repeat(60));
     console.log('STEP 6: HTML KONVERTIERUNG');
     console.log('━'.repeat(60));
     
-    // Ensure processedMarkdown is a string
-    let markdownString = typeof processedMarkdown === 'string' 
-      ? processedMarkdown 
-      : (structuredContent.markdown || '');
+    let htmlContent = markdownToHtml(processedMarkdown);
     
-    let htmlContent = markdownToHtml(markdownString);
+    // Add YouTube embed after first paragraph
+    const firstParagraphEnd = htmlContent.indexOf('</p>');
+    if (firstParagraphEnd !== -1) {
+      htmlContent = htmlContent.slice(0, firstParagraphEnd + 4) + youtubeEmbed + htmlContent.slice(firstParagraphEnd + 4);
+    } else {
+      htmlContent = youtubeEmbed + htmlContent;
+    }
+    
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: ANTI-AI FILTER (Check only) ==========
-    console.log('\n' + '━'.repeat(60));
+    // ========== STEP 7: ANTI-AI CHECK ==========
+    console.log('\n━'.repeat(60));
     console.log('STEP 7: ANTI-AI CHECK');
     console.log('━'.repeat(60));
     
     const antiAiResult = await antiAiFilter({
       articleHtml: htmlContent,
       headline: structuredContent.headline,
-      seriesName: info.seriesName || searchTerm,
+      seriesName: tmdbData?.name || seriesName || video.title,
     });
     
     console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
     console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
     
-    if (antiAiResult.failReasons.length > 0) {
-      console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
-    }
-    
     // ========== STEP 8: SAVE ARTICLE ==========
-    console.log('\n' + '━'.repeat(60));
+    console.log('\n━'.repeat(60));
     console.log('STEP 8: ARTIKEL SPEICHERN');
     console.log('━'.repeat(60));
     
@@ -867,21 +491,28 @@ export async function runP3TrendsPipeline(
     
     if (existing) {
       console.log('⚠️ Artikel existiert bereits');
-      return { 
-        success: true, 
-        trendId, 
-        articleId: existing.id, 
+      
+      // Update video as processed
+      await prisma.youtube_videos.update({
+        where: { videoId: video.videoId },
+        data: {
+          processed: true,
+          processedAt: now,
+          articleId: existing.id,
+          articleSlug: existing.slug,
+        }
+      });
+      
+      return {
+        success: true,
+        videoId: video.videoId,
+        articleId: existing.id,
         slug: existing.slug,
         title: existing.title
       };
     }
     
-    const articleId = `trend-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Generate unique source URL to avoid unique constraint
-    const uniqueSourceUrl = info.articles[0]?.url 
-      ? `${info.articles[0].url}#trend-${Date.now()}`
-      : `https://serien.de/trending/${slug}`;
+    const articleId = `yt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     const article = await prisma.articles.create({
       data: {
@@ -891,129 +522,45 @@ export async function runP3TrendsPipeline(
         excerpt: structuredContent.metaDescription,
         contentHtml: htmlContent,
         metaDescription: structuredContent.metaDescription,
-        category: 'trending',
+        category: 'neue-videos',
         status: 'published',
         authorId: getRandomAuthor(),
-        sourceUrl: uniqueSourceUrl,
-        // Series connection - only set if we found a valid series
-        primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
-        tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
-        heroImageUrl: dbSeries?.backdropPath 
-          ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`
-          : info.tmdbData?.backdropPath
-            ? `https://image.tmdb.org/t/p/w1280${info.tmdbData.backdropPath}`
-            : null,
-        isTrending: true,
+        sourceUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+        primarySeriesId: tmdbData?.tmdbId || null,
+        tmdbId: tmdbData?.tmdbId || null,
+        heroImageUrl: video.thumbnailUrl,
+        heroVideoUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+        isTrending: false,
         publishedAt: now,
         createdAt: now,
         updatedAt: now,
       }
     });
     
+    // Update video as processed
+    await prisma.youtube_videos.update({
+      where: { videoId: video.videoId },
+      data: {
+        processed: true,
+        processedAt: now,
+        articleId: article.id,
+        articleSlug: article.slug,
+      }
+    });
+    
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     
-    // ========== STEP 9: TRAILER DOWNLOAD ==========
-    console.log('\n' + '━'.repeat(60));
-    console.log('STEP 9: TRAILER DOWNLOAD');
-    console.log('━'.repeat(60));
-    
-    if (dbSeries) {
-      try {
-        // Fetch series with trailers from DB using tmdbId
-        const seriesWithTrailers = await prisma.series.findUnique({
-          where: { tmdbId: dbSeries.tmdbId },
-          select: { tmdbId: true, name: true, title: true, trailers: true }
-        });
-        
-        if (seriesWithTrailers) {
-          // Try to get trailer ID from TMDB trailers
-          const trailerId = findTrailerYouTubeId(seriesWithTrailers.trailers);
-          
-          if (trailerId) {
-            console.log(`   🎬 TMDB Trailer gefunden: ${trailerId}`);
-            const downloadResult = await downloadYouTubeTrailer(
-              trailerId,
-              seriesWithTrailers.name || seriesWithTrailers.title || searchTerm
-            );
-            
-            if (downloadResult.success && downloadResult.localPath) {
-              await prisma.articles.update({
-                where: { id: article.id },
-                data: { heroVideoUrl: downloadResult.localPath }
-              });
-              console.log(`   ✅ Trailer heruntergeladen: ${downloadResult.localPath}`);
-            } else {
-              console.log(`   ⚠️ Trailer-Download fehlgeschlagen: ${downloadResult.error}`);
-            }
-          } else {
-            // No TMDB trailer - search YouTube
-            console.log(`   ℹ️ Kein TMDB-Trailer, suche auf YouTube...`);
-            const seriesName = seriesWithTrailers.name || seriesWithTrailers.title || searchTerm;
-            
-            try {
-              const youtubeId = await searchYouTubeTrailer(seriesName);
-              
-              if (youtubeId) {
-                console.log(`   🔍 YouTube-Trailer gefunden: ${youtubeId}`);
-                const downloadResult = await downloadYouTubeTrailer(youtubeId, seriesName);
-                
-                if (downloadResult.success && downloadResult.localPath) {
-                  await prisma.articles.update({
-                    where: { id: article.id },
-                    data: { heroVideoUrl: downloadResult.localPath }
-                  });
-                  console.log(`   ✅ YouTube-Trailer gespeichert`);
-                } else {
-                  // Fallback: Save YouTube URL directly
-                  const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
-                  await prisma.articles.update({
-                    where: { id: article.id },
-                    data: { heroVideoUrl: youtubeUrl }
-                  });
-                  console.log(`   ✅ YouTube-URL gespeichert (kein Download)`);
-                }
-              } else {
-                console.log(`   ⚠️ Kein Trailer gefunden für "${seriesName}"`);
-              }
-            } catch (searchError: any) {
-              console.log(`   ⚠️ YouTube-Suche fehlgeschlagen: ${searchError.message}`);
-            }
-          }
-        }
-      } catch (trailerError: any) {
-        console.log(`   ❌ Trailer-Verarbeitung fehlgeschlagen: ${trailerError.message}`);
-      }
-    } else {
-      console.log(`   ℹ️ Keine Serie gefunden - überspringe Trailer`);
-    }
-    
-    // ========== STEP 10: UPDATE TREND ==========
-    // Only update if this is a real trend from the database
-    if (!trendId.startsWith('manual-')) {
-      try {
-        await prisma.trending_topics.update({
-          where: { id: trendId },
-          data: {
-            processed: true,
-            articleId: article.id,
-            processedAt: now
-          }
-        });
-      } catch (e) {
-        console.log('   ⚠️ Trend-Update übersprungen (nicht in DB)');
-      }
-    }
-    
     console.log('\n' + '═'.repeat(70));
-    console.log('✅ P3-TRENDS PIPELINE ERFOLGREICH');
+    console.log('✅ P4-YT PIPELINE ERFOLGREICH');
     console.log('═'.repeat(70));
     console.log(`📰 Artikel: ${article.title}`);
     console.log(`🔗 URL: /${article.slug}`);
+    console.log(`🎬 Video: https://www.youtube.com/watch?v=${video.videoId}`);
     console.log('═'.repeat(70) + '\n');
     
     return {
       success: true,
-      trendId,
+      videoId: video.videoId,
       articleId: article.id,
       slug: article.slug,
       title: article.title
@@ -1021,37 +568,47 @@ export async function runP3TrendsPipeline(
     
   } catch (error) {
     console.error('❌ Pipeline Fehler:', error);
-    return { 
-      success: false, 
-      trendId, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      videoId: video.videoId,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// PROCESS ALL UNPROCESSED TRENDS
+// PROCESS UNPROCESSED VIDEOS
 // ══════════════════════════════════════════════════════════════════════════
-export async function processAllTrends(): Promise<TrendArticleResult[]> {
-  console.log('\n🔥 Verarbeite alle unverarbeiteten Trends...\n');
+export async function processUnprocessedVideos(limit: number = 5): Promise<YTArticleResult[]> {
+  console.log('\n🎬 Verarbeite unverarbeitete Videos...\n');
   
-  const unprocessedTrends = await prisma.trending_topics.findMany({
+  const unprocessedVideos = await prisma.youtube_videos.findMany({
     where: { processed: false },
-    orderBy: { date: 'desc' },
-    take: 5 // Max 5 at a time
+    orderBy: { publishedAt: 'desc' },
+    take: limit,
+    include: { channel: true }
   });
   
-  if (unprocessedTrends.length === 0) {
-    console.log('Keine unverarbeiteten Trends gefunden.');
+  if (unprocessedVideos.length === 0) {
+    console.log('Keine unverarbeiteten Videos gefunden.');
     return [];
   }
   
-  console.log(`📊 ${unprocessedTrends.length} Trends zu verarbeiten\n`);
+  console.log(`📊 ${unprocessedVideos.length} Videos zu verarbeiten\n`);
   
-  const results: TrendArticleResult[] = [];
+  const results: YTArticleResult[] = [];
   
-  for (const trend of unprocessedTrends) {
-    const result = await runP3TrendsPipeline(trend.id, trend.query);
+  for (const video of unprocessedVideos) {
+    const result = await generateArticleFromVideo({
+      videoId: video.videoId,
+      title: video.title,
+      description: video.description || '',
+      thumbnailUrl: video.thumbnailUrl || '',
+      publishedAt: video.publishedAt,
+      channelId: video.channelId,
+      channelName: video.channel.name,
+    });
+    
     results.push(result);
     
     // Delay between articles
@@ -1062,31 +619,88 @@ export async function processAllTrends(): Promise<TrendArticleResult[]> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// MAIN: CHECK AND PROCESS
+// ══════════════════════════════════════════════════════════════════════════
+export async function runP4YTPipeline(): Promise<{
+  newVideos: number;
+  processed: number;
+  results: YTArticleResult[];
+}> {
+  console.log('\n' + '═'.repeat(70));
+  console.log('🚀 P4-YT PIPELINE START');
+  console.log('═'.repeat(70));
+  
+  // Step 1: Check for new videos
+  const newVideos = await checkForNewVideos();
+  
+  // Step 2: Process unprocessed videos
+  const results = await processUnprocessedVideos(5);
+  
+  const successful = results.filter(r => r.success).length;
+  
+  console.log('\n' + '═'.repeat(70));
+  console.log('📊 P4-YT ZUSAMMENFASSUNG');
+  console.log('═'.repeat(70));
+  console.log(`   🆕 Neue Videos gefunden: ${newVideos.length}`);
+  console.log(`   ✅ Artikel generiert: ${successful}`);
+  console.log(`   ❌ Fehlgeschlagen: ${results.length - successful}`);
+  console.log('═'.repeat(70) + '\n');
+  
+  return {
+    newVideos: newVideos.length,
+    processed: successful,
+    results
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // CLI EXECUTION
 // ══════════════════════════════════════════════════════════════════════════
 if (require.main === module) {
   const args = process.argv.slice(2);
   
-  if (args.length > 0) {
-    // Process specific search term
-    const searchTerm = args.join(' ');
-    runP3TrendsPipeline('manual-' + Date.now(), searchTerm)
-      .then(result => {
+  if (args[0] === 'init') {
+    // Initialize channels only
+    initializeChannels()
+      .then(() => console.log('\n✅ Kanäle initialisiert'))
+      .catch(console.error)
+      .finally(() => prisma.$disconnect());
+  } else if (args[0] === 'check') {
+    // Check for new videos only
+    checkForNewVideos()
+      .then(videos => console.log(`\n✅ ${videos.length} neue Videos`))
+      .catch(console.error)
+      .finally(() => prisma.$disconnect());
+  } else if (args[0] === 'video' && args[1]) {
+    // Process specific video ID
+    const videoId = args[1];
+    prisma.youtube_videos.findUnique({
+      where: { videoId },
+      include: { channel: true }
+    })
+      .then(async (video) => {
+        if (!video) {
+          console.log(`Video ${videoId} nicht gefunden`);
+          return;
+        }
+        const result = await generateArticleFromVideo({
+          videoId: video.videoId,
+          title: video.title,
+          description: video.description || '',
+          thumbnailUrl: video.thumbnailUrl || '',
+          publishedAt: video.publishedAt,
+          channelId: video.channelId,
+          channelName: video.channel.name,
+        });
         console.log('\nErgebnis:', JSON.stringify(result, null, 2));
-        process.exit(result.success ? 0 : 1);
       })
-      .catch(err => {
-        console.error(err);
-        process.exit(1);
-      })
+      .catch(console.error)
       .finally(() => prisma.$disconnect());
   } else {
-    // Process all unprocessed trends
-    processAllTrends()
-      .then(results => {
-        console.log('\n📊 Zusammenfassung:');
-        console.log(`   Erfolgreich: ${results.filter(r => r.success).length}`);
-        console.log(`   Fehlgeschlagen: ${results.filter(r => !r.success).length}`);
+    // Run full pipeline
+    runP4YTPipeline()
+      .then(result => {
+        console.log('\nErgebnis:', JSON.stringify(result, null, 2));
         process.exit(0);
       })
       .catch(err => {

@@ -461,3 +461,59 @@ model trending_topics {
   @@index([category])
   @@index([processed])
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// YOUTUBE CHANNEL TRACKING
+// ══════════════════════════════════════════════════════════════════════════
+
+model youtube_channels {
+  id              String   @id @default(cuid())
+  channelId       String   @unique // YouTube channel ID (e.g., UCZqkRFHEWPkph0HFxeakEgQ)
+  name            String   // Display name (e.g., "Netflix Deutschland")
+  url             String   // Channel URL
+  thumbnailUrl    String?  // Channel thumbnail
+  description     String?  // Channel description
+  subscriberCount Int?     // Subscriber count (optional)
+  isActive        Boolean  @default(true) // Whether to check for new videos
+  checkInterval   Int      @default(60) // Check interval in minutes
+  lastCheckedAt   DateTime? // Last time we checked for new videos
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  videos          youtube_videos[]
+  
+  @@index([isActive])
+  @@index([lastCheckedAt])
+}
+
+model youtube_videos {
+  id              String   @id @default(cuid())
+  videoId         String   @unique // YouTube video ID (e.g., 0LbMUSw7B8s)
+  channelId       String   // Reference to youtube_channels.channelId
+  title           String   // Video title
+  description     String?  // Video description
+  thumbnailUrl    String?  // Video thumbnail (maxres or high)
+  duration        String?  // Video duration (e.g., "PT2M30S")
+  publishedAt     DateTime // When the video was published on YouTube
+  viewCount       Int?     // View count (optional)
+  likeCount       Int?     // Like count (optional)
+  
+  // Processing status
+  processed       Boolean  @default(false)
+  processedAt     DateTime?
+  articleId       String?  // Generated article ID
+  articleSlug     String?  // Generated article slug
+  
+  // Content extraction
+  transcript      String?  // Video transcript/subtitles (if available)
+  tags            String[] // Video tags
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  channel         youtube_channels @relation(fields: [channelId], references: [channelId], onDelete: Cascade)
+  
+  @@index([channelId])
+  @@index([publishedAt])
+  @@index([processed])
+}
