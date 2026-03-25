@@ -648,6 +648,9 @@ export async function runP3TrendsPipeline(
         status: 'published',
         authorId: getRandomAuthor(),
         sourceUrl: uniqueSourceUrl,
+        // Series connection - use DB series ID or TMDB ID
+        primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || 119051,
+        tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         heroImageUrl: dbSeries?.backdropPath 
           ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`
           : info.tmdbData?.backdropPath
