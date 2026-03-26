@@ -722,6 +722,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ========== P2 SINGLE ARTICLE GENERATOR ==========
+    // Erstellt EINEN Artikel pro Klick (sucht frischeste News und verarbeitet sie)
+    if (action === 'generate-single-p2') {
+      try {
+        console.log('[P2 Single] Starting single article generation...');
+        
+        // Import news scraper
+        const { processAllNews } = await import('@/scripts/news-scraper');
+        
+        // Process only 1 article (the freshest one)
+        const result = await processAllNews({
+          sources: ['screenrant', 'collider', 'cinemaholic'],
+          limit: 1, // NUR 1 Artikel
+          dryRun: false,
+          onlyNew: true,
+        });
+        
+        if (result.processed > 0) {
+          return NextResponse.json({ 
+            success: true, 
+            message: `✅ 1 Artikel erstellt`,
+            result
+          });
+        } else if (result.skipped > 0) {
+          return NextResponse.json({ 
+            success: true, 
+            message: `⏭️ Keine neuen Artikel - alle bereits importiert`,
+            result
+          });
+        } else {
+          return NextResponse.json({ 
+            success: false, 
+            message: `❌ Keine passenden News gefunden (≤6h alt)`,
+            result
+          });
+        }
+      } catch (error: any) {
+        console.error('[P2 Single] Error:', error);
+        return NextResponse.json({ 
+          success: false, 
+          error: `P2 Artikel-Erstellung fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
   } catch (error: any) {

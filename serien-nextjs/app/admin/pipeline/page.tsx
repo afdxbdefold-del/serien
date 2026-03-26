@@ -518,6 +518,35 @@ export default function AdminPipelinePage() {
                 );
               })}
             </div>
+            
+            {/* P2 Single Article Generator - Big Button */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold mb-1">P2 Artikel-Generator</h3>
+                  <p className="text-emerald-100 text-sm">
+                    Erstellt 1 Artikel aus den aktuellsten News (ScreenRant, Collider, Cinemaholic)
+                  </p>
+                </div>
+                <button
+                  onClick={() => runAction('generate-single-p2')}
+                  disabled={runningAction === 'generate-single-p2' || hasRunningPipeline}
+                  className="flex items-center gap-3 px-6 py-4 bg-white text-emerald-600 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  {runningAction === 'generate-single-p2' ? (
+                    <>
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      Generiere...
+                    </>
+                  ) : (
+                    <>
+                      <Newspaper className="h-6 w-6" />
+                      1 Artikel erstellen
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
 
             {/* Chart + Error Analysis */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
