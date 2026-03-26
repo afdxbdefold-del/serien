@@ -1,10 +1,10 @@
 /**
  * NEWS IMPORT CRON ENDPOINT
  * 
- * Can be called by Vercel Cron or external cron services
- * to automatically import new news articles
+ * Called by Vercel Cron with Authorization header
+ * Fallback: URL parameter for manual testing
  * 
- * GET /api/cron/news?secret=YOUR_CRON_SECRET
+ * GET /api/cron/news
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,13 +12,29 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Secret to protect the endpoint
-const CRON_SECRET = process.env.CRON_SECRET || 'serien-news-import-2024';
+export const maxDuration = 300; // 5 minutes max
+export const dynamic = 'force-dynamic';
+
+function isAuthorized(request: NextRequest): boolean {
+  // Method 1: Vercel Cron sends Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    return true;
+  }
+  
+  // Method 2: URL parameter fallback for manual testing
+  const secret = request.nextUrl.searchParams.get('secret');
+  if (secret === process.env.CRON_SECRET || secret === 'serien-news-import-2024') {
+    return true;
+  }
+  
+  return false;
+}
 
 export async function GET(request: NextRequest) {
-  // Verify secret
-  const secret = request.nextUrl.searchParams.get('secret');
-  if (secret !== CRON_SECRET) {
+  // Verify authorization
+  if (!isAuthorized(request)) {
+    console.log('[CRON] Unauthorized request to /api/cron/news');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

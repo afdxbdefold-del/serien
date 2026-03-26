@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const maxDuration = 300; // 5 minutes max
+export const dynamic = 'force-dynamic';
+
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -53,12 +56,26 @@ async function getWatchProviders(tvId: number): Promise<string[]> {
   }
 }
 
-export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
+function isAuthorized(request: NextRequest): boolean {
+  // Method 1: Vercel Cron sends Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    return true;
+  }
   
-  if (secret !== 'serien-releases-update-2024') {
+  // Method 2: URL parameter fallback for manual testing
+  const secret = request.nextUrl.searchParams.get('secret');
+  if (secret === process.env.CRON_SECRET || secret === 'serien-releases-update-2024') {
+    return true;
+  }
+  
+  return false;
+}
+
+export async function GET(request: NextRequest) {
+  // Verify authorization
+  if (!isAuthorized(request)) {
+    console.log('[CRON] Unauthorized request to /api/cron/releases');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
