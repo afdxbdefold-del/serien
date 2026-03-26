@@ -299,30 +299,30 @@ export default async function ArticlePage({ params }: PageProps) {
       <div className="relative w-full bg-black">
         {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
           <>
-            {/* For YouTube Pipeline articles (neue-videos): Show image only, no video embed */}
-            {/* The video is already in heroVideoUrl but we don't want to embed it */}
+            {/* For YouTube Pipeline articles (neue-videos): Play LOCAL video only, NO YouTube embed */}
             {article.category === 'neue-videos' ? (
               <div className="relative aspect-video md:aspect-[21/9]">
-                <Image
-                  src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                  alt={article.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-                {/* Optional: Link to YouTube video */}
-                {article.heroVideoUrl && (
-                  <a 
-                    href={article.heroVideoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute bottom-4 right-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                {article.heroVideoUrl && !article.heroVideoUrl.includes('youtube.com') ? (
+                  // Local video player - NO YouTube embed
+                  <video
+                    className="w-full h-full object-cover"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
                   >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                    </svg>
-                    Auf YouTube ansehen
-                  </a>
+                    <source src={article.heroVideoUrl} type="video/mp4" />
+                    Dein Browser unterstützt HTML5 Video nicht.
+                  </video>
+                ) : (
+                  // Fallback: Just show image if no local video
+                  <Image
+                    src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                    alt={article.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
                 )}
               </div>
             ) : (

@@ -1120,7 +1120,7 @@ ${additionalSources}
         primarySeriesId: seriesIdForArticle,
         tmdbId: tmdbData?.tmdbId || null,
         heroImageUrl,
-        heroVideoUrl: localVideoPath || `https://www.youtube.com/watch?v=${video.videoId}`,
+        heroVideoUrl: localVideoPath || null, // Nur lokales Video, KEIN YouTube-Embed
         isTrending: false,
         publishedAt: now,
         createdAt: now,
