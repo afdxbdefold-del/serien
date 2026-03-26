@@ -116,7 +116,7 @@ export default function AdminPipelinePage() {
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [trendSearchTerm, setTrendSearchTerm] = useState('');
   const [v2Url, setV2Url] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -437,9 +437,10 @@ export default function AdminPipelinePage() {
         <div className="flex gap-2 mb-6 overflow-x-auto">
           {[
             { id: 'overview', label: 'Übersicht', icon: Activity },
-            { id: 'articles', label: 'Artikel', icon: Newspaper },
+            { id: 'v2', label: 'Pipeline-V2', icon: Tv },
             { id: 'youtube', label: 'P4-YouTube', icon: Youtube },
             { id: 'trends', label: 'P3-Trends', icon: Flame },
+            { id: 'articles', label: 'Artikel', icon: Newspaper },
             { id: 'logs', label: 'Logs & Debug', icon: Bug },
           ].map(tab => (
             <button
@@ -760,6 +761,196 @@ export default function AdminPipelinePage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* V2 PIPELINE TAB */}
+        {activeTab === 'v2' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 space-y-6">
+              {/* V2 Actions */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Tv className="h-5 w-5 text-blue-600" />
+                  Pipeline-V2: Artikel aus URL
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Generiere einen vollständigen Artikel aus einer beliebigen News-URL.
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="url"
+                    value={v2Url}
+                    onChange={(e) => setV2Url(e.target.value)}
+                    placeholder="https://screenrant.com/... oder https://deadline.com/..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <button
+                    onClick={() => v2Url && runAction('v2-process', { url: v2Url })}
+                    disabled={!v2Url || runningAction !== null}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {runningAction === 'v2-process' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                    Artikel generieren
+                  </button>
+                </div>
+              </div>
+
+              {/* V2 Info */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-gray-600" />
+                  Pipeline-V2 Features
+                </h2>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Full-Text Extraction (Jina AI)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    TMDB Serie Zuordnung
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Fakten-Extraktion
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Quality Gates (Anti-AI, Fact Safety)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Character & Cast Linking
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Internal Links + Related Articles
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Trailer Download (TMDB/YouTube)
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2">
+              {/* V2 Pipeline Stats */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Pipeline-V2 Statistiken</h2>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {pipelineStats['pipeline-v2']?.total || 0}
+                    </div>
+                    <div className="text-sm text-gray-500">Gesamt</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {pipelineStats['pipeline-v2']?.success || 0}
+                    </div>
+                    <div className="text-sm text-gray-500">Erfolg</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {pipelineStats['pipeline-v2']?.failed || 0}
+                    </div>
+                    <div className="text-sm text-gray-500">Fehler</div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {formatDuration(pipelineStats['pipeline-v2']?.avgDuration)}
+                    </div>
+                    <div className="text-sm text-gray-500">Ø Dauer</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent V2 Runs */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Letzte V2 Läufe</h2>
+                {pipelineRuns.filter(r => r.pipeline === 'pipeline-v2').length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Keine V2 Läufe im Zeitraum</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {pipelineRuns
+                      .filter(r => r.pipeline === 'pipeline-v2')
+                      .slice(0, 15)
+                      .map((run) => (
+                        <div key={run.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            onClick={() => setExpandedRun(expandedRun === run.id ? null : run.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {getStatusBadge(run.status)}
+                              <span className="text-sm text-gray-700 truncate max-w-xs">
+                                {run.articleTitle || run.inputQuery || run.inputSource || '-'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-gray-500">
+                              {run.antiAiScore && (
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  run.antiAiScore >= 80 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  AI: {run.antiAiScore}
+                                </span>
+                              )}
+                              <span>{formatDuration(run.durationMs)}</span>
+                              <span>{formatTime(run.startedAt)}</span>
+                              {expandedRun === run.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </div>
+                          </div>
+                          
+                          {expandedRun === run.id && (
+                            <div className="p-4 bg-white border-t border-gray-100 text-sm">
+                              <div className="grid grid-cols-4 gap-4 mb-4">
+                                <div>
+                                  <span className="text-gray-500">Wörter:</span>
+                                  <span className="ml-2 font-medium">{run.wordsCollected}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Fakten:</span>
+                                  <span className="ml-2 font-medium">{run.factsExtracted}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Anti-AI:</span>
+                                  <span className={`ml-2 font-medium ${run.antiAiScore && run.antiAiScore >= 80 ? 'text-green-600' : 'text-orange-600'}`}>
+                                    {run.antiAiScore || '-'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Dauer:</span>
+                                  <span className="ml-2 font-medium">{formatDuration(run.durationMs)}</span>
+                                </div>
+                              </div>
+                              
+                              {run.errorMessage && (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                                  <p className="text-red-600 text-sm">{run.errorMessage}</p>
+                                </div>
+                              )}
+                              
+                              {run.articleSlug && (
+                                <a 
+                                  href={`/${run.articleSlug}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 text-cyan-600 hover:text-cyan-700"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Artikel ansehen
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
