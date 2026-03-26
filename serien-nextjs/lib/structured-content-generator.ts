@@ -153,16 +153,24 @@ function buildPrompt(input: StructuredContentInput): string {
   
   const factsText = factsList.slice(0, 15).map((f, i) => `${i + 1}. ${f}`).join('\n') || '(Keine spezifischen Fakten extrahiert)';
   
-  // Calculate sections needed - more for RANKING/list articles
-  const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
+  // Calculate sections needed - GOOGLE DISCOVER: More sections for depth
+  const sectionsNeeded = Math.ceil(wordCountTarget / 200); // ~200 words per section
   const targetSections = contentType === 'RANKING' 
-    ? Math.max(5, Math.min(sectionsNeeded, 15)) // 5-15 sections for lists
-    : Math.max(3, Math.min(sectionsNeeded, 7)); // 3-7 sections for news
+    ? Math.max(7, Math.min(sectionsNeeded, 15)) // 7-15 sections for lists
+    : Math.max(5, Math.min(sectionsNeeded, 8)); // 5-8 sections for news (ERHÖHT)
   
   // Special prompt for list/ranking articles
   const isListArticle = contentType === 'RANKING';
   
-  const basePrompt = isListArticle ? buildListArticlePrompt(input, targetSections, factsText, characterNames) : `Du bist ein professioneller TV-Serien-Journalist für serien.de.
+  const basePrompt = isListArticle ? buildListArticlePrompt(input, targetSections, factsText, characterNames) : `Du bist ein SENIOR TV-Serien-Redakteur bei serien.de mit 15+ Jahren Erfahrung.
+Dein Ziel: Schreibe Artikel, die auf GOOGLE DISCOVER erscheinen und viral gehen.
+
+🎯 GOOGLE DISCOVER ANFORDERUNGEN:
+- TIEFGEHENDE ANALYSE statt oberflächlicher Nachrichtenwiedergabe
+- EINZIGARTIGE PERSPEKTIVE die kein anderer Artikel bietet
+- EXPERTISE zeigen durch Kontext, Hintergrund, Einordnung
+- EIGENSTÄNDIGER MEHRWERT - nicht nur Fakten aufzählen
+- MINDESTENS ${wordCountTarget} WÖRTER
 
 ⚠️⚠️⚠️ WICHTIGSTE REGEL - LIES DAS ZUERST ⚠️⚠️⚠️
 
@@ -177,7 +185,7 @@ WENN DIE FAKTEN NUR SAGEN "jetzt auf Disney+/Netflix verfügbar":
 
 ═══════════════════════════════════════════════════════════
 
-AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadline}".
+AUFGABE: Schreibe einen PREMIUM-Artikel über "${originalHeadline}".
 
 SERIE: ${seriesName}
 
@@ -192,7 +200,7 @@ ${factsText}
 
 ${characterNames ? `\n🎭 CHARAKTERE, DIE DU VERWENDEN MUSST:\n${characterNames}\n` : ''}
 
-STRUKTUR-ANFORDERUNGEN:
+STRUKTUR-ANFORDERUNGEN (GOOGLE DISCOVER OPTIMIERT):
 
 1. HEADLINE (max 70 Zeichen)
    - Klar, informativ, SEO-optimiert
@@ -207,49 +215,68 @@ STRUKTUR-ANFORDERUNGEN:
    "Kommt Staffel X von [Serie]? Alle Infos zu Start, Handlung und Cast – aktueller Stand und Prognose."
    "Wer stirbt in Staffel X von [Serie]? Die schockierenden Todesfälle im Cast und was dahinter steckt."
 
-3. LEAD (2-3 Sätze, ~50 Wörter)
-   - Beantwortet: Was ist neu? Warum wichtig?
+3. LEAD (3-4 Sätze, ~80 Wörter)
+   - Beantwortet: Was ist neu? Warum wichtig? Was bedeutet das?
    - NICHT den ersten Absatz wiederholen
    - Eigenständig und unique
    - MUSS einen konkreten Fakt enthalten (Datum, Name, Zahl)
+   - Zeige sofort EXPERTISE und EINORDNUNG
 
-4. CONTENT (${targetSections} Sections mit H2-Überschriften)
+4. CONTENT (MINDESTENS ${targetSections} Sections mit H2-Überschriften)
    
-   🚨 QUALITÄTS-ANFORDERUNGEN:
-   - Jede Section MUSS eigenständigen Mehrwert bieten
-   - KEINE Wiederholungen von Fakten zwischen Sections
-   - NIEMALS den gleichen Fakt 2x im Artikel nennen!
+   🎯 GOOGLE DISCOVER QUALITÄT - TIEFGEHENDE SECTIONS:
    
-   Jede Section:
-   - H2-ÜBERSCHRIFT: Max 6 Wörter, prägnant, informativ
-   - 3-4 ABSÄTZE: Je 2-3 Sätze (abwechslungsreich!)
-   - Fließender Übergang zur nächsten Section
-   - KONKRETER INHALT: Analyse, Kontext, Hintergrund - nicht nur Faktenwiedergabe
+   Jede Section MUSS:
+   - H2-ÜBERSCHRIFT: Max 6 Wörter, prägnant, SEO-optimiert
+   - 4-5 ABSÄTZE mit je 3-4 Sätzen
+   - ANALYSE und EINORDNUNG, nicht nur Fakten
+   - KONTEXT: Warum ist das wichtig? Was bedeutet es?
+   - HINTERGRUND: Geschichte, Entwicklung, Zusammenhänge
    
-   SECTION-TYPEN (variiere zwischen):
-   - Hintergrund/Kontext der Serie/des Spiels
-   - Analyse: Was bedeutet die News für Fans?
-   - Cast/Produktion Details
-   - Vergleich mit ähnlichen Serien/Adaptionen
-   - Was Fans jetzt wissen müssen
+   PFLICHT-SECTIONS für Premium-Qualität:
+   
+   📌 Section 1: DIE KERNEWS
+   - Was wurde angekündigt/bestätigt?
+   - Konkrete Details (Datum, Namen, Zahlen)
+   - Offizielle Statements/Quellen
+   
+   📌 Section 2: HINTERGRUND & KONTEXT
+   - Geschichte der Serie/Franchise
+   - Bisherige Entwicklung
+   - Warum ist diese News bedeutsam?
+   
+   📌 Section 3: ANALYSE & EINORDNUNG
+   - Was bedeutet das für die Zukunft?
+   - Expertenmeinung/Einschätzung
+   - Vergleich mit ähnlichen Fällen
+   
+   📌 Section 4: CAST & PRODUKTION
+   - Wer ist beteiligt?
+   - Besetzungsdetails
+   - Produktionshintergrund
+   
+   📌 Section 5: AUSBLICK & ERWARTUNGEN
+   - Was kommt als nächstes?
+   - Offene Fragen
+   - Timeline/Zeitplan
    
    🚨 KRITISCH - NAMEN VERWENDEN:
    ${characterNames ? `- Du MUSST diese Namen verwenden: ${characterNames}` : '- Verwende verfügbare Charakternamen'}
    - Nenne Namen beim ersten Vorkommen im Text (nicht in Überschriften)
    - Verwende z.B. "Robby untersucht den Fall" statt "Ein Arzt untersucht"
    - Vermeide: "das Team", "die Ärzte", "das Personal" → Nutze konkrete Namen!
-   - Nach der ersten Erwähnung: Pronomen OK
    
    H2-Beispiele:
    ✅ "Verlängerung für Staffel 3 bestätigt"
-   ✅ "Dreharbeiten starten im Sommer"
-   ✅ "Neue Charaktere vorgestellt"
+   ✅ "Die Geschichte hinter Devil May Cry"
+   ✅ "Was die Ankündigung bedeutet"
    ❌ "Was bedeutet das für die Fans?" (Frage)
-   ❌ "Die spannende Entwicklung der Serie" (zu lang)
+   ❌ "Die spannende Entwicklung" (zu vage)
 
-5. Q&A (3-5 Fragen)
-   - Häufige User-Fragen
-   - Kurze, klare Antworten (2-3 Sätze)
+5. Q&A (5-7 Fragen für Featured Snippets)
+   - Häufige Google-Suchanfragen zu dieser Serie/News
+   - Präzise Antworten (3-4 Sätze)
+   - SEO-optimiert für "People also ask"
 
 🚫 ANTI-AI REGELN (STRIKT BEFOLGEN):
 
@@ -370,7 +397,7 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
         },
       ],
       temperature: 0.7,
-      max_completion_tokens: 2000,
+      max_completion_tokens: 4000, // ERHÖHT für längere Google Discover Artikel
       response_format: { type: 'json_object' },
     });
 

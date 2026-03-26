@@ -232,10 +232,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
       originalHeadline: source.title,
       sourceText: fullSourceText,
       contentType,
-      // Listenartikel brauchen mehr Platz - bis zu 1500 Wörter
+      // GOOGLE DISCOVER Qualität - Minimum 1500 Wörter
       wordCountTarget: contentType === 'RANKING' 
-        ? Math.min(sourceWordCount * 1.3, 1500) 
-        : sourceWordCount > 0 ? Math.min(sourceWordCount * 1.2, 1000) : 500,
+        ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500)) 
+        : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
     });
     
     console.log(`✅ Generated:`);

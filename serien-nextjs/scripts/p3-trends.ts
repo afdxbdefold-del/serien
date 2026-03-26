@@ -803,7 +803,7 @@ export async function runP3TrendsPipeline(
       originalHeadline: searchTerm,
       sourceText: combinedSourceText || searchTerm,
       contentType: contentType,
-      wordCountTarget: 800, // Ausführlicher Artikel
+      wordCountTarget: 1500, // GOOGLE DISCOVER Qualität
     });
     
     if (!structuredContent || !structuredContent.markdown) {

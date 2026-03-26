@@ -652,14 +652,12 @@ ${additionalSources}
       contentType = 'NEWS';
     }
     
-    // Generate article - same word count target as v2
-    console.log('   🤖 Generiere Artikel via LLM...');
-    logger.log('LLM Content-Generierung gestartet');
+    // Generate article - GOOGLE DISCOVER QUALITÄT
+    console.log('   🤖 Generiere Premium-Artikel via LLM...');
+    logger.log('LLM Content-Generierung gestartet (Google Discover Qualität)');
     
-    // Word count target like v2: based on source content - ERHÖHT für bessere Qualität
-    const wordCountTarget = sourceWordCount > 0 
-      ? Math.min(Math.max(sourceWordCount * 1.5, 800), 1500) 
-      : 1000;
+    // Word count target: MINIMUM 1200, ideal 1500-2000 für Google Discover
+    const wordCountTarget = Math.max(1500, Math.min(sourceWordCount * 2, 2500));
     
     const structuredContent = await generateStructuredContent({
       facts,
