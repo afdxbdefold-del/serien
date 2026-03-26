@@ -192,22 +192,20 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
   const seasons = series.seasons as any[] || [];
   
-  // Enrich cast with person page slugs for linking
-  const castWithLinks = await Promise.all(
-    cast.slice(0, 6).map(async (actor: any) => {
-      if (!actor.id) return { ...actor, personSlug: null };
-      
-      const person = await prisma.persons.findUnique({
-        where: { tmdbId: actor.id },
-        select: { slug: true }
-      });
-      
-      return {
-        ...actor,
-        personSlug: person?.slug || null
-      };
-    })
-  );
+  // Enrich cast with person page slugs for linking (single query instead of 6)
+  const castIds = cast.slice(0, 6).map((actor: any) => actor.id).filter(Boolean);
+  const personSlugs = castIds.length > 0 
+    ? await prisma.persons.findMany({
+        where: { tmdbId: { in: castIds } },
+        select: { tmdbId: true, slug: true }
+      })
+    : [];
+  
+  const slugMap = new Map(personSlugs.map(p => [p.tmdbId, p.slug]));
+  const castWithLinks = cast.slice(0, 6).map((actor: any) => ({
+    ...actor,
+    personSlug: actor.id ? slugMap.get(actor.id) || null : null
+  }));
   
   // Fetch fictional characters for this series
   const characters = await prisma.characters.findMany({
@@ -230,14 +228,17 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   });
   
   // Generate Series Q&A (5 evergreen interpretative questions - MODUL 2)
-  const seriesQA = await getSeriesQA(
-    series.name || series.title,
-    series.overview || '',
-    series.status || 'UNKNOWN',
-    series.numberOfSeasons || 0,
-    series.firstAirDate,
-    series.lastAirDate
-  );
+  // Use cached data if available, otherwise generate on-demand
+  let seriesQA: any[] = [];
+  
+  if (series.discoverQA && Array.isArray(series.discoverQA) && (series.discoverQA as any[]).length > 0) {
+    // Use cached Q&A
+    seriesQA = series.discoverQA as any[];
+  } else {
+    // Generate on-demand and cache in background (don't block page load)
+    // For now, skip to avoid slow page loads - will be pre-generated via script
+    seriesQA = [];
+  }
 
   // Extract year information
   const startYear = series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : undefined;
@@ -247,22 +248,34 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const genres = series.genres ? (series.genres as any[]).map(g => g.name) : [];
   
   // MODUL 0: "Warum relevant"-Context (kulturelle Relevanz, KEIN News-Ton)
-  const relevanceContext = await generateRelevanceContext(
-    series.name || series.title || '',
-    series.overview || '',
-    series.status || 'UNKNOWN',
-    series.voteAverage || 0,
-    series.numberOfSeasons || 0
-  );
+  // Use cached data if available
+  let relevanceContext: string | null = null;
+  
+  if (series.discoverIntro && series.discoverIntro.length > 50) {
+    // Use cached intro
+    relevanceContext = series.discoverIntro;
+  } else {
+    // Skip on-demand generation to avoid slow page loads
+    // Will be pre-generated via script
+    relevanceContext = null;
+  }
   
   // MODUL 1: Status Context (NUR bei echtem Mehrwert)
-  const statusContext = generateStatusContext(
-    series.status,
-    series.name || series.title || '',
-    series.networks && series.networks.length > 0 ? series.networks[0] : undefined,
-    series.lastAirDate,
-    series.numberOfSeasons
-  );
+  // Use cached or generate simple version (no LLM needed)
+  let statusContext: string | null = null;
+  
+  if (series.discoverStatus && series.discoverStatus.length > 10) {
+    statusContext = series.discoverStatus;
+  } else {
+    // This function doesn't use LLM, just string templates - safe to call
+    statusContext = generateStatusContext(
+      series.status,
+      series.name || series.title || '',
+      series.networks && series.networks.length > 0 ? series.networks[0] : undefined,
+      series.lastAirDate,
+      series.numberOfSeasons
+    );
+  }
   
   // Generate structured data
   const seriesSchema = generateSeriesSchema({
