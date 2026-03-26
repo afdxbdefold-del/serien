@@ -621,67 +621,181 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
   
   console.log(`   📊 GESAMT: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter`);
   
-  // Step 3: Try to resolve TMDB series with direct API call
-  console.log('   🎬 Suche TMDB Serie...');
+  // Step 7: VERBESSERTE TMDB Serie Suche mit Multi-Strategie
+  console.log('   🎬 Suche TMDB Serie (Multi-Strategie)...');
   try {
     const apiKey = process.env.TMDB_API_KEY;
     if (apiKey) {
-      // Strategy 1: Search for known series keywords in the search term
-      const seriesKeywords = ['tatort', 'polizeiruf', 'krimi', 'serie', 'show'];
-      let seriesName = '';
+      // Generate search variants from the trend term
+      const searchVariants = generateTrendSearchVariants(searchTerm);
+      console.log(`      🔍 ${searchVariants.length} Such-Varianten generiert`);
       
-      for (const keyword of seriesKeywords) {
-        if (searchTerm.toLowerCase().includes(keyword)) {
-          seriesName = keyword;
-          break;
-        }
-      }
-      
-      // Strategy 2: Extract series name (remove person names, staffel numbers)
-      if (!seriesName) {
-        seriesName = searchTerm
-          .replace(/staffel\s*\d+/gi, '')
-          .replace(/season\s*\d+/gi, '')
-          .replace(/netflix|prime|disney|amazon|hbo|sky|ard|zdf/gi, '')
-          .trim();
-      }
-      
-      // Strategy 3: Try multiple searches
-      const searchTerms = [
-        seriesName,
-        searchTerm.split(' ').slice(-1)[0], // Last word (often the series name)
-        searchTerm.replace(/\s+/g, ' ').trim()
-      ].filter(t => t.length > 2);
-      
-      for (const term of searchTerms) {
-        const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(term)}&language=de-DE`;
-        const response = await fetch(tmdbUrl);
-        const data = await response.json();
+      for (const variant of searchVariants) {
+        if (variant.length < 2) continue;
         
-        if (data.results && data.results.length > 0) {
-          const series = data.results[0];
-          info.seriesName = series.name;
-          info.tmdbData = {
-            tmdbId: series.id,
-            name: series.name,
-            overview: series.overview,
-            posterPath: series.poster_path,
-            backdropPath: series.backdrop_path,
-            firstAirDate: series.first_air_date,
-            voteAverage: series.vote_average,
-          };
-          console.log(`      ✓ TMDB: ${info.seriesName} (ID: ${series.id})`);
-          break;
+        // Try German first, then English
+        for (const lang of ['de-DE', 'en-US']) {
+          const tmdbUrl = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(variant)}&language=${lang}`;
+          const response = await fetch(tmdbUrl);
+          const data = await response.json();
+          
+          if (data.results && data.results.length > 0) {
+            // Find best match - check for similarity
+            let bestMatch = data.results[0];
+            let bestScore = 0;
+            
+            for (const result of data.results) {
+              const score = calculateMatchScore(variant, result.name || '');
+              if (score > bestScore) {
+                bestScore = score;
+                bestMatch = result;
+              }
+            }
+            
+            // Get additional details
+            let status = 'Unknown';
+            let networks: string[] = [];
+            try {
+              const detailUrl = `https://api.themoviedb.org/3/tv/${bestMatch.id}?api_key=${apiKey}&language=de-DE`;
+              const detailRes = await fetch(detailUrl);
+              const detailData = await detailRes.json();
+              status = detailData.status || 'Unknown';
+              networks = (detailData.networks || []).map((n: any) => n.name);
+            } catch {}
+            
+            info.seriesName = bestMatch.name;
+            info.tmdbData = {
+              tmdbId: bestMatch.id,
+              name: bestMatch.name,
+              overview: bestMatch.overview,
+              posterPath: bestMatch.poster_path,
+              backdropPath: bestMatch.backdrop_path,
+              firstAirDate: bestMatch.first_air_date,
+              voteAverage: bestMatch.vote_average,
+              status,
+              networks: networks.join(', '),
+            };
+            console.log(`      ✓ TMDB: "${info.seriesName}" (ID: ${bestMatch.id}, Match: ${bestScore}%)`);
+            break;
+          }
         }
+        
+        if (info.tmdbData) break; // Found a match, stop searching
+      }
+      
+      if (!info.tmdbData) {
+        console.log(`      ⚠️ Keine TMDB-Serie gefunden für: ${searchTerm}`);
       }
     }
   } catch (error) {
     console.log('      ⚠️ TMDB Suche fehlgeschlagen:', error instanceof Error ? error.message : '');
   }
   
-  console.log(`   📊 Gesamt: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter`);
+  console.log(`   📊 Ergebnis: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter, Serie: ${info.seriesName || 'unbekannt'}`);
   
   return info;
+}
+
+// Generate search variants for trend terms
+function generateTrendSearchVariants(searchTerm: string): string[] {
+  const variants: string[] = [];
+  
+  if (!searchTerm) return variants;
+  
+  // Clean up the search term first
+  let cleaned = searchTerm
+    .replace(/staffel\s*\d+/gi, '')
+    .replace(/season\s*\d+/gi, '')
+    .replace(/folge\s*\d+/gi, '')
+    .replace(/episode\s*\d+/gi, '')
+    .replace(/teil\s*\d+/gi, '')
+    .replace(/netflix|prime|disney\+?|amazon|hbo|sky|ard|zdf|rtl|sat\.?1|prosieben|vox|wow|paramount\+?|apple\s*tv\+?/gi, '')
+    .replace(/trailer|teaser|review|kritik|ende erklärt|recap/gi, '')
+    .replace(/neu|neue|neuer|neues/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Add cleaned version
+  if (cleaned.length > 2) variants.push(cleaned);
+  
+  // Add original
+  variants.push(searchTerm.trim());
+  
+  // Split by common delimiters and add parts
+  const parts = searchTerm.split(/[-–—:|]/);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.length > 2 && !variants.includes(trimmed)) {
+      variants.push(trimmed);
+    }
+  }
+  
+  // Word combinations
+  const words = cleaned.split(/\s+/).filter(w => w.length > 2);
+  if (words.length >= 2) {
+    // First 2 words
+    variants.push(words.slice(0, 2).join(' '));
+    // First 3 words
+    if (words.length >= 3) variants.push(words.slice(0, 3).join(' '));
+    // Last 2 words
+    variants.push(words.slice(-2).join(' '));
+  }
+  
+  // Without articles
+  const withoutArticle = cleaned.replace(/^(the|der|die|das|ein|eine)\s+/i, '');
+  if (withoutArticle !== cleaned && withoutArticle.length > 2) {
+    variants.push(withoutArticle);
+  }
+  
+  // Common known series patterns (German adaptations)
+  const knownPatterns: Record<string, string> = {
+    'grey\'s anatomy': 'Grey\'s Anatomy',
+    'greys anatomy': 'Grey\'s Anatomy',
+    'game of thrones': 'Game of Thrones',
+    'got': 'Game of Thrones',
+    'haus des geldes': 'Money Heist',
+    'squid game': 'Squid Game',
+    'stranger things': 'Stranger Things',
+    'the witcher': 'The Witcher',
+    'witcher': 'The Witcher',
+  };
+  
+  const lowerSearch = searchTerm.toLowerCase();
+  for (const [pattern, official] of Object.entries(knownPatterns)) {
+    if (lowerSearch.includes(pattern)) {
+      variants.unshift(official); // Add at start for priority
+    }
+  }
+  
+  // Remove duplicates
+  return [...new Set(variants)].filter(v => v.length > 1);
+}
+
+// Calculate how well a search term matches a result
+function calculateMatchScore(searchTerm: string, resultName: string): number {
+  const search = searchTerm.toLowerCase().trim();
+  const result = resultName.toLowerCase().trim();
+  
+  // Exact match
+  if (search === result) return 100;
+  
+  // One contains the other
+  if (result.includes(search)) return 90;
+  if (search.includes(result)) return 85;
+  
+  // Starts with
+  if (result.startsWith(search) || search.startsWith(result)) return 80;
+  
+  // Word overlap
+  const searchWords = search.split(/\s+/);
+  const resultWords = result.split(/\s+/);
+  const commonWords = searchWords.filter(w => resultWords.includes(w));
+  
+  if (commonWords.length > 0) {
+    return Math.round((commonWords.length / Math.max(searchWords.length, resultWords.length)) * 70);
+  }
+  
+  return 0;
 }
 
 // ══════════════════════════════════════════════════════════════════════════

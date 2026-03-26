@@ -330,42 +330,79 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// EXTRACT SERIES NAME FROM VIDEO TITLE
+// EXTRACT SERIES NAME FROM VIDEO TITLE - VERBESSERT
 // ══════════════════════════════════════════════════════════════════════════
 function extractSeriesFromTitle(title: string): string | null {
+  if (!title) return null;
+  
   // Common patterns in trailer/announcement titles:
   // "Squid Game: Staffel 2 | Offizieller Trailer | Netflix"
   // "Wednesday Staffel 2 | Teaser | Netflix"
   // "ADOLESCENCE | Offizieller Trailer | Netflix"
   // "Scrubs - Neu & exklusiv auf Disney+"
+  // "Devil May Cry Staffel 2 startet im Mai"
   
-  // Remove common suffixes
-  let cleaned = title
-    // Remove platform announcements
-    .replace(/\s*[-–]\s*(Neu\s*(&|und)\s*)?(exklusiv\s*)?(auf|bei)\s*(Disney\+?|Netflix|Prime Video|Amazon|Apple TV\+?|WOW|RTL\+?|Paramount\+?|Joyn).*$/i, '')
-    .replace(/\s*[-–]\s*jetzt\s*(auf|bei|streamen).*$/i, '')
-    .replace(/\s*[-–]\s*ab\s*(sofort|jetzt).*$/i, '')
-    // Remove trailer/teaser suffixes
-    .replace(/\s*\|\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung|Clip|Sneak Peek).*$/i, '')
-    .replace(/\s*-\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung).*$/i, '')
-    // Remove season info
-    .replace(/\s*:\s*Staffel\s*\d+.*$/i, '')
-    .replace(/\s+Staffel\s*\d+.*$/i, '')
-    // Remove parentheses
-    .replace(/\s*\(.*?\)\s*$/g, '')
+  let cleaned = title;
+  
+  // Step 1: Remove everything after common delimiters first
+  cleaned = cleaned
+    .split(/\s*[|]\s*/)[0]  // Take part before first |
+    .split(/\s*[-–—]\s*(?:Offiziell|Trailer|Teaser|Neu|Ab|Jetzt)/i)[0]  // Split at trailer markers
     .trim();
   
-  // If still too long, take first part before | or :
-  if (cleaned.length > 50) {
-    const parts = cleaned.split(/[|:]/);
-    cleaned = parts[0].trim();
+  // Step 2: Remove common suffixes and patterns
+  cleaned = cleaned
+    // Remove platform announcements
+    .replace(/\s*[-–—]\s*(Neu\s*(&|und)\s*)?(exklusiv\s*)?(auf|bei)\s*(Disney\+?|Netflix|Prime Video|Amazon|Apple TV\+?|WOW|RTL\+?|Paramount\+?|Joyn|Sky).*$/i, '')
+    .replace(/\s*[-–—]\s*jetzt\s*(auf|bei|streamen).*$/i, '')
+    .replace(/\s*[-–—]\s*ab\s*(sofort|jetzt|\d).*$/i, '')
+    // Remove trailer/teaser suffixes
+    .replace(/\s*[-–—:]\s*(Offizieller?\s*)?(Haupt)?[- ]?(Trailer|Teaser|Ankündigung|Clip|Sneak Peek|Preview|Promo).*$/i, '')
+    // Remove date announcements
+    .replace(/\s+(startet|kommt|erscheint|ab)\s+(am|im|ab)?\s*\d.*$/i, '')
+    .replace(/\s+im\s+(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember).*$/i, '')
+    // Remove season info but KEEP series name
+    .replace(/\s*[:]\s*Staffel\s*\d+.*$/i, '')
+    .replace(/\s+Staffel\s*\d+.*$/i, '')
+    .replace(/\s+Season\s*\d+.*$/i, '')
+    .replace(/\s+S\d+.*$/i, '')
+    // Remove parentheses
+    .replace(/\s*\(.*?\)\s*$/g, '')
+    // Remove quotes
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  
+  // Step 3: If still contains | take first meaningful part
+  if (cleaned.includes('|')) {
+    cleaned = cleaned.split('|')[0].trim();
   }
+  
+  // Step 4: If too long, might have extra text
+  if (cleaned.length > 60) {
+    // Try to find series name pattern (usually first 2-4 words)
+    const words = cleaned.split(/\s+/);
+    // Check if any word is a known delimiter
+    for (let i = 0; i < words.length; i++) {
+      if (/^(Staffel|Season|Trailer|Teil|Episode|Folge|Offiziell)$/i.test(words[i])) {
+        cleaned = words.slice(0, i).join(' ');
+        break;
+      }
+    }
+  }
+  
+  // Step 5: Clean up any remaining artifacts
+  cleaned = cleaned
+    .replace(/\s+/g, ' ')
+    .replace(/^[-–—:|\s]+|[-–—:|\s]+$/g, '')
+    .trim();
+  
+  console.log(`   📝 Extrahiert: "${title}" → "${cleaned}"`);
   
   return cleaned.length > 2 ? cleaned : null;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// SEARCH TMDB FOR SERIES
+// SEARCH TMDB FOR SERIES - VERBESSERTE MULTI-STRATEGIE SUCHE
 // ══════════════════════════════════════════════════════════════════════════
 async function findTmdbSeries(seriesName: string): Promise<{
   tmdbId: number;
@@ -380,37 +417,121 @@ async function findTmdbSeries(seriesName: string): Promise<{
     const apiKey = process.env.TMDB_API_KEY;
     if (!apiKey) return null;
     
-    const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(seriesName)}&language=de-DE`;
-    const response = await fetch(url);
-    const data = await response.json();
+    // Generate multiple search variants for better matching
+    const searchVariants = generateSearchVariants(seriesName);
+    console.log(`   🔍 TMDB Suche mit ${searchVariants.length} Varianten...`);
     
-    if (data.results && data.results.length > 0) {
-      const series = data.results[0];
+    for (const variant of searchVariants) {
+      if (variant.length < 2) continue;
       
-      // Get detailed info for status
-      let status = 'Unknown';
-      try {
-        const detailUrl = `https://api.themoviedb.org/3/tv/${series.id}?api_key=${apiKey}&language=de-DE`;
-        const detailRes = await fetch(detailUrl);
-        const detailData = await detailRes.json();
-        status = detailData.status || 'Unknown';
-      } catch {}
-      
-      return {
-        tmdbId: series.id,
-        name: series.name,
-        backdropPath: series.backdrop_path,
-        posterPath: series.poster_path,
-        overview: series.overview || '',
-        status,
-        firstAirDate: series.first_air_date || null,
-      };
+      // Search with German locale first, then English
+      for (const lang of ['de-DE', 'en-US']) {
+        const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(variant)}&language=${lang}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+          // Find best match - prefer exact name match
+          let bestMatch = data.results[0];
+          
+          for (const result of data.results) {
+            const resultNameLower = (result.name || '').toLowerCase();
+            const variantLower = variant.toLowerCase();
+            
+            // Exact match is best
+            if (resultNameLower === variantLower) {
+              bestMatch = result;
+              break;
+            }
+            
+            // Starts with variant is second best
+            if (resultNameLower.startsWith(variantLower) || variantLower.startsWith(resultNameLower)) {
+              bestMatch = result;
+            }
+          }
+          
+          const series = bestMatch;
+          
+          // Get detailed info for status
+          let status = 'Unknown';
+          let networks: string[] = [];
+          try {
+            const detailUrl = `https://api.themoviedb.org/3/tv/${series.id}?api_key=${apiKey}&language=de-DE`;
+            const detailRes = await fetch(detailUrl);
+            const detailData = await detailRes.json();
+            status = detailData.status || 'Unknown';
+            networks = (detailData.networks || []).map((n: any) => n.name);
+          } catch {}
+          
+          console.log(`      ✓ Gefunden: "${series.name}" (ID: ${series.id}, Status: ${status})`);
+          
+          return {
+            tmdbId: series.id,
+            name: series.name,
+            backdropPath: series.backdrop_path,
+            posterPath: series.poster_path,
+            overview: series.overview || '',
+            status,
+            firstAirDate: series.first_air_date || null,
+          };
+        }
+      }
     }
+    
+    console.log(`      ⚠️ Keine TMDB-Ergebnisse für: ${seriesName}`);
   } catch (error) {
     console.log(`   ⚠️ TMDB Suche fehlgeschlagen: ${error instanceof Error ? error.message : ''}`);
   }
   
   return null;
+}
+
+// Generate search variants for better TMDB matching
+function generateSearchVariants(seriesName: string): string[] {
+  const variants: string[] = [];
+  
+  if (!seriesName) return variants;
+  
+  // Original name
+  variants.push(seriesName);
+  
+  // Without special characters
+  const cleaned = seriesName
+    .replace(/[:\-–—|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (cleaned !== seriesName) variants.push(cleaned);
+  
+  // German umlauts to standard
+  const noUmlauts = seriesName
+    .replace(/ä/gi, 'a')
+    .replace(/ö/gi, 'o')
+    .replace(/ü/gi, 'u')
+    .replace(/ß/gi, 'ss');
+  if (noUmlauts !== seriesName) variants.push(noUmlauts);
+  
+  // First N words (for compound titles)
+  const words = seriesName.split(/\s+/);
+  if (words.length > 2) {
+    variants.push(words.slice(0, 2).join(' ')); // First 2 words
+    variants.push(words.slice(0, 3).join(' ')); // First 3 words
+  }
+  if (words.length > 3) {
+    variants.push(words.slice(0, 4).join(' ')); // First 4 words
+  }
+  
+  // Without "The" / "Der/Die/Das"
+  const withoutArticle = seriesName.replace(/^(The|Der|Die|Das|Ein|Eine)\s+/i, '');
+  if (withoutArticle !== seriesName) variants.push(withoutArticle);
+  
+  // Last word only (sometimes series name is last)
+  if (words.length > 1) {
+    const lastWord = words[words.length - 1];
+    if (lastWord.length > 3) variants.push(lastWord);
+  }
+  
+  // Remove duplicates and empty strings
+  return [...new Set(variants)].filter(v => v.length > 1);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
