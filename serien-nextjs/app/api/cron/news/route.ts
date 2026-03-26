@@ -40,10 +40,12 @@ export async function GET(request: NextRequest) {
 
   try {
     // Dynamic import to avoid bundling issues
-    const { processScreenrantNews } = await import('@/scripts/screenrant-scraper');
+    const { processAllNews } = await import('@/scripts/news-scraper');
     
-    const result = await processScreenrantNews({
-      limit: 5,
+    // Scrape from both ScreenRant and Collider
+    const result = await processAllNews({
+      sources: ['screenrant', 'collider'],
+      limit: 5, // 5 per source
       dryRun: false,
       onlyNew: true,
     });
@@ -58,6 +60,7 @@ export async function GET(request: NextRequest) {
         processed: result.processed,
         failed: result.failed,
         skipped: result.skipped,
+        bySource: result.bySource,
       },
     });
   } catch (error: any) {
