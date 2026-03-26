@@ -68,6 +68,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
         
+        {/* AdSense Script - Load synchronously, no defer */}
+        {process.env.NEXT_PUBLIC_ADSENSE_CLIENT && (
+          <>
+            <script
+              src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_CLIENT}`}
+              crossOrigin="anonymous"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.adsbygoogle = window.adsbygoogle || [];`
+              }}
+            />
+          </>
+        )}
+        
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"

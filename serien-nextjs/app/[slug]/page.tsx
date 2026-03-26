@@ -17,7 +17,7 @@ import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
-import DynamicAd from '@/components/DynamicAd';
+import { AdSlot } from '@/components/AdSlot';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
@@ -389,7 +389,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
           {/* Ad Unit - Above Intro */}
-          <DynamicAd position="above_intro" className="mb-6" />
+          <AdSlot position="above_intro" className="mb-6" />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
@@ -399,7 +399,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Intro */}
-          <DynamicAd position="below_intro" className="mb-8" />
+          <AdSlot position="below_intro" className="mb-8" />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
@@ -450,7 +450,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Author */}
-          <DynamicAd position="below_author" className="my-8" />
+          <AdSlot position="below_author" className="my-8" />
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -462,7 +462,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Series Info */}
-          <DynamicAd position="below_series_info" className="my-8" />
+          <AdSlot position="below_series_info" className="my-8" />
 
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -475,7 +475,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Above Similar News */}
-          <DynamicAd position="above_similar_news" className="my-8" />
+          <AdSlot position="above_similar_news" className="my-8" />
 
           {/* Related News */}
           {relatedNews.length > 0 && (
@@ -502,7 +502,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Above Footer */}
-          <DynamicAd position="above_footer" className="my-8" />
+          <AdSlot position="above_footer" className="my-8" />
         </div>
       </article>
     </div>
