@@ -122,7 +122,7 @@ ZIELWORTANZAHL: ~${wordCountTarget} Wörter`;
  * Build prompt based on content type
  */
 function buildPrompt(input: StructuredContentInput): string {
-  const { facts, seriesName, originalHeadline, contentType, wordCountTarget } = input;
+  const { facts, seriesName, originalHeadline, sourceText, contentType, wordCountTarget } = input;
   
   // Convert facts object to flat list
   const factsList: string[] = [];
@@ -181,7 +181,13 @@ AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadli
 
 SERIE: ${seriesName}
 
-FAKTEN AUS QUELLE (NUR DIESE FAKTEN VERWENDEN!):
+═══════════════════════════════════════════════════════════════════════════════
+VOLLSTÄNDIGER QUELLTEXT (Nutze ALLE diese Informationen für deinen Artikel!):
+═══════════════════════════════════════════════════════════════════════════════
+${sourceText || '(Kein Quelltext verfügbar)'}
+═══════════════════════════════════════════════════════════════════════════════
+
+EXTRAHIERTE SCHLÜSSELFAKTEN (zur schnellen Übersicht):
 ${factsText}
 
 ${characterNames ? `\n🎭 CHARAKTERE, DIE DU VERWENDEN MUSST:\n${characterNames}\n` : ''}
@@ -257,11 +263,14 @@ STRUKTUR-ANFORDERUNGEN:
   * Vergleiche mit ähnlichen Serien
 - NIEMALS leere Phrasen wie "Fans sind gespannt" oder "verspricht dramatische Entwicklungen"
 
-⛔ KRITISCH - KEINE ERFUNDENEN FAKTEN:
-- Schreibe NUR über Informationen aus den FAKTEN oben
+⛔ KRITISCH - NUTZE ALLE QUELLEN:
+- Der VOLLSTÄNDIGE QUELLTEXT oben enthält mehrere Artikel und Informationen
+- Lies und verwende ALLE Quellen im Quelltext!
+- Kombiniere Informationen aus verschiedenen Quellen für einen reichhaltigen Artikel
+- Schreibe NUR über Informationen aus dem QUELLTEXT
 - ERFINDE KEINE Daten, Staffelnummern, Release-Termine
 - Wenn du etwas nicht weißt, lass es weg
-- NIEMALS "neue Staffel", "Revival", "Fortsetzung", "Rückkehr" behaupten, wenn nicht EXPLIZIT in Fakten steht
+- NIEMALS "neue Staffel", "Revival", "Fortsetzung", "Rückkehr" behaupten, wenn nicht EXPLIZIT in Quellen steht
 - "Neu auf Disney+" / "Neu auf Netflix" = Serie ist jetzt dort VERFÜGBAR zum Streamen, NICHT neue Staffel!
 - "Exklusiv auf X" = Alte Serie wechselt Streaming-Dienst, KEIN neuer Content!
 
