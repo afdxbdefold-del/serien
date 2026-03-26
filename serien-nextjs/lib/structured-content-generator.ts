@@ -328,9 +328,15 @@ SATZANFÄNGE:
 - Statt "Die Serie zeigt... Die Fans..." → "Die Serie zeigt... Fans erwarten..."
 
 ABSÄTZE:
-- Max 3 Sätze pro Absatz
+- 3-5 Sätze pro Absatz (für mehr Tiefe!)
 - Erster Absatz = konkreter Fakt (Datum, Zahl, Name)
 - Kurz und direkt, keine Füllsätze
+
+⚠️ WORTANZAHL KRITISCH:
+- Du MUSST MINDESTENS ${wordCountTarget} WÖRTER schreiben!
+- Jede Section braucht 250-350 Wörter
+- Wenn du zu wenig Content hast: Füge Hintergrund, Kontext, Analyse hinzu
+- KÜRZE NIEMALS - schreibe AUSFÜHRLICH!
 
 STIL:
 - Schreibe wie ein erfahrener Redakteur, nicht wie eine KI
@@ -397,7 +403,7 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
         },
       ],
       temperature: 0.7,
-      max_completion_tokens: 4000, // ERHÖHT für längere Google Discover Artikel
+      max_completion_tokens: 6000, // ERHÖHT für längere Google Discover Artikel (1500+ Wörter)
       response_format: { type: 'json_object' },
     });
 
