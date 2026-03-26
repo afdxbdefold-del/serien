@@ -554,7 +554,7 @@ export async function generateArticleFromVideo(
     console.log('━'.repeat(60));
     
     // Import the source gathering function from p3-trends
-    const searchQuery = `${seriesName || video.title} ${video.channelName} 2024 2025 2026`;
+    const searchQuery = `${seriesName || video.title} Serie News 2024 2025 2026`;
     console.log(`   🔍 Suche: "${searchQuery}"`);
     
     let additionalSources = '';
@@ -574,10 +574,23 @@ export async function generateArticleFromVideo(
         totalWordCount = sourceInfo.totalWordCount;
         console.log(`   ✓ ${sourceInfo.articles.length} Quellen gefunden (${totalWordCount} Wörter)`);
       } else {
-        console.log(`   ⚠️ Wenig zusätzliche Quellen gefunden`);
+        console.log(`   ⚠️ Wenig zusätzliche Quellen gefunden - suche nach Hintergrundinfos...`);
+        
+        // Fallback: Try to find background info about the series/game
+        const backgroundQuery = `${seriesName || video.title} Serie Handlung Cast`;
+        const backgroundInfo = await gatherInfoForTrend(backgroundQuery);
+        
+        if (backgroundInfo.totalWordCount > 50) {
+          additionalSources = backgroundInfo.articles
+            .filter((a: any) => a.content && a.content.length > 50)
+            .map((a: any) => `[Hintergrund: ${a.source}]\n${a.content}`)
+            .join('\n\n---\n\n');
+          totalWordCount = backgroundInfo.totalWordCount;
+          console.log(`   ✓ Hintergrundinfos gefunden: ${totalWordCount} Wörter`);
+        }
       }
     } catch (error: any) {
-      console.log(`   ⚠️ Quellensuche fehlgeschlagen: ${error.message}`);
+      console.log(`   ⚠️ Quellensuche fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
     }
     
     // ========== STEP 4: GENERATE CONTENT ==========
@@ -585,7 +598,21 @@ export async function generateArticleFromVideo(
     console.log('STEP 4: CONTENT GENERIEREN');
     console.log('━'.repeat(60));
     
-    // Combine video info + additional sources as source text
+    // Build series context from TMDB data
+    let seriesContext = '';
+    if (tmdbData) {
+      seriesContext = `
+═══════════════════════════════════════════════════════════
+SERIEN-KONTEXT (aus TMDB - für Hintergrund-Informationen):
+═══════════════════════════════════════════════════════════
+SERIE: ${tmdbData.name}
+${tmdbData.overview ? `BESCHREIBUNG: ${tmdbData.overview}` : ''}
+${tmdbData.status ? `STATUS: ${tmdbData.status}` : ''}
+${tmdbData.firstAirDate ? `ERSTAUSSTRAHLUNG: ${tmdbData.firstAirDate}` : ''}
+`;
+    }
+    
+    // Combine video info + series context + additional sources
     const sourceText = `
 VIDEO-TITEL: ${video.title}
 KANAL: ${video.channelName}
@@ -593,7 +620,7 @@ VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE')}
 
 VIDEO-BESCHREIBUNG:
 ${video.description || 'Keine Beschreibung verfügbar.'}
-
+${seriesContext}
 ${additionalSources ? `
 ═══════════════════════════════════════════════════════════
 ZUSÄTZLICHE QUELLEN (für Kontext und Fakten):
@@ -629,10 +656,10 @@ ${additionalSources}
     console.log('   🤖 Generiere Artikel via LLM...');
     logger.log('LLM Content-Generierung gestartet');
     
-    // Word count target like v2: based on source content
+    // Word count target like v2: based on source content - ERHÖHT für bessere Qualität
     const wordCountTarget = sourceWordCount > 0 
-      ? Math.min(Math.max(sourceWordCount * 1.2, 500), 1000) 
-      : 600;
+      ? Math.min(Math.max(sourceWordCount * 1.5, 800), 1500) 
+      : 1000;
     
     const structuredContent = await generateStructuredContent({
       facts,
@@ -650,7 +677,42 @@ ${additionalSources}
       return { success: false, videoId: video.videoId, error: 'LLM Fehler' };
     }
     
+    // ========== QUALITY CHECK: Repetition Detection ==========
+    const markdownLower = structuredContent.markdown.toLowerCase();
+    const wordCount = structuredContent.markdown.split(/\s+/).length;
+    
+    // Check for excessive repetition (same phrase appearing more than 2x)
+    const sentences = structuredContent.markdown.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    const repetitionWarnings: string[] = [];
+    
+    // Check if key facts are repeated too often
+    const factPatterns = [
+      /12\.\s*mai/gi,
+      /mai\s*2025|mai\s*2026/gi,
+      /dante\s*und\s*vergil/gi,
+      /studio\s*mir/gi,
+    ];
+    
+    for (const pattern of factPatterns) {
+      const matches = structuredContent.markdown.match(pattern);
+      if (matches && matches.length > 2) {
+        repetitionWarnings.push(`"${matches[0]}" appears ${matches.length}x`);
+      }
+    }
+    
+    if (repetitionWarnings.length > 0) {
+      console.log(`   ⚠️ QUALITÄTS-WARNUNG: Repetitionen erkannt:`);
+      repetitionWarnings.forEach(w => console.log(`      - ${w}`));
+      logger.log(`Qualitätswarnung: ${repetitionWarnings.join(', ')}`, 'warning');
+    }
+    
+    if (wordCount < 400) {
+      console.log(`   ⚠️ QUALITÄTS-WARNUNG: Artikel zu kurz (${wordCount} Wörter)`);
+      logger.log(`Qualitätswarnung: Nur ${wordCount} Wörter`, 'warning');
+    }
+    
     console.log(`   ✓ Headline: ${structuredContent.headline}`);
+    console.log(`   ✓ Wörter: ${wordCount}`);
     logger.log(`Headline generiert: ${structuredContent.headline}`);
     
     // ========== STEP 4: VIDEO DOWNLOAD ==========

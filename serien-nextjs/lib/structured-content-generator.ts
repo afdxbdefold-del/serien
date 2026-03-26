@@ -209,10 +209,23 @@ STRUKTUR-ANFORDERUNGEN:
 
 4. CONTENT (${targetSections} Sections mit H2-Überschriften)
    
+   🚨 QUALITÄTS-ANFORDERUNGEN:
+   - Jede Section MUSS eigenständigen Mehrwert bieten
+   - KEINE Wiederholungen von Fakten zwischen Sections
+   - NIEMALS den gleichen Fakt 2x im Artikel nennen!
+   
    Jede Section:
    - H2-ÜBERSCHRIFT: Max 6 Wörter, prägnant, informativ
-   - 2-3 ABSÄTZE: Je 2-3 Sätze (NIEMALS mehr als 3 Sätze pro Absatz!)
+   - 3-4 ABSÄTZE: Je 2-3 Sätze (abwechslungsreich!)
    - Fließender Übergang zur nächsten Section
+   - KONKRETER INHALT: Analyse, Kontext, Hintergrund - nicht nur Faktenwiedergabe
+   
+   SECTION-TYPEN (variiere zwischen):
+   - Hintergrund/Kontext der Serie/des Spiels
+   - Analyse: Was bedeutet die News für Fans?
+   - Cast/Produktion Details
+   - Vergleich mit ähnlichen Serien/Adaptionen
+   - Was Fans jetzt wissen müssen
    
    🚨 KRITISCH - NAMEN VERWENDEN:
    ${characterNames ? `- Du MUSST diese Namen verwenden: ${characterNames}` : '- Verwende verfügbare Charakternamen'}
@@ -234,6 +247,16 @@ STRUKTUR-ANFORDERUNGEN:
 
 🚫 ANTI-AI REGELN (STRIKT BEFOLGEN):
 
+⛔ KRITISCH - QUALITÄT VOR QUANTITÄT:
+- NIEMALS den gleichen Fakt mehrfach wiederholen (z.B. "12. Mai" nur 1x nennen!)
+- Jeder Absatz MUSS neuen Inhalt bringen
+- Wenn du nicht genug Fakten hast, schreibe über:
+  * Hintergrund der Serie/des Spiels
+  * Kontext zur Ankündigung (warum ist das wichtig?)
+  * Was das für Fans bedeutet
+  * Vergleiche mit ähnlichen Serien
+- NIEMALS leere Phrasen wie "Fans sind gespannt" oder "verspricht dramatische Entwicklungen"
+
 ⛔ KRITISCH - KEINE ERFUNDENEN FAKTEN:
 - Schreibe NUR über Informationen aus den FAKTEN oben
 - ERFINDE KEINE Daten, Staffelnummern, Release-Termine
@@ -241,6 +264,13 @@ STRUKTUR-ANFORDERUNGEN:
 - NIEMALS "neue Staffel", "Revival", "Fortsetzung", "Rückkehr" behaupten, wenn nicht EXPLIZIT in Fakten steht
 - "Neu auf Disney+" / "Neu auf Netflix" = Serie ist jetzt dort VERFÜGBAR zum Streamen, NICHT neue Staffel!
 - "Exklusiv auf X" = Alte Serie wechselt Streaming-Dienst, KEIN neuer Content!
+
+⛔ ANTI-WIEDERHOLUNG (KRITISCH!):
+- Nenne JEDEN Fakt NUR EINMAL im gesamten Artikel!
+- Wenn du "12. Mai" im Lead nennst, NICHT nochmal in den Sections wiederholen
+- Wenn du "Dante und Vergil" erwähnst, beim nächsten Mal nur "die Brüder" oder "beide"
+- PRÜFE vor dem Schreiben: Habe ich das schon gesagt? → Dann überspringe es!
+- Fülle Sections mit NEUEM Inhalt: Kontext, Analyse, Hintergrund - nicht Fakten-Wiederholung
 
 ⛔ VERBOTENE BEGRIFFE für Streaming-Ankündigungen:
 - "Revival", "Comeback", "kehrt zurück", "neue Staffel", "Fortsetzung"
@@ -253,6 +283,8 @@ VERBOTENE WÖRTER/PHRASEN (NIEMALS verwenden):
 - "Es ist wichtig zu beachten", "Es bleibt abzuwarten"
 - "verspricht", "sorgt für Aufsehen", "begeistert Fans"
 - "emotional", "mitreißend", "packend"
+- "heiß erwartet", "in Atem halten", "dramatische Entwicklungen"
+- "Fans freuen sich", "Fans sind gespannt"
 
 SATZANFÄNGE:
 - NIEMALS zwei aufeinanderfolgende Sätze gleich beginnen
