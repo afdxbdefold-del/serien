@@ -852,15 +852,14 @@ ${additionalSources}
     console.log(`   ✓ Wörter: ${wordCount}`);
     logger.log(`Headline generiert: ${structuredContent.headline}`);
     
-    // ========== STEP 5: VIDEO DOWNLOAD ==========
+    // ========== STEP 5: VIDEO DOWNLOAD (für Hero) ==========
     console.log('\n━'.repeat(60));
-    console.log('STEP 4: VIDEO DOWNLOAD');
+    console.log('STEP 5: VIDEO DOWNLOAD');
     console.log('━'.repeat(60));
     
     let localVideoPath: string | null = null;
-    let videoEmbed = '';
     
-    // Download video from YouTube via RapidAPI
+    // Download video from YouTube via RapidAPI (wird als heroVideoUrl gespeichert)
     console.log(`   📥 Lade Video herunter: ${video.videoId}`);
     
     try {
@@ -872,44 +871,16 @@ ${additionalSources}
       if (downloadResult.success && downloadResult.localPath) {
         localVideoPath = downloadResult.localPath;
         console.log(`   ✅ Video heruntergeladen: ${localVideoPath}`);
-        
-        // Create video player for local video
-        videoEmbed = `
-<div class="video-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 12px;">
-  <video 
-    controls 
-    preload="metadata"
-    poster="${video.thumbnailUrl}"
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;"
-  >
-    <source src="${localVideoPath}" type="video/mp4">
-    Dein Browser unterstützt das Video-Tag nicht.
-  </video>
-</div>
-`;
       } else {
         console.log(`   ⚠️ Download fehlgeschlagen: ${downloadResult.error}`);
-        console.log(`   ↳ Fallback: YouTube Embed`);
+        console.log(`   ↳ Fallback: YouTube URL wird als heroVideoUrl gespeichert`);
       }
     } catch (downloadError: any) {
       console.log(`   ⚠️ Download-Fehler: ${downloadError.message}`);
-      console.log(`   ↳ Fallback: YouTube Embed`);
+      console.log(`   ↳ Fallback: YouTube URL wird als heroVideoUrl gespeichert`);
     }
     
-    // Fallback: YouTube embed if download failed
-    if (!localVideoPath) {
-      videoEmbed = `
-<div class="youtube-embed" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 12px;">
-  <iframe 
-    src="https://www.youtube.com/embed/${video.videoId}" 
-    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px;" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-    allowfullscreen>
-  </iframe>
-</div>
-`;
-    }
+    // Video wird im Hero-Bereich angezeigt, kein Embed im Artikel-Content nötig
     
     // ========== STEP 5.5: CHARACTER & CAST IMPORT & LINKING (wie P2) ==========
     console.log('\n━'.repeat(60));
@@ -981,13 +952,7 @@ ${additionalSources}
     
     let htmlContent = markdownToHtml(processedMarkdown);
     
-    // Add video embed after first paragraph
-    const firstParagraphEnd = htmlContent.indexOf('</p>');
-    if (firstParagraphEnd !== -1) {
-      htmlContent = htmlContent.slice(0, firstParagraphEnd + 4) + videoEmbed + htmlContent.slice(firstParagraphEnd + 4);
-    } else {
-      htmlContent = videoEmbed + htmlContent;
-    }
+    // Video wird im Hero-Bereich angezeigt (heroVideoUrl), kein Embed im Content nötig
     
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
