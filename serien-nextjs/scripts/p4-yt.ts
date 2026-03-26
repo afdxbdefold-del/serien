@@ -765,14 +765,14 @@ ${additionalSources}
     
     // Fact Safety Check
     try {
-      const factSafetyResult = await factSafetyCheck(
-        processedMarkdown,
-        facts,
-        sourceText
-      );
-      console.log(`   ✅ Fact safety check: ${factSafetyResult.passed ? 'Passed' : 'Warnings'}`);
+      const factSafetyResult = await factSafetyCheck({
+        articleHtml: processedMarkdown,
+        headline: structuredContent.headline,
+        extractedFacts: JSON.stringify(facts),
+      });
+      console.log(`   ✅ Fact safety: ${factSafetyResult.status === 'SAFE' ? 'Passed' : 'Warnings'}`);
     } catch (error: any) {
-      console.log(`   ⚠️ Fact safety check skipped: ${error.message}`);
+      console.log(`   ⚠️ Fact safety skipped: ${error.message}`);
     }
     
     // ========== STEP 7: INTERNAL LINKING (like v2) ==========

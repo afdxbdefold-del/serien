@@ -25,6 +25,9 @@ import { importSeriesCast } from '../lib/cast-importer';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
+import { qualityCheck } from '../lib/quality-checker';
+import { factSafetyCheck } from '../lib/fact-safety-layer';
+import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 
@@ -865,24 +868,86 @@ export async function runP3TrendsPipeline(
     let htmlContent = markdownToHtml(markdownString);
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: ANTI-AI FILTER (Check only) ==========
+    // ========== STEP 7: QUALITY GATES (like v2) ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 7: ANTI-AI CHECK');
+    console.log('STEP 7: QUALITY GATES');
     console.log('━'.repeat(60));
     
-    const antiAiResult = await antiAiFilter({
-      articleHtml: htmlContent,
-      headline: structuredContent.headline,
-      seriesName: info.seriesName || searchTerm,
-    });
+    let antiAiScore = 0;
     
-    console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
-    console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
-    logger.log(`Anti-AI Score: ${antiAiResult.antiAiScore}/100 (${antiAiResult.status})`);
-    await logger.update({ antiAiScore: antiAiResult.antiAiScore });
+    // Quality Check
+    try {
+      const qualityResult = await qualityCheck({
+        generatedArticleHtml: markdownString,
+        originalHeadline: searchTerm,
+        generatedHeadline: structuredContent.headline,
+      });
+      console.log(`   ✅ Quality check: ${qualityResult.passed ? 'Passed' : 'Warnings'}`);
+    } catch (error: any) {
+      console.log(`   ⚠️ Quality check skipped: ${error.message}`);
+    }
     
-    if (antiAiResult.failReasons.length > 0) {
-      console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
+    // Anti-AI Filter
+    try {
+      const antiAiResult = antiAiFilter({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        seriesName: info.seriesName || searchTerm,
+      });
+      antiAiScore = antiAiResult.antiAiScore;
+      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      await logger.update({ antiAiScore });
+      
+      if (antiAiResult.failReasons.length > 0) {
+        console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Anti-AI check skipped: ${error.message}`);
+    }
+    
+    // Fact Safety Check
+    try {
+      const factSafetyResult = await factSafetyCheck({
+        articleHtml: markdownString,
+        headline: structuredContent.headline,
+        extractedFacts: JSON.stringify(facts),
+      });
+      console.log(`   ✅ Fact safety: ${factSafetyResult.status === 'SAFE' ? 'Passed' : 'Warnings'}`);
+    } catch (error: any) {
+      console.log(`   ⚠️ Fact safety skipped: ${error.message}`);
+    }
+    
+    // ========== STEP 7.5: INTERNAL LINKING (like v2) ==========
+    console.log('\n' + '━'.repeat(60));
+    console.log('STEP 7.5: INTERNAL LINKING');
+    console.log('━'.repeat(60));
+    
+    const articleId = `trend-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    try {
+      const internalLinksResult = await generateInternalLinks({
+        articleId,
+        contentHtml: htmlContent,
+        primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
+        primarySeriesName: dbSeries?.name || dbSeries?.title || info.seriesName || '',
+        primarySeriesSlug: dbSeries?.slug || '',
+        publishedAt: null,
+      });
+      
+      htmlContent = internalLinksResult.updatedContentHtml;
+      
+      console.log(`   ✅ Internal Links:`);
+      console.log(`      Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
+      console.log(`      Related Articles: ${internalLinksResult.relatedArticles.length}`);
+      
+      // Validate links
+      const linkValidation = validateInternalLinks(htmlContent, dbSeries?.name || info.seriesName || '');
+      if (!linkValidation.valid) {
+        console.log(`   ⚠️ Link Validation Warnings`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
     }
     
     // ========== STEP 8: SAVE ARTICLE ==========
@@ -915,7 +980,7 @@ export async function runP3TrendsPipeline(
       };
     }
     
-    const articleId = `trend-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    // articleId already defined in Step 7.5 for internal linking
     
     // Generate unique source URL to avoid unique constraint
     const uniqueSourceUrl = info.articles[0]?.url 
@@ -934,8 +999,8 @@ export async function runP3TrendsPipeline(
         status: 'published',
         authorId: getRandomAuthor(),
         sourceUrl: uniqueSourceUrl,
-        // Series connection - only set if we found a valid series
-        primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
+        // Series connection - use DB id (not tmdbId) for foreign key
+        primarySeriesId: dbSeries?.id || null,
         tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         heroImageUrl: dbSeries?.backdropPath 
           ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`
