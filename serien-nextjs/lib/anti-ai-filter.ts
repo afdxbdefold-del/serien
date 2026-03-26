@@ -16,7 +16,7 @@
  * PASS: ≥80, REWRITE: <80, DRAFT: <80 after rewrite
  */
 
-const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
+const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
 
 interface AntiAiFilterInput {
   articleHtml: string;

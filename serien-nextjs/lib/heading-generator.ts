@@ -87,7 +87,7 @@ async function generateHeadingForParagraph(
   seriesName: string,
   articleTitle: string
 ): Promise<string | null> {
-  const emergentApiKey = process.env.EMERGENT_LLM_KEY;
+  const emergentApiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   
   if (!emergentApiKey) {
     console.log('   ⚠️  No EMERGENT_LLM_KEY');
@@ -122,7 +122,7 @@ NUR die Überschrift (ohne Anführungszeichen):`;
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({
       apiKey: emergentApiKey,
-      baseURL: 'http://localhost:8002/v1',
+      baseURL: 'https://api.openai.com/v1',
     });
 
     const response = await openai.chat.completions.create({

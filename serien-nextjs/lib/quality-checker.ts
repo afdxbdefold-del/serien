@@ -6,7 +6,7 @@
  * - FULL_NEWS: 320+ Wörter, höhere Thresholds, DISCOVER_CANDIDATE
  */
 
-const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
+const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
 
 type ArticleType = 'SHORT_NEWS' | 'FULL_NEWS' | 'RANKING_LIST';
 

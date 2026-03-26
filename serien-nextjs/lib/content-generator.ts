@@ -239,7 +239,7 @@ export async function generateGermanArticle(
   targetWordCount?: number, // NEW: Dynamic word count target based on source
   rankingItemCount?: number // NEW: For RANKING_LIST mode
 ): Promise<string> {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   
   if (!apiKey) {
     throw new Error('EMERGENT_LLM_KEY not found in environment');
@@ -247,7 +247,7 @@ export async function generateGermanArticle(
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'http://localhost:8002/v1',
+    baseURL: 'https://api.openai.com/v1',
   });
 
   // Choose prompt based on content type

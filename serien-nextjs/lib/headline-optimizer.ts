@@ -8,7 +8,7 @@
  * - Deutsch (de-DE)
  */
 
-const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
+const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
 
 interface HeadlineOptimizationInput {
   rawContent: string;

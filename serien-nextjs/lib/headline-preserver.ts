@@ -172,7 +172,7 @@ async function detectAndTranslate(
 async function translateHeadline(text: string): Promise<string> {
   try {
     const { default: OpenAI } = await import('openai');
-    const apiKey = process.env.EMERGENT_LLM_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
     
     if (!apiKey) {
       throw new Error('EMERGENT_LLM_KEY not set');
@@ -180,7 +180,7 @@ async function translateHeadline(text: string): Promise<string> {
     
     const openai = new OpenAI({
       apiKey,
-      baseURL: 'http://localhost:8002/v1',
+      baseURL: 'https://api.openai.com/v1',
     });
 
     const response = await openai.chat.completions.create({

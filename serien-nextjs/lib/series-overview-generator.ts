@@ -114,7 +114,7 @@ ${informationSources}
 Schreibe jetzt die erweiterte Beschreibung:`;
 
   try {
-    const response = await fetch('http://localhost:8002/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

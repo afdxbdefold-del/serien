@@ -24,12 +24,12 @@ export async function generateRelevanceContext(
   numberOfSeasons: number
 ): Promise<RelevanceContext | null> {
   try {
-    const apiKey = process.env.EMERGENT_LLM_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
     if (!apiKey) {
       return generateFallbackRelevance(seriesName, overview, status, voteAverage);
     }
 
-    const response = await fetch('http://localhost:8002/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

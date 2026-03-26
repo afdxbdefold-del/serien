@@ -28,7 +28,7 @@ export interface ArticleQAInput {
 
 export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]> {
   try {
-    const apiKey = process.env.EMERGENT_LLM_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
     if (!apiKey) {
       console.log('   ⚠️  No API key, skipping Q&A');
       return [];
@@ -44,7 +44,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
     console.log('   🤔 Generating Q&A...');
 
     // Use local LLM proxy (same as content-generator.ts)
-    const response = await fetch('http://localhost:8002/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
  */
 export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> {
   try {
-    const apiKey = process.env.EMERGENT_LLM_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
     if (!apiKey) {
       console.log('   ⚠️  No API key for Series Q&A, returning fallback questions');
       return generateFallbackSeriesQA(input);
@@ -123,7 +123,7 @@ export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> 
     console.log(`   🤔 Generating interpretative Series Q&A for ${input.seriesName}...`);
 
     // Use local LLM proxy
-    const response = await fetch('http://localhost:8002/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -108,12 +108,12 @@ async function generateRankingIntro(
   itemCount: number,
   facts: string[]
 ): Promise<string> {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   if (!apiKey) throw new Error('EMERGENT_LLM_KEY not found');
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'http://localhost:8002/v1',
+    baseURL: 'https://api.openai.com/v1',
   });
   
   const userPrompt = `
@@ -168,12 +168,12 @@ async function generateRankingBatch(
   batchItems: Array<{ rank: number; title: string; context: string }>,
   facts: string[]
 ): Promise<string> {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   if (!apiKey) throw new Error('EMERGENT_LLM_KEY not found');
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'http://localhost:8002/v1',
+    baseURL: 'https://api.openai.com/v1',
   });
   
   const itemsDescription = batchItems.map(item => 

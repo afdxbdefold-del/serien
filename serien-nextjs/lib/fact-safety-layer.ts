@@ -7,7 +7,7 @@
 
 import OpenAI from 'openai';
 
-const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1';
+const LLM_PROXY_URL = 'https://api.openai.com/v1';
 
 interface CriticalFact {
   type: 'SERIES_END' | 'SEASON_COUNT' | 'YEAR_DATE' | 'LAST_SEASON' | 'CANCELLATION' | 'RENEWAL';
@@ -112,7 +112,7 @@ async function detectCriticalFacts(
   headline: string,
   extractedFacts: string
 ): Promise<CriticalFact[]> {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   if (!apiKey) {
     throw new Error('EMERGENT_LLM_KEY not found');
   }

@@ -55,8 +55,8 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
   try {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({
-      apiKey: process.env.EMERGENT_LLM_KEY,
-      baseURL: 'http://localhost:8002/v1',
+      apiKey: process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY,
+      baseURL: 'https://api.openai.com/v1',
     });
 
     const response = await openai.chat.completions.create({

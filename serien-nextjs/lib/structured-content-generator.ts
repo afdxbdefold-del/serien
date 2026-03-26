@@ -257,21 +257,21 @@ Nutze Namen statt "ein Arzt", "das Team", "die Crew"!`;
  * Call LLM with structured output format
  */
 async function callLLMStructured(prompt: string): Promise<any> {
-  const emergentApiKey = process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   
-  if (!emergentApiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found');
+  if (!apiKey) {
+    throw new Error('No LLM API key found');
   }
   
   try {
     const { default: OpenAI } = await import('openai');
     const openai = new OpenAI({
-      apiKey: emergentApiKey,
-      baseURL: 'http://localhost:8002/v1',
+      apiKey,
+      baseURL: 'https://api.openai.com/v1',
     });
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-5.2',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',

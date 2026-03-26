@@ -5,7 +5,7 @@
  * Max 2 Sätze, max 35 Wörter, keine Emotion
  */
 
-const LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8002/v1/chat/completions';
+const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
 
 interface WasBedeutetDasInput {
   articleHtml: string;

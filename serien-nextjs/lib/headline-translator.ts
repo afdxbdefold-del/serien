@@ -66,7 +66,7 @@ export async function translateHeadlineOnly(
   
   const client = new OpenAI({
     apiKey,
-    baseURL: 'http://localhost:8002/v1',
+    baseURL: 'https://api.openai.com/v1',
   });
 
   try {
