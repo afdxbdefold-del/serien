@@ -119,6 +119,7 @@ export default function AdminPipelinePage() {
   const [newChannelUrl, setNewChannelUrl] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
   const [showAddChannel, setShowAddChannel] = useState(false);
+  const [p2DebugLog, setP2DebugLog] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
@@ -211,6 +212,11 @@ export default function AdminPipelinePage() {
     setRunningAction(action);
     setActionMessage(null);
     
+    // Clear debug log for P2 actions
+    if (action === 'generate-single-p2') {
+      setP2DebugLog(['🔄 Starte P2-Pipeline...']);
+    }
+    
     try {
       const response = await fetch('/api/admin/pipeline', {
         method: 'POST',
@@ -223,15 +229,23 @@ export default function AdminPipelinePage() {
       
       const data = await response.json();
       
+      // Handle debug logs for P2 generator
+      if (action === 'generate-single-p2' && data.debug) {
+        setP2DebugLog(data.debug);
+      }
+      
       if (response.ok && data.success) {
         setActionMessage({ type: 'success', text: data.message || 'Aktion erfolgreich' });
         setTimeout(fetchDashboard, 2000);
       } else {
-        setActionMessage({ type: 'error', text: data.error || 'Aktion fehlgeschlagen' });
+        setActionMessage({ type: 'error', text: data.error || data.message || 'Aktion fehlgeschlagen' });
         sendNotification('Pipeline Fehler', data.error || 'Aktion fehlgeschlagen');
       }
     } catch (error) {
       setActionMessage({ type: 'error', text: 'Netzwerkfehler' });
+      if (action === 'generate-single-p2') {
+        setP2DebugLog(prev => [...prev, '❌ Netzwerkfehler']);
+      }
     } finally {
       setRunningAction(null);
     }
@@ -546,6 +560,26 @@ export default function AdminPipelinePage() {
                   )}
                 </button>
               </div>
+              
+              {/* Debug Output */}
+              {p2DebugLog.length > 0 && (
+                <div className="mt-4 bg-black/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-emerald-100">Debug Log</span>
+                    <button 
+                      onClick={() => setP2DebugLog([])}
+                      className="text-xs text-emerald-200 hover:text-white"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="font-mono text-xs space-y-1 max-h-48 overflow-y-auto">
+                    {p2DebugLog.map((line, i) => (
+                      <div key={i} className="text-emerald-100">{line}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Chart + Error Analysis */}

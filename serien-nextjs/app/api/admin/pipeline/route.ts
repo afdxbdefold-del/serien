@@ -727,9 +727,14 @@ export async function POST(request: NextRequest) {
     if (action === 'generate-single-p2') {
       try {
         console.log('[P2 Single] Starting single article generation...');
+        const startTime = Date.now();
+        const debugLog: string[] = [];
+        
+        debugLog.push(`⏱️ Start: ${new Date().toISOString()}`);
         
         // Import news scraper
-        const { processAllNews } = await import('@/scripts/news-scraper');
+        const { processAllNews, NEWS_SOURCES } = await import('@/scripts/news-scraper');
+        debugLog.push(`📰 Quellen: ${Object.keys(NEWS_SOURCES).join(', ')}`);
         
         // Process only 1 article (the freshest one)
         const result = await processAllNews({
@@ -739,22 +744,42 @@ export async function POST(request: NextRequest) {
           onlyNew: true,
         });
         
+        const duration = Date.now() - startTime;
+        debugLog.push(`⏱️ Dauer: ${Math.round(duration / 1000)}s`);
+        
+        // Add source stats to debug
+        Object.entries(result.bySource || {}).forEach(([source, count]) => {
+          debugLog.push(`   ${source}: ${count} Artikel gefunden`);
+        });
+        
+        debugLog.push(`📊 Verarbeitet: ${result.processed}`);
+        debugLog.push(`⏭️ Übersprungen: ${result.skipped}`);
+        debugLog.push(`❌ Fehlgeschlagen: ${result.failed}`);
+        
         if (result.processed > 0) {
           return NextResponse.json({ 
             success: true, 
-            message: `✅ 1 Artikel erstellt`,
+            message: `✅ 1 Artikel erstellt (${Math.round(duration / 1000)}s)`,
+            debug: debugLog,
             result
           });
         } else if (result.skipped > 0) {
           return NextResponse.json({ 
             success: true, 
-            message: `⏭️ Keine neuen Artikel - alle bereits importiert`,
+            message: `⏭️ Keine neuen Artikel - alle ${result.skipped} bereits importiert`,
+            debug: debugLog,
             result
           });
         } else {
+          debugLog.push(`⚠️ Mögliche Ursachen:`);
+          debugLog.push(`   - Keine News ≤6h alt`);
+          debugLog.push(`   - Scraper-Fehler (HTML-Struktur geändert?)`);
+          debugLog.push(`   - Netzwerk-Timeout`);
+          
           return NextResponse.json({ 
             success: false, 
-            message: `❌ Keine passenden News gefunden (≤6h alt)`,
+            message: `❌ Keine passenden News gefunden`,
+            debug: debugLog,
             result
           });
         }
@@ -762,7 +787,11 @@ export async function POST(request: NextRequest) {
         console.error('[P2 Single] Error:', error);
         return NextResponse.json({ 
           success: false, 
-          error: `P2 Artikel-Erstellung fehlgeschlagen: ${error.message}`
+          error: `P2 Artikel-Erstellung fehlgeschlagen: ${error.message}`,
+          debug: [
+            `❌ Exception: ${error.message}`,
+            `📍 Stack: ${(error.stack || '').split('\n').slice(0, 3).join(' → ')}`
+          ]
         });
       }
     }
