@@ -63,7 +63,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
           }
         ],
         temperature: 0.7,
-        max_tokens: 800,
+        max_completion_tokens: 800,
         response_format: { type: 'json_object' }
       }),
     });
@@ -169,7 +169,7 @@ Beispiele für GUTE Fragen:
           }
         ],
         temperature: 0.8,
-        max_tokens: 1500,
+        max_completion_tokens: 1500,
         response_format: { type: 'json_object' }
       }),
     });

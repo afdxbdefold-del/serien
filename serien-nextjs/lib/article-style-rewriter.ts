@@ -92,7 +92,7 @@ Schreibe jetzt einen sachlichen Artikel im deutschen TV-News-Stil.`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3, // Lower for more factual output
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
       }),
     });
 

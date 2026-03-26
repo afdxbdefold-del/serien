@@ -72,7 +72,7 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
         },
       ],
       temperature: 0.8,
-      max_tokens: 200,
+      max_completion_tokens: 200,
     });
 
     const lead = response.choices[0]?.message?.content?.trim() || '';

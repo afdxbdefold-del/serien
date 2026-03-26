@@ -127,7 +127,7 @@ Erkläre die praktische Bedeutung (max 2 Sätze, max 35 Wörter).`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.2,
-        max_tokens: 100,
+        max_completion_tokens: 100,
       }),
     });
 

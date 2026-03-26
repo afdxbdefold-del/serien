@@ -80,7 +80,7 @@ export async function translateHeadlineOnly(
         }
       ],
       temperature: 0.3, // Low temp for consistent translation
-      max_tokens: 100,
+      max_completion_tokens: 100,
     });
 
     const translatedHeadline = response.choices[0]?.message?.content?.trim() || originalEnglishHeadline;

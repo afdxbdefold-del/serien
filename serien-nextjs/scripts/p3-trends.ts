@@ -125,7 +125,7 @@ Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Mar
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const rewritten = response.choices?.[0]?.message?.content;

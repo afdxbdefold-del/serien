@@ -81,7 +81,7 @@ Extract all facts now (preserve exact wording, no translation).
       ],
       response_format: { type: 'json_object' },
       temperature: 0,
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
     });
 
     const content = response.choices[0]?.message?.content;

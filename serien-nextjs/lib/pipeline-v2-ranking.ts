@@ -134,7 +134,7 @@ Schreibe jetzt die Einleitung (120-180 Wörter).
       { role: 'user', content: userPrompt },
     ],
     temperature: 0.7,
-    max_tokens: 400,
+    max_completion_tokens: 400,
   });
   
   const intro = response.choices[0]?.message?.content?.trim() || '';
@@ -198,7 +198,7 @@ Schreibe jetzt die Beschreibungen für alle ${batchItems.length} Items (je 80-14
       { role: 'user', content: userPrompt },
     ],
     temperature: 0.7,
-    max_tokens: Math.min(2000, batchItems.length * 300),
+    max_completion_tokens: Math.min(2000, batchItems.length * 300),
   });
   
   return response.choices[0]?.message?.content?.trim() || '';

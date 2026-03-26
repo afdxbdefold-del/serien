@@ -221,7 +221,7 @@ Bewerte die Qualität (0-100 Punkte pro Kategorie).`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.1,
-        max_tokens: 200,
+        max_completion_tokens: 200,
       }),
     });
 

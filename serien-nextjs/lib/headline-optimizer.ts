@@ -84,7 +84,7 @@ Erstelle jetzt 5 optimierte Überschriften-Varianten mit Bewertungen.`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       }),
     });
 

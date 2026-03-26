@@ -129,7 +129,7 @@ NUR die Überschrift (ohne Anführungszeichen):`;
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 50,
+      max_completion_tokens: 50,
     });
     
     const heading = response.choices[0]?.message?.content?.trim() || '';

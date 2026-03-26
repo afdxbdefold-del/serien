@@ -374,7 +374,7 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
         { role: 'user', content: factsPrompt }
       ],
       temperature: 0.7,
-      max_tokens: contentType === 'FULL_ARTICLE' 
+      max_completion_tokens: contentType === 'FULL_ARTICLE' 
         ? Math.min(3500, Math.max(2000, (targetWordCount || 650) * 3)) // Dynamic based on target
         : (contentType === 'MULTI_SERIES_EDITORIAL' ? 2000 : 1500),
     });

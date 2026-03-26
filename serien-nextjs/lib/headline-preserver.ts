@@ -196,7 +196,7 @@ async function translateHeadline(text: string): Promise<string> {
         },
       ],
       temperature: 0.3,
-      max_tokens: 100,
+      max_completion_tokens: 100,
     });
 
     return response.choices[0]?.message?.content?.trim() || text;

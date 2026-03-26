@@ -292,7 +292,7 @@ Bewerte: KI oder Redakteur?`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.2,
-        max_tokens: 200,
+        max_completion_tokens: 200,
       }),
     });
 

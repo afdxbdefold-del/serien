@@ -112,7 +112,7 @@ Generiere 5 Varianten (max 70 Zeichen).`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_completion_tokens: 300,
       }),
     });
 
@@ -254,7 +254,7 @@ Schreibe neu (serienjunkies.de Stil).`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 500,
+        max_completion_tokens: 500,
       }),
     });
 
