@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       console.log(`\n   Processing: "${trend.query}"`);
       
       try {
-        const result = await runP3TrendsPipeline(trend.id, trend.query);
+        const result = await runP3TrendsPipeline(trend.id, trend.query, 'cron');
         results.push(result);
         
         if (result.success) {

@@ -26,6 +26,7 @@ import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
+import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 
 const prisma = new PrismaClient();
 
@@ -665,7 +666,8 @@ export interface TrendArticleResult {
 
 export async function runP3TrendsPipeline(
   trendId: string,
-  searchTerm: string
+  searchTerm: string,
+  trigger: TriggerType = 'manual'
 ): Promise<TrendArticleResult> {
   console.log('\n' + '═'.repeat(70));
   console.log('🔥 P3-TRENDS PIPELINE');
@@ -673,21 +675,40 @@ export async function runP3TrendsPipeline(
   console.log(`📌 Trend: "${searchTerm}"`);
   console.log(`🆔 Trend-ID: ${trendId}\n`);
   
+  // Initialize pipeline logger
+  const logger = new PipelineLogger('p3-trends', trigger);
+  await logger.start({
+    inputQuery: searchTerm,
+    inputSource: `trend-${trendId}`,
+  });
+  
+  logger.log(`Trend: "${searchTerm}"`);
+  logger.addMetadata('trendId', trendId);
+  
   const now = new Date();
   
   try {
     // ========== STEP 1: GATHER INFO ==========
+    logger.log('Schritt 1: Sammle Informationen...');
     const info = await gatherInfoForTrend(searchTerm);
     
     if (info.articles.length === 0) {
       console.log('❌ Keine Artikel gefunden - überspringe');
+      await logger.fail('Keine Quellen gefunden', 'gather-info');
       return { success: false, trendId, error: 'Keine Quellen gefunden' };
     }
     
     if (info.totalWordCount < 100) {
       console.log('❌ Zu wenig Content - überspringe');
+      await logger.fail('Zu wenig Quellmaterial', 'gather-info');
       return { success: false, trendId, error: 'Zu wenig Quellmaterial' };
     }
+    
+    logger.log(`${info.articles.length} Quellen gefunden (${info.totalWordCount} Wörter)`);
+    await logger.update({ 
+      sourcesFound: info.articles.length, 
+      wordsCollected: info.totalWordCount 
+    });
     
     // ========== STEP 2: RESOLVE SERIES ==========
     console.log('\n' + '━'.repeat(60));
@@ -747,8 +768,12 @@ export async function runP3TrendsPipeline(
     
     // Step 3a: Extract facts from source text
     console.log('   📊 Extrahiere Fakten...');
+    logger.log('Extrahiere Fakten aus Quellen...');
     const facts = await extractFacts(searchTerm, combinedSourceText || 'Keine Details verfügbar');
-    console.log(`   ✓ Fakten: ${facts.key_statements?.length || 0} Statements`);
+    const factCount = facts.key_statements?.length || 0;
+    console.log(`   ✓ Fakten: ${factCount} Statements`);
+    logger.log(`${factCount} Fakten extrahiert`);
+    await logger.update({ factsExtracted: factCount });
     
     // Step 3b: Classify content type
     let contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING' = 'NEWS';
@@ -760,9 +785,11 @@ export async function runP3TrendsPipeline(
       contentType = 'RANKING';
     }
     console.log(`   ✓ Content-Typ: ${contentType}`);
+    logger.addMetadata('contentType', contentType);
     
     // Step 3c: Generate structured content
     console.log('   🤖 Generiere Artikel via LLM...');
+    logger.log('LLM Content-Generierung gestartet');
     
     const structuredContent = await generateStructuredContent({
       facts,
@@ -775,8 +802,11 @@ export async function runP3TrendsPipeline(
     
     if (!structuredContent || !structuredContent.markdown) {
       console.log('❌ Content-Generierung fehlgeschlagen');
+      await logger.fail('LLM konnte keinen Content generieren', 'llm-generation');
       return { success: false, trendId, error: 'LLM Fehler' };
     }
+    
+    logger.log(`Headline: ${structuredContent.headline}`);
     
     console.log(`   ✓ Headline: ${structuredContent.headline}`);
     console.log(`   ✓ Sections: ${structuredContent.sections?.length || 0}`);
@@ -848,6 +878,8 @@ export async function runP3TrendsPipeline(
     
     console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
     console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
+    logger.log(`Anti-AI Score: ${antiAiResult.antiAiScore}/100 (${antiAiResult.status})`);
+    await logger.update({ antiAiScore: antiAiResult.antiAiScore });
     
     if (antiAiResult.failReasons.length > 0) {
       console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
@@ -867,6 +899,13 @@ export async function runP3TrendsPipeline(
     
     if (existing) {
       console.log('⚠️ Artikel existiert bereits');
+      logger.log('Artikel existiert bereits - übersprungen', 'warn');
+      await logger.partial({
+        articleId: existing.id,
+        articleSlug: existing.slug,
+        articleTitle: existing.title,
+        errorMessage: 'Artikel existiert bereits'
+      });
       return { 
         success: true, 
         trendId, 
@@ -1011,6 +1050,13 @@ export async function runP3TrendsPipeline(
     console.log(`🔗 URL: /${article.slug}`);
     console.log('═'.repeat(70) + '\n');
     
+    logger.log(`Artikel gespeichert: ${article.slug}`);
+    await logger.success({
+      articleId: article.id,
+      articleSlug: article.slug,
+      articleTitle: article.title,
+    });
+    
     return {
       success: true,
       trendId,
@@ -1021,10 +1067,12 @@ export async function runP3TrendsPipeline(
     
   } catch (error) {
     console.error('❌ Pipeline Fehler:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await logger.fail(errorMessage, 'unknown');
     return { 
       success: false, 
       trendId, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: errorMessage 
     };
   }
 }
