@@ -1174,8 +1174,8 @@ ${articleSources}
         status: 'published',
         authorId: getRandomAuthor(),
         sourceUrl: uniqueSourceUrl,
-        // Series connection - use DB id (not tmdbId) for foreign key
-        primarySeriesId: dbSeries?.id || null,
+        // Series connection - use tmdbId as the series ID (since tmdbId is @id in schema)
+        primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         heroImageUrl: dbSeries?.backdropPath 
           ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`

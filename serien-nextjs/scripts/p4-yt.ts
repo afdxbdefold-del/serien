@@ -1052,8 +1052,11 @@ ${additionalSources}
     }
     
     // Only set primarySeriesId if series exists in DB (foreign key constraint)
-    // primarySeriesId uses the DB id (not tmdbId)
-    const seriesIdForArticle = dbSeries ? dbSeries.id : null;
+    // primarySeriesId uses the tmdbId as the series ID (since tmdbId is the @id in schema)
+    const seriesIdForArticle = dbSeries ? dbSeries.tmdbId : null;
+    
+    // DEBUG: Log series assignment
+    console.log(`   📊 Serie für Artikel: ${dbSeries?.name || 'KEINE'} (ID: ${seriesIdForArticle || 'NULL'})`);
     
     // Select best hero image: TMDB Backdrop > YouTube Thumbnail
     // TMDB images are usually higher quality and more suitable for hero display
