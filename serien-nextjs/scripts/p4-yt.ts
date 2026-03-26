@@ -28,6 +28,8 @@ import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger } from '../lib/pipeline-logger';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
+import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { discoverGate } from '../lib/discover-gate';
 
 const prisma = new PrismaClient();
 
@@ -835,7 +837,7 @@ ${additionalSources}
     console.log(`   ✓ Wörter: ${wordCount}`);
     logger.log(`Headline generiert: ${structuredContent.headline}`);
     
-    // ========== STEP 4: VIDEO DOWNLOAD ==========
+    // ========== STEP 5: VIDEO DOWNLOAD ==========
     console.log('\n━'.repeat(60));
     console.log('STEP 4: VIDEO DOWNLOAD');
     console.log('━'.repeat(60));
@@ -894,24 +896,68 @@ ${additionalSources}
 `;
     }
     
-    // ========== STEP 5: LINK CHARACTERS & STREAMERS ==========
+    // ========== STEP 5.5: CHARACTER & CAST IMPORT & LINKING (wie P2) ==========
+    console.log('\n━'.repeat(60));
+    console.log('STEP 5.5: CHARACTER & CAST LINKING');
+    console.log('━'.repeat(60));
+    
     let processedMarkdown = structuredContent.markdown;
     
     if (dbSeries) {
+      // Import characters first (like P2)
+      console.log(`   📥 Importiere Characters für Serie ${dbSeries.tmdbId}...`);
+      try {
+        await importSeriesCharacters(dbSeries.tmdbId);
+        console.log(`   ✓ Characters importiert`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Character-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+      
+      // Import cast (like P2)
+      console.log(`   📥 Importiere Cast...`);
+      try {
+        await importSeriesCast(dbSeries.tmdbId);
+        console.log(`   ✓ Cast importiert`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Cast-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+      
+      // Link characters in markdown
       try {
         const charResult = await linkCharactersInMarkdown(processedMarkdown, dbSeries.tmdbId);
         processedMarkdown = charResult.linkedMarkdown;
+        console.log(`   ✓ ${charResult.charactersLinked} Characters verlinkt`);
         
+        // Debug: Check actual links
+        const charLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
+        console.log(`   🔍 DEBUG: ${charLinks} Character-Links im Markdown`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Character-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+      
+      // Link cast in markdown
+      try {
         const castResult = await linkCastInMarkdown(processedMarkdown, dbSeries.tmdbId);
         processedMarkdown = castResult.linkedMarkdown;
-      } catch (e) {
-        // Linking failed, continue without
+        console.log(`   ✓ ${castResult.castLinked} Cast-Mitglieder verlinkt`);
+        
+        // Debug: Check actual links
+        const castLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
+        console.log(`   🔍 DEBUG: ${castLinks} Cast-Links im Markdown`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Cast-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
       }
+    } else {
+      console.log(`   ⚠️ Keine Serie - überspringe Character/Cast Linking`);
     }
     
+    // Link streamers to hub pages
+    console.log(`   🎬 Verlinke Streaming-Dienste...`);
     const streamerResult = linkStreamersInMarkdown(processedMarkdown);
     processedMarkdown = streamerResult.linkedMarkdown;
-    console.log(`   ✓ Video eingebettet, Streamer verlinkt`);
+    if (streamerResult.streamersLinked.length > 0) {
+      console.log(`   ✓ ${streamerResult.streamersLinked.length} Streamer verlinkt: ${streamerResult.streamersLinked.join(', ')}`);
+    }
     
     // ========== STEP 6: CONVERT TO HTML ==========
     console.log('\n━'.repeat(60));
@@ -1116,12 +1162,51 @@ ${additionalSources}
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     logger.log(`Artikel gespeichert: ${article.slug}`);
     
+    // ========== STEP 9: POST-PROCESSING (wie P2) ==========
+    console.log('\n━'.repeat(60));
+    console.log('STEP 9: POST-PROCESSING (parallel)');
+    console.log('━'.repeat(60));
+    
+    await Promise.allSettled([
+      // Generate "Was bedeutet das" section
+      (async () => {
+        try {
+          const wasBedeutetDasText = await generateWasBedeutetDas(
+            structuredContent.headline,
+            htmlContent,
+            dbSeries?.name || seriesName || ''
+          );
+          
+          if (wasBedeutetDasText) {
+            await prisma.articles.update({
+              where: { id: article.id },
+              data: { wasBedeutetDasText }
+            });
+            console.log(`   ✅ "Was bedeutet das" generiert`);
+          }
+        } catch (error: any) {
+          console.log(`   ⚠️ "Was bedeutet das" fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
+        }
+      })(),
+      
+      // Discover Gate (Google Discover Tauglichkeit)
+      (async () => {
+        try {
+          await discoverGate(article.id, structuredContent.headline, htmlContent);
+          console.log(`   ✅ Discover Gate verarbeitet`);
+        } catch (error: any) {
+          console.log(`   ⚠️ Discover Gate fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
+        }
+      })(),
+    ]);
+    
     console.log('\n' + '═'.repeat(70));
     console.log('✅ P4-YT PIPELINE ERFOLGREICH');
     console.log('═'.repeat(70));
     console.log(`📰 Artikel: ${article.title}`);
     console.log(`🔗 URL: /${article.slug}`);
     console.log(`🎬 Video: https://www.youtube.com/watch?v=${video.videoId}`);
+    console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
     // Log success
