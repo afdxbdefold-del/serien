@@ -462,12 +462,44 @@ export async function generateArticleFromVideo(
       }
     }
     
-    // ========== STEP 3: GENERATE CONTENT ==========
+    // ========== STEP 3: GATHER ADDITIONAL SOURCES ==========
     console.log('\n━'.repeat(60));
-    console.log('STEP 3: CONTENT GENERIEREN');
+    console.log('STEP 3: ZUSÄTZLICHE QUELLEN SUCHEN');
     console.log('━'.repeat(60));
     
-    // Combine video info as source text
+    // Import the source gathering function from p3-trends
+    const searchQuery = `${seriesName || video.title} ${video.channelName} 2024 2025 2026`;
+    console.log(`   🔍 Suche: "${searchQuery}"`);
+    
+    let additionalSources = '';
+    let totalWordCount = 0;
+    
+    try {
+      // Search DuckDuckGo for additional sources
+      const { gatherInfoForTrend } = await import('./p3-trends');
+      const sourceInfo = await gatherInfoForTrend(seriesName || video.title);
+      
+      if (sourceInfo.totalWordCount > 100 && sourceInfo.articles.length > 0) {
+        // Extract text from articles
+        additionalSources = sourceInfo.articles
+          .filter((a: any) => a.text && a.text.length > 50)
+          .map((a: any) => `[Quelle: ${a.title || 'Unbekannt'}]\n${a.text}`)
+          .join('\n\n---\n\n');
+        totalWordCount = sourceInfo.totalWordCount;
+        console.log(`   ✓ ${sourceInfo.articles.length} Quellen gefunden (${totalWordCount} Wörter)`);
+      } else {
+        console.log(`   ⚠️ Wenig zusätzliche Quellen gefunden`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Quellensuche fehlgeschlagen: ${error.message}`);
+    }
+    
+    // ========== STEP 4: GENERATE CONTENT ==========
+    console.log('\n━'.repeat(60));
+    console.log('STEP 4: CONTENT GENERIEREN');
+    console.log('━'.repeat(60));
+    
+    // Combine video info + additional sources as source text
     const sourceText = `
 VIDEO-TITEL: ${video.title}
 KANAL: ${video.channelName}
@@ -475,11 +507,19 @@ VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE')}
 
 VIDEO-BESCHREIBUNG:
 ${video.description || 'Keine Beschreibung verfügbar.'}
+
+${additionalSources ? `
+═══════════════════════════════════════════════════════════
+ZUSÄTZLICHE QUELLEN (für Kontext und Fakten):
+═══════════════════════════════════════════════════════════
+${additionalSources}
+` : ''}
     `.trim();
     
     const sourceWordCount = sourceText.split(/\s+/).length;
-    logger.log(`Quelltext: ${sourceWordCount} Wörter`);
-    await logger.update({ wordsCollected: sourceWordCount });
+    console.log(`   📊 Gesamter Quelltext: ${sourceWordCount} Wörter`);
+    logger.log(`Quelltext: ${sourceWordCount} Wörter (davon ${totalWordCount} aus externen Quellen)`);
+    await logger.update({ wordsCollected: sourceWordCount, sourcesFound: additionalSources ? 1 : 0 });
     
     // Extract facts from video info
     console.log('   📊 Extrahiere Fakten...');

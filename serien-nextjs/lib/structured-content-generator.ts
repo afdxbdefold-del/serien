@@ -221,6 +221,13 @@ STRUKTUR-ANFORDERUNGEN:
 
 🚫 ANTI-AI REGELN (STRIKT BEFOLGEN):
 
+⛔ KRITISCH - KEINE ERFUNDENEN FAKTEN:
+- Schreibe NUR über Informationen aus den FAKTEN oben
+- ERFINDE KEINE Daten, Staffelnummern, Release-Termine
+- Wenn du etwas nicht weißt, lass es weg
+- NIEMALS "neue Staffel" behaupten, wenn nicht in Fakten steht
+- Bei "Neu auf Disney+" o.ä. = Serie ist jetzt VERFÜGBAR, NICHT neue Staffel!
+
 VERBOTENE WÖRTER/PHRASEN (NIEMALS verwenden):
 - "tauchen ein", "eintauchen"
 - "spannend", "aufregend", "fesselnd"

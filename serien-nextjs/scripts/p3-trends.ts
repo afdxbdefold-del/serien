@@ -517,7 +517,7 @@ interface GatheredInfo {
   tmdbData?: any;
 }
 
-async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
+export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredInfo> {
   console.log('\n' + '─'.repeat(60));
   console.log(`📊 Sammle Infos für: "${searchTerm}"`);
   console.log('─'.repeat(60));
