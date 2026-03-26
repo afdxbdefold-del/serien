@@ -49,17 +49,17 @@ const SKIP_KEYWORDS = [
 ];
 
 /**
- * Check if article is less than 24 hours old based on timeAgo string
+ * Check if article is less than 6 hours old based on timeAgo string
  */
-function isWithin24Hours(timeAgo: string): boolean {
-  if (!timeAgo) return true;
+function isWithin6Hours(timeAgo: string): boolean {
+  if (!timeAgo) return false; // Ohne Zeitangabe = zu alt
   
   const timeLower = timeAgo.toLowerCase().trim();
   
-  // "X hours ago" - include if less than 24
+  // "X hours ago" - include if less than 6
   const hoursMatch = timeLower.match(/(\d+)\s*(?:hour|hr|h)/);
   if (hoursMatch) {
-    return parseInt(hoursMatch[1]) <= 24;
+    return parseInt(hoursMatch[1]) <= 6;
   }
   
   // "X minutes ago" - always include
@@ -72,15 +72,15 @@ function isWithin24Hours(timeAgo: string): boolean {
     return true;
   }
   
-  // "X days ago" - only include if 1 day
+  // "X days ago" - never include (too old)
   const daysMatch = timeLower.match(/(\d+)\s*day/);
   if (daysMatch) {
-    return parseInt(daysMatch[1]) <= 1;
+    return false;
   }
   
-  // "yesterday" - include
+  // "yesterday" - never include (too old)
   if (timeLower.includes('yesterday')) {
-    return true;
+    return false;
   }
   
   // Anything with "week", "month", "year" - skip
@@ -88,14 +88,14 @@ function isWithin24Hours(timeAgo: string): boolean {
     return false;
   }
   
-  return true;
+  return false; // Default: zu alt
 }
 
 function isRelevantArticle(article: NewsArticle): boolean {
   const titleLower = article.title.toLowerCase();
   
-  // FIRST: Check if article is within 24 hours
-  if (!isWithin24Hours(article.timeAgo)) {
+  // FIRST: Check if article is within 6 hours
+  if (!isWithin6Hours(article.timeAgo)) {
     return false;
   }
   
