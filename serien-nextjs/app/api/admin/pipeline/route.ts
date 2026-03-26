@@ -468,6 +468,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Delete ALL unprocessed videos (cleanup)
+    if (action === 'delete-all-videos') {
+      const deleted = await prisma.youtube_videos.deleteMany({
+        where: { processed: false }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `${deleted.count} Videos gelöscht`,
+        count: deleted.count
+      });
+    }
+
+    // Delete ALL videos (full reset)
+    if (action === 'reset-all-videos') {
+      const deleted = await prisma.youtube_videos.deleteMany({});
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `${deleted.count} Videos gelöscht (Full Reset)`,
+        count: deleted.count
+      });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
   } catch (error: any) {
