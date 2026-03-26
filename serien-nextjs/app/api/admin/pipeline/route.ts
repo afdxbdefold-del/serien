@@ -622,15 +622,27 @@ export async function POST(request: NextRequest) {
     }
 
     // ========== MANUAL CRON TRIGGERS ==========
-    // Diese werden vom Admin Dashboard ausgelöst → trigger: 'manual' um 6h-Filter zu umgehen
+    // Diese rufen die Cron-Endpoints auf (haben 5 Min Timeout auf Vercel)
+    // trigger=manual umgeht den 6-Stunden-Altersfilter
     
-    // Trigger P3-Trends Cron (full pipeline run)
+    const getBaseUrl = () => {
+      if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
+      if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+      return 'http://localhost:3000';
+    };
+    const cronSecret = process.env.CRON_SECRET || 'serien-cron-secret-2024';
+    
+    // Trigger P3-Trends Cron
     if (action === 'trigger-cron-trends') {
       try {
-        const { processAllTrends } = await import('@/scripts/p3-trends');
-        // Run async in background, don't wait
-        // 'manual' trigger umgeht den 6-Stunden-Altersfilter für Quellen
-        processAllTrends('manual').catch(console.error);
+        const baseUrl = getBaseUrl();
+        
+        // Fire and forget - don't await
+        fetch(`${baseUrl}/api/cron/trends?secret=${cronSecret}&trigger=manual`)
+          .then(res => res.json())
+          .then(data => console.log('[Manual Trigger] P3-Trends result:', data))
+          .catch(err => console.error('[Manual Trigger] P3-Trends error:', err));
+        
         return NextResponse.json({ 
           success: true, 
           message: 'P3-Trends gestartet (manuell, Altersfilter deaktiviert)'
@@ -643,13 +655,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Trigger P4-YouTube Cron (full pipeline run)
+    // Trigger P4-YouTube Cron
     if (action === 'trigger-cron-youtube') {
       try {
-        const { runP4YTPipeline } = await import('@/scripts/p4-yt');
-        // Run async in background, don't wait
-        // 'manual' trigger umgeht den 6-Stunden-Altersfilter für Videos
-        runP4YTPipeline('manual').catch(console.error);
+        const baseUrl = getBaseUrl();
+        
+        // Fire and forget - don't await
+        fetch(`${baseUrl}/api/cron/youtube?secret=${cronSecret}&trigger=manual`)
+          .then(res => res.json())
+          .then(data => console.log('[Manual Trigger] P4-YouTube result:', data))
+          .catch(err => console.error('[Manual Trigger] P4-YouTube error:', err));
+        
         return NextResponse.json({ 
           success: true, 
           message: 'P4-YouTube gestartet (manuell, Altersfilter deaktiviert)'
@@ -665,11 +681,16 @@ export async function POST(request: NextRequest) {
     // Trigger News Cron
     if (action === 'trigger-cron-news') {
       try {
-        const { processScreenrantNews } = await import('@/scripts/screenrant-scraper');
-        processScreenrantNews({ limit: 5, dryRun: false, onlyNew: true }).catch(console.error);
+        const baseUrl = getBaseUrl();
+        
+        fetch(`${baseUrl}/api/cron/news?secret=${cronSecret}`)
+          .then(res => res.json())
+          .then(data => console.log('[Manual Trigger] News result:', data))
+          .catch(err => console.error('[Manual Trigger] News error:', err));
+        
         return NextResponse.json({ 
           success: true, 
-          message: 'News Import Cron gestartet (läuft im Hintergrund)'
+          message: 'News Import gestartet'
         });
       } catch (error: any) {
         return NextResponse.json({ 
@@ -679,16 +700,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Trigger Releases Cron (inline implementation since it's simple)
+    // Trigger Releases Cron
     if (action === 'trigger-cron-releases') {
       try {
-        // Call the releases endpoint internally
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        fetch(`${baseUrl}/api/cron/releases?secret=${process.env.CRON_SECRET || 'serien-releases-update-2024'}`)
-          .catch(console.error);
+        const baseUrl = getBaseUrl();
+        
+        fetch(`${baseUrl}/api/cron/releases?secret=${cronSecret}`)
+          .then(res => res.json())
+          .then(data => console.log('[Manual Trigger] Releases result:', data))
+          .catch(err => console.error('[Manual Trigger] Releases error:', err));
+        
         return NextResponse.json({ 
           success: true, 
-          message: 'Releases Import Cron gestartet (läuft im Hintergrund)'
+          message: 'Releases Import gestartet'
         });
       } catch (error: any) {
         return NextResponse.json({ 

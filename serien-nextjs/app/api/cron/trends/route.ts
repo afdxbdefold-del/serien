@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  console.log('🔥 Starting P3-Trends Pipeline cron job...');
+  // Check if this is a manual trigger (bypasses age filter)
+  const trigger = request.nextUrl.searchParams.get('trigger') === 'manual' ? 'manual' : 'cron';
+
+  console.log(`🔥 Starting P3-Trends Pipeline (${trigger})...`);
   const startTime = Date.now();
 
   try {
@@ -66,7 +69,8 @@ export async function GET(request: NextRequest) {
       console.log(`\n   Processing: "${trend.query}"`);
       
       try {
-        const result = await runP3TrendsPipeline(trend.id, trend.query, 'cron');
+        // Pass trigger type to pipeline
+        const result = await runP3TrendsPipeline(trend.id, trend.query, trigger);
         results.push(result);
         
         if (result.success) {
@@ -92,6 +96,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      trigger,
       stats: {
         trendsFound: trends.length,
         trendsProcessed: unprocessedTrends.length,

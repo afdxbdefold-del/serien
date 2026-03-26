@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  console.log('🎬 Starting P4-YT Pipeline cron job...');
+  // Check if this is a manual trigger (bypasses age filter)
+  const trigger = request.nextUrl.searchParams.get('trigger') === 'manual' ? 'manual' : 'cron';
+  
+  console.log(`🎬 Starting P4-YT Pipeline (${trigger})...`);
   const startTime = Date.now();
 
   try {
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // Step 2: Process unprocessed videos (max 3 per run to stay within time limit)
     console.log('\n📝 Step 2: Processing unprocessed videos...');
-    const results = await processUnprocessedVideos(3);
+    const results = await processUnprocessedVideos(3, trigger);
 
     const duration = Math.round((Date.now() - startTime) / 1000);
     const successCount = results.filter(r => r.success).length;
@@ -54,6 +57,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      trigger,
       stats: {
         newVideosFound: newVideos.length,
         videosProcessed: results.length,
