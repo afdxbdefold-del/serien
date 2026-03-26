@@ -225,8 +225,13 @@ STRUKTUR-ANFORDERUNGEN:
 - Schreibe NUR über Informationen aus den FAKTEN oben
 - ERFINDE KEINE Daten, Staffelnummern, Release-Termine
 - Wenn du etwas nicht weißt, lass es weg
-- NIEMALS "neue Staffel" behaupten, wenn nicht in Fakten steht
-- Bei "Neu auf Disney+" o.ä. = Serie ist jetzt VERFÜGBAR, NICHT neue Staffel!
+- NIEMALS "neue Staffel", "Revival", "Fortsetzung", "Rückkehr" behaupten, wenn nicht EXPLIZIT in Fakten steht
+- "Neu auf Disney+" / "Neu auf Netflix" = Serie ist jetzt dort VERFÜGBAR zum Streamen, NICHT neue Staffel!
+- "Exklusiv auf X" = Alte Serie wechselt Streaming-Dienst, KEIN neuer Content!
+
+⛔ VERBOTENE BEGRIFFE für Streaming-Ankündigungen:
+- "Revival", "Comeback", "kehrt zurück", "neue Staffel", "Fortsetzung"
+- Stattdessen: "jetzt verfügbar", "ab sofort streambar", "wechselt zu"
 
 VERBOTENE WÖRTER/PHRASEN (NIEMALS verwenden):
 - "tauchen ein", "eintauchen"

@@ -475,15 +475,15 @@ export async function generateArticleFromVideo(
     let totalWordCount = 0;
     
     try {
-      // Search DuckDuckGo for additional sources
+      // Search DuckDuckGo for additional sources - same as p3-trends
       const { gatherInfoForTrend } = await import('./p3-trends');
       const sourceInfo = await gatherInfoForTrend(seriesName || video.title);
       
       if (sourceInfo.totalWordCount > 100 && sourceInfo.articles.length > 0) {
-        // Extract text from articles
+        // Extract content from articles (same format as p3-trends)
         additionalSources = sourceInfo.articles
-          .filter((a: any) => a.text && a.text.length > 50)
-          .map((a: any) => `[Quelle: ${a.title || 'Unbekannt'}]\n${a.text}`)
+          .filter((a: any) => a.content && a.content.length > 50)
+          .map((a: any) => `[Quelle: ${a.source}]\n${a.content}`)
           .join('\n\n---\n\n');
         totalWordCount = sourceInfo.totalWordCount;
         console.log(`   ✓ ${sourceInfo.articles.length} Quellen gefunden (${totalWordCount} Wörter)`);
