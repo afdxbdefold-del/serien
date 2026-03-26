@@ -194,10 +194,11 @@ export async function GET(request: NextRequest) {
     
     for (const run of failedRuns) {
       // Normalize error message (remove IDs, timestamps, etc.)
-      let errorKey = (run.errorMessage || 'Unknown')
+      const rawMessage = run.errorMessage || 'Unknown';
+      let errorKey = String(rawMessage)
         .replace(/\d{10,}/g, '[ID]')
-        .replace(/https?:\/\/[^\s]+/g, '[URL]')
-        .substring(0, 100);
+        .replace(/https?:\/\/[^\s]+/g, '[URL]');
+      errorKey = errorKey.length > 100 ? errorKey.substring(0, 100) : errorKey;
       
       if (!errorGroups[errorKey]) {
         errorGroups[errorKey] = { count: 0, lastSeen: run.startedAt, step: run.errorStep || undefined };
