@@ -25,7 +25,7 @@ import { qualityCheck } from '../lib/quality-checker';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
-import { PipelineLogger } from '../lib/pipeline-logger';
+import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';

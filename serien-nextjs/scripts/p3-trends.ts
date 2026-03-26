@@ -1427,8 +1427,9 @@ ${articleSources}
 // ══════════════════════════════════════════════════════════════════════════
 // PROCESS ALL UNPROCESSED TRENDS
 // ══════════════════════════════════════════════════════════════════════════
-export async function processAllTrends(): Promise<TrendArticleResult[]> {
-  console.log('\n🔥 Verarbeite alle unverarbeiteten Trends...\n');
+export async function processAllTrends(trigger: TriggerType = 'cron'): Promise<TrendArticleResult[]> {
+  console.log('\n🔥 Verarbeite alle unverarbeiteten Trends...');
+  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})\n`);
   
   const unprocessedTrends = await prisma.trending_topics.findMany({
     where: { processed: false },
@@ -1446,7 +1447,8 @@ export async function processAllTrends(): Promise<TrendArticleResult[]> {
   const results: TrendArticleResult[] = [];
   
   for (const trend of unprocessedTrends) {
-    const result = await runP3TrendsPipeline(trend.id, trend.query);
+    // Trigger-Type an Pipeline weitergeben
+    const result = await runP3TrendsPipeline(trend.id, trend.query, trigger);
     results.push(result);
     
     // Delay between articles

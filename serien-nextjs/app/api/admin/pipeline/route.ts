@@ -410,10 +410,15 @@ export async function POST(request: NextRequest) {
 
     // Export logs as CSV
     if (action === 'export-csv') {
-      const runs = await getRecentPipelineRuns({ hours: 168, limit: 500 }); // Last 7 days
+      const sevenDaysAgo = new Date(Date.now() - 168 * 60 * 60 * 1000);
+      const runs = await prisma.pipeline_runs.findMany({
+        where: { startedAt: { gte: sevenDaysAgo } },
+        orderBy: { startedAt: 'desc' },
+        take: 500
+      });
       
       const csvHeader = 'Zeit,Pipeline,Status,Input,Artikel,Quellen,Wörter,Fakten,Anti-AI,Dauer,Fehler\n';
-      const csvRows = runs.map(r => [
+      const csvRows = runs.map((r: any) => [
         new Date(r.startedAt).toISOString(),
         r.pipeline,
         r.status,
@@ -494,16 +499,18 @@ export async function POST(request: NextRequest) {
     }
 
     // ========== MANUAL CRON TRIGGERS ==========
+    // Diese werden vom Admin Dashboard ausgelöst → trigger: 'manual' um 6h-Filter zu umgehen
     
     // Trigger P3-Trends Cron (full pipeline run)
     if (action === 'trigger-cron-trends') {
       try {
         const { processAllTrends } = await import('@/scripts/p3-trends');
         // Run async in background, don't wait
-        processAllTrends().catch(console.error);
+        // 'manual' trigger umgeht den 6-Stunden-Altersfilter für Quellen
+        processAllTrends('manual').catch(console.error);
         return NextResponse.json({ 
           success: true, 
-          message: 'P3-Trends Cron gestartet (läuft im Hintergrund)'
+          message: 'P3-Trends gestartet (manuell, Altersfilter deaktiviert)'
         });
       } catch (error: any) {
         return NextResponse.json({ 
@@ -518,10 +525,11 @@ export async function POST(request: NextRequest) {
       try {
         const { runP4YTPipeline } = await import('@/scripts/p4-yt');
         // Run async in background, don't wait
-        runP4YTPipeline().catch(console.error);
+        // 'manual' trigger umgeht den 6-Stunden-Altersfilter für Videos
+        runP4YTPipeline('manual').catch(console.error);
         return NextResponse.json({ 
           success: true, 
-          message: 'P4-YouTube Cron gestartet (läuft im Hintergrund)'
+          message: 'P4-YouTube gestartet (manuell, Altersfilter deaktiviert)'
         });
       } catch (error: any) {
         return NextResponse.json({ 
