@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/wow-serien',
   },
   alternates: {
-    canonical: '/wow-serien',
+    canonical: 'https://serien.de/wow-serien',
   },
 };
 

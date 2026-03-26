@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     'max-snippet': -1,
   },
   alternates: {
-    canonical: '/personen',
+    canonical: 'https://serien.de/personen',
   },
   openGraph: {
     title: 'Schauspieler & Stars - Serien-Darsteller',

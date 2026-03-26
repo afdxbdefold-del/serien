@@ -58,6 +58,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `${person.biography.slice(0, 150)}...`
     : `Alle Serien und Filme mit ${person.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
   
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
   return {
     title,
     description,
@@ -77,7 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         : undefined,
     },
     alternates: {
-      canonical: `/person/${id}`,
+      canonical: `${baseUrl}/person/${id}`,
     },
   };
 }

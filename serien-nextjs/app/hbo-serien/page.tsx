@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/hbo-serien',
   },
   alternates: {
-    canonical: '/hbo-serien',
+    canonical: 'https://serien.de/hbo-serien',
   },
 };
 

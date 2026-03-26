@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 export const metadata: Metadata = {
   title: 'Trending Serien | serien.de',
   description: 'Entdecke die Serien, die Deutschland gerade sucht. Aktuelle Trends und News basierend auf echten Google-Suchanfragen.',
+  alternates: {
+    canonical: 'https://serien.de/trending',
+  },
 };
 
 // Get trending data with articles - no caching

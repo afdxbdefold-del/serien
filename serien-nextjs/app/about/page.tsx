@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'max-snippet': -1,
   },
   alternates: {
-    canonical: '/about',
+    canonical: 'https://serien.de/about',
   },
 };
 

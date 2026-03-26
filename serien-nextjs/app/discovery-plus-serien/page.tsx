@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/discovery-plus-serien',
   },
   alternates: {
-    canonical: '/discovery-plus-serien',
+    canonical: 'https://serien.de/discovery-plus-serien',
   },
 };
 

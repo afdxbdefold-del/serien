@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/chili-serien',
   },
   alternates: {
-    canonical: '/chili-serien',
+    canonical: 'https://serien.de/chili-serien',
   },
 };
 

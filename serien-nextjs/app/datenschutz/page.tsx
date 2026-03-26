@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     follow: false,
   },
   alternates: {
-    canonical: '/datenschutz',
+    canonical: 'https://serien.de/datenschutz',
   },
 };
 

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/netflix-serien',
   },
   alternates: {
-    canonical: '/netflix-serien',
+    canonical: 'https://serien.de/netflix-serien',
   },
 };
 

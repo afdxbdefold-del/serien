@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/zdf-mediathek-serien',
   },
   alternates: {
-    canonical: '/zdf-mediathek-serien',
+    canonical: 'https://serien.de/zdf-mediathek-serien',
   },
 };
 

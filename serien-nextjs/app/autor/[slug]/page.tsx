@@ -60,13 +60,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       follow: true,
     },
     alternates: {
-      canonical: `/autor/${slug}`,
+      canonical: `${baseUrl}/autor/${slug}`,
     },
     openGraph: {
       title: `${author.name} - Autor | serien.de`,
       description: `Alle Artikel von ${author.name}`,
       type: 'profile',
-      url: `/autor/${slug}`,
+      url: `${baseUrl}/autor/${slug}`,
     },
   };
 }

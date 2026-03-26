@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  alternates: {
+    canonical: 'https://serien.de/impressum',
+  },
 };
 
 export default function ImpressumPage() {

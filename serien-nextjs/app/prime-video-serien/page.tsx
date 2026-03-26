@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/prime-video-serien',
   },
   alternates: {
-    canonical: '/prime-video-serien',
+    canonical: 'https://serien.de/prime-video-serien',
   },
 };
 

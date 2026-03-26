@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/disney-plus-serien',
   },
   alternates: {
-    canonical: '/disney-plus-serien',
+    canonical: 'https://serien.de/disney-plus-serien',
   },
 };
 

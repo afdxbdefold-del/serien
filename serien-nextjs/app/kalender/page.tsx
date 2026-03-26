@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     'max-snippet': -1,
   },
   alternates: {
-    canonical: '/kalender',
+    canonical: 'https://serien.de/kalender',
   },
   openGraph: {
     title: 'Serien-Kalender – Neue Folgen & Staffeln',

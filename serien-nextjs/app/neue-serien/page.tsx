@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     url: '/neue-serien',
   },
   alternates: {
-    canonical: '/neue-serien',
+    canonical: 'https://serien.de/neue-serien',
   },
 };
 

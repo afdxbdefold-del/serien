@@ -39,6 +39,8 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
     };
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  
   return {
     title: character.metaTitle || `${character.name} - Serienfigur`,
     description: character.metaDescription || undefined,
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
       'max-snippet': -1,
     },
     alternates: {
-      canonical: `/figur/${character.slug}`,
+      canonical: `${baseUrl}/figur/${character.slug}`,
     },
   };
 }

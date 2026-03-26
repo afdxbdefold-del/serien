@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     'max-snippet': -1,
   },
   alternates: {
-    canonical: '/figuren',
+    canonical: 'https://serien.de/figuren',
   },
 };
 

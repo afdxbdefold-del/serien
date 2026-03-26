@@ -88,13 +88,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       'max-video-preview': -1,
     },
     alternates: {
-      canonical: `/serie/${canonicalSlug}`,
+      canonical: `${baseUrl}/serie/${canonicalSlug}`,
     },
     openGraph: {
       title: `${seriesName} | serien.de`,
       description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
       type: 'website',
-      url: `/serie/${canonicalSlug}`,
+      url: `${baseUrl}/serie/${canonicalSlug}`,
       images: [
         {
           url: ogImage,

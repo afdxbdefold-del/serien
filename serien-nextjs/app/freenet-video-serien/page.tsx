@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/freenet-video-serien',
   },
   alternates: {
-    canonical: '/freenet-video-serien',
+    canonical: 'https://serien.de/freenet-video-serien',
   },
 };
 

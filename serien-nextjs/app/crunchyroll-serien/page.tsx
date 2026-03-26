@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/crunchyroll-serien',
   },
   alternates: {
-    canonical: '/crunchyroll-serien',
+    canonical: 'https://serien.de/crunchyroll-serien',
   },
 };
 

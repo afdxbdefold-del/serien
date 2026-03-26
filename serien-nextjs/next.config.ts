@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // Compression
   compress: true,
   
+  // Force consistent trailing slash (no trailing slash)
+  trailingSlash: false,
+  
   // Optimized images
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -31,6 +34,30 @@ const nextConfig: NextConfig = {
       {
         source: '/ads.txt',
         destination: '/api/ads',
+      },
+    ];
+  },
+  
+  // Redirects for canonical URLs (SEO)
+  async redirects() {
+    return [
+      // Remove trailing slashes (308 permanent redirect)
+      {
+        source: '/:path+/',
+        destination: '/:path+',
+        permanent: true,
+      },
+      // Redirect www to non-www (if using custom domain)
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.serien.de',
+          },
+        ],
+        destination: 'https://serien.de/:path*',
+        permanent: true,
       },
     ];
   },

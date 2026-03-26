@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/maxdome-serien',
   },
   alternates: {
-    canonical: '/maxdome-serien',
+    canonical: 'https://serien.de/maxdome-serien',
   },
 };
 

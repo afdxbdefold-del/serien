@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/paramount-plus-serien',
   },
   alternates: {
-    canonical: '/paramount-plus-serien',
+    canonical: 'https://serien.de/paramount-plus-serien',
   },
 };
 

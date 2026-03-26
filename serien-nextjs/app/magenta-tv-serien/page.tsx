@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/magenta-tv-serien',
   },
   alternates: {
-    canonical: '/magenta-tv-serien',
+    canonical: 'https://serien.de/magenta-tv-serien',
   },
 };
 

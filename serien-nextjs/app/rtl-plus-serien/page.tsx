@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/rtl-plus-serien',
   },
   alternates: {
-    canonical: '/rtl-plus-serien',
+    canonical: 'https://serien.de/rtl-plus-serien',
   },
 };
 

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/apple-tv-serien',
   },
   alternates: {
-    canonical: '/apple-tv-serien',
+    canonical: 'https://serien.de/apple-tv-serien',
   },
 };
 

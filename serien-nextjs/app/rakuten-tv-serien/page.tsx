@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/rakuten-tv-serien',
   },
   alternates: {
-    canonical: '/rakuten-tv-serien',
+    canonical: 'https://serien.de/rakuten-tv-serien',
   },
 };
 

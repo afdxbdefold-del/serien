@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/ard-mediathek-serien',
   },
   alternates: {
-    canonical: '/ard-mediathek-serien',
+    canonical: 'https://serien.de/ard-mediathek-serien',
   },
 };
 

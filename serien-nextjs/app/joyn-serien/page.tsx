@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: '/joyn-serien',
   },
   alternates: {
-    canonical: '/joyn-serien',
+    canonical: 'https://serien.de/joyn-serien',
   },
 };
 

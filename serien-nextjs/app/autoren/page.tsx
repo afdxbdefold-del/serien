@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: '/autoren',
+    canonical: 'https://serien.de/autoren',
   },
 };
 
