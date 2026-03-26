@@ -492,6 +492,80 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ========== MANUAL CRON TRIGGERS ==========
+    
+    // Trigger P3-Trends Cron (full pipeline run)
+    if (action === 'trigger-cron-trends') {
+      try {
+        const { processAllTrends } = await import('@/scripts/p3-trends');
+        // Run async in background, don't wait
+        processAllTrends().catch(console.error);
+        return NextResponse.json({ 
+          success: true, 
+          message: 'P3-Trends Cron gestartet (läuft im Hintergrund)'
+        });
+      } catch (error: any) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `P3-Trends Start fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
+    // Trigger P4-YouTube Cron (full pipeline run)
+    if (action === 'trigger-cron-youtube') {
+      try {
+        const { runP4YTPipeline } = await import('@/scripts/p4-yt');
+        // Run async in background, don't wait
+        runP4YTPipeline().catch(console.error);
+        return NextResponse.json({ 
+          success: true, 
+          message: 'P4-YouTube Cron gestartet (läuft im Hintergrund)'
+        });
+      } catch (error: any) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `P4-YouTube Start fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
+    // Trigger News Cron
+    if (action === 'trigger-cron-news') {
+      try {
+        const { processScreenrantNews } = await import('@/scripts/screenrant-scraper');
+        processScreenrantNews({ limit: 5, dryRun: false, onlyNew: true }).catch(console.error);
+        return NextResponse.json({ 
+          success: true, 
+          message: 'News Import Cron gestartet (läuft im Hintergrund)'
+        });
+      } catch (error: any) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `News Import Start fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
+    // Trigger Releases Cron (inline implementation since it's simple)
+    if (action === 'trigger-cron-releases') {
+      try {
+        // Call the releases endpoint internally
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+        fetch(`${baseUrl}/api/cron/releases?secret=${process.env.CRON_SECRET || 'serien-releases-update-2024'}`)
+          .catch(console.error);
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Releases Import Cron gestartet (läuft im Hintergrund)'
+        });
+      } catch (error: any) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Releases Import Start fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
   } catch (error: any) {

@@ -471,26 +471,49 @@ export default function AdminPipelinePage() {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Cron Status */}
+            {/* Cron Status with Manual Trigger */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {Object.entries(cronStatus).map(([pipeline, status]) => (
-                <div key={pipeline} className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    {getPipelineBadge(pipeline)}
-                    {status.lastStatus && getStatusBadge(status.lastStatus)}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">Nächster Lauf:</span>
-                    <span className="font-medium text-cyan-600">{formatRelativeTime(status.nextRun)}</span>
-                  </div>
-                  {status.lastRun && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Letzter: {formatTime(status.lastRun)}
+              {Object.entries(cronStatus).map(([pipeline, status]) => {
+                const triggerAction = {
+                  'p3-trends': 'trigger-cron-trends',
+                  'p4-youtube': 'trigger-cron-youtube',
+                  'cron-news': 'trigger-cron-news',
+                  'cron-releases': 'trigger-cron-releases',
+                }[pipeline];
+                
+                return (
+                  <div key={pipeline} className="bg-white rounded-xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      {getPipelineBadge(pipeline)}
+                      {status.lastStatus && getStatusBadge(status.lastStatus)}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">Nächster Lauf:</span>
+                      <span className="font-medium text-cyan-600">{formatRelativeTime(status.nextRun)}</span>
+                    </div>
+                    {status.lastRun && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Letzter: {formatTime(status.lastRun)}
+                      </div>
+                    )}
+                    {triggerAction && (
+                      <button
+                        onClick={() => runAction(triggerAction)}
+                        disabled={runningAction === triggerAction || hasRunningPipeline}
+                        className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-cyan-50 text-cyan-700 rounded-lg text-sm font-medium hover:bg-cyan-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {runningAction === triggerAction ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                        Jetzt starten
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Chart + Error Analysis */}
