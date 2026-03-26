@@ -322,6 +322,7 @@ export async function processScreenrantNews(options: {
     for (const article of finalArticles) {
       console.log(`\n🔄 ${article.title}`);
       console.log(`   ${article.url}`);
+      console.log(`   ⏰ ${article.timeAgo || 'Unbekannt'}`);
       
       if (dryRun) {
         console.log('   [DRY RUN - skipping pipeline]');
@@ -330,7 +331,14 @@ export async function processScreenrantNews(options: {
       }
       
       try {
-        await runPipelineV2(article.url, { dryRun: false });
+        // Pipeline V2 erwartet ein PipelineV2Source Objekt
+        await runPipelineV2({
+          title: article.title,
+          url: article.url,
+          text: '', // Wird von Pipeline via useFullTextMode geholt
+          useFullTextMode: true,
+          trigger: 'cron' // Automatischer Import = Altersfilter aktiv
+        });
         stats.processed++;
         console.log('   ✅ SUCCESS');
       } catch (error: any) {
