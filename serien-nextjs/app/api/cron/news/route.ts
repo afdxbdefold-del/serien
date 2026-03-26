@@ -42,9 +42,9 @@ export async function GET(request: NextRequest) {
     // Dynamic import to avoid bundling issues
     const { processAllNews } = await import('@/scripts/news-scraper');
     
-    // Scrape from both ScreenRant and Collider
+    // Scrape from ScreenRant, Collider and Cinemaholic
     const result = await processAllNews({
-      sources: ['screenrant', 'collider'],
+      sources: ['screenrant', 'collider', 'cinemaholic'],
       limit: 5, // 5 per source
       dryRun: false,
       onlyNew: true,

@@ -17,11 +17,19 @@ export const NEWS_SOURCES = {
     name: 'ScreenRant',
     url: 'https://screenrant.com/tv-news/',
     domain: 'screenrant.com',
+    type: 'valnet',
   },
   collider: {
     name: 'Collider',
     url: 'https://collider.com/tv-news/',
     domain: 'collider.com',
+    type: 'valnet',
+  },
+  cinemaholic: {
+    name: 'Cinemaholic',
+    url: 'https://thecinemaholic.com/category/home/news/tv-news/',
+    domain: 'thecinemaholic.com',
+    type: 'wordpress',
   },
 } as const;
 
@@ -269,6 +277,82 @@ async function scrapeValnetNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   return relevantArticles;
 }
 
+/**
+ * Scrape news from WordPress-powered sites (Cinemaholic)
+ */
+async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  console.log(`🔍 Scraping ${source.name} TV News (WordPress)...\n`);
+  
+  const response = await fetch(source.url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'text/html',
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${source.name}: ${response.status}`);
+  }
+  
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  
+  const results: NewsArticle[] = [];
+  const seenUrls = new Set<string>();
+  
+  // WordPress pattern: Find article links with titles
+  $('a[href*="thecinemaholic.com/"]').each((_, element) => {
+    const $link = $(element);
+    const href = $link.attr('href') || '';
+    const title = $link.attr('title') || $link.text().trim();
+    
+    // Skip navigation and utility links
+    if (!href || !title || title.length < 20) return;
+    if (href.includes('/category/') || href.includes('/about') || href.includes('/contact') ||
+        href.includes('/privacy') || href.includes('/terms') || href.includes('/policy')) return;
+    if (seenUrls.has(href)) return;
+    
+    seenUrls.add(href);
+    results.push({
+      title: title.trim(),
+      url: href,
+      timeAgo: '', // WordPress doesn't show time on listing pages - we'll accept all and filter in pipeline
+      source: source.name,
+      series: undefined
+    });
+  });
+  
+  // Dedupe
+  const cleanArticles = results.filter((article, index, self) => 
+    self.findIndex(a => a.url === article.url) === index
+  );
+  
+  console.log(`   Found ${cleanArticles.length} articles from ${source.name}`);
+  
+  // For WordPress without time info, we check relevance by keywords only (time filter happens in pipeline)
+  const relevantArticles = cleanArticles.filter(article => {
+    const titleLower = article.title.toLowerCase();
+    
+    // Skip unwanted
+    for (const skip of SKIP_KEYWORDS) {
+      if (titleLower.includes(skip.toLowerCase())) return false;
+    }
+    
+    // Include TV content
+    for (const keyword of RELEVANT_KEYWORDS) {
+      if (titleLower.includes(keyword.toLowerCase())) return true;
+    }
+    
+    // TV patterns
+    return /season\s*\d+|renewed|canceled|cancelled|trailer|premiere/i.test(titleLower);
+  });
+  
+  console.log(`   ${relevantArticles.length} relevant (TV content)`);
+  
+  return relevantArticles;
+}
+
 interface ProcessOptions {
   sources?: SourceKey[];
   limit?: number;
@@ -288,14 +372,14 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider'],
+    sources = ['screenrant', 'collider', 'cinemaholic'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
   } = options;
 
   console.log('\n' + '='.repeat(70));
-  console.log('📰 VALNET NEWS SCRAPER (P2 Pipeline)');
+  console.log('📰 NEWS SCRAPER (P2 Pipeline)');
   console.log('='.repeat(70));
   console.log(`   Sources: ${sources.join(', ')}`);
   console.log(`   Limit: ${limit} per source`);
@@ -316,7 +400,16 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     
     for (const sourceKey of sources) {
       try {
-        const articles = await scrapeValnetNews(sourceKey as SourceKey);
+        const source = NEWS_SOURCES[sourceKey as SourceKey];
+        let articles: NewsArticle[];
+        
+        // Use appropriate scraper based on source type
+        if (source.type === 'wordpress') {
+          articles = await scrapeWordPressNews(sourceKey as SourceKey);
+        } else {
+          articles = await scrapeValnetNews(sourceKey as SourceKey);
+        }
+        
         allArticles = allArticles.concat(articles.slice(0, limit));
         stats.bySource[sourceKey] = articles.length;
       } catch (error: any) {
@@ -427,10 +520,12 @@ if (require.main === module) {
   const dryRun = args.includes('--dry-run');
   const screenrantOnly = args.includes('--screenrant');
   const colliderOnly = args.includes('--collider');
+  const cinemaholicOnly = args.includes('--cinemaholic');
   
-  let sources: SourceKey[] = ['screenrant', 'collider'];
+  let sources: SourceKey[] = ['screenrant', 'collider', 'cinemaholic'];
   if (screenrantOnly) sources = ['screenrant'];
   if (colliderOnly) sources = ['collider'];
+  if (cinemaholicOnly) sources = ['cinemaholic'];
   
   processAllNews({ sources, limit, dryRun, onlyNew: true })
     .then(() => process.exit(0))
