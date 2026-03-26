@@ -209,6 +209,7 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
       const description = $(el).find('media\\:description, description').text() || '';
       
       // Get thumbnail (try different qualities)
+      // Priority: maxresdefault > sddefault > hqdefault > default
       const thumbnailUrl = $(el).find('media\\:thumbnail').attr('url') ||
                           `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
       
@@ -1054,6 +1055,27 @@ ${additionalSources}
     // primarySeriesId uses the DB id (not tmdbId)
     const seriesIdForArticle = dbSeries ? dbSeries.id : null;
     
+    // Select best hero image: TMDB Backdrop > YouTube Thumbnail
+    // TMDB images are usually higher quality and more suitable for hero display
+    let heroImageUrl = video.thumbnailUrl;
+    
+    if (tmdbData?.backdropPath) {
+      // Use TMDB backdrop (1280px wide, cinematic)
+      heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
+      console.log(`   🖼️ Hero Image: TMDB Backdrop`);
+    } else if (tmdbData?.posterPath) {
+      // Fallback to poster if no backdrop
+      heroImageUrl = `https://image.tmdb.org/t/p/w780${tmdbData.posterPath}`;
+      console.log(`   🖼️ Hero Image: TMDB Poster`);
+    } else if (video.thumbnailUrl) {
+      // Use YouTube thumbnail as last resort
+      // Try maxresdefault first, fallback to hqdefault
+      heroImageUrl = video.thumbnailUrl.includes('maxresdefault') 
+        ? video.thumbnailUrl 
+        : `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+      console.log(`   🖼️ Hero Image: YouTube Thumbnail`);
+    }
+    
     const article = await prisma.articles.create({
       data: {
         id: articleId,
@@ -1068,7 +1090,7 @@ ${additionalSources}
         sourceUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
         primarySeriesId: seriesIdForArticle,
         tmdbId: tmdbData?.tmdbId || null,
-        heroImageUrl: video.thumbnailUrl,
+        heroImageUrl,
         heroVideoUrl: localVideoPath || `https://www.youtube.com/watch?v=${video.videoId}`,
         isTrending: false,
         publishedAt: now,
