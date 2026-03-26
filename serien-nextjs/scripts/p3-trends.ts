@@ -548,9 +548,9 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
     .filter(r => r.snippet && r.snippet.length > 30)
     .map(r => `[${r.source}] ${r.title}\n${r.snippet}`);
   
-  // Step 3: Scrape ALL direct URLs in parallel batches of 4 (more aggressive for trends)
-  for (let i = 0; i < Math.min(directUrls.length, 20); i += 4) {
-    const batch = directUrls.slice(i, i + 4);
+  // Step 3: Scrape ALL direct URLs in parallel batches of 5 (aggressive for Google Discover quality)
+  for (let i = 0; i < Math.min(directUrls.length, 25); i += 5) {
+    const batch = directUrls.slice(i, i + 5);
     
     const scraped = await Promise.all(
       batch.map(async (result) => {
@@ -567,10 +567,9 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
       }
     }
     
-    // For trends: Don't stop early - scrape ALL available URLs
-    // Only stop if we have a LOT of content (3000+ words)
-    if (info.totalWordCount >= 3000) {
-      console.log(`      ✓ Genug Content (${info.totalWordCount} Wörter)`);
+    // For Google Discover: Need MORE content (5000+ words ideal)
+    if (info.totalWordCount >= 5000) {
+      console.log(`      ✓ Premium Content (${info.totalWordCount} Wörter)`);
       break;
     }
   }
@@ -590,10 +589,37 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
     console.log(`      ✓ +${info.articles[info.articles.length - 1].wordCount} Wörter aus ${allSnippets.length} Snippets`);
   }
   
-  // Step 5: If NO articles could be scraped, use only snippets
+  // Step 5: If NOT enough content, do a SECOND search for background info
+  if (info.totalWordCount < 2000) {
+    console.log('   🔍 Suche zusätzliche Hintergrund-Infos...');
+    
+    // Extract likely series name for background search
+    const seriesName = info.seriesName || searchTerm.split(' ').slice(0, 3).join(' ');
+    const backgroundQuery = `${seriesName} Serie Handlung Cast Kritik`;
+    
+    const backgroundResults = await searchWeb(backgroundQuery);
+    const backgroundUrls = backgroundResults
+      .filter(r => !r.url.includes('news.google.com'))
+      .slice(0, 5);
+    
+    for (const result of backgroundUrls) {
+      const article = await scrapeArticle(result.url);
+      if (article && article.wordCount >= 100) {
+        // Mark as background info
+        article.source = `[Hintergrund] ${article.source}`;
+        info.articles.push(article);
+        info.totalWordCount += article.wordCount;
+        console.log(`      ✓ ${article.source}: ${article.wordCount} Wörter`);
+      }
+    }
+  }
+  
+  // Step 6: If NO articles could be scraped, use only snippets
   if (info.articles.length === 1 && info.articles[0].source === 'News Aggregation') {
     console.log('   ⚠️ Nur Snippets verfügbar (keine Volltext-Quellen)');
   }
+  
+  console.log(`   📊 GESAMT: ${info.articles.length} Quellen, ${info.totalWordCount} Wörter`);
   
   // Step 3: Try to resolve TMDB series with direct API call
   console.log('   🎬 Suche TMDB Serie...');
@@ -764,13 +790,39 @@ export async function runP3TrendsPipeline(
     
     // ========== STEP 3: GENERATE CONTENT ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 3: CONTENT GENERIEREN');
+    console.log('STEP 3: PREMIUM CONTENT GENERIEREN (Google Discover)');
     console.log('━'.repeat(60));
     
-    // Combine all source texts
-    const combinedSourceText = info.articles
+    // Build TMDB context if series exists
+    let tmdbContext = '';
+    if (dbSeries) {
+      tmdbContext = `
+═══════════════════════════════════════════════════════════
+SERIEN-DATEN (aus Datenbank):
+═══════════════════════════════════════════════════════════
+SERIE: ${dbSeries.name || dbSeries.title}
+${dbSeries.overview ? `BESCHREIBUNG: ${dbSeries.overview}` : ''}
+${dbSeries.status ? `STATUS: ${dbSeries.status}` : ''}
+${dbSeries.firstAirDate ? `ERSTAUSSTRAHLUNG: ${dbSeries.firstAirDate}` : ''}
+${dbSeries.networks ? `SENDER/PLATTFORM: ${dbSeries.networks}` : ''}
+`;
+    }
+    
+    // Combine all source texts with TMDB context
+    const articleSources = info.articles
       .map(a => `[Quelle: ${a.source}]\n${a.content}`)
       .join('\n\n---\n\n');
+    
+    const combinedSourceText = `
+${tmdbContext}
+═══════════════════════════════════════════════════════════
+RECHERCHIERTE ARTIKEL (${info.articles.length} Quellen, ${info.totalWordCount} Wörter):
+═══════════════════════════════════════════════════════════
+${articleSources}
+    `.trim();
+    
+    console.log(`   📊 Quellen: ${info.articles.length} Artikel, ${info.totalWordCount} Wörter`);
+    logger.log(`${info.articles.length} Quellen mit ${info.totalWordCount} Wörtern gesammelt`);
     
     // Step 3a: Extract facts from source text
     console.log('   📊 Extrahiere Fakten...');
@@ -793,17 +845,23 @@ export async function runP3TrendsPipeline(
     console.log(`   ✓ Content-Typ: ${contentType}`);
     logger.addMetadata('contentType', contentType);
     
+    // Calculate word count target based on available sources
+    const baseWordCount = Math.max(1500, info.totalWordCount); // Minimum 1500
+    const wordCountTarget = contentType === 'RANKING' 
+      ? Math.min(baseWordCount * 1.5, 2500)  // Rankings: bis 2500 Wörter
+      : Math.min(baseWordCount * 1.3, 2000); // News: bis 2000 Wörter
+    
     // Step 3c: Generate structured content
-    console.log('   🤖 Generiere Artikel via LLM...');
-    logger.log('LLM Content-Generierung gestartet');
+    console.log(`   🤖 Generiere Premium-Artikel (${wordCountTarget} Wörter Ziel)...`);
+    logger.log(`LLM Content-Generierung gestartet (Ziel: ${wordCountTarget} Wörter)`);
     
     const structuredContent = await generateStructuredContent({
       facts,
       seriesName: info.seriesName || searchTerm,
       originalHeadline: searchTerm,
-      sourceText: combinedSourceText || searchTerm,
+      sourceText: combinedSourceText,
       contentType: contentType,
-      wordCountTarget: 1500, // GOOGLE DISCOVER Qualität
+      wordCountTarget,
     });
     
     if (!structuredContent || !structuredContent.markdown) {
