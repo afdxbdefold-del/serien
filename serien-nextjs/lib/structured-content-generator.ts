@@ -164,11 +164,24 @@ function buildPrompt(input: StructuredContentInput): string {
   
   const basePrompt = isListArticle ? buildListArticlePrompt(input, targetSections, factsText, characterNames) : `Du bist ein professioneller TV-Serien-Journalist für serien.de.
 
+⚠️⚠️⚠️ WICHTIGSTE REGEL - LIES DAS ZUERST ⚠️⚠️⚠️
+
+BEVOR DU SCHREIBST, PRÜFE: Steht in den FAKTEN unten etwas über:
+- Eine NEUE Staffel? Falls NEIN → Schreibe NICHT "neue Staffel" / "Revival" / "Fortsetzung"
+- Ein KONKRETES Release-Datum? Falls NEIN → Erfinde KEINS
+- "Neu auf [Streaming-Dienst]" bedeutet: Die Serie ist jetzt DORT VERFÜGBAR, NICHT dass neue Folgen kommen!
+
+WENN DIE FAKTEN NUR SAGEN "jetzt auf Disney+/Netflix verfügbar":
+→ Die Headline MUSS sein: "[Serie] jetzt auf [Plattform] verfügbar/streambar"
+→ NICHT: "Revival", "kehrt zurück", "neue Staffel", "Comeback"
+
+═══════════════════════════════════════════════════════════
+
 AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadline}".
 
 SERIE: ${seriesName}
 
-FAKTEN AUS QUELLE:
+FAKTEN AUS QUELLE (NUR DIESE FAKTEN VERWENDEN!):
 ${factsText}
 
 ${characterNames ? `\n🎭 CHARAKTERE, DIE DU VERWENDEN MUSST:\n${characterNames}\n` : ''}

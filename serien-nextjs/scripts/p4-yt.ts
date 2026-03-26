@@ -21,6 +21,9 @@ import { markdownToHtml } from '../lib/markdown-to-html';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
+import { qualityCheck } from '../lib/quality-checker';
+import { factSafetyCheck } from '../lib/fact-safety-layer';
+import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger } from '../lib/pipeline-logger';
 import { importSeriesCharacters } from './import-characters';
@@ -603,9 +606,14 @@ ${additionalSources}
       contentType = 'NEWS';
     }
     
-    // Generate article
+    // Generate article - same word count target as v2
     console.log('   🤖 Generiere Artikel via LLM...');
     logger.log('LLM Content-Generierung gestartet');
+    
+    // Word count target like v2: based on source content
+    const wordCountTarget = sourceWordCount > 0 
+      ? Math.min(Math.max(sourceWordCount * 1.2, 500), 1000) 
+      : 600;
     
     const structuredContent = await generateStructuredContent({
       facts,
@@ -613,7 +621,7 @@ ${additionalSources}
       originalHeadline: video.title,
       sourceText,
       contentType,
-      wordCountTarget: 600,
+      wordCountTarget,
     });
     
     if (!structuredContent || !structuredContent.markdown) {
@@ -721,21 +729,83 @@ ${additionalSources}
     
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: ANTI-AI CHECK ==========
+    // ========== STEP 6.5: QUALITY GATES (like v2) ==========
     console.log('\n━'.repeat(60));
-    console.log('STEP 7: ANTI-AI CHECK');
+    console.log('STEP 6.5: QUALITY GATES');
     console.log('━'.repeat(60));
     
-    const antiAiResult = await antiAiFilter({
-      articleHtml: htmlContent,
-      headline: structuredContent.headline,
-      seriesName: tmdbData?.name || seriesName || video.title,
-    });
+    let antiAiScore = 0;
     
-    console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
-    console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
-    logger.log(`Anti-AI Score: ${antiAiResult.antiAiScore}/100 (${antiAiResult.status})`);
-    await logger.update({ antiAiScore: antiAiResult.antiAiScore });
+    // Quality Check
+    try {
+      const qualityResult = await qualityCheck({
+        generatedArticleHtml: processedMarkdown,
+        originalHeadline: video.title,
+        generatedHeadline: structuredContent.headline,
+      });
+      console.log(`   ✅ Quality check: ${qualityResult.passed ? 'Passed' : 'Warnings'}`);
+    } catch (error: any) {
+      console.log(`   ⚠️ Quality check skipped: ${error.message}`);
+    }
+    
+    // Anti-AI Filter
+    try {
+      const antiAiResult = antiAiFilter({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        seriesName: tmdbData?.name || seriesName || video.title,
+      });
+      antiAiScore = antiAiResult.antiAiScore;
+      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100`);
+      await logger.update({ antiAiScore });
+    } catch (error: any) {
+      console.log(`   ⚠️ Anti-AI check skipped: ${error.message}`);
+    }
+    
+    // Fact Safety Check
+    try {
+      const factSafetyResult = await factSafetyCheck(
+        processedMarkdown,
+        facts,
+        sourceText
+      );
+      console.log(`   ✅ Fact safety check: ${factSafetyResult.passed ? 'Passed' : 'Warnings'}`);
+    } catch (error: any) {
+      console.log(`   ⚠️ Fact safety check skipped: ${error.message}`);
+    }
+    
+    // ========== STEP 7: INTERNAL LINKING (like v2) ==========
+    console.log('\n━'.repeat(60));
+    console.log('STEP 7: INTERNAL LINKING');
+    console.log('━'.repeat(60));
+    
+    const articleId = `yt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    try {
+      const internalLinksResult = await generateInternalLinks({
+        articleId,
+        contentHtml: htmlContent,
+        primarySeriesId: dbSeries?.tmdbId || null,
+        primarySeriesName: dbSeries?.name || dbSeries?.title || seriesName || '',
+        primarySeriesSlug: dbSeries?.slug || '',
+        publishedAt: null,
+      });
+      
+      htmlContent = internalLinksResult.updatedContentHtml;
+      
+      console.log(`   ✅ Internal Links:`);
+      console.log(`      Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
+      console.log(`      Related Articles: ${internalLinksResult.relatedArticles.length}`);
+      
+      // Validate links
+      const linkValidation = validateInternalLinks(htmlContent, dbSeries?.name || seriesName || '');
+      if (!linkValidation.valid) {
+        console.log(`   ⚠️ Link Validation Warnings`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
+    }
     
     // ========== STEP 8: SAVE ARTICLE ==========
     console.log('\n━'.repeat(60));
@@ -779,8 +849,6 @@ ${additionalSources}
         title: existing.title
       };
     }
-    
-    const articleId = `yt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     // Only set primarySeriesId if series exists in DB (foreign key constraint)
     // primarySeriesId uses the DB id (not tmdbId)
