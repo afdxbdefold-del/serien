@@ -30,6 +30,8 @@ import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
+import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { discoverGate } from '../lib/discover-gate';
 
 const prisma = new PrismaClient();
 
@@ -990,40 +992,67 @@ ${articleSources}
     console.log(`   ✓ Sections: ${structuredContent.sections?.length || 0}`);
     console.log(`   ✓ Q&A: ${structuredContent.qa?.length || 0}`);
     
-    // ========== STEP 4: LINK CHARACTERS & CAST ==========
+    // ========== STEP 4: CHARACTER & CAST IMPORT & LINKING (wie P2) ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 4: CHARACTER & CAST LINKING');
+    console.log('STEP 4: CHARACTER & CAST IMPORT & LINKING');
     console.log('━'.repeat(60));
     
     let processedMarkdown = structuredContent.markdown;
     
     if (dbSeries) {
+      // Import characters first (like P2)
+      console.log(`   📥 Importiere Characters für Serie ${dbSeries.tmdbId}...`);
       try {
-        // Character linking - returns { linkedMarkdown, charactersLinked }
-        const charResult = await linkCharactersInMarkdown(
-          processedMarkdown,
-          dbSeries.tmdbId
-        );
+        await importSeriesCharacters(dbSeries.tmdbId);
+        console.log(`   ✓ Characters importiert`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Character-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+      
+      // Import cast (like P2)
+      console.log(`   📥 Importiere Cast...`);
+      try {
+        await importSeriesCast(dbSeries.tmdbId);
+        console.log(`   ✓ Cast importiert`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Cast-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+      
+      // Link characters in markdown
+      try {
+        const charResult = await linkCharactersInMarkdown(processedMarkdown, dbSeries.tmdbId);
         processedMarkdown = charResult.linkedMarkdown;
         console.log(`   ✓ ${charResult.charactersLinked} Characters verlinkt`);
         
-        // Cast linking - returns { linkedMarkdown, castLinked }
-        const castResult = await linkCastInMarkdown(
-          processedMarkdown,
-          dbSeries.tmdbId
-        );
-        processedMarkdown = castResult.linkedMarkdown;
-        console.log(`   ✓ ${castResult.castLinked} Cast verlinkt`);
-      } catch (e) {
-        console.log('   ⚠️ Linking fehlgeschlagen:', e instanceof Error ? e.message : '');
+        // Debug: Check actual links
+        const charLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
+        console.log(`   🔍 DEBUG: ${charLinks} Character-Links im Markdown`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Character-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
       }
+      
+      // Link cast in markdown
+      try {
+        const castResult = await linkCastInMarkdown(processedMarkdown, dbSeries.tmdbId);
+        processedMarkdown = castResult.linkedMarkdown;
+        console.log(`   ✓ ${castResult.castLinked} Cast-Mitglieder verlinkt`);
+        
+        // Debug: Check actual links
+        const castLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
+        console.log(`   🔍 DEBUG: ${castLinks} Cast-Links im Markdown`);
+      } catch (e: any) {
+        console.log(`   ⚠️ Cast-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
+      }
+    } else {
+      console.log(`   ⚠️ Keine Serie - überspringe Character/Cast Import & Linking`);
     }
     
-    // Link streamers - returns { linkedMarkdown, streamersLinked }
+    // Link streamers to hub pages
+    console.log(`   🎬 Verlinke Streaming-Dienste...`);
     const streamerResult = linkStreamersInMarkdown(processedMarkdown);
     processedMarkdown = streamerResult.linkedMarkdown;
     if (streamerResult.streamersLinked.length > 0) {
-      console.log(`   ✓ Streamer verlinkt: ${streamerResult.streamersLinked.join(', ')}`);
+      console.log(`   ✓ ${streamerResult.streamersLinked.length} Streamer verlinkt: ${streamerResult.streamersLinked.join(', ')}`);
     }
     
     // ========== STEP 5: INTERNAL LINKS ==========
@@ -1283,11 +1312,50 @@ ${articleSources}
       }
     }
     
+    // ========== STEP 11: POST-PROCESSING (wie P2) ==========
+    console.log('\n' + '━'.repeat(60));
+    console.log('STEP 11: POST-PROCESSING (parallel)');
+    console.log('━'.repeat(60));
+    
+    await Promise.allSettled([
+      // Generate "Was bedeutet das" section
+      (async () => {
+        try {
+          const wasBedeutetDasText = await generateWasBedeutetDas(
+            structuredContent.headline,
+            htmlContent,
+            dbSeries?.name || info.seriesName || searchTerm
+          );
+          
+          if (wasBedeutetDasText) {
+            await prisma.articles.update({
+              where: { id: article.id },
+              data: { wasBedeutetDasText }
+            });
+            console.log(`   ✅ "Was bedeutet das" generiert`);
+          }
+        } catch (error: any) {
+          console.log(`   ⚠️ "Was bedeutet das" fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
+        }
+      })(),
+      
+      // Discover Gate (Google Discover Tauglichkeit)
+      (async () => {
+        try {
+          await discoverGate(article.id, structuredContent.headline, htmlContent);
+          console.log(`   ✅ Discover Gate verarbeitet`);
+        } catch (error: any) {
+          console.log(`   ⚠️ Discover Gate fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
+        }
+      })(),
+    ]);
+    
     console.log('\n' + '═'.repeat(70));
     console.log('✅ P3-TRENDS PIPELINE ERFOLGREICH');
     console.log('═'.repeat(70));
     console.log(`📰 Artikel: ${article.title}`);
     console.log(`🔗 URL: /${article.slug}`);
+    console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
     logger.log(`Artikel gespeichert: ${article.slug}`);
