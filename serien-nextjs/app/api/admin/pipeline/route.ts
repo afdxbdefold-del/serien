@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import * as fs from 'fs/promises';
 
 const prisma = new PrismaClient();
-const execAsync = promisify(exec);
 
 // Verify admin token
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
@@ -14,7 +10,6 @@ async function verifyAdmin(request: NextRequest): Promise<boolean> {
   
   const token = authHeader.substring(7);
   try {
-    // Simple JWT decode (in production, use proper verification)
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
     return payload.role === 'admin';
   } catch {
@@ -22,86 +17,109 @@ async function verifyAdmin(request: NextRequest): Promise<boolean> {
   }
 }
 
-// GET: Pipeline status and recent runs
+// GET: Pipeline dashboard data
 export async function GET(request: NextRequest) {
   if (!await verifyAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Get pipeline logs
-    if (action === 'logs') {
-      const logType = searchParams.get('type') || 'tvline';
-      const logFile = logType === 'cinemaholic' 
-        ? '/var/log/cinemaholic-pipeline.log'
-        : '/var/log/tvline-pipeline.log';
-      
-      try {
-        const logContent = await fs.readFile(logFile, 'utf-8');
-        // Get last 100 lines
-        const lines = logContent.split('\n').slice(-100).join('\n');
-        return NextResponse.json({ logs: lines });
-      } catch {
-        return NextResponse.json({ logs: 'No logs available yet.' });
-      }
-    }
-
-    // Get scheduler status
-    if (action === 'scheduler-status') {
-      try {
-        const { stdout } = await execAsync('ps aux | grep pipeline-scheduler | grep -v grep');
-        const isRunning = stdout.trim().length > 0;
-        return NextResponse.json({ 
-          running: isRunning,
-          process: stdout.trim()
-        });
-      } catch {
-        return NextResponse.json({ running: false, process: null });
-      }
-    }
-
-    // Get recent pipeline articles (last 24h)
+    // Get recent articles from all pipelines
     const recentArticles = await prisma.articles.findMany({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-        },
-        contentType: {
-          in: ['GENERATED', 'NEWS']
-        }
+        createdAt: { gte: oneDayAgo },
+        OR: [
+          { id: { startsWith: 'trend-' } },
+          { id: { startsWith: 'yt-' } },
+          { category: 'neue-videos' },
+          { contentType: { in: ['GENERATED', 'NEWS'] } }
+        ]
       },
       select: {
         id: true,
         title: true,
         slug: true,
-        contentType: true,
+        category: true,
         createdAt: true,
-        series: {
-          select: { name: true }
-        }
+        sourceUrl: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 20
     });
 
-    // Get stats
-    const stats = await prisma.articles.groupBy({
-      by: ['contentType'],
-      _count: true,
-      where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        }
-      }
+    // Get YouTube stats
+    const ytStats = {
+      totalChannels: await prisma.youtube_channels.count(),
+      activeChannels: await prisma.youtube_channels.count({ where: { isActive: true } }),
+      totalVideos: await prisma.youtube_videos.count(),
+      unprocessedVideos: await prisma.youtube_videos.count({ where: { processed: false } }),
+      processedVideos: await prisma.youtube_videos.count({ where: { processed: true } }),
+    };
+
+    // Get Trends stats
+    const trendStats = {
+      totalTrends: await prisma.trending_topics.count(),
+      recentTrends: await prisma.trending_topics.count({
+        where: { date: { gte: sevenDaysAgo } }
+      }),
+      processedTrends: await prisma.trending_topics.count({
+        where: { processed: true, date: { gte: sevenDaysAgo } }
+      }),
+    };
+
+    // Get YouTube channels
+    const channels = await prisma.youtube_channels.findMany({
+      select: {
+        id: true,
+        channelId: true,
+        name: true,
+        url: true,
+        isActive: true,
+        lastCheckedAt: true,
+        _count: { select: { videos: true } }
+      },
+      orderBy: { name: 'asc' }
     });
+
+    // Get unprocessed videos
+    const unprocessedVideos = await prisma.youtube_videos.findMany({
+      where: { processed: false },
+      select: {
+        id: true,
+        videoId: true,
+        title: true,
+        publishedAt: true,
+        channel: { select: { name: true } }
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 10
+    });
+
+    // Article stats by source
+    const articleStats = {
+      ytArticles: await prisma.articles.count({
+        where: { id: { startsWith: 'yt-' }, createdAt: { gte: sevenDaysAgo } }
+      }),
+      trendArticles: await prisma.articles.count({
+        where: { id: { startsWith: 'trend-' }, createdAt: { gte: sevenDaysAgo } }
+      }),
+      totalLast7Days: await prisma.articles.count({
+        where: { createdAt: { gte: sevenDaysAgo } }
+      }),
+    };
 
     return NextResponse.json({
       recentArticles,
-      stats,
-      lastUpdate: new Date().toISOString()
+      ytStats,
+      trendStats,
+      channels,
+      unprocessedVideos,
+      articleStats,
+      lastUpdate: now.toISOString()
     });
 
   } catch (error) {
@@ -118,110 +136,121 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, url, title, seriesName, tmdbId } = body;
+    const { action, videoId, searchTerm } = body;
 
-    // Run single article through pipeline
-    if (action === 'run-single') {
-      if (!url) {
-        return NextResponse.json({ error: 'URL is required' }, { status: 400 });
-      }
-
-      // Create a temporary script to run the pipeline
-      const scriptContent = `
-import { runPipelineV2 } from './pipeline-v2';
-
-async function main() {
-  const result = await runPipelineV2({
-    title: ${JSON.stringify(title || 'Auto-detected')},
-    url: ${JSON.stringify(url)},
-    text: '',
-    useFullTextMode: true
-  });
-  console.log('Result:', result);
-}
-
-main().catch(console.error);
-`;
-
-      const tempScript = `/tmp/run-pipeline-${Date.now()}.ts`;
-      await fs.writeFile(tempScript, scriptContent);
-
-      // Run in background
-      execAsync(`cd /app/serien-nextjs && npx tsx ${tempScript} >> /var/log/manual-pipeline.log 2>&1 &`);
-
+    // Run P4-YT: Check for new videos
+    if (action === 'yt-check') {
+      const { checkForNewVideos } = await import('@/scripts/p4-yt');
+      const newVideos = await checkForNewVideos();
       return NextResponse.json({ 
         success: true, 
-        message: 'Pipeline started in background',
-        logFile: '/var/log/manual-pipeline.log'
+        message: `${newVideos.length} neue Videos gefunden`,
+        count: newVideos.length
       });
     }
 
-    // Run TVLine auto-pipeline
-    if (action === 'run-tvline') {
-      execAsync('cd /app/serien-nextjs && npx tsx scripts/tvline-auto-pipeline.ts >> /var/log/tvline-pipeline.log 2>&1 &');
-      return NextResponse.json({ success: true, message: 'TVLine pipeline started' });
-    }
-
-    // Run CinemaHolic auto-pipeline
-    if (action === 'run-cinemaholic') {
-      execAsync('cd /app/serien-nextjs && npx tsx scripts/cinemaholic-auto-pipeline.ts >> /var/log/cinemaholic-pipeline.log 2>&1 &');
-      return NextResponse.json({ success: true, message: 'CinemaHolic pipeline started' });
-    }
-
-    // Search TMDB and create article
-    if (action === 'create-from-tmdb') {
-      if (!tmdbId || !seriesName) {
-        return NextResponse.json({ error: 'tmdbId and seriesName are required' }, { status: 400 });
+    // Run P4-YT: Process single video
+    if (action === 'yt-process-video') {
+      if (!videoId) {
+        return NextResponse.json({ error: 'videoId required' }, { status: 400 });
       }
+      
+      const video = await prisma.youtube_videos.findUnique({
+        where: { videoId },
+        include: { channel: true }
+      });
+      
+      if (!video) {
+        return NextResponse.json({ error: 'Video not found' }, { status: 404 });
+      }
+      
+      const { generateArticleFromVideo } = await import('@/scripts/p4-yt');
+      const result = await generateArticleFromVideo({
+        videoId: video.videoId,
+        title: video.title,
+        description: video.description || '',
+        thumbnailUrl: video.thumbnailUrl || '',
+        publishedAt: video.publishedAt,
+        channelId: video.channelId,
+        channelName: video.channel.name,
+      });
+      
+      return NextResponse.json({ 
+        success: result.success, 
+        message: result.success ? `Artikel erstellt: ${result.title}` : result.error,
+        result
+      });
+    }
 
-      // This would trigger a custom article creation flow
-      const scriptContent = `
-import { PrismaClient } from '@prisma/client';
-import { getTvDetailsComplete } from '../lib/tmdb';
-import { generateStructuredContent } from '../lib/structured-content-generator';
-import { markdownToHtml } from '../lib/markdown-to-html';
-
-const prisma = new PrismaClient();
-
-async function createFromTMDB() {
-  const tmdbId = ${tmdbId};
-  const seriesName = ${JSON.stringify(seriesName)};
-  
-  console.log('Creating article for:', seriesName);
-  
-  const details = await getTvDetailsComplete(tmdbId, 'de-DE');
-  if (!details) throw new Error('Could not fetch TMDB details');
-  
-  // Generate content
-  const content = await generateStructuredContent({
-    title: \`\${seriesName}: Alles was du wissen musst\`,
-    sourceText: details.overview || '',
-    seriesName,
-    seriesStatus: details.status
-  });
-  
-  console.log('Content generated successfully');
-}
-
-createFromTMDB().catch(console.error);
-`;
-
-      const tempScript = `/tmp/create-tmdb-${Date.now()}.ts`;
-      await fs.writeFile(tempScript, scriptContent);
-
-      execAsync(`cd /app/serien-nextjs && npx tsx ${tempScript} >> /var/log/manual-pipeline.log 2>&1 &`);
-
+    // Run P4-YT: Process next unprocessed videos
+    if (action === 'yt-process-batch') {
+      const { processUnprocessedVideos } = await import('@/scripts/p4-yt');
+      const results = await processUnprocessedVideos(3);
+      const successCount = results.filter(r => r.success).length;
+      
       return NextResponse.json({ 
         success: true, 
-        message: `Creating article for ${seriesName}`,
-        logFile: '/var/log/manual-pipeline.log'
+        message: `${successCount}/${results.length} Artikel erstellt`,
+        results
+      });
+    }
+
+    // Run P3-Trends: Process single trend
+    if (action === 'trends-process') {
+      if (!searchTerm) {
+        return NextResponse.json({ error: 'searchTerm required' }, { status: 400 });
+      }
+      
+      const { runP3TrendsPipeline } = await import('@/scripts/p3-trends');
+      const result = await runP3TrendsPipeline(`manual-${Date.now()}`, searchTerm);
+      
+      return NextResponse.json({ 
+        success: result.success, 
+        message: result.success ? `Artikel erstellt: ${result.title}` : result.error,
+        result
+      });
+    }
+
+    // Toggle YouTube channel active status
+    if (action === 'toggle-channel') {
+      const { channelId, isActive } = body;
+      if (!channelId) {
+        return NextResponse.json({ error: 'channelId required' }, { status: 400 });
+      }
+      
+      await prisma.youtube_channels.update({
+        where: { channelId },
+        data: { isActive }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `Kanal ${isActive ? 'aktiviert' : 'deaktiviert'}`
+      });
+    }
+
+    // Delete video
+    if (action === 'delete-video') {
+      if (!videoId) {
+        return NextResponse.json({ error: 'videoId required' }, { status: 400 });
+      }
+      
+      await prisma.youtube_videos.delete({
+        where: { videoId }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Video gelöscht'
       });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Pipeline POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message || 'Internal server error' 
+    }, { status: 500 });
   }
 }

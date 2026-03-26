@@ -6,54 +6,70 @@ import Link from 'next/link';
 import { 
   Play, 
   RefreshCw, 
-  FileText, 
-  Search, 
   ArrowLeft,
   Clock,
   CheckCircle,
   XCircle,
   Loader2,
-  Terminal,
+  Youtube,
+  Flame,
+  Tv,
+  ExternalLink,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Search,
   Zap,
-  Film,
-  Calendar,
-  ExternalLink
+  FileText,
+  TrendingUp
 } from 'lucide-react';
 
 interface RecentArticle {
   id: string;
   title: string;
   slug: string;
-  contentType: string;
+  category: string;
   createdAt: string;
-  series?: { name: string } | null;
+  sourceUrl?: string;
 }
 
-interface PipelineStats {
-  contentType: string;
-  _count: number;
+interface YTChannel {
+  id: string;
+  channelId: string;
+  name: string;
+  url: string;
+  isActive: boolean;
+  lastCheckedAt: string | null;
+  _count: { videos: number };
+}
+
+interface UnprocessedVideo {
+  id: string;
+  videoId: string;
+  title: string;
+  publishedAt: string;
+  channel: { name: string };
 }
 
 export default function AdminPipelinePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [recentArticles, setRecentArticles] = useState<RecentArticle[]>([]);
-  const [stats, setStats] = useState<PipelineStats[]>([]);
-  const [schedulerRunning, setSchedulerRunning] = useState(false);
-  const [logs, setLogs] = useState('');
-  const [selectedLogType, setSelectedLogType] = useState<'tvline' | 'cinemaholic' | 'manual'>('tvline');
-  const [showLogs, setShowLogs] = useState(false);
-  
-  // Form states
-  const [singleUrl, setSingleUrl] = useState('');
-  const [singleTitle, setSingleTitle] = useState('');
-  const [tmdbQuery, setTmdbQuery] = useState('');
-  const [tmdbResults, setTmdbResults] = useState<any[]>([]);
-  const [searchingTmdb, setSearchingTmdb] = useState(false);
+  const [channels, setChannels] = useState<YTChannel[]>([]);
+  const [unprocessedVideos, setUnprocessedVideos] = useState<UnprocessedVideo[]>([]);
+  const [ytStats, setYtStats] = useState<any>({});
+  const [trendStats, setTrendStats] = useState<any>({});
+  const [articleStats, setArticleStats] = useState<any>({});
   
   // Action states
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Form states
+  const [trendSearchTerm, setTrendSearchTerm] = useState('');
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'youtube' | 'trends'>('youtube');
 
   const getToken = () => localStorage.getItem('admin_token');
 
@@ -68,7 +84,11 @@ export default function AdminPipelinePage() {
       }
       const data = await response.json();
       setRecentArticles(data.recentArticles || []);
-      setStats(data.stats || []);
+      setChannels(data.channels || []);
+      setUnprocessedVideos(data.unprocessedVideos || []);
+      setYtStats(data.ytStats || {});
+      setTrendStats(data.trendStats || {});
+      setArticleStats(data.articleStats || {});
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
     } finally {
@@ -76,46 +96,9 @@ export default function AdminPipelinePage() {
     }
   }, [router]);
 
-  const fetchSchedulerStatus = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/pipeline?action=scheduler-status', {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSchedulerRunning(data.running);
-      }
-    } catch (error) {
-      console.error('Failed to fetch scheduler status:', error);
-    }
-  }, []);
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/admin/pipeline?action=logs&type=${selectedLogType}`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data.logs || 'No logs available.');
-      }
-    } catch (error) {
-      console.error('Failed to fetch logs:', error);
-    }
-  }, [selectedLogType]);
-
   useEffect(() => {
     fetchDashboard();
-    fetchSchedulerStatus();
-  }, [fetchDashboard, fetchSchedulerStatus]);
-
-  useEffect(() => {
-    if (showLogs) {
-      fetchLogs();
-      const interval = setInterval(fetchLogs, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [showLogs, fetchLogs]);
+  }, [fetchDashboard]);
 
   const runAction = async (action: string, payload: Record<string, any> = {}) => {
     setRunningAction(action);
@@ -133,53 +116,27 @@ export default function AdminPipelinePage() {
       
       const data = await response.json();
       
-      if (response.ok) {
-        setActionMessage({ type: 'success', text: data.message || 'Action completed' });
-        // Refresh dashboard after a delay
-        setTimeout(fetchDashboard, 3000);
+      if (response.ok && data.success) {
+        setActionMessage({ type: 'success', text: data.message || 'Aktion erfolgreich' });
+        setTimeout(fetchDashboard, 2000);
       } else {
-        setActionMessage({ type: 'error', text: data.error || 'Action failed' });
+        setActionMessage({ type: 'error', text: data.error || 'Aktion fehlgeschlagen' });
       }
     } catch (error) {
-      setActionMessage({ type: 'error', text: 'Network error' });
+      setActionMessage({ type: 'error', text: 'Netzwerkfehler' });
     } finally {
       setRunningAction(null);
     }
   };
 
-  const searchTmdb = async () => {
-    if (!tmdbQuery || tmdbQuery.length < 2) return;
-    
-    setSearchingTmdb(true);
-    try {
-      const response = await fetch(`/api/admin/tmdb?query=${encodeURIComponent(tmdbQuery)}`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTmdbResults(data.results || []);
-      }
-    } catch (error) {
-      console.error('TMDB search failed:', error);
-    } finally {
-      setSearchingTmdb(false);
+  const getSourceBadge = (article: RecentArticle) => {
+    if (article.id.startsWith('yt-')) {
+      return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">YouTube</span>;
     }
-  };
-
-  const getContentTypeBadge = (type: string) => {
-    const badges: Record<string, { bg: string; text: string }> = {
-      GENERATED: { bg: 'bg-green-100 text-green-800', text: 'Generiert' },
-      NEWS: { bg: 'bg-blue-100 text-blue-800', text: 'News' },
-      IMPORTED: { bg: 'bg-gray-100 text-gray-800', text: 'Importiert' },
-      IMPORTED_WITH_SERIES: { bg: 'bg-purple-100 text-purple-800', text: 'Import+Serie' },
-      MANUAL: { bg: 'bg-yellow-100 text-yellow-800', text: 'Manuell' },
-    };
-    const badge = badges[type] || { bg: 'bg-gray-100 text-gray-800', text: type };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.bg}`}>
-        {badge.text}
-      </span>
-    );
+    if (article.id.startsWith('trend-')) {
+      return <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Trends</span>;
+    }
+    return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Andere</span>;
   };
 
   if (loading) {
@@ -201,29 +158,17 @@ export default function AdminPipelinePage() {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Content Pipeline</h1>
-                <p className="text-sm text-gray-500">Automatische Artikel-Generierung</p>
+                <h1 className="text-xl font-bold text-gray-900">Content Pipelines</h1>
+                <p className="text-sm text-gray-500">P3-Trends & P4-YouTube</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-                schedulerRunning 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {schedulerRunning ? (
-                  <>
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    Scheduler aktiv
-                  </>
-                ) : (
-                  <>
-                    <span className="w-2 h-2 bg-gray-400 rounded-full" />
-                    Scheduler inaktiv
-                  </>
-                )}
-              </span>
-            </div>
+            <button
+              onClick={fetchDashboard}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Aktualisieren
+            </button>
           </div>
         </div>
       </header>
@@ -249,28 +194,38 @@ export default function AdminPipelinePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Zap className="h-5 w-5 text-green-600" />
+              <div className="p-3 bg-red-100 rounded-lg">
+                <Youtube className="h-5 w-5 text-red-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Generiert (7 Tage)</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.find(s => s.contentType === 'GENERATED')?._count || 0}
-                </p>
+                <p className="text-sm text-gray-500">YouTube Videos</p>
+                <p className="text-2xl font-bold text-gray-900">{ytStats.totalVideos || 0}</p>
+                <p className="text-xs text-gray-400">{ytStats.unprocessedVideos || 0} unverarbeitet</p>
               </div>
             </div>
           </div>
           
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <Flame className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">News (7 Tage)</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.find(s => s.contentType === 'NEWS')?._count || 0}
-                </p>
+                <p className="text-sm text-gray-500">Trends (7 Tage)</p>
+                <p className="text-2xl font-bold text-gray-900">{trendStats.recentTrends || 0}</p>
+                <p className="text-xs text-gray-400">{trendStats.processedTrends || 0} verarbeitet</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <FileText className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">YT-Artikel (7 Tage)</p>
+                <p className="text-2xl font-bold text-gray-900">{articleStats.ytArticles || 0}</p>
               </div>
             </div>
           </div>
@@ -278,212 +233,257 @@ export default function AdminPipelinePage() {
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-purple-100 rounded-lg">
-                <Film className="h-5 w-5 text-purple-600" />
+                <TrendingUp className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Letzte 24h</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {recentArticles.length}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-cyan-100 rounded-lg">
-                <Calendar className="h-5 w-5 text-cyan-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Scheduler</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {schedulerRunning ? 'Läuft' : 'Gestoppt'}
-                </p>
+                <p className="text-sm text-gray-500">Trend-Artikel (7 Tage)</p>
+                <p className="text-2xl font-bold text-gray-900">{articleStats.trendArticles || 0}</p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('youtube')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'youtube'
+                ? 'bg-red-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <Youtube className="h-4 w-4" />
+            P4-YouTube
+          </button>
+          <button
+            onClick={() => setActiveTab('trends')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'trends'
+                ? 'bg-orange-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <Flame className="h-4 w-4" />
+            P3-Trends
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Actions */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Schnellaktionen</h2>
-              <div className="space-y-3">
-                <button
-                  onClick={() => runAction('run-tvline')}
-                  disabled={runningAction !== null}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {runningAction === 'run-tvline' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  TVLine Pipeline starten
-                </button>
-                
-                <button
-                  onClick={() => runAction('run-cinemaholic')}
-                  disabled={runningAction !== null}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {runningAction === 'run-cinemaholic' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  CinemaHolic Pipeline starten
-                </button>
-                
-                <button
-                  onClick={() => setShowLogs(!showLogs)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <Terminal className="h-4 w-4" />
-                  {showLogs ? 'Logs ausblenden' : 'Logs anzeigen'}
-                </button>
-              </div>
-            </div>
+            {activeTab === 'youtube' ? (
+              <>
+                {/* YouTube Actions */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Youtube className="h-5 w-5 text-red-600" />
+                    YouTube Aktionen
+                  </h2>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => runAction('yt-check')}
+                      disabled={runningAction !== null}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {runningAction === 'yt-check' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Neue Videos suchen
+                    </button>
+                    
+                    <button
+                      onClick={() => runAction('yt-process-batch')}
+                      disabled={runningAction !== null || ytStats.unprocessedVideos === 0}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {runningAction === 'yt-process-batch' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                      3 Videos verarbeiten
+                    </button>
+                  </div>
+                </div>
 
-            {/* Single Article */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Einzelnen Artikel erstellen</h2>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Artikel-URL
-                  </label>
-                  <input
-                    type="url"
-                    value={singleUrl}
-                    onChange={(e) => setSingleUrl(e.target.value)}
-                    placeholder="https://tvline.com/..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Titel (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={singleTitle}
-                    onChange={(e) => setSingleTitle(e.target.value)}
-                    placeholder="Wird automatisch erkannt"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  />
-                </div>
-                <button
-                  onClick={() => runAction('run-single', { url: singleUrl, title: singleTitle })}
-                  disabled={!singleUrl || runningAction !== null}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {runningAction === 'run-single' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Zap className="h-4 w-4" />
-                  )}
-                  Pipeline ausführen
-                </button>
-              </div>
-            </div>
-
-            {/* TMDB Search */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">TMDB Serie suchen</h2>
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={tmdbQuery}
-                    onChange={(e) => setTmdbQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && searchTmdb()}
-                    placeholder="Serienname eingeben..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={searchTmdb}
-                    disabled={searchingTmdb || tmdbQuery.length < 2}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                  >
-                    {searchingTmdb ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                
-                {tmdbResults.length > 0 && (
-                  <div className="space-y-2 mt-3">
-                    {tmdbResults.map((result) => (
-                      <div key={result.tmdbId} className="p-3 border border-gray-200 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          {result.posterPath && (
-                            <img
-                              src={`https://image.tmdb.org/t/p/w92${result.posterPath}`}
-                              alt={result.name}
-                              className="w-12 h-18 object-cover rounded"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{result.name}</p>
-                            <p className="text-xs text-gray-500">
-                              TMDB ID: {result.tmdbId} • {result.firstAirDate?.slice(0, 4)}
-                            </p>
-                            <p className="text-xs text-gray-600 line-clamp-2 mt-1">
-                              {result.overview}
-                            </p>
-                          </div>
+                {/* YouTube Channels */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Tv className="h-5 w-5 text-gray-600" />
+                    Kanäle ({channels.length})
+                  </h2>
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {channels.map((channel) => (
+                      <div 
+                        key={channel.channelId}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <a 
+                            href={channel.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-gray-900 hover:text-red-600 truncate block"
+                          >
+                            {channel.name}
+                          </a>
+                          <p className="text-xs text-gray-500">
+                            {channel._count.videos} Videos
+                          </p>
                         </div>
                         <button
-                          onClick={() => runAction('create-from-tmdb', { 
-                            tmdbId: result.tmdbId, 
-                            seriesName: result.name 
+                          onClick={() => runAction('toggle-channel', { 
+                            channelId: channel.channelId, 
+                            isActive: !channel.isActive 
                           })}
-                          disabled={runningAction !== null}
-                          className="mt-2 w-full text-sm px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded hover:bg-cyan-100 transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${
+                            channel.isActive 
+                              ? 'text-green-600 hover:bg-green-50' 
+                              : 'text-gray-400 hover:bg-gray-100'
+                          }`}
                         >
-                          Artikel erstellen
+                          {channel.isActive ? (
+                            <ToggleRight className="h-5 w-5" />
+                          ) : (
+                            <ToggleLeft className="h-5 w-5" />
+                          )}
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Recent Articles & Logs */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Logs Panel */}
-            {showLogs && (
-              <div className="bg-gray-900 rounded-xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-white">Pipeline Logs</h2>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={selectedLogType}
-                      onChange={(e) => setSelectedLogType(e.target.value as any)}
-                      className="px-3 py-1.5 bg-gray-800 text-white rounded-lg border border-gray-700 text-sm"
-                    >
-                      <option value="tvline">TVLine</option>
-                      <option value="cinemaholic">CinemaHolic</option>
-                      <option value="manual">Manuell</option>
-                    </select>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Trends Actions */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Flame className="h-5 w-5 text-orange-600" />
+                    Trend-Artikel erstellen
+                  </h2>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Suchbegriff / Trend
+                      </label>
+                      <input
+                        type="text"
+                        value={trendSearchTerm}
+                        onChange={(e) => setTrendSearchTerm(e.target.value)}
+                        placeholder="z.B. Stranger Things Staffel 5"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
                     <button
-                      onClick={fetchLogs}
-                      className="p-2 bg-gray-800 text-gray-400 rounded-lg hover:text-white transition-colors"
+                      onClick={() => {
+                        if (trendSearchTerm) {
+                          runAction('trends-process', { searchTerm: trendSearchTerm });
+                        }
+                      }}
+                      disabled={!trendSearchTerm || runningAction !== null}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      {runningAction === 'trends-process' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Zap className="h-4 w-4" />
+                      )}
+                      Artikel generieren
                     </button>
                   </div>
                 </div>
-                <pre className="text-sm text-green-400 font-mono overflow-x-auto max-h-80 overflow-y-auto whitespace-pre-wrap">
-                  {logs || 'Keine Logs vorhanden.'}
-                </pre>
+
+                {/* Cron Info */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-gray-600" />
+                    Automatisierung
+                  </h2>
+                  <div className="space-y-3 text-sm">
+                    <div className="p-3 bg-orange-50 rounded-lg">
+                      <p className="font-medium text-orange-800">P3-Trends</p>
+                      <p className="text-orange-600">4x täglich (09:00, 13:00, 18:00, 22:00)</p>
+                    </div>
+                    <div className="p-3 bg-red-50 rounded-lg">
+                      <p className="font-medium text-red-800">P4-YouTube</p>
+                      <p className="text-red-600">6x täglich (08:00, 11:00, 14:00, 17:00, 20:00, 23:00)</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Right Column - Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {activeTab === 'youtube' && (
+              /* Unprocessed Videos */
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Unverarbeitete Videos ({ytStats.unprocessedVideos || 0})
+                  </h2>
+                </div>
+                
+                {unprocessedVideos.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">
+                    Keine unverarbeiteten Videos.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {unprocessedVideos.map((video) => (
+                      <div 
+                        key={video.videoId} 
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0 mr-4">
+                          <p className="font-medium text-gray-900 truncate">{video.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-500">{video.channel.name}</span>
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(video.publishedAt).toLocaleDateString('de-DE')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => runAction('yt-process-video', { videoId: video.videoId })}
+                            disabled={runningAction !== null}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Verarbeiten"
+                          >
+                            {runningAction === `yt-process-video-${video.videoId}` ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </button>
+                          <a
+                            href={`https://www.youtube.com/watch?v=${video.videoId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Auf YouTube öffnen"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                          <button
+                            onClick={() => runAction('delete-video', { videoId: video.videoId })}
+                            disabled={runningAction !== null}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Löschen"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -491,12 +491,6 @@ export default function AdminPipelinePage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Letzte Artikel (24h)</h2>
-                <button
-                  onClick={fetchDashboard}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </button>
               </div>
               
               {recentArticles.length === 0 ? (
@@ -513,12 +507,7 @@ export default function AdminPipelinePage() {
                       <div className="flex-1 min-w-0 mr-4">
                         <p className="font-medium text-gray-900 truncate">{article.title}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          {getContentTypeBadge(article.contentType)}
-                          {article.series && (
-                            <span className="text-xs text-gray-500">
-                              {article.series.name}
-                            </span>
-                          )}
+                          {getSourceBadge(article)}
                           <span className="text-xs text-gray-400 flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {new Date(article.createdAt).toLocaleString('de-DE', {
