@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getRecentPipelineRuns, getPipelineStats } from '@/lib/pipeline-logger';
 
 const prisma = new PrismaClient();
 
@@ -24,9 +25,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(request.url);
+    const hours = parseInt(searchParams.get('hours') || '24');
+    
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Get pipeline runs
+    const pipelineRuns = await getRecentPipelineRuns({ hours, limit: 100 });
+    const pipelineStats = await getPipelineStats(hours);
 
     // Get recent articles from all pipelines
     const recentArticles = await prisma.articles.findMany({
@@ -119,6 +127,8 @@ export async function GET(request: NextRequest) {
       channels,
       unprocessedVideos,
       articleStats,
+      pipelineRuns,
+      pipelineStats,
       lastUpdate: now.toISOString()
     });
 

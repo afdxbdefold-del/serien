@@ -22,6 +22,7 @@ import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
+import { PipelineLogger } from '../lib/pipeline-logger';
 
 const prisma = new PrismaClient();
 
@@ -397,13 +398,29 @@ export interface YTArticleResult {
   error?: string;
 }
 
-export async function generateArticleFromVideo(video: YouTubeVideo): Promise<YTArticleResult> {
+export async function generateArticleFromVideo(
+  video: YouTubeVideo, 
+  trigger: 'cron' | 'manual' | 'api' = 'manual'
+): Promise<YTArticleResult> {
+  // Initialize logger
+  const logger = new PipelineLogger('p4-youtube', trigger);
+  await logger.start({
+    inputVideoId: video.videoId,
+    inputQuery: video.title,
+    inputSource: video.channelName,
+  });
+
   console.log('\n' + '═'.repeat(70));
   console.log('🎬 P4-YT: ARTIKEL AUS VIDEO GENERIEREN');
   console.log('═'.repeat(70));
   console.log(`📺 Video: "${video.title}"`);
   console.log(`🆔 Video-ID: ${video.videoId}`);
   console.log(`📡 Kanal: ${video.channelName}\n`);
+  
+  logger.log(`Video: ${video.title}`);
+  logger.log(`Kanal: ${video.channelName}`);
+  logger.addMetadata('videoId', video.videoId);
+  logger.addMetadata('channelName', video.channelName);
   
   const now = new Date();
   
@@ -415,6 +432,8 @@ export async function generateArticleFromVideo(video: YouTubeVideo): Promise<YTA
     
     const seriesName = extractSeriesFromTitle(video.title);
     console.log(`   📺 Extrahierter Serienname: ${seriesName || '(nicht erkannt)'}`);
+    logger.log(`Serie extrahiert: ${seriesName || 'nicht erkannt'}`);
+    logger.addMetadata('seriesName', seriesName);
     
     // ========== STEP 2: FIND TMDB SERIES ==========
     let tmdbData: { tmdbId: number; name: string; backdropPath: string | null } | null = null;
@@ -458,13 +477,20 @@ VIDEO-BESCHREIBUNG:
 ${video.description || 'Keine Beschreibung verfügbar.'}
     `.trim();
     
+    const sourceWordCount = sourceText.split(/\s+/).length;
+    logger.log(`Quelltext: ${sourceWordCount} Wörter`);
+    await logger.update({ wordsCollected: sourceWordCount });
+    
     // Extract facts from video info
     console.log('   📊 Extrahiere Fakten...');
     const facts = await extractFacts(
       seriesName || video.title,
       sourceText
     );
-    console.log(`   ✓ ${facts.key_statements?.length || 0} Statements extrahiert`);
+    const factCount = facts.key_statements?.length || 0;
+    console.log(`   ✓ ${factCount} Statements extrahiert`);
+    logger.log(`Fakten extrahiert: ${factCount}`);
+    await logger.update({ factsExtracted: factCount });
     
     // Determine content type from video title
     let contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING' = 'NEWS';
@@ -475,6 +501,7 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
     // Generate article
     console.log('   🤖 Generiere Artikel via LLM...');
+    logger.log('LLM Content-Generierung gestartet');
     
     const structuredContent = await generateStructuredContent({
       facts,
@@ -487,10 +514,13 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
     if (!structuredContent || !structuredContent.markdown) {
       console.log('❌ Content-Generierung fehlgeschlagen');
+      logger.log('LLM Content-Generierung fehlgeschlagen', 'error');
+      await logger.fail('LLM konnte keinen Content generieren', 'llm-generation');
       return { success: false, videoId: video.videoId, error: 'LLM Fehler' };
     }
     
     console.log(`   ✓ Headline: ${structuredContent.headline}`);
+    logger.log(`Headline generiert: ${structuredContent.headline}`);
     
     // ========== STEP 4: VIDEO DOWNLOAD ==========
     console.log('\n━'.repeat(60));
@@ -600,6 +630,8 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
     console.log(`   📊 Anti-AI Score: ${antiAiResult.antiAiScore}/100`);
     console.log(`   ${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Status: ${antiAiResult.status}`);
+    logger.log(`Anti-AI Score: ${antiAiResult.antiAiScore}/100 (${antiAiResult.status})`);
+    await logger.update({ antiAiScore: antiAiResult.antiAiScore });
     
     // ========== STEP 8: SAVE ARTICLE ==========
     console.log('\n━'.repeat(60));
@@ -615,6 +647,7 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
     if (existing) {
       console.log('⚠️ Artikel existiert bereits');
+      logger.log('Artikel existiert bereits - übersprungen', 'warn');
       
       // Update video as processed
       await prisma.youtube_videos.update({
@@ -625,6 +658,13 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
           articleId: existing.id,
           articleSlug: existing.slug,
         }
+      });
+      
+      await logger.partial({
+        articleId: existing.id,
+        articleSlug: existing.slug,
+        articleTitle: existing.title,
+        errorMessage: 'Artikel existierte bereits'
       });
       
       return {
@@ -676,6 +716,7 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     });
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
+    logger.log(`Artikel gespeichert: ${article.slug}`);
     
     console.log('\n' + '═'.repeat(70));
     console.log('✅ P4-YT PIPELINE ERFOLGREICH');
@@ -684,6 +725,14 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     console.log(`🔗 URL: /${article.slug}`);
     console.log(`🎬 Video: https://www.youtube.com/watch?v=${video.videoId}`);
     console.log('═'.repeat(70) + '\n');
+    
+    // Log success
+    await logger.success({
+      articleId: article.id,
+      articleSlug: article.slug,
+      articleTitle: article.title,
+      sourcesFound: 1,
+    });
     
     return {
       success: true,
@@ -695,10 +744,12 @@ ${video.description || 'Keine Beschreibung verfügbar.'}
     
   } catch (error) {
     console.error('❌ Pipeline Fehler:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await logger.fail(errorMessage, 'unknown');
     return {
       success: false,
       videoId: video.videoId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage
     };
   }
 }

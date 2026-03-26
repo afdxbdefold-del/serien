@@ -517,3 +517,50 @@ model youtube_videos {
   @@index([publishedAt])
   @@index([processed])
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// PIPELINE RUNS & LOGS
+// ══════════════════════════════════════════════════════════════════════════
+
+model pipeline_runs {
+  id              String   @id @default(cuid())
+  pipeline        String   // 'p3-trends', 'p4-youtube', 'pipeline-v2', 'cron-news'
+  trigger         String   // 'cron', 'manual', 'api'
+  status          String   // 'running', 'success', 'partial', 'failed'
+  
+  // Input
+  inputQuery      String?  // Search term / trend query
+  inputVideoId    String?  // YouTube video ID
+  inputSource     String?  // Source URL or identifier
+  
+  // Output
+  articleId       String?  // Generated article ID
+  articleSlug     String?  // Generated article slug
+  articleTitle    String?  // Generated article title
+  
+  // Metrics
+  sourcesFound    Int      @default(0)  // Number of sources scraped
+  wordsCollected  Int      @default(0)  // Total words from sources
+  factsExtracted  Int      @default(0)  // Facts extracted
+  antiAiScore     Int?     // Anti-AI filter score (0-100)
+  
+  // Timing
+  durationMs      Int?     // Total duration in milliseconds
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  
+  // Error tracking
+  errorMessage    String?  // Error message if failed
+  errorStep       String?  // Which step failed (scrape, llm, save, etc.)
+  
+  // Debug info (JSON)
+  debugLog        String?  // JSON array of log messages
+  metadata        String?  // Additional JSON metadata
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([pipeline])
+  @@index([status])
+  @@index([startedAt])
+  @@index([articleId])
+}
