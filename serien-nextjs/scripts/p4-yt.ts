@@ -98,13 +98,14 @@ function generateSlug(title: string): string {
 function isSeriesNews(title: string, description: string): { valid: boolean; reason: string } {
   const titleLower = title.toLowerCase();
   
-  // ✅ WHITELIST: Nur diese Muster sind erlaubt
+  // ✅ WHITELIST: Nur diese Muster sind erlaubt (NUR echte Trailer/Teaser)
   
   // Pattern 1: "Name | Trailer | Netflix" oder "Name | Teaser | Streamer"
   const trailerPattern = /\|\s*(offiziell(er|e)?|official)?\s*(trailer|teaser)/i;
   
-  // Pattern 2: "Name | Ankündigung | Netflix" oder "Name | Official Announcement"
+  // Pattern 2: "Name | Ankündigung | Netflix" (aber NUR mit "Staffel" oder "Season")
   const announcementPattern = /\|\s*(offizielle?|official)?\s*(ankündigung|announcement)/i;
+  const hasSeasonInTitle = /(staffel|season)\s*\d/i.test(title);
   
   // Pattern 3: "Name: Staffel X | Trailer/Teaser" (Staffel NUR mit Trailer/Teaser)
   const seasonWithTrailerPattern = /(staffel|season)\s*\d.*\|\s*(offiziell)?\s*(trailer|teaser|ankündigung)/i;
@@ -115,26 +116,20 @@ function isSeriesNews(title: string, description: string): { valid: boolean; rea
   // Pattern 5: "Name — Official Teaser/Trailer"
   const dashPattern = /—\s*(official\s*)?(trailer|teaser)/i;
   
-  // Pattern 6: "Jetzt streamen" mit Pipe-Format (Neustart-Ankündigungen)
-  const streamingStartPattern = /\|\s*jetzt\s+(streamen|auf)/i;
-  
-  // Pattern 7: "Neu & exklusiv auf" (echte Neuankündigungen)
-  const newExclusivePattern = /neu\s*&?\s*exklusiv\s+(auf|bei)/i;
+  // ❌ ENTFERNT: "Jetzt streamen" und "Neu & exklusiv" - diese können alte Serien sein!
+  // Pattern 6 und 7 wurden absichtlich entfernt weil sie Halluzinationen verursachen
   
   // Prüfe ob MINDESTENS ein Whitelist-Pattern matched
   const isTrailer = trailerPattern.test(title);
-  const isAnnouncement = announcementPattern.test(title);
+  const isAnnouncement = announcementPattern.test(title) && hasSeasonInTitle; // Ankündigung NUR mit Staffel!
   const isSeasonTrailer = seasonWithTrailerPattern.test(title);
   const isSneakPeek = sneakPeekPattern.test(title);
   const isDashFormat = dashPattern.test(title);
-  const isStreamingStart = streamingStartPattern.test(title);
-  const isNewExclusive = newExclusivePattern.test(title);
   
-  const isValid = isTrailer || isAnnouncement || isSeasonTrailer || 
-                  isSneakPeek || isDashFormat || isStreamingStart || isNewExclusive;
+  const isValid = isTrailer || isAnnouncement || isSeasonTrailer || isSneakPeek || isDashFormat;
   
   if (!isValid) {
-    return { valid: false, reason: 'Kein Trailer/Teaser/Ankündigung-Format' };
+    return { valid: false, reason: 'Kein Trailer/Teaser-Format (nur echte Trailer erlaubt)' };
   }
   
   // ❌ BLACKLIST: Trotzdem ausschließen
@@ -524,8 +519,31 @@ export async function generateArticleFromVideo(
         
         logger.addMetadata('tmdbId', tmdbData.tmdbId);
         logger.addMetadata('seriesDbId', dbSeries?.id);
+        
+        // Check if series is still active (not ended years ago)
+        const seriesStatus = tmdbData.status?.toLowerCase() || '';
+        const isEnded = seriesStatus === 'ended' || seriesStatus === 'canceled';
+        
+        if (isEnded) {
+          // Check if it ended more than 2 years ago (allow revivals)
+          const lastAirDate = dbSeries?.lastAirDate || tmdbData.lastAirDate;
+          if (lastAirDate) {
+            const endedDate = new Date(lastAirDate);
+            const twoYearsAgo = new Date();
+            twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+            
+            if (endedDate < twoYearsAgo) {
+              console.log(`   ⚠️ Serie beendet vor >2 Jahren - überspringe`);
+              await logger.fail('Serie bereits beendet (keine aktuelle News)', 'tmdb-check');
+              return { success: false, error: 'Serie bereits beendet' };
+            }
+          }
+        }
       } else {
         console.log(`   ⚠️ Keine TMDB-Serie gefunden`);
+        // Require TMDB match for quality
+        await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
+        return { success: false, error: 'Keine TMDB-Serie gefunden' };
       }
     }
     
