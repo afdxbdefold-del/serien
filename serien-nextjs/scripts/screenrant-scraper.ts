@@ -160,13 +160,27 @@ async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
   
+  // Helper: Decode base64 time from ScreenRant's data-b64-ts attribute
+  const decodeTimeFromB64 = ($el: cheerio.Cheerio<cheerio.Element>): string => {
+    const b64Time = $el.find('[data-b64-ts]').first().attr('data-b64-ts');
+    if (b64Time) {
+      try {
+        return Buffer.from(b64Time, 'base64').toString('utf-8');
+      } catch {
+        return '';
+      }
+    }
+    // Fallback: try text content
+    return $el.find('time, .display-card-date, .pinned-article-date, [class*="date"]').first().text().trim();
+  };
+
   // Strategy 1: Find article cards with headlines
-  $('article, .display-card, .sentinel-listing-page-list li').each((_, element) => {
+  $('article, .display-card, .sentinel-listing-page-list li, .w-display-card-content').each((_, element) => {
     const $el = $(element);
-    const $link = $el.find('a[href*="screenrant.com"]').first();
+    const $link = $el.find('a').first();
     const $headline = $el.find('h3, h5, h2, .display-card-title').first();
     
-    let href = $link.attr('href') || '';
+    let href = $link.attr('href') || $headline.find('a').attr('href') || '';
     const title = $headline.text().trim() || $link.text().trim();
     
     // Make sure URL is absolute
@@ -174,8 +188,8 @@ async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
       href = `https://screenrant.com${href}`;
     }
     
-    // Find time element
-    const timeText = $el.find('time, .display-card-date, [class*="date"]').first().text().trim();
+    // Find time - check for base64 encoded time first
+    const timeText = decodeTimeFromB64($el);
     
     if (href && title && 
         title.length > 15 && 
@@ -206,9 +220,9 @@ async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
       href = `https://screenrant.com${href}`;
     }
     
-    // Find parent for time
-    const $parent = $link.closest('article, li, div');
-    const timeText = $parent.find('time, [class*="date"]').first().text().trim();
+    // Find parent for time - use base64 decoder
+    const $parent = $link.closest('article, li, div, .w-display-card-content');
+    const timeText = decodeTimeFromB64($parent);
     
     if (href && title && 
         title.length > 15 && 
