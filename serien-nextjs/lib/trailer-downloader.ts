@@ -809,12 +809,12 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // Special handling for YouTube: Try RapidAPI first (more reliable)
+    // Special handling for YouTube: Use RapidAPI ONLY (no yt-dlp fallback)
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via RapidAPI...');
+      console.log('   🚀 Attempting YouTube download via RapidAPI (ONLY method on serverless)...');
       
       let downloadSuccessful = false;
-      let usedRapidAPI = false;
+      let downloadedFilePath: string | null = null;
       
       // Try API #1 first
       const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
@@ -822,7 +822,7 @@ export async function downloadVideoTrailer(
       if (rapidResult.success) {
         console.log('   ✅ RapidAPI #1 download successful!');
         downloadSuccessful = true;
-        usedRapidAPI = true;
+        downloadedFilePath = tempFilePath;
       } else {
         console.log(`   ⚠️  RapidAPI #1 failed: ${rapidResult.error}`);
         console.log('   🔄 Trying RapidAPI #2 (Fast Downloader)...');
@@ -833,7 +833,7 @@ export async function downloadVideoTrailer(
         if (rapidResult2.success) {
           console.log('   ✅ RapidAPI #2 download successful!');
           downloadSuccessful = true;
-          usedRapidAPI = true;
+          downloadedFilePath = tempFilePath;
         } else {
           console.log(`   ⚠️  RapidAPI #2 failed: ${rapidResult2.error}`);
           console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub)...');
@@ -844,53 +844,18 @@ export async function downloadVideoTrailer(
           if (rapidResult3.success) {
             console.log('   ✅ RapidAPI #3 download successful!');
             downloadSuccessful = true;
-            usedRapidAPI = true;
+            downloadedFilePath = tempFilePath;
           } else {
             console.log(`   ⚠️  RapidAPI #3 failed: ${rapidResult3.error}`);
-            console.log('   🔄 Falling back to yt-dlp (last resort)...');
-            
-            // Fallback to yt-dlp (already downloads in compatible format)
-            const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
-            if (!ytdlpResult.success) {
-              throw new Error(ytdlpResult.error || 'All download methods failed');
-            }
-            downloadSuccessful = true;
-            usedRapidAPI = false;
+            // NO yt-dlp fallback - doesn't work on serverless
+            throw new Error('All RapidAPI methods failed. Video download not possible on serverless.');
           }
         }
       }
       
-      // Re-encode with ffmpeg for web compatibility if RapidAPI was used
-      if (usedRapidAPI) {
-        // Re-encode with ffmpeg for web compatibility (H.264 Baseline Profile)
-        const webCompatiblePath = tempFilePath.replace('.mp4', '-web.mp4');
-        console.log('   🔄 Re-encoding for web compatibility (H.264 Baseline Profile)...');
-        
-        try {
-          const { exec } = require('child_process');
-          const { promisify } = require('util');
-          const execAsync = promisify(exec);
-          
-          // Use H.264 Main profile for maximum mobile browser compatibility (2025+)
-          // Constrained Baseline has known issues with mobile Chrome despite being theoretically more compatible
-          // -profile:v main: Modern mobile browsers have excellent Main profile support
-          // -level 4.0: Supports up to 1080p @ 30fps
-          // -pix_fmt yuv420p: Ensure compatible pixel format
-          // -movflags +faststart: Move moov atom to beginning (critical for web streaming)
-          // -preset fast: Balance speed and compression
-          await execAsync(`ffmpeg -i "${tempFilePath}" -c:v libx264 -profile:v main -level 4.0 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart -preset fast -y "${webCompatiblePath}"`, {
-            timeout: 120000
-          });
-          
-          // Replace original with web-compatible version
-          await fs.unlink(tempFilePath);
-          await fs.rename(webCompatiblePath, tempFilePath);
-          console.log('   ✅ Re-encoding complete (H.264 Baseline + AAC for maximum browser compatibility)');
-        } catch (error: any) {
-          console.log(`   ⚠️  Re-encoding failed: ${error.message}`);
-          console.log('   📹 Using original file (may not play in all browsers)');
-        }
-      }
+      // Skip ffmpeg re-encoding on serverless (not available)
+      // Modern browsers can play most MP4 formats directly
+      console.log('   ⏭️  Skipping ffmpeg re-encoding (serverless mode)');
     } else {
       // For non-YouTube sources, use yt-dlp directly
       const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
