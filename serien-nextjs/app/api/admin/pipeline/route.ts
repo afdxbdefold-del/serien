@@ -3,12 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Cron schedules (UTC times)
+// Cron schedules (UTC times) - alle 6 Stunden
 const CRON_SCHEDULES = {
-  'p3-trends': { schedule: '0 9,13,18,22 * * *', name: 'P3-Trends', hours: [9, 13, 18, 22] },
-  'p4-youtube': { schedule: '0 8,11,14,17,20,23 * * *', name: 'P4-YouTube', hours: [8, 11, 14, 17, 20, 23] },
-  'cron-news': { schedule: '0 */2 * * *', name: 'News Import', hours: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22] },
-  'cron-releases': { schedule: '0 6 * * *', name: 'Releases', hours: [6] },
+  'p3-trends': { schedule: '0 */6 * * *', name: 'P3-Trends', hours: [0, 6, 12, 18] },
+  'p4-youtube': { schedule: '0 */6 * * *', name: 'P4-YouTube', hours: [0, 6, 12, 18] },
+  'cron-news': { schedule: '0 */6 * * *', name: 'News Import', hours: [0, 6, 12, 18] },
+  'cron-releases': { schedule: '0 */6 * * *', name: 'Releases', hours: [0, 6, 12, 18] },
 };
 
 function getNextCronRun(hours: number[]): Date {
