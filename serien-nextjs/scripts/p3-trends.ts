@@ -110,7 +110,7 @@ PROBLEME IM TEXT:
 - ${problemList}
 
 ORIGINALER MARKDOWN:
-${markdown.substring(0, 3000)}
+${(markdown || '').substring(0, 3000)}
 
 Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Markdown:`;
 
@@ -148,7 +148,10 @@ Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Mar
 // ══════════════════════════════════════════════════════════════════════════
 // SLUG GENERATOR
 // ══════════════════════════════════════════════════════════════════════════
+// SLUG GENERATOR
+// ══════════════════════════════════════════════════════════════════════════
 function generateSlug(title: string): string {
+  if (!title) return 'untitled';
   return title
     .toLowerCase()
     .replace(/[äöüß]/g, (char) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' }[char] || char))

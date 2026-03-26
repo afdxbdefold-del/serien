@@ -25,13 +25,13 @@ export async function generateDistinctLead(input: LeadGeneratorInput): Promise<s
 AUFGABE: Schreibe einen EIGENSTÄNDIGEN, UNIQUE Lead-Absatz (2-3 Sätze) für diesen Artikel.
 
 ARTIKEL-HEADLINE: "${headline}"
-SERIE: ${seriesName}
+SERIE: ${seriesName || ''}
 
 WICHTIGE FAKTEN:
-${facts.slice(0, 5).join('\n')}
+${(facts || []).slice(0, 5).join('\n')}
 
 ARTIKEL-BEGINN (NICHT VERWENDEN):
-${firstParagraph.substring(0, 300)}
+${(firstParagraph || '').substring(0, 300)}
 
 KRITISCHE ANFORDERUNGEN:
 1. Der Lead muss KOMPLETT ANDERS sein als der Artikel-Beginn

@@ -103,11 +103,11 @@ async function generateHeadingForParagraph(
   
   const prompt = `Du bist ein professioneller Redakteur. Erstelle eine prägnante H2-Überschrift für folgenden Absatz.
 
-ARTIKEL: ${articleTitle}
-SERIE: ${seriesName}
+ARTIKEL: ${articleTitle || ''}
+SERIE: ${seriesName || ''}
 
 ABSATZ:
-${plainText.substring(0, 300)}
+${(plainText || '').substring(0, 300)}
 
 ANFORDERUNGEN:
 - Max 6 Wörter

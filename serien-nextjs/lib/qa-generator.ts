@@ -35,7 +35,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
     }
 
     // Extract plain text
-    const plainText = input.contentHtml
+    const plainText = (input.contentHtml || '')
       .replace(/<[^>]*>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
@@ -94,7 +94,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
     return questions;
 
   } catch (error: any) {
-    console.log('   ⚠️  Q&A generation failed:', error.message?.substring(0, 50));
+    console.log('   ⚠️  Q&A generation failed:', (error.message || '').substring(0, 50));
     return [];
   }
 }
@@ -200,7 +200,7 @@ Beispiele für GUTE Fragen:
     }
 
   } catch (error: any) {
-    console.log('   ⚠️  Series Q&A generation failed:', error.message?.substring(0, 50));
+    console.log('   ⚠️  Series Q&A generation failed:', (error.message || '').substring(0, 50));
     return generateFallbackSeriesQA(input);
   }
 }

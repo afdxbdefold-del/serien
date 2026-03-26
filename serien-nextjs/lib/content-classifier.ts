@@ -69,10 +69,10 @@ export async function classifyContent(
 
   const userPrompt = `
 INPUT:
-Title: ${title}
-URL: ${url}
+Title: ${title || 'Untitled'}
+URL: ${url || ''}
 Text (first 1500 chars):
-${textHead.substring(0, 1500)}
+${(textHead || '').substring(0, 1500)}
 
 Classify this content now.
 `.trim();

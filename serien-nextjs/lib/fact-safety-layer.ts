@@ -148,13 +148,13 @@ Antworte im JSON-Format:
 }`;
 
   const userPrompt = `ARTIKEL:
-${articleText.substring(0, 1500)}
+${(articleText || '').substring(0, 1500)}
 
 HEADLINE:
-${headline}
+${headline || ''}
 
 EXTRACTED FACTS:
-${extractedFacts.substring(0, 500)}
+${(extractedFacts || '').substring(0, 500)}
 
 Finde alle KRITISCHEN FAKTEN.`;
 

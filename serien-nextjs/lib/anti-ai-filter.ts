@@ -274,10 +274,10 @@ Antworte NUR mit JSON:
   "reason": "Kurze Begründung"
 }`;
 
-  const userPrompt = `HEADLINE: ${headline}
+  const userPrompt = `HEADLINE: ${headline || ''}
 
 TEXT:
-${text.substring(0, 800)}
+${(text || '').substring(0, 800)}
 
 Bewerte: KI oder Redakteur?`;
 

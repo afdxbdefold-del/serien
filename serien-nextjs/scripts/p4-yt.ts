@@ -84,6 +84,7 @@ function getRandomAuthor(): string {
 // SLUG GENERATOR
 // ══════════════════════════════════════════════════════════════════════════
 function generateSlug(title: string): string {
+  if (!title) return 'untitled';
   return title
     .toLowerCase()
     .replace(/[äöüß]/g, (char) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' }[char] || char))
@@ -215,7 +216,7 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
         videos.push({
           videoId,
           title,
-          description: description.substring(0, 2000), // Limit description length
+          description: (description || '').substring(0, 2000), // Limit description length
           thumbnailUrl,
           publishedAt: new Date(published),
           channelId,
@@ -295,7 +296,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
         const filterResult = isSeriesNews(video.title, video.description);
         
         if (!filterResult.valid) {
-          console.log(`   ⏭️ Übersprungen: ${video.title.substring(0, 40)}... (${filterResult.reason})`);
+          console.log(`   ⏭️ Übersprungen: ${(video.title || '').substring(0, 40)}... (${filterResult.reason})`);
           continue;
         }
         
@@ -313,7 +314,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
         });
         
         newVideos.push(video);
-        console.log(`   🆕 Serien-News: ${video.title.substring(0, 50)}...`);
+        console.log(`   🆕 Serien-News: ${(video.title || '').substring(0, 50)}...`);
       }
     }
     

@@ -2,6 +2,8 @@
  * Generate a URL-friendly slug from a series title
  */
 export function generateSeriesSlug(title: string, tmdbId?: number): string {
+  if (!title) return tmdbId ? `serie-${tmdbId}` : 'unknown';
+  
   const slug = title
     .toLowerCase()
     .replace(/[äÄ]/g, 'ae')

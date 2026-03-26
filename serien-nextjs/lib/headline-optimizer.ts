@@ -66,10 +66,10 @@ Antworte NUR mit einem JSON-Array:
 ${input.originalHeadline}
 
 SERIE:
-${input.seriesName}
+${input.seriesName || ''}
 
 ${input.platform ? `PLATTFORM:\n${input.platform}\n\n` : ''}ARTIKEL-INHALT (Auszug):
-${input.rawContent.substring(0, 500)}...
+${(input.rawContent || '').substring(0, 500)}...
 
 Erstelle jetzt 5 optimierte Überschriften-Varianten mit Bewertungen.`;
 

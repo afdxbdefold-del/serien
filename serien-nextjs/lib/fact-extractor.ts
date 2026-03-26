@@ -64,10 +64,10 @@ export async function extractFacts(
 
   const userPrompt = `
 SOURCE ARTICLE:
-Title: ${sourceTitle}
+Title: ${sourceTitle || 'Untitled'}
 
 Text:
-${sourceText.substring(0, 3000)}
+${(sourceText || '').substring(0, 3000)}
 
 Extract all facts now (preserve exact wording, no translation).
 `.trim();
