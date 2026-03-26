@@ -294,20 +294,30 @@ export default function AdminPipelinePage() {
     return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
   };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('de-DE', {
-      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-    });
+  const formatTime = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toLocaleString('de-DE', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+    } catch {
+      return '-';
+    }
   };
 
-  const formatRelativeTime = (dateStr: string) => {
-    const diff = new Date(dateStr).getTime() - Date.now();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (diff < 0) return 'überfällig';
-    if (hours > 0) return `in ${hours}h ${minutes}m`;
-    return `in ${minutes}m`;
+  const formatRelativeTime = (dateStr?: string | null) => {
+    if (!dateStr) return '-';
+    try {
+      const diff = new Date(dateStr).getTime() - Date.now();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (diff < 0) return 'überfällig';
+      if (hours > 0) return `in ${hours}h ${minutes}m`;
+      return `in ${minutes}m`;
+    } catch {
+      return '-';
+    }
   };
 
   // Simple bar chart component
