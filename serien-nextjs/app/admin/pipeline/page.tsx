@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Play, RefreshCw, ArrowLeft, Clock, CheckCircle, XCircle, Loader2,
   Youtube, Flame, Tv, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Zap, FileText, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
-  Activity, Timer, Target, Bug
+  Activity, Timer, Target, Bug, Download, Bell, BellOff, Link2,
+  BarChart3, AlertTriangle, Calendar, Video, Newspaper
 } from 'lucide-react';
 
 interface PipelineRun {
@@ -42,6 +43,19 @@ interface RecentArticle {
   sourceUrl?: string;
 }
 
+interface LastCreatedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  createdAt: string;
+  publishedAt?: string;
+  status: string;
+  heroVideoUrl?: string;
+  users?: { name: string };
+  series?: { name: string };
+}
+
 interface YTChannel {
   id: string;
   channelId: string;
@@ -60,10 +74,32 @@ interface UnprocessedVideo {
   channel: { name: string };
 }
 
+interface TopError {
+  message: string;
+  count: number;
+  lastSeen: string;
+  step?: string;
+}
+
+interface ChartData {
+  date: string;
+  success: number;
+  failed: number;
+  partial: number;
+}
+
+interface CronStatus {
+  nextRun: string;
+  lastRun?: string;
+  lastStatus?: string;
+  schedule: string;
+}
+
 export default function AdminPipelinePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [recentArticles, setRecentArticles] = useState<RecentArticle[]>([]);
+  const [lastCreatedArticles, setLastCreatedArticles] = useState<LastCreatedArticle[]>([]);
   const [channels, setChannels] = useState<YTChannel[]>([]);
   const [unprocessedVideos, setUnprocessedVideos] = useState<UnprocessedVideo[]>([]);
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
@@ -71,15 +107,43 @@ export default function AdminPipelinePage() {
   const [ytStats, setYtStats] = useState<any>({});
   const [trendStats, setTrendStats] = useState<any>({});
   const [articleStats, setArticleStats] = useState<any>({});
+  const [topErrors, setTopErrors] = useState<TopError[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [cronStatus, setCronStatus] = useState<Record<string, CronStatus>>({});
+  const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
   
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [trendSearchTerm, setTrendSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'youtube' | 'trends' | 'logs'>('overview');
+  const [v2Url, setV2Url] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  
+  const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
+  const lastErrorCountRef = useRef(0);
 
   const getToken = () => localStorage.getItem('admin_token');
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+        localStorage.setItem('pipeline_notifications', 'true');
+      }
+    }
+  };
+
+  // Send browser notification
+  const sendNotification = (title: string, body: string) => {
+    if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.ico' });
+    }
+  };
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -92,6 +156,7 @@ export default function AdminPipelinePage() {
       }
       const data = await response.json();
       setRecentArticles(data.recentArticles || []);
+      setLastCreatedArticles(data.lastCreatedArticles || []);
       setChannels(data.channels || []);
       setUnprocessedVideos(data.unprocessedVideos || []);
       setPipelineRuns(data.pipelineRuns || []);
@@ -99,15 +164,44 @@ export default function AdminPipelinePage() {
       setYtStats(data.ytStats || {});
       setTrendStats(data.trendStats || {});
       setArticleStats(data.articleStats || {});
+      setTopErrors(data.topErrors || []);
+      setChartData(data.chartData || []);
+      setCronStatus(data.cronStatus || {});
+      setHasRunningPipeline(data.hasRunningPipeline || false);
+
+      // Check for new errors and send notification
+      const currentErrorCount = (data.pipelineRuns || []).filter((r: PipelineRun) => r.status === 'failed').length;
+      if (currentErrorCount > lastErrorCountRef.current && lastErrorCountRef.current > 0) {
+        sendNotification('Pipeline Fehler', `${currentErrorCount - lastErrorCountRef.current} neue Fehler erkannt`);
+      }
+      lastErrorCountRef.current = currentErrorCount;
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
     } finally {
       setLoading(false);
     }
-  }, [router, hoursFilter]);
+  }, [router, hoursFilter, notificationsEnabled]);
+
+  // Auto-refresh when pipeline is running
+  useEffect(() => {
+    if (autoRefresh && hasRunningPipeline) {
+      autoRefreshRef.current = setInterval(fetchDashboard, 10000); // 10 seconds
+    } else if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [autoRefresh, hasRunningPipeline, fetchDashboard]);
 
   useEffect(() => {
     fetchDashboard();
+    // Check if notifications were previously enabled
+    if (localStorage.getItem('pipeline_notifications') === 'true' && 
+        'Notification' in window && 
+        Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
   }, [fetchDashboard]);
 
   const runAction = async (action: string, payload: Record<string, any> = {}) => {
@@ -131,11 +225,37 @@ export default function AdminPipelinePage() {
         setTimeout(fetchDashboard, 2000);
       } else {
         setActionMessage({ type: 'error', text: data.error || 'Aktion fehlgeschlagen' });
+        sendNotification('Pipeline Fehler', data.error || 'Aktion fehlgeschlagen');
       }
     } catch (error) {
       setActionMessage({ type: 'error', text: 'Netzwerkfehler' });
     } finally {
       setRunningAction(null);
+    }
+  };
+
+  const exportCSV = async () => {
+    try {
+      const response = await fetch('/api/admin/pipeline', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}` 
+        },
+        body: JSON.stringify({ action: 'export-csv' })
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pipeline-logs-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
     }
   };
 
@@ -180,6 +300,54 @@ export default function AdminPipelinePage() {
     });
   };
 
+  const formatRelativeTime = (dateStr: string) => {
+    const diff = new Date(dateStr).getTime() - Date.now();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diff < 0) return 'überfällig';
+    if (hours > 0) return `in ${hours}h ${minutes}m`;
+    return `in ${minutes}m`;
+  };
+
+  // Simple bar chart component
+  const SimpleBarChart = ({ data }: { data: ChartData[] }) => {
+    const maxValue = Math.max(...data.flatMap(d => [d.success, d.failed, d.partial]), 1);
+    
+    return (
+      <div className="flex items-end gap-2 h-32">
+        {data.map((day, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="w-full flex flex-col-reverse gap-0.5" style={{ height: '100px' }}>
+              {day.success > 0 && (
+                <div 
+                  className="w-full bg-green-500 rounded-t" 
+                  style={{ height: `${(day.success / maxValue) * 100}%` }}
+                  title={`${day.success} erfolgreich`}
+                />
+              )}
+              {day.partial > 0 && (
+                <div 
+                  className="w-full bg-yellow-500" 
+                  style={{ height: `${(day.partial / maxValue) * 100}%` }}
+                  title={`${day.partial} teilweise`}
+                />
+              )}
+              {day.failed > 0 && (
+                <div 
+                  className="w-full bg-red-500 rounded-b" 
+                  style={{ height: `${(day.failed / maxValue) * 100}%` }}
+                  title={`${day.failed} fehlgeschlagen`}
+                />
+              )}
+            </div>
+            <span className="text-xs text-gray-500">{day.date}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -199,11 +367,37 @@ export default function AdminPipelinePage() {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Content Pipelines</h1>
+                <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  Content Pipelines
+                  {hasRunningPipeline && (
+                    <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Läuft
+                    </span>
+                  )}
+                </h1>
                 <p className="text-sm text-gray-500">P3-Trends, P4-YouTube, Pipeline-V2</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Notification toggle */}
+              <button
+                onClick={() => notificationsEnabled ? setNotificationsEnabled(false) : requestNotificationPermission()}
+                className={`p-2 rounded-lg ${notificationsEnabled ? 'text-cyan-600 bg-cyan-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                title={notificationsEnabled ? 'Benachrichtigungen aus' : 'Benachrichtigungen an'}
+              >
+                {notificationsEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+              </button>
+              
+              {/* Export CSV */}
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                title="Logs exportieren"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+              
               <select
                 value={hoursFilter}
                 onChange={(e) => setHoursFilter(parseInt(e.target.value))}
@@ -243,6 +437,7 @@ export default function AdminPipelinePage() {
         <div className="flex gap-2 mb-6 overflow-x-auto">
           {[
             { id: 'overview', label: 'Übersicht', icon: Activity },
+            { id: 'articles', label: 'Artikel', icon: Newspaper },
             { id: 'youtube', label: 'P4-YouTube', icon: Youtube },
             { id: 'trends', label: 'P3-Trends', icon: Flame },
             { id: 'logs', label: 'Logs & Debug', icon: Bug },
@@ -265,6 +460,82 @@ export default function AdminPipelinePage() {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Cron Status */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {Object.entries(cronStatus).map(([pipeline, status]) => (
+                <div key={pipeline} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    {getPipelineBadge(pipeline)}
+                    {status.lastStatus && getStatusBadge(status.lastStatus)}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">Nächster Lauf:</span>
+                    <span className="font-medium text-cyan-600">{formatRelativeTime(status.nextRun)}</span>
+                  </div>
+                  {status.lastRun && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Letzter: {formatTime(status.lastRun)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Chart + Error Analysis */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Success/Failure Chart */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-cyan-600" />
+                  Erfolgsquote (7 Tage)
+                </h2>
+                {chartData.length > 0 ? (
+                  <>
+                    <SimpleBarChart data={chartData} />
+                    <div className="flex justify-center gap-4 mt-4 text-xs">
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded" /> Erfolg</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded" /> Teilweise</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded" /> Fehler</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">Keine Daten</p>
+                )}
+              </div>
+
+              {/* Top Errors */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  Häufigste Fehler
+                </h2>
+                {topErrors.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="h-12 w-12 text-green-300 mx-auto mb-2" />
+                    <p className="text-gray-500">Keine Fehler im Zeitraum</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {topErrors.map((error, i) => (
+                      <div key={i} className="p-3 bg-red-50 border border-red-100 rounded-lg">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-red-800 flex-1 break-words">{error.message}</p>
+                          <span className="flex-shrink-0 px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-bold">
+                            {error.count}x
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-red-600">
+                          {error.step && <span>Step: {error.step}</span>}
+                          <span>Zuletzt: {formatTime(error.lastSeen)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Pipeline Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {Object.entries(pipelineStats).map(([pipeline, stats]: [string, any]) => (
@@ -395,6 +666,96 @@ export default function AdminPipelinePage() {
                           )}
                         </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ARTICLES TAB */}
+        {activeTab === 'articles' && (
+          <div className="space-y-6">
+            {/* Manual Pipeline V2 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-blue-600" />
+                Pipeline-V2: Artikel aus URL
+              </h2>
+              <div className="flex gap-3">
+                <input
+                  type="url"
+                  value={v2Url}
+                  onChange={(e) => setV2Url(e.target.value)}
+                  placeholder="https://screenrant.com/..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                />
+                <button
+                  onClick={() => v2Url && runAction('v2-process', { url: v2Url })}
+                  disabled={!v2Url || runningAction !== null}
+                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {runningAction === 'v2-process' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  Generieren
+                </button>
+              </div>
+            </div>
+
+            {/* Last Created Articles */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Newspaper className="h-5 w-5 text-cyan-600" />
+                Zuletzt erstellte Artikel ({lastCreatedArticles.length})
+              </h2>
+              {lastCreatedArticles.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Keine Artikel in den letzten 7 Tagen</p>
+              ) : (
+                <div className="space-y-3">
+                  {lastCreatedArticles.map((article) => (
+                    <div key={article.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {article.heroVideoUrl && <Video className="h-4 w-4 text-red-500" title="Hat Trailer" />}
+                          <a 
+                            href={`/${article.slug}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="font-medium text-gray-900 hover:text-cyan-600 truncate"
+                          >
+                            {article.title}
+                          </a>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className={`px-2 py-0.5 rounded ${
+                            article.id.startsWith('yt-') ? 'bg-red-100 text-red-700' :
+                            article.id.startsWith('trend-') ? 'bg-orange-100 text-orange-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {article.id.startsWith('yt-') ? 'YouTube' : article.id.startsWith('trend-') ? 'Trends' : 'V2'}
+                          </span>
+                          {article.series && <span>{article.series.name}</span>}
+                          {article.users && <span>von {article.users.name}</span>}
+                          <span>{formatTime(article.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          article.status === 'published' || article.status === 'PUBLISHED'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {article.status}
+                        </span>
+                        <a 
+                          href={`/${article.slug}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="p-2 text-gray-400 hover:text-cyan-600"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -573,10 +934,19 @@ export default function AdminPipelinePage() {
         {/* LOGS TAB */}
         {activeTab === 'logs' && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Bug className="h-5 w-5 text-purple-600" />
-              Alle Pipeline-Läufe ({pipelineRuns.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Bug className="h-5 w-5 text-purple-600" />
+                Alle Pipeline-Läufe ({pipelineRuns.length})
+              </h2>
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                <Download className="h-4 w-4" />
+                CSV Export
+              </button>
+            </div>
             
             {pipelineRuns.length === 0 ? (
               <p className="text-gray-500 text-center py-8">Keine Läufe im Zeitraum</p>
