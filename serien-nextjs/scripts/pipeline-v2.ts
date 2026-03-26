@@ -31,6 +31,7 @@ import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
+import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 
 const prisma = new PrismaClient();
 
@@ -62,6 +63,7 @@ interface PipelineV2Source {
   url: string;
   text: string;
   useFullTextMode?: boolean;
+  trigger?: TriggerType;
 }
 
 function generateSlug(title: string): string {
@@ -79,6 +81,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
   console.log(`📄 Source: ${source.title}`);
   console.log(`🔗 URL: ${source.url}\n`);
 
+  // Initialize pipeline logger
+  const logger = new PipelineLogger('pipeline-v2', source.trigger || 'manual');
+  await logger.start({
+    inputQuery: source.title,
+    inputSource: source.url,
+  });
+  
+  logger.log(`Source: ${source.title}`);
+  logger.addMetadata('url', source.url);
+
   const now = new Date();
 
   try {
@@ -87,6 +99,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 1: FULL TEXT FETCH');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 1: Full Text Fetch');
+    logger.log('Schritt 1: Volltext-Abruf...');
     
     let fullSourceText = source.text;
     let sourceWordCount = 0;
@@ -103,6 +116,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
         
         console.log(`✅ Full text: ${sourceWordCount} words`);
+        logger.log(`Volltext: ${sourceWordCount} Wörter`);
+        await logger.update({ wordsCollected: sourceWordCount });
       }
     }
     console.timeEnd('⏱️  STEP 1: Full Text Fetch');
@@ -120,10 +135,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     );
     
     console.log(`✅ Type: ${classification.content_type}`);
+    logger.log(`Klassifiziert als: ${classification.content_type}`);
+    logger.addMetadata('contentType', classification.content_type);
     console.timeEnd('⏱️  STEP 2: Classification');
     
     if (classification.content_type === 'SKIP' || classification.content_type === 'UNKNOWN') {
       console.log('⚠️  Article skipped (not relevant)');
+      await logger.fail('Artikel übersprungen (nicht relevant)', 'classification');
       return null;
     }
     
@@ -135,13 +153,19 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 3: ENHANCED TMDB RESOLUTION ⚡');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 3: TMDB Resolution');
+    logger.log('Schritt 3: TMDB-Auflösung...');
     
     const searchResult = await searchTvEnhanced(source.title, fullSourceText);
     
     if (!searchResult || searchResult.confidence < 0.6) {
       console.log('❌ No confident TMDB match found');
+      await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
       return null;
     }
+    
+    logger.log(`Serie: ${searchResult.name} (TMDB: ${searchResult.tmdbId})`);
+    logger.addMetadata('seriesName', searchResult.name);
+    logger.addMetadata('tmdbId', searchResult.tmdbId);
     
     console.log(`✅ Series: ${searchResult.name} (ID: ${searchResult.tmdbId})`);
     console.log(`   Confidence: ${(searchResult.confidence * 100).toFixed(1)}%`);
@@ -218,6 +242,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`   Headline: "${structuredContent.headline}"`);
     console.log(`   Sections: ${structuredContent.sections.length} with H2s`);
     console.log(`   Q&A: ${structuredContent.qa.length} pairs`);
+    logger.log(`Headline: ${structuredContent.headline}`);
     console.timeEnd('⏱️  STEP 5: Content Generation');
 
     // ========== STEP 5.1: QUALITY GATES ==========
@@ -225,9 +250,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 5.1: QUALITY GATES');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 5.1: Quality Gates');
+    logger.log('Quality Gates prüfen...');
     
     // Note: Quality gates are lenient in v2 to allow content through
     // They log warnings but don't block publication
+    
+    let antiAiScore = 0;
     
     try {
       // Quality Check
@@ -248,7 +276,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
         headline: structuredContent.headline,
         seriesName: dbSeries.name || dbSeries.title || '',
       });
+      antiAiScore = antiAiResult.antiAiScore;
       console.log(`✅ Anti-AI filter: ${antiAiResult.status === 'PASS' ? 'Passed' : 'Warnings'}`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100`);
+      await logger.update({ antiAiScore });
     } catch (error: any) {
       console.log(`⚠️  Anti-AI filter skipped: ${error.message}`);
     }
@@ -578,6 +609,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Character Links: Yes`);
     console.log('='.repeat(70));
     
+    logger.log(`Artikel gespeichert: ${slug}`);
+    await logger.success({
+      articleId,
+      articleSlug: slug,
+      articleTitle: structuredContent.headline,
+    });
+    
     return {
       articleId,
       slug,
@@ -590,6 +628,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('='.repeat(70));
     console.log(`Error: ${error.message}`);
     console.log(error.stack);
+    
+    await logger.fail(error.message, 'unknown');
     
     throw error;
   }
