@@ -858,6 +858,45 @@ export async function runP3TrendsPipeline(
       wordsCollected: info.totalWordCount 
     });
     
+    // ========== SOURCE AGE CHECK (6 Stunden Maximum) ==========
+    // Für Trends: Prüfe ob mindestens eine Quelle aktuell genug ist
+    const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden
+    let hasRecentSource = false;
+    let newestSourceAge = Infinity;
+    
+    for (const article of info.articles) {
+      // Versuche das Datum aus dem Artikel zu extrahieren (falls verfügbar)
+      if (article.publishedAt) {
+        const articleDate = new Date(article.publishedAt);
+        const articleAge = now.getTime() - articleDate.getTime();
+        newestSourceAge = Math.min(newestSourceAge, articleAge);
+        if (articleAge <= maxAgeMs) {
+          hasRecentSource = true;
+          break;
+        }
+      } else {
+        // Ohne Datum: Nehme an, dass die Quelle aktuell ist (Fallback)
+        hasRecentSource = true;
+        break;
+      }
+    }
+    
+    const newestAgeHours = newestSourceAge === Infinity ? 'unbekannt' : Math.round(newestSourceAge / (60 * 60 * 1000) * 10) / 10;
+    
+    if (!hasRecentSource && trigger !== 'manual') {
+      console.log(`\n⏰ QUELLEN ZU ALT: Neueste Quelle ${newestAgeHours} Stunden (max: 6 Stunden)`);
+      console.log(`   → Überspringe Trend. Nur manuelle Trigger erlaubt für ältere Quellen.`);
+      logger.log(`Quellen zu alt: ${newestAgeHours}h (max 6h)`);
+      await logger.fail(`Quellen zu alt: ${newestAgeHours}h`, 'source-age-check');
+      return { success: false, trendId, error: `Quellen zu alt: ${newestAgeHours}h` };
+    }
+    
+    if (trigger === 'manual') {
+      console.log(`   ⏰ Quellen-Alter: ${newestAgeHours} Stunden (manueller Trigger - Alterscheck übersprungen)`);
+    } else {
+      console.log(`   ⏰ Quellen-Alter: ${newestAgeHours} Stunden ✓`);
+    }
+    
     // ========== STEP 2: RESOLVE SERIES ==========
     console.log('\n' + '━'.repeat(60));
     console.log('STEP 2: SERIE AUFLÖSEN');

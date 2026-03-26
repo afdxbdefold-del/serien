@@ -121,6 +121,54 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
     console.timeEnd('⏱️  STEP 1: Full Text Fetch');
+    
+    // ========== SOURCE AGE CHECK (6 Stunden Maximum) ==========
+    const trigger = source.trigger || 'manual';
+    const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden
+    
+    // Versuche das Datum aus dem Text zu extrahieren (suche nach Datumsmustern)
+    let sourceDate: Date | null = null;
+    const datePatterns = [
+      /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})/i,
+      /(\d{4})-(\d{2})-(\d{2})/,
+      /(\d{1,2})\.(\d{1,2})\.(\d{4})/,
+    ];
+    
+    for (const pattern of datePatterns) {
+      const match = fullSourceText.match(pattern);
+      if (match) {
+        try {
+          if (pattern.source.includes('Januar')) {
+            // German month format
+            const months: Record<string, number> = {
+              'januar': 0, 'februar': 1, 'märz': 2, 'april': 3, 'mai': 4, 'juni': 5,
+              'juli': 6, 'august': 7, 'september': 8, 'oktober': 9, 'november': 10, 'dezember': 11
+            };
+            sourceDate = new Date(parseInt(match[3]), months[match[2].toLowerCase()], parseInt(match[1]));
+          } else {
+            sourceDate = new Date(match[0]);
+          }
+          if (!isNaN(sourceDate.getTime())) break;
+        } catch {}
+      }
+    }
+    
+    if (sourceDate) {
+      const sourceAge = now.getTime() - sourceDate.getTime();
+      const sourceAgeHours = Math.round(sourceAge / (60 * 60 * 1000) * 10) / 10;
+      
+      if (sourceAge > maxAgeMs && trigger !== 'manual') {
+        console.log(`\n⏰ QUELLE ZU ALT: ${sourceAgeHours} Stunden (max: 6 Stunden)`);
+        console.log(`   → Überspringe Artikel. Nur manuelle Trigger erlaubt für ältere Quellen.`);
+        logger.log(`Quelle zu alt: ${sourceAgeHours}h (max 6h)`);
+        await logger.fail(`Quelle zu alt: ${sourceAgeHours}h`, 'source-age-check');
+        return null;
+      }
+      
+      console.log(`   ⏰ Quellen-Alter: ${sourceAgeHours} Stunden ${trigger === 'manual' ? '(manueller Trigger)' : '✓'}`);
+    } else {
+      console.log(`   ⏰ Quellen-Alter: nicht ermittelbar ${trigger === 'manual' ? '(manueller Trigger)' : '- wird akzeptiert'}`);
+    }
 
     // ========== STEP 2: CLASSIFICATION ==========
     console.log('\n' + '━'.repeat(70));

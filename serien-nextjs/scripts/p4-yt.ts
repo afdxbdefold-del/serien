@@ -575,6 +575,21 @@ export async function generateArticleFromVideo(
   
   const now = new Date();
   
+  // ========== SOURCE AGE CHECK (6 Stunden Maximum) ==========
+  const videoAge = now.getTime() - video.publishedAt.getTime();
+  const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden in Millisekunden
+  const videoAgeHours = Math.round(videoAge / (60 * 60 * 1000) * 10) / 10;
+  
+  if (videoAge > maxAgeMs && trigger !== 'manual') {
+    console.log(`\n⏰ VIDEO ZU ALT: ${videoAgeHours} Stunden (max: 6 Stunden)`);
+    console.log(`   → Überspringe Video. Nur manuelle Trigger erlaubt für ältere Quellen.`);
+    logger.log(`Video zu alt: ${videoAgeHours}h (max 6h)`);
+    await logger.fail(`Video zu alt: ${videoAgeHours}h`, 'source-age-check');
+    return { success: false, videoId: video.videoId, error: `Video zu alt: ${videoAgeHours}h` };
+  }
+  
+  console.log(`   ⏰ Video-Alter: ${videoAgeHours} Stunden ${trigger === 'manual' ? '(manueller Trigger)' : '✓'}`);
+  
   try {
     // ========== STEP 1: EXTRACT SERIES NAME ==========
     console.log('━'.repeat(60));
@@ -1240,8 +1255,9 @@ ${additionalSources}
 // ══════════════════════════════════════════════════════════════════════════
 // PROCESS UNPROCESSED VIDEOS
 // ══════════════════════════════════════════════════════════════════════════
-export async function processUnprocessedVideos(limit: number = 5): Promise<YTArticleResult[]> {
+export async function processUnprocessedVideos(limit: number = 5, trigger: TriggerType = 'cron'): Promise<YTArticleResult[]> {
   console.log('\n🎬 Verarbeite unverarbeitete Videos...\n');
+  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})`);
   
   const unprocessedVideos = await prisma.youtube_videos.findMany({
     where: { processed: false },
@@ -1268,7 +1284,7 @@ export async function processUnprocessedVideos(limit: number = 5): Promise<YTArt
       publishedAt: video.publishedAt,
       channelId: video.channelId,
       channelName: video.channel.name,
-    });
+    }, trigger);
     
     results.push(result);
     
@@ -1282,20 +1298,23 @@ export async function processUnprocessedVideos(limit: number = 5): Promise<YTArt
 // ══════════════════════════════════════════════════════════════════════════
 // MAIN: CHECK AND PROCESS
 // ══════════════════════════════════════════════════════════════════════════
-export async function runP4YTPipeline(): Promise<{
+// MAIN: P4 PIPELINE (für Admin Dashboard Trigger)
+// ══════════════════════════════════════════════════════════════════════════
+export async function runP4YTPipeline(trigger: TriggerType = 'cron'): Promise<{
   newVideos: number;
   processed: number;
   results: YTArticleResult[];
 }> {
   console.log('\n' + '═'.repeat(70));
   console.log('🚀 P4-YT PIPELINE START');
+  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})`);
   console.log('═'.repeat(70));
   
   // Step 1: Check for new videos
   const newVideos = await checkForNewVideos();
   
   // Step 2: Process unprocessed videos
-  const results = await processUnprocessedVideos(5);
+  const results = await processUnprocessedVideos(5, trigger);
   
   const successful = results.filter(r => r.success).length;
   
