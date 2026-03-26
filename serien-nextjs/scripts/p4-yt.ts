@@ -699,38 +699,67 @@ export async function generateArticleFromVideo(
     let additionalSources = '';
     let totalWordCount = 0;
     
-    try {
-      // Search DuckDuckGo for additional sources - same as p3-trends
-      const { gatherInfoForTrend } = await import('./p3-trends');
-      const sourceInfo = await gatherInfoForTrend(seriesName || video.title);
+    // PFLICHT: Mindestens 3 Quellen-Versuche für Google Discover Qualität
+    const sourceAttempts: { query: string; type: string }[] = [
+      { query: `${seriesName || video.title} Serie News 2024 2025 2026`, type: 'news' },
+      { query: `${seriesName || video.title} Serie Handlung Cast Schauspieler`, type: 'background' },
+      { query: `${seriesName || video.title} Staffel Kritik Review`, type: 'review' },
+    ];
+    
+    for (const attempt of sourceAttempts) {
+      if (totalWordCount >= 500) break; // Genug Quellen gefunden
       
-      if (sourceInfo.totalWordCount > 100 && sourceInfo.articles.length > 0) {
-        // Extract content from articles (same format as p3-trends)
-        additionalSources = sourceInfo.articles
-          .filter((a: any) => a.content && a.content.length > 50)
-          .map((a: any) => `[Quelle: ${a.source}]\n${a.content}`)
-          .join('\n\n---\n\n');
-        totalWordCount = sourceInfo.totalWordCount;
-        console.log(`   ✓ ${sourceInfo.articles.length} Quellen gefunden (${totalWordCount} Wörter)`);
-      } else {
-        console.log(`   ⚠️ Wenig zusätzliche Quellen gefunden - suche nach Hintergrundinfos...`);
+      try {
+        console.log(`   🔍 Suche: "${attempt.query}" (${attempt.type})`);
+        const { gatherInfoForTrend } = await import('./p3-trends');
+        const sourceInfo = await gatherInfoForTrend(attempt.query);
         
-        // Fallback: Try to find background info about the series/game
-        const backgroundQuery = `${seriesName || video.title} Serie Handlung Cast`;
-        const backgroundInfo = await gatherInfoForTrend(backgroundQuery);
-        
-        if (backgroundInfo.totalWordCount > 50) {
-          additionalSources = backgroundInfo.articles
+        if (sourceInfo.totalWordCount > 50 && sourceInfo.articles.length > 0) {
+          const newContent = sourceInfo.articles
             .filter((a: any) => a.content && a.content.length > 50)
-            .map((a: any) => `[Hintergrund: ${a.source}]\n${a.content}`)
+            .map((a: any) => `[${attempt.type === 'news' ? 'Quelle' : 'Hintergrund'}: ${a.source}]\n${a.content}`)
             .join('\n\n---\n\n');
-          totalWordCount = backgroundInfo.totalWordCount;
-          console.log(`   ✓ Hintergrundinfos gefunden: ${totalWordCount} Wörter`);
+          
+          if (newContent) {
+            additionalSources += (additionalSources ? '\n\n═══════════════════════════════════════════════════════════\n\n' : '') + newContent;
+            totalWordCount += sourceInfo.totalWordCount;
+            console.log(`   ✓ ${sourceInfo.articles.length} Quellen (${sourceInfo.totalWordCount} Wörter)`);
+          }
+        } else {
+          console.log(`   ⚠️ Wenig Ergebnisse für: ${attempt.type}`);
+        }
+      } catch (error: any) {
+        console.log(`   ⚠️ Suche fehlgeschlagen (${attempt.type}): ${(error.message || '').substring(0, 30)}`);
+      }
+    }
+    
+    // FALLBACK: Wenn immer noch zu wenig, nutze erweiterte TMDB-Daten
+    if (totalWordCount < 200 && tmdbData) {
+      console.log(`   📺 Erweitere mit TMDB-Details...`);
+      
+      // Hole Cast-Details für reichhaltigeren Content
+      if (dbSeries) {
+        try {
+          const castMembers = await prisma.series_cast.findMany({
+            where: { seriesId: dbSeries.tmdbId },
+            include: { person: true },
+            take: 10,
+          });
+          
+          if (castMembers.length > 0) {
+            const castInfo = castMembers
+              .map((c: any) => `${c.person?.name || 'Unbekannt'} als ${c.character || 'unbekannte Rolle'}`)
+              .join(', ');
+            additionalSources += `\n\n═══════════════════════════════════════════════════════════\nCAST: ${castInfo}`;
+            console.log(`   ✓ ${castMembers.length} Cast-Mitglieder aus DB`);
+          }
+        } catch (e) {
+          // Ignore
         }
       }
-    } catch (error: any) {
-      console.log(`   ⚠️ Quellensuche fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
     }
+    
+    console.log(`   📊 Gesamt: ${totalWordCount} Wörter aus externen Quellen`);
     
     // ========== STEP 4: GENERATE CONTENT ==========
     console.log('\n━'.repeat(60));
@@ -1148,6 +1177,47 @@ ${additionalSources}
     console.log('━'.repeat(60));
     
     await Promise.allSettled([
+      // Save Q&A (wie P2!)
+      (async () => {
+        if (structuredContent.qa && structuredContent.qa.length > 0) {
+          try {
+            const qaId = `qa-${article.id}`;
+            
+            // Determine heading type based on title
+            const titleLower = (structuredContent.headline || '').toLowerCase();
+            let headingType = 'default';
+            
+            if (titleLower.includes('trailer')) {
+              headingType = 'trailer';
+            } else if (titleLower.includes('episode') || titleLower.includes('folge') || /s\d+e\d+/i.test(titleLower)) {
+              headingType = 'episode';
+            } else if (titleLower.includes('finale') || titleLower.includes('final')) {
+              headingType = 'finale';
+            } else if (titleLower.includes('staffel') || titleLower.includes('season')) {
+              headingType = 'season';
+            } else if (titleLower.includes('start') || titleLower.includes('release') || titleLower.includes('verfügbar')) {
+              headingType = 'release';
+            }
+            
+            await prisma.article_qa.create({
+              data: {
+                id: qaId,
+                articleId: article.id,
+                questions: structuredContent.qa,
+                schemaEnabled: true,
+                headingType,
+                updatedAt: now,
+              },
+            });
+            console.log(`   ✅ Q&A gespeichert: ${structuredContent.qa.length} Fragen (${headingType})`);
+          } catch (error: any) {
+            console.log(`   ⚠️ Q&A speichern fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
+          }
+        } else {
+          console.log(`   ⚠️ Keine Q&A generiert`);
+        }
+      })(),
+      
       // Generate "Was bedeutet das" section
       (async () => {
         try {
