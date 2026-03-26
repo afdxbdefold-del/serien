@@ -197,7 +197,7 @@ async function filterSeriesTrends(trends: string[]): Promise<string[]> {
 
 /**
  * Check if a trend is related to TV via TMDB search
- * Only accepts if trend also has an event keyword
+ * Returns true ONLY if we find a strong TMDB match with ID
  */
 async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; tmdbId?: number; name?: string }> {
   const apiKey = process.env.TMDB_API_KEY;
@@ -205,14 +205,16 @@ async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; t
   
   const lower = trend.toLowerCase();
   
-  // MUST have event keyword even for TMDB matches
-  const hasEventKeyword = EVENT_KEYWORDS.some(kw => lower.includes(kw));
-  if (!hasEventKeyword) {
+  // Skip very short or generic terms
+  if (trend.length < 4 || ['teams', 'news', 'live', 'app', 'video', 'mario', 'merz', 'abba'].includes(lower)) {
     return { isSeries: false };
   }
   
-  // Skip very short or generic terms
-  if (trend.length < 4 || ['teams', 'news', 'live', 'app', 'video'].includes(lower)) {
+  // Exclude obvious non-series terms
+  const nonSeriesKeywords = ['politik', 'wahl', 'partei', 'cdu', 'spd', 'afd', 'grüne', 'bundestag', 
+                             'fußball', 'bundesliga', 'champions', 'wm ', 'em ', 'dfb',
+                             'wetter', 'börse', 'aktie', 'dax', 'bitcoin'];
+  if (nonSeriesKeywords.some(kw => lower.includes(kw))) {
     return { isSeries: false };
   }
   
@@ -234,10 +236,10 @@ async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; t
       const trendLower = searchTerm.toLowerCase();
       const seriesLower = series.name.toLowerCase();
       
-      // Check for strong match
+      // Check for strong match (must be close to exact)
       const isStrongMatch = seriesLower.startsWith(trendLower) || 
                             trendLower.startsWith(seriesLower) ||
-                            seriesLower.includes(trendLower) && trendLower.length > 5;
+                            (seriesLower.includes(trendLower) && trendLower.length > 5);
       
       const firstWord = seriesLower.split(' ')[0];
       const isPopularMatch = series.vote_count > 500 && trendLower.includes(firstWord) && firstWord.length > 3;
@@ -316,7 +318,7 @@ async function findNewsForTrend(trend: string): Promise<string[]> {
 }
 
 /**
- * Save trending topics to database
+ * Save trending topics to database - ONLY with verified TMDB ID
  */
 async function saveTrendingTopics(trends: string[]): Promise<void> {
   const today = new Date();
@@ -324,6 +326,16 @@ async function saveTrendingTopics(trends: string[]): Promise<void> {
   
   for (const trend of trends) {
     try {
+      // TMDB-Validierung: Nur Trends mit bestätigter Serie speichern
+      const tmdbCheck = await checkTMDBForSeries(trend);
+      
+      if (!tmdbCheck.isSeries || !tmdbCheck.tmdbId) {
+        console.log(`   ⏭️ Übersprungen (keine TMDB-ID): ${trend}`);
+        continue;
+      }
+      
+      console.log(`   ✅ Speichere: ${trend} → ${tmdbCheck.name} (TMDB: ${tmdbCheck.tmdbId})`);
+      
       await prisma.trending_topics.upsert({
         where: {
           query_date: {
@@ -333,12 +345,14 @@ async function saveTrendingTopics(trends: string[]): Promise<void> {
         },
         update: {
           fetchedAt: new Date(),
+          tmdbId: tmdbCheck.tmdbId,
         },
         create: {
           query: trend,
           title: trend,
           category: 'series',
           growth: 'trending',
+          tmdbId: tmdbCheck.tmdbId,
           date: today,
           fetchedAt: new Date(),
         }
