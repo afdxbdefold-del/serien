@@ -458,6 +458,129 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Add new YouTube channel
+    if (action === 'add-channel') {
+      const { channelUrl, channelName } = body;
+      if (!channelUrl) {
+        return NextResponse.json({ error: 'channelUrl required' }, { status: 400 });
+      }
+      
+      // Extract channel ID from URL
+      // Formats: 
+      // - https://www.youtube.com/@ChannelName
+      // - https://www.youtube.com/channel/UCxxxxxx
+      // - https://www.youtube.com/c/ChannelName
+      let extractedChannelId: string | null = null;
+      let extractedName = channelName || '';
+      
+      try {
+        const url = new URL(channelUrl);
+        const pathname = url.pathname;
+        
+        if (pathname.startsWith('/@')) {
+          // Handle @username format - need to fetch channel page to get ID
+          const response = await fetch(channelUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(10000)
+          });
+          const html = await response.text();
+          
+          // Extract channel ID from page
+          const channelIdMatch = html.match(/channel_id=([^"&]+)/);
+          if (channelIdMatch) {
+            extractedChannelId = channelIdMatch[1];
+          }
+          
+          // Extract name if not provided
+          if (!extractedName) {
+            const nameMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
+            if (nameMatch) {
+              extractedName = nameMatch[1];
+            } else {
+              extractedName = pathname.substring(2); // Remove /@
+            }
+          }
+        } else if (pathname.startsWith('/channel/')) {
+          extractedChannelId = pathname.split('/channel/')[1].split('/')[0];
+          extractedName = extractedName || extractedChannelId;
+        } else if (pathname.startsWith('/c/')) {
+          // Custom URL - need to fetch page
+          const response = await fetch(channelUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(10000)
+          });
+          const html = await response.text();
+          const channelIdMatch = html.match(/channel_id=([^"&]+)/);
+          if (channelIdMatch) {
+            extractedChannelId = channelIdMatch[1];
+          }
+          if (!extractedName) {
+            extractedName = pathname.split('/c/')[1];
+          }
+        }
+      } catch (e) {
+        return NextResponse.json({ 
+          error: 'Konnte Channel-ID nicht extrahieren. Bitte direkte Channel-URL verwenden.' 
+        }, { status: 400 });
+      }
+      
+      if (!extractedChannelId) {
+        return NextResponse.json({ 
+          error: 'Konnte Channel-ID nicht extrahieren. Bitte URL im Format youtube.com/channel/UCxxxx verwenden.' 
+        }, { status: 400 });
+      }
+      
+      // Check if already exists
+      const existing = await prisma.youtube_channels.findUnique({
+        where: { channelId: extractedChannelId }
+      });
+      
+      if (existing) {
+        return NextResponse.json({ 
+          error: `Kanal "${existing.name}" existiert bereits` 
+        }, { status: 400 });
+      }
+      
+      // Create channel
+      const newChannel = await prisma.youtube_channels.create({
+        data: {
+          channelId: extractedChannelId,
+          name: extractedName,
+          url: channelUrl,
+          isActive: true,
+        }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `Kanal "${newChannel.name}" hinzugefügt`,
+        channel: newChannel
+      });
+    }
+
+    // Delete YouTube channel
+    if (action === 'delete-channel') {
+      const { channelId } = body;
+      if (!channelId) {
+        return NextResponse.json({ error: 'channelId required' }, { status: 400 });
+      }
+      
+      // First delete all videos from this channel
+      await prisma.youtube_videos.deleteMany({
+        where: { channelId }
+      });
+      
+      // Then delete the channel
+      const deleted = await prisma.youtube_channels.delete({
+        where: { channelId }
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: `Kanal "${deleted.name}" und alle Videos gelöscht`
+      });
+    }
+
     // Delete video
     if (action === 'delete-video') {
       if (!videoId) {

@@ -8,7 +8,7 @@ import {
   Youtube, Flame, Tv, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Zap, FileText, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Activity, Timer, Target, Bug, Download, Bell, BellOff, Link2,
-  BarChart3, AlertTriangle, Calendar, Video, Newspaper
+  BarChart3, AlertTriangle, Calendar, Video, Newspaper, Plus, X
 } from 'lucide-react';
 
 interface PipelineRun {
@@ -116,6 +116,9 @@ export default function AdminPipelinePage() {
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [trendSearchTerm, setTrendSearchTerm] = useState('');
   const [v2Url, setV2Url] = useState('');
+  const [newChannelUrl, setNewChannelUrl] = useState('');
+  const [newChannelName, setNewChannelName] = useState('');
+  const [showAddChannel, setShowAddChannel] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
@@ -1020,22 +1023,88 @@ export default function AdminPipelinePage() {
 
               {/* Channels */}
               <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Kanäle ({channels.length})</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Kanäle ({channels.length})</h2>
+                  <button
+                    onClick={() => setShowAddChannel(!showAddChannel)}
+                    className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                    title="Kanal hinzufügen"
+                  >
+                    {showAddChannel ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                  </button>
+                </div>
+                
+                {/* Add Channel Form */}
+                {showAddChannel && (
+                  <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-sm text-green-800 mb-2 font-medium">Neuen YouTube-Kanal hinzufügen</p>
+                    <input
+                      type="text"
+                      value={newChannelUrl}
+                      onChange={(e) => setNewChannelUrl(e.target.value)}
+                      placeholder="YouTube URL (z.B. youtube.com/@Netflix)"
+                      className="w-full px-3 py-2 text-sm border border-green-300 rounded-lg mb-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <input
+                      type="text"
+                      value={newChannelName}
+                      onChange={(e) => setNewChannelName(e.target.value)}
+                      placeholder="Name (optional)"
+                      className="w-full px-3 py-2 text-sm border border-green-300 rounded-lg mb-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!newChannelUrl.trim()) return;
+                        await runAction('add-channel', { 
+                          channelUrl: newChannelUrl.trim(),
+                          channelName: newChannelName.trim() || undefined
+                        });
+                        setNewChannelUrl('');
+                        setNewChannelName('');
+                        setShowAddChannel(false);
+                      }}
+                      disabled={runningAction !== null || !newChannelUrl.trim()}
+                      className="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {runningAction === 'add-channel' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Kanal hinzufügen
+                    </button>
+                  </div>
+                )}
+                
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {channels.map((channel) => (
-                    <div key={channel.channelId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={channel.channelId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
                       <div className="flex-1 min-w-0">
                         <a href={channel.url} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-900 hover:text-red-600 truncate block">
                           {channel.name}
                         </a>
                         <p className="text-xs text-gray-500">{channel._count.videos} Videos</p>
                       </div>
-                      <button
-                        onClick={() => runAction('toggle-channel', { channelId: channel.channelId, isActive: !channel.isActive })}
-                        className={`p-2 rounded-lg ${channel.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                      >
-                        {channel.isActive ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => runAction('toggle-channel', { channelId: channel.channelId, isActive: !channel.isActive })}
+                          className={`p-2 rounded-lg ${channel.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                          title={channel.isActive ? 'Deaktivieren' : 'Aktivieren'}
+                        >
+                          {channel.isActive ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Kanal "${channel.name}" und alle zugehörigen Videos wirklich löschen?`)) {
+                              runAction('delete-channel', { channelId: channel.channelId });
+                            }
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Kanal löschen"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
