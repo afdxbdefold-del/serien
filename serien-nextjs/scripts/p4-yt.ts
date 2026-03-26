@@ -23,6 +23,8 @@ import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger } from '../lib/pipeline-logger';
+import { importSeriesCharacters } from './import-characters';
+import { importSeriesCast } from '../lib/cast-importer';
 
 const prisma = new PrismaClient();
 
@@ -336,14 +338,22 @@ function extractSeriesFromTitle(title: string): string | null {
   // "Squid Game: Staffel 2 | Offizieller Trailer | Netflix"
   // "Wednesday Staffel 2 | Teaser | Netflix"
   // "ADOLESCENCE | Offizieller Trailer | Netflix"
+  // "Scrubs - Neu & exklusiv auf Disney+"
   
   // Remove common suffixes
   let cleaned = title
+    // Remove platform announcements
+    .replace(/\s*[-–]\s*(Neu\s*(&|und)\s*)?(exklusiv\s*)?(auf|bei)\s*(Disney\+?|Netflix|Prime Video|Amazon|Apple TV\+?|WOW|RTL\+?|Paramount\+?|Joyn).*$/i, '')
+    .replace(/\s*[-–]\s*jetzt\s*(auf|bei|streamen).*$/i, '')
+    .replace(/\s*[-–]\s*ab\s*(sofort|jetzt).*$/i, '')
+    // Remove trailer/teaser suffixes
     .replace(/\s*\|\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung|Clip|Sneak Peek).*$/i, '')
     .replace(/\s*-\s*(Offizieller\s*)?(Trailer|Teaser|Ankündigung).*$/i, '')
+    // Remove season info
     .replace(/\s*:\s*Staffel\s*\d+.*$/i, '')
     .replace(/\s+Staffel\s*\d+.*$/i, '')
-    .replace(/\s*\(.*?\)\s*$/g, '') // Remove parentheses at end
+    // Remove parentheses
+    .replace(/\s*\(.*?\)\s*$/g, '')
     .trim();
   
   // If still too long, take first part before | or :
@@ -362,6 +372,10 @@ async function findTmdbSeries(seriesName: string): Promise<{
   tmdbId: number;
   name: string;
   backdropPath: string | null;
+  posterPath: string | null;
+  overview: string;
+  status: string;
+  firstAirDate: string | null;
 } | null> {
   try {
     const apiKey = process.env.TMDB_API_KEY;
@@ -373,10 +387,24 @@ async function findTmdbSeries(seriesName: string): Promise<{
     
     if (data.results && data.results.length > 0) {
       const series = data.results[0];
+      
+      // Get detailed info for status
+      let status = 'Unknown';
+      try {
+        const detailUrl = `https://api.themoviedb.org/3/tv/${series.id}?api_key=${apiKey}&language=de-DE`;
+        const detailRes = await fetch(detailUrl);
+        const detailData = await detailRes.json();
+        status = detailData.status || 'Unknown';
+      } catch {}
+      
       return {
         tmdbId: series.id,
         name: series.name,
         backdropPath: series.backdrop_path,
+        posterPath: series.poster_path,
+        overview: series.overview || '',
+        status,
+        firstAirDate: series.first_air_date || null,
       };
     }
   } catch (error) {
@@ -436,12 +464,12 @@ export async function generateArticleFromVideo(
     logger.addMetadata('seriesName', seriesName);
     
     // ========== STEP 2: FIND TMDB SERIES ==========
-    let tmdbData: { tmdbId: number; name: string; backdropPath: string | null } | null = null;
+    let tmdbData: { tmdbId: number; name: string; backdropPath: string | null; posterPath?: string | null; overview?: string; status?: string; firstAirDate?: string } | null = null;
     let dbSeries: any = null;
     
     if (seriesName) {
       console.log('\n━'.repeat(60));
-      console.log('STEP 2: TMDB SUCHE');
+      console.log('STEP 2: TMDB SUCHE & SERIE ERSTELLEN');
       console.log('━'.repeat(60));
       
       tmdbData = await findTmdbSeries(seriesName);
@@ -454,9 +482,45 @@ export async function generateArticleFromVideo(
           where: { tmdbId: tmdbData.tmdbId }
         });
         
-        if (dbSeries) {
-          console.log(`   ✓ Serie in DB gefunden`);
+        if (!dbSeries) {
+          // Create series - same as p3-trends
+          console.log('   📺 Erstelle neue Serie...');
+          try {
+            dbSeries = await prisma.series.create({
+              data: {
+                tmdbId: tmdbData.tmdbId,
+                name: tmdbData.name,
+                title: tmdbData.name,
+                slug: generateSeriesSlug(tmdbData.name, tmdbData.tmdbId),
+                posterPath: tmdbData.posterPath || null,
+                backdropPath: tmdbData.backdropPath || null,
+                overview: tmdbData.overview || '',
+                status: tmdbData.status || 'Unknown',
+                firstAirDate: tmdbData.firstAirDate ? new Date(tmdbData.firstAirDate) : null,
+                updatedAt: now,
+              }
+            });
+            console.log(`   ✓ Serie erstellt: ${dbSeries.name}`);
+            
+            // Import characters and cast in parallel - same as p3-trends
+            try {
+              await Promise.all([
+                importSeriesCharacters(tmdbData.tmdbId),
+                importSeriesCast(tmdbData.tmdbId)
+              ]);
+              console.log(`   ✓ Characters & Cast importiert`);
+            } catch (e) {
+              console.log('   ⚠️ Character/Cast Import fehlgeschlagen');
+            }
+          } catch (createError: any) {
+            console.log(`   ⚠️ Serie erstellen fehlgeschlagen: ${createError.message}`);
+          }
+        } else {
+          console.log(`   ✓ Serie existiert bereits: ${dbSeries.name}`);
         }
+        
+        logger.addMetadata('tmdbId', tmdbData.tmdbId);
+        logger.addMetadata('seriesDbId', dbSeries?.id);
       } else {
         console.log(`   ⚠️ Keine TMDB-Serie gefunden`);
       }
@@ -719,7 +783,8 @@ ${additionalSources}
     const articleId = `yt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     // Only set primarySeriesId if series exists in DB (foreign key constraint)
-    const seriesIdForArticle = dbSeries ? dbSeries.tmdbId : null;
+    // primarySeriesId uses the DB id (not tmdbId)
+    const seriesIdForArticle = dbSeries ? dbSeries.id : null;
     
     const article = await prisma.articles.create({
       data: {
