@@ -26,8 +26,8 @@ function detectRankingList(
   sourceUrl: string,
   sourceText: string
 ): { isRanking: boolean; itemCount: number; signals: string[] } {
-  const titleLower = sourceTitle.toLowerCase();
-  const urlLower = sourceUrl.toLowerCase();
+  const titleLower = (sourceTitle || '').toLowerCase();
+  const urlLower = (sourceUrl || '').toLowerCase();
   const signals: string[] = [];
   
   // Signal A: Title keywords
@@ -148,7 +148,7 @@ export async function routeContentType(
   
   // Step 3: Check for EXPLAINER (how-to, guide, explanation)
   const explainerKeywords = ['how to', 'explained', 'guide', 'what is', 'why', 'verstehen', 'erklärt'];
-  const isExplainer = explainerKeywords.some(kw => sourceTitle.toLowerCase().includes(kw));
+  const isExplainer = explainerKeywords.some(kw => (sourceTitle || '').toLowerCase().includes(kw));
   
   if (isExplainer) {
     return {

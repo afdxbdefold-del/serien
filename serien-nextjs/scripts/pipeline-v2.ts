@@ -659,7 +659,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Discover Gate
       (async () => {
         try {
-          await discoverGate(articleId, structuredContent.headline, finalContentHtml);
+          await discoverGate({
+            final_headline: structuredContent.headline || '',
+            article_html: finalContentHtml || '',
+            hero_image_metadata: {
+              url: backdropToUse || '',
+              width: 1920,
+              height: 1080,
+              source: 'TMDB_BACKDROP' as const
+            },
+            publishedAt: new Date(),
+            primary_series: dbSeries.name || dbSeries.title || ''
+          });
           console.log(`   ✅ Discover Gate processed`);
         } catch (error: any) {
           console.log(`   ⚠️  Discover Gate failed: ${error.message}`);

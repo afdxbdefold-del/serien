@@ -189,12 +189,16 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   let score = 0;
   let verdict: 'PASS' | 'FAIL' = 'PASS';
   
+  // Safety check
+  const safeHeadline = headline || '';
+  const safeSeriesName = seriesName || '';
+  
   // 1. Klar + spezifisch (10 Punkte)
   const isGeneric = GENERIC_HEADLINE_PATTERNS.some(pattern => 
-    headline.toLowerCase().includes(pattern.toLowerCase())
+    safeHeadline.toLowerCase().includes(pattern.toLowerCase())
   );
   
-  const clarity_specific = !isGeneric && headline.length <= 70 && headline.length >= 20;
+  const clarity_specific = !isGeneric && safeHeadline.length <= 70 && safeHeadline.length >= 20;
   if (clarity_specific) {
     score += 10;
   } else {
@@ -202,7 +206,7 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   }
   
   // 2. Serienname explizit genannt (10 Punkte)
-  const series_name_present = headline.toLowerCase().includes(seriesName.toLowerCase());
+  const series_name_present = safeHeadline.toLowerCase().includes(safeSeriesName.toLowerCase());
   if (series_name_present) {
     score += 10;
   } else {
@@ -212,7 +216,7 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   
   // 3. News-Wert erkennbar (10 Punkte)
   const newsWords = ['bestätigt', 'startet', 'endet', 'angekündigt', 'veröffentlicht', 'beendet', 'erhält'];
-  const news_value_clear = newsWords.some(word => headline.toLowerCase().includes(word));
+  const news_value_clear = newsWords.some(word => safeHeadline.toLowerCase().includes(word));
   if (news_value_clear) {
     score += 10;
   } else {
@@ -220,7 +224,7 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   }
   
   // FAIL Checks
-  const words = headline.toLowerCase().split(/\s+/);
+  const words = safeHeadline.toLowerCase().split(/\s+/);
   const duplicates = words.filter((word, index) => words.indexOf(word) !== index);
   const has_duplicates = duplicates.length > 0;
   
@@ -232,7 +236,7 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   }
   
   const is_clickbait = CLICKBAIT_PATTERNS.some(pattern => 
-    headline.toLowerCase().includes(pattern.toLowerCase())
+    safeHeadline.toLowerCase().includes(pattern.toLowerCase())
   );
   
   if (is_clickbait) {
@@ -298,7 +302,7 @@ function scoreContentOpening(paragraphs: string[], fail_reasons: string[]) {
   let score = 0;
   let verdict: 'PASS' | 'FAIL' = 'PASS';
   
-  if (paragraphs.length < 2) {
+  if (!paragraphs || paragraphs.length < 2 || !paragraphs[0] || !paragraphs[1]) {
     reasons.push('Zu wenige Absätze für Bewertung');
     fail_reasons.push('Content Opening unvollständig');
     return {

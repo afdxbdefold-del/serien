@@ -124,9 +124,10 @@ export async function antiAiFilter(input: AntiAiFilterInput): Promise<AntiAiFilt
 
 function checkHardBlocklist(text: string, failReasons: string[]) {
   const found: string[] = [];
+  const safeText = text || '';
   
   HARD_BLOCKLIST.forEach(phrase => {
-    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+    if (safeText.toLowerCase().includes(phrase.toLowerCase())) {
       found.push(phrase);
       failReasons.push(`Hard Blocklist: "${phrase}"`);
     }
@@ -178,7 +179,7 @@ function checkSentenceStructure(paragraphs: string[], failReasons: string[]) {
 }
 
 function checkOpeningHumanity(paragraphs: string[], failReasons: string[]) {
-  if (paragraphs.length === 0) {
+  if (!paragraphs || paragraphs.length === 0 || !paragraphs[0]) {
     return { hasFact: false, hasEmotion: false, score: 0 };
   }
   
@@ -208,7 +209,7 @@ function checkOpeningHumanity(paragraphs: string[], failReasons: string[]) {
 }
 
 function checkFactContextSeparation(paragraphs: string[], failReasons: string[]) {
-  if (paragraphs.length < 3) {
+  if (!paragraphs || paragraphs.length < 3 || !paragraphs[0]) {
     return { proper: true, score: 100 }; // Too short to check
   }
   
