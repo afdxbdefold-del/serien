@@ -294,7 +294,16 @@ export default function DesktopSeriesLayout({
           <div className="lg:sticky lg:top-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
               <div className="relative w-full aspect-[16/9] bg-gray-900">
-                {series.backdropPath && (
+                {/* YouTube Trailer im Hero wenn verfügbar */}
+                {trailers.length > 0 && trailers[0]?.key ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${trailers[0].key}?rel=0&modestbranding=1`}
+                    title={`${series.name || series.title} Trailer`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="absolute inset-0 w-full h-full"
+                  />
+                ) : series.backdropPath ? (
                   <>
                     <Image
                       src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
@@ -305,9 +314,10 @@ export default function DesktopSeriesLayout({
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
                   </>
-                )}
+                ) : null}
                 
-                {series.posterPath && (
+                {/* Poster nur zeigen wenn KEIN Trailer */}
+                {(!trailers.length || !trailers[0]?.key) && series.posterPath && (
                   <div className="absolute bottom-0 left-6 transform translate-y-1/2">
                     <Image
                       src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
@@ -320,7 +330,7 @@ export default function DesktopSeriesLayout({
                 )}
               </div>
               
-              <div className="pt-16 px-6 pb-6">
+              <div className={trailers.length > 0 && trailers[0]?.key ? "px-6 py-6" : "pt-16 px-6 pb-6"}>
                 <div className="flex gap-4">
                   <div className="flex-shrink-0 w-[120px]">
                     <div className="flex flex-col gap-2">
