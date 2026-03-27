@@ -288,6 +288,7 @@ export async function GET(request: NextRequest) {
         publishedAt: true,
         status: true,
         heroVideoUrl: true,
+        sourceUrl: true,
         users: { select: { name: true } },
         series: { select: { name: true } },
       },

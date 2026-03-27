@@ -52,6 +52,7 @@ interface LastCreatedArticle {
   publishedAt?: string;
   status: string;
   heroVideoUrl?: string;
+  sourceUrl?: string;
   users?: { name: string };
   series?: { name: string };
 }
@@ -869,6 +870,24 @@ export default function AdminPipelinePage() {
                       
                       {expandedRun === run.id && (
                         <div className="p-4 bg-white border-t border-gray-100 text-sm">
+                          {/* Source URL - prominent display */}
+                          {run.inputSource && (
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center gap-2 text-blue-700 font-medium mb-1">
+                                <Link2 className="h-4 w-4" />
+                                Originalquelle:
+                              </div>
+                              <a 
+                                href={run.inputSource} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 hover:underline break-all text-xs"
+                              >
+                                {run.inputSource}
+                              </a>
+                            </div>
+                          )}
+                          
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div>
                               <span className="text-gray-500">Quellen:</span>
@@ -996,6 +1015,18 @@ export default function AdminPipelinePage() {
                           {article.users && <span>von {article.users.name}</span>}
                           <span>{formatTime(article.createdAt)}</span>
                         </div>
+                        {/* Source URL */}
+                        {article.sourceUrl && (
+                          <a 
+                            href={article.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1 truncate max-w-md"
+                          >
+                            <Link2 className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{article.sourceUrl}</span>
+                          </a>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs ${
@@ -1163,6 +1194,24 @@ export default function AdminPipelinePage() {
                           
                           {expandedRun === run.id && (
                             <div className="p-4 bg-white border-t border-gray-100 text-sm">
+                              {/* Source URL - prominent display */}
+                              {run.inputSource && (
+                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <div className="flex items-center gap-2 text-blue-700 font-medium mb-1">
+                                    <Link2 className="h-4 w-4" />
+                                    Originalquelle:
+                                  </div>
+                                  <a 
+                                    href={run.inputSource} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 hover:underline break-all text-xs"
+                                  >
+                                    {run.inputSource}
+                                  </a>
+                                </div>
+                              )}
+                              
                               <div className="grid grid-cols-4 gap-4 mb-4">
                                 <div>
                                   <span className="text-gray-500">Wörter:</span>
