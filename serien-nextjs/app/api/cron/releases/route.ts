@@ -82,14 +82,21 @@ export async function GET(request: NextRequest) {
   console.log('🚀 Starting daily releases fetch...');
 
   try {
-    // Fetch on-the-air and airing-today series
-    const [onAir, airingToday] = await Promise.all([
+    // Fetch multiple sources for better coverage
+    const [onAir, airingToday, popular, trending] = await Promise.all([
       fetchFromTMDB('/tv/on_the_air?page=1'),
       fetchFromTMDB('/tv/airing_today?page=1'),
+      fetchFromTMDB('/tv/popular?page=1'),
+      fetchFromTMDB('/trending/tv/day'),
     ]);
 
-    // Combine and deduplicate
-    const allSeries = [...onAir.results, ...airingToday.results];
+    // Combine and deduplicate - prioritize airing_today and trending
+    const allSeries = [
+      ...airingToday.results, 
+      ...trending.results,
+      ...onAir.results, 
+      ...popular.results
+    ];
     const uniqueSeries = Array.from(new Map(allSeries.map(s => [s.id, s])).values());
 
     console.log(`   Found ${uniqueSeries.length} unique series`);
@@ -134,6 +141,7 @@ export async function GET(request: NextRequest) {
 
     // Upsert releases
     for (const release of releases) {
+      const releaseId = `${release.tmdbId}-${release.provider}-${release.date.toISOString().split('T')[0]}`;
       await prisma.streaming_releases.upsert({
         where: {
           tmdbId_provider_date: {
@@ -149,7 +157,10 @@ export async function GET(request: NextRequest) {
           voteAverage: release.voteAverage,
           fetchedAt: release.fetchedAt,
         },
-        create: release,
+        create: {
+          id: releaseId,
+          ...release,
+        },
       });
     }
 

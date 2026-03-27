@@ -93,22 +93,25 @@ const getHomepageData = unstable_cache(
     ]);
 
     // Fetch trending series from streaming_releases (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Focus on TODAY and YESTERDAY for "Aktuell im Stream"
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
     
     const trendingReleases = await prisma.streaming_releases.findMany({
       where: {
-        date: { gte: sevenDaysAgo },
+        date: { gte: twoDaysAgo },
         // Exclude anime providers
         NOT: {
-          provider: { in: ['Crunchyroll', 'Anime on Demand', 'Wakanim'] }
+          provider: { in: ['Crunchyroll', 'Anime on Demand', 'Wakanim', 'CHILI'] }
         }
       },
       orderBy: [
-        { voteAverage: 'desc' },
-        { date: 'desc' }
+        { date: 'desc' },  // Newest first
+        { voteAverage: 'desc' }
       ],
-      take: 50,
+      take: 100,
       distinct: ['tmdbId'],
     });
 
@@ -134,8 +137,12 @@ const getHomepageData = unstable_cache(
     };
 
     // Map to the expected format and deduplicate by tmdbId
-    // Also filter out anime by checking for common anime indicators in the name
-    const animeKeywords = ['anime', 'dragon ball', 'naruto', 'one piece anime', 'attack on titan', 'demon slayer', 'jujutsu', 'my hero academia', 'bleach', 'hunter x hunter'];
+    // Filter out anime by checking for common anime indicators
+    const animeKeywords = [
+      'anime', 'dragon ball', 'naruto', 'one piece', 'attack on titan', 
+      'demon slayer', 'jujutsu', 'my hero academia', 'bleach', 'hunter x hunter', 
+      'frieren', 'rooster fighter', 'jojo', 'oshi no ko', 'mein*star'
+    ];
     const seen = new Set<number>();
     const streamingSeries = trendingReleases
       .filter(r => {
@@ -152,6 +159,7 @@ const getHomepageData = unstable_cache(
         title: r.name,
         slug: slugMap.get(r.tmdbId) || generateSlug(r.name),
         networks: [r.provider],
+        date: r.date,
       }));
 
     return { articles, series, seriesCount, articlesCount, streamingSeries };
