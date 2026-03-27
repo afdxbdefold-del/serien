@@ -120,7 +120,7 @@ Schreibe jetzt die erweiterte Beschreibung:`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',

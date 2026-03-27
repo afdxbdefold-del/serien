@@ -78,7 +78,7 @@ Erstelle jetzt 5 optimierte Überschriften-Varianten mit Bewertungen.`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-5.1',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

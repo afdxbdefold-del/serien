@@ -36,7 +36,7 @@ export async function generateRelevanceContext(
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',

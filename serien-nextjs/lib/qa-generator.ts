@@ -51,7 +51,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -130,7 +130,7 @@ export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> 
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',

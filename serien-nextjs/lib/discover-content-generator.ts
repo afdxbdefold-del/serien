@@ -151,7 +151,7 @@ Schreibe jetzt die Inhalte:`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5.2',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',

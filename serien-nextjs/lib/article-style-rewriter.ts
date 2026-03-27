@@ -86,7 +86,7 @@ Schreibe jetzt einen sachlichen Artikel im deutschen TV-News-Stil.`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-5.1',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

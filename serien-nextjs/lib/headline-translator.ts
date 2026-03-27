@@ -71,7 +71,7 @@ export async function translateHeadlineOnly(
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-5.1',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: TRANSLATE_ONLY_PROMPT },
         { 

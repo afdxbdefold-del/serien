@@ -128,7 +128,7 @@ Schreibe jetzt die Einleitung (120-180 Wörter).
 `.trim();
   
   const response = await client.chat.completions.create({
-    model: 'gpt-5.1',
+    model: 'gpt-4o',
     messages: [
       { role: 'system', content: RANKING_INTRO_PROMPT },
       { role: 'user', content: userPrompt },
@@ -192,7 +192,7 @@ Schreibe jetzt die Beschreibungen für alle ${batchItems.length} Items (je 80-14
 `.trim();
   
   const response = await client.chat.completions.create({
-    model: 'gpt-5.1',
+    model: 'gpt-4o',
     messages: [
       { role: 'system', content: RANKING_BATCH_PROMPT },
       { role: 'user', content: userPrompt },

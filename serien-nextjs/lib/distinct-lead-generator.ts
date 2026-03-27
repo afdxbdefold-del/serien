@@ -60,7 +60,7 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
     });
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-5.2',  // Upgraded to GPT-5.2
+      model: 'gpt-4o',  // Upgraded to GPT-5.2
       messages: [
         {
           role: 'system',
