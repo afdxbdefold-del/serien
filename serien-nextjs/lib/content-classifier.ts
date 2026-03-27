@@ -16,6 +16,7 @@ export type ContentType =
 export interface ClassificationResult {
   content_type: ContentType;
   confidence: number;
+  primary_series?: string;
   series_candidates: string[];
   signals: {
     title: string[];
@@ -33,23 +34,31 @@ Your ONLY task is to classify incoming articles into ONE of these types:
 - MIXED: About both movies AND TV series (REJECT)
 - UNKNOWN: Cannot determine or unclear (REJECT)
 
-RULES:
+CRITICAL RULES:
 1. TV series ONLY - no movies
 2. Editorials listing multiple TV series are ALLOWED and encouraged
 3. If the article mentions even ONE movie prominently → classify as MOVIE or MIXED
 4. Extract series names you find (even if classification is MOVIE/MIXED/UNKNOWN)
 5. Be strict: when in doubt, use UNKNOWN
 
+⚠️ IMPORTANT - AVOID THESE COMMON MISTAKES:
+- "X's Rival" or "Competitor to X" means the article is NOT about X, but about something else
+  Example: "'The Pitt' Rival Renewed" → Article is about the RIVAL (Chicago Med), NOT The Pitt!
+- "Following X's success" or "Like X" → Article is about a DIFFERENT show, not X
+- Always identify the PRIMARY SUBJECT of the article, not just mentioned shows
+- The series_candidates should contain ONLY the show(s) the article is ACTUALLY ABOUT
+
 Return ONLY valid JSON (no markdown, no explanation):
 {
   "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "MOVIE" | "MIXED" | "UNKNOWN",
   "confidence": 0.0-1.0,
+  "primary_series": "The MAIN series this article is about (not just mentioned)",
   "series_candidates": ["Series Name 1", "Series Name 2"],
   "signals": {
     "title": ["keyword from title that helped classification"],
     "text": ["keyword from text that helped classification"]
   },
-  "reasoning": "brief 1-sentence explanation"
+  "reasoning": "brief 1-sentence explanation of what this article is ACTUALLY about"
 }`;
 
 export async function classifyContent(

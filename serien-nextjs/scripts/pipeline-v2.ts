@@ -264,8 +264,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     );
     
     console.log(`✅ Type: ${classification.content_type}`);
+    console.log(`   Primary Series: ${classification.primary_series || 'nicht erkannt'}`);
+    console.log(`   Reasoning: ${classification.reasoning || '-'}`);
     logger.log(`Klassifiziert als: ${classification.content_type}`);
     logger.addMetadata('contentType', classification.content_type);
+    if (classification.primary_series) {
+      logger.addMetadata('primarySeries', classification.primary_series);
+    }
     console.timeEnd('⏱️  STEP 2: Classification');
     
     if (classification.content_type === 'SKIP' || classification.content_type === 'UNKNOWN') {
@@ -285,7 +290,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.time('⏱️  STEP 3: TMDB Resolution');
     logger.log('Schritt 3: TMDB-Auflösung...');
     
-    let searchResult = await searchTvEnhanced(source.title, fullSourceText);
+    // ✅ USE primary_series FROM CLASSIFIER IF AVAILABLE
+    // This prevents mistakes like "'The Pitt' Rival" being classified as "The Pitt"
+    const searchQuery = classification.primary_series || source.title;
+    console.log(`   🔍 Search query: "${searchQuery}"`);
+    
+    let searchResult = await searchTvEnhanced(searchQuery, fullSourceText);
     
     // ══════════════════════════════════════════════════════════════════════════
     // TMDB MATCH VALIDATION - Strenge Prüfung vor DB-Fallback
