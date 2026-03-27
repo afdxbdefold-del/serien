@@ -348,6 +348,7 @@ async function saveTrendingTopics(trends: string[]): Promise<void> {
           tmdbId: tmdbCheck.tmdbId,
         },
         create: {
+          id: crypto.randomUUID(),
           query: trend,
           title: trend,
           category: 'series',

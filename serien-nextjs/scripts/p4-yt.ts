@@ -1365,15 +1365,16 @@ ${additionalSources}
 // ══════════════════════════════════════════════════════════════════════════
 export async function processUnprocessedVideos(limit: number = 5, trigger: TriggerType = 'cron'): Promise<YTArticleResult[]> {
   console.log('\n🎬 Verarbeite unverarbeitete Videos...\n');
-  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})`);
+  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 24h alte Quellen'})`);
   
-  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const maxAge = trigger === 'manual' ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 24h für cron, 7 Tage für manual
+  const cutoffDate = new Date(Date.now() - maxAge);
   
-  // Zuerst: Alte Videos automatisch als verarbeitet markieren (verhindert Endlosschleife)
+  // Alte Videos als verarbeitet markieren (nur wenn älter als 24h/7d)
   await prisma.youtube_videos.updateMany({
     where: {
       processed: false,
-      publishedAt: { lt: sixHoursAgo }
+      publishedAt: { lt: cutoffDate }
     },
     data: { processed: true }
   });
@@ -1381,7 +1382,7 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
   const unprocessedVideos = await prisma.youtube_videos.findMany({
     where: { 
       processed: false,
-      publishedAt: { gte: sixHoursAgo }  // Nur frische Videos
+      publishedAt: { gte: cutoffDate }
     },
     orderBy: { publishedAt: 'desc' },
     take: limit,
