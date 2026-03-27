@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchTv, getTvDetails } from '@/lib/tmdb';
+import { searchTv, getTvDetails, getTvDetailsComplete } from '@/lib/tmdb';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Verify admin token
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
@@ -63,5 +66,86 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('TMDB search error:', error);
     return NextResponse.json({ error: 'Search failed' }, { status: 500 });
+  }
+}
+
+// POST: Import series from TMDB into local database
+export async function POST(request: NextRequest) {
+  if (!await verifyAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { tmdbId, slug } = body;
+
+    if (!tmdbId) {
+      return NextResponse.json({ error: 'tmdbId is required' }, { status: 400 });
+    }
+
+    // Check if series already exists
+    const existing = await prisma.series.findUnique({
+      where: { tmdbId: parseInt(tmdbId) }
+    });
+
+    if (existing) {
+      return NextResponse.json({ 
+        success: true,
+        message: 'Serie existiert bereits',
+        series: {
+          name: existing.name,
+          slug: existing.slug,
+          tmdbId: existing.tmdbId
+        }
+      });
+    }
+
+    // Fetch complete details from TMDB
+    const details = await getTvDetailsComplete(parseInt(tmdbId), 'de-DE');
+    
+    if (!details) {
+      return NextResponse.json({ error: 'Serie nicht bei TMDB gefunden' }, { status: 404 });
+    }
+
+    // Generate slug
+    const seriesSlug = slug || details.name
+      .toLowerCase()
+      .replace(/[äöü]/g, (char: string) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue' }[char] || char))
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    // Create series
+    const series = await prisma.series.create({
+      data: {
+        tmdbId: parseInt(tmdbId),
+        name: details.name,
+        title: details.name,
+        slug: seriesSlug,
+        posterPath: details.posterPath,
+        backdropPath: details.backdropPath,
+        overview: details.overview || '',
+        status: details.status,
+        firstAirDate: details.firstAirDate ? new Date(details.firstAirDate) : null,
+        trailers: details.trailers || [],
+        updatedAt: new Date(),
+      }
+    });
+
+    console.log(`✅ Serie importiert: ${series.name} (${series.slug})`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Serie erfolgreich importiert',
+      series: {
+        name: series.name,
+        slug: series.slug,
+        tmdbId: series.tmdbId,
+        url: `/serie/${series.slug}`
+      }
+    });
+
+  } catch (error: any) {
+    console.error('TMDB import error:', error);
+    return NextResponse.json({ error: error.message || 'Import fehlgeschlagen' }, { status: 500 });
   }
 }
