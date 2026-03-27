@@ -143,11 +143,13 @@ export class PipelineLogger {
   }
 
   // Complete the run with failure
-  async fail(errorMessage: string, errorStep?: string) {
+  async fail(errorMessage: string, errorStep?: string, errorDetails?: string) {
     if (!this.runId) return;
 
     const duration = Date.now() - this.startTime;
     this.log(`Pipeline fehlgeschlagen: ${errorMessage}`, 'error');
+    if (errorStep) this.log(`Step: ${errorStep}`, 'error');
+    if (errorDetails) this.addMetadata('errorDetails', errorDetails);
 
     await prisma.pipeline_runs.update({
       where: { id: this.runId },

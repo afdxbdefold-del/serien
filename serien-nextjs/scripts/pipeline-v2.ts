@@ -93,14 +93,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
   logger.addMetadata('url', source.url);
 
   const now = new Date();
+  
+  // Step tracking for precise error logging
+  let currentStep = 'init';
+  let stepStartTime = Date.now();
+
+  const logStep = (step: string) => {
+    currentStep = step;
+    stepStartTime = Date.now();
+    logger.log(`Step: ${step}`);
+  };
 
   try {
     // ========== STEP 1: FULL TEXT FETCH ==========
+    logStep('1_full_text_fetch');
     console.log('━'.repeat(70));
     console.log('STEP 1: FULL TEXT FETCH');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 1: Full Text Fetch');
-    logger.log('Schritt 1: Volltext-Abruf...');
     
     let fullSourceText = source.text || source.sourceText || '';
     let sourceWordCount = 0;
@@ -172,6 +182,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`   ⏰ Thema-Alter: nicht ermittelbar ${trigger === 'manual' ? '(manueller Trigger)' : '- wird akzeptiert'}`);
     }
 
+    logStep('2_classification');
     // ========== STEP 2: CLASSIFICATION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 2: CLASSIFICATION');
@@ -198,6 +209,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Map to our internal type
     const contentType = classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
 
+    logStep('3_tmdb_resolution');
     // ========== STEP 3: ENHANCED TMDB RESOLUTION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 3: ENHANCED TMDB RESOLUTION ⚡');
@@ -292,6 +304,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 3: TMDB Resolution');
 
+    logStep('4_fact_extraction');
     // ========== STEP 4: FACT EXTRACTION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 4: FACT EXTRACTION');
@@ -302,6 +315,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Extracted ${facts.length} facts`);
     console.timeEnd('⏱️  STEP 4: Fact Extraction');
 
+    logStep('5_content_generation');
     // ========== STEP 5: STRUCTURED CONTENT GENERATION (ONE CALL!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5: STRUCTURED CONTENT GENERATION ⚡');
@@ -387,7 +401,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 
-    // ========== STEP 6: CHARACTER IMPORT & LINKING (ON MARKDOWN!) ==========
+    logStep('6_character_linking');
+    // ========== STEP 6: CHARACTER IMPORT // ========== STEP 6: CHARACTER IMPORT & LINKING (ON MARKDOWN!) ========== LINKING (ON MARKDOWN!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 6: CHARACTER LINKING (Markdown) ⚡');
     console.log('━'.repeat(70));
@@ -436,6 +451,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     console.timeEnd('⏱️  STEP 6: Character Import & Linking');
 
+    logStep('7_markdown_to_html');
     // ========== STEP 7: MARKDOWN → HTML ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7: MARKDOWN → HTML');
@@ -492,6 +508,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 7.5: Internal Linking');
 
+    logStep('8_publish');
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 8: PUBLISH');
@@ -703,13 +720,33 @@ export async function runPipelineV2(source: PipelineV2Source) {
     };
     
   } catch (error: any) {
+    const stepDuration = Date.now() - stepStartTime;
+    const errorDetails = {
+      step: currentStep,
+      stepDuration: `${stepDuration}ms`,
+      errorType: error.name || 'Error',
+      errorMessage: error.message,
+      errorCode: error.code || null,
+      source: source.title,
+      url: source.url,
+    };
+    
     console.log('\n' + '='.repeat(70));
     console.log('❌ PIPELINE V2 FAILED');
     console.log('='.repeat(70));
+    console.log(`Step: ${currentStep}`);
+    console.log(`Duration: ${stepDuration}ms`);
     console.log(`Error: ${error.message}`);
-    console.log(error.stack);
+    console.log(`Type: ${error.name || 'Error'}`);
+    if (error.code) console.log(`Code: ${error.code}`);
+    console.log('Stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
     
-    await logger.fail(error.message, 'unknown');
+    // Log detailed error to DB
+    await logger.fail(
+      `[${currentStep}] ${error.message}`,
+      currentStep,
+      JSON.stringify(errorDetails)
+    );
     
     throw error;
   }
