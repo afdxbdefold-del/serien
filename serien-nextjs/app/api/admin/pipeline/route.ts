@@ -722,7 +722,183 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ========== P2 SINGLE ARTICLE GENERATOR ==========
+    // ========== P2 NEWS LISTE ABRUFEN ==========
+    // Holt bis zu 20 News (bis 3 Tage alt) zur Vorschau
+    if (action === 'fetch-p2-news') {
+      try {
+        console.log('[P2 Fetch] Fetching news list...');
+        const { fetchNewsFromSource, NEWS_SOURCES } = await import('@/scripts/news-scraper');
+        
+        const allNews: Array<{
+          title: string;
+          url: string;
+          timeAgo: string;
+          source: string;
+          publishedAt?: Date;
+        }> = [];
+        
+        // Fetch from all sources
+        for (const [sourceKey, sourceConfig] of Object.entries(NEWS_SOURCES)) {
+          try {
+            const articles = await fetchNewsFromSource(sourceKey as any);
+            allNews.push(...articles.map(a => ({
+              ...a,
+              source: sourceConfig.name
+            })));
+          } catch (err) {
+            console.error(`[P2 Fetch] Error from ${sourceKey}:`, err);
+          }
+        }
+        
+        // Filter: max 3 Tage alt
+        const threeDaysAgo = Date.now() - (3 * 24 * 60 * 60 * 1000);
+        const filteredNews = allNews.filter(n => {
+          if (n.publishedAt) {
+            return n.publishedAt.getTime() > threeDaysAgo;
+          }
+          // Fallback: timeAgo parsing
+          const timeAgo = n.timeAgo.toLowerCase();
+          if (timeAgo.includes('second') || timeAgo.includes('minute') || timeAgo.includes('hour')) return true;
+          if (timeAgo.includes('day')) {
+            const days = parseInt(timeAgo) || 1;
+            return days <= 3;
+          }
+          return false;
+        });
+        
+        // Check which URLs are already imported
+        const urls = filteredNews.map(n => n.url);
+        const existingArticles = await prisma.articles.findMany({
+          where: { sourceUrl: { in: urls } },
+          select: { sourceUrl: true }
+        });
+        const importedUrls = new Set(existingArticles.map(a => a.sourceUrl));
+        
+        // Mark imported articles
+        const newsWithStatus = filteredNews.map(n => ({
+          ...n,
+          isImported: importedUrls.has(n.url)
+        }));
+        
+        // Sort by recency and limit to 20
+        const sortedNews = newsWithStatus
+          .sort((a, b) => {
+            // Prioritize non-imported
+            if (a.isImported !== b.isImported) return a.isImported ? 1 : -1;
+            return 0;
+          })
+          .slice(0, 20);
+        
+        return NextResponse.json({
+          success: true,
+          news: sortedNews,
+          total: filteredNews.length,
+          imported: importedUrls.size
+        });
+      } catch (error: any) {
+        console.error('[P2 Fetch] Error:', error);
+        return NextResponse.json({
+          success: false,
+          error: `News-Abruf fehlgeschlagen: ${error.message}`
+        });
+      }
+    }
+
+    // ========== P2 EINZELNEN ARTIKEL IMPORTIEREN ==========
+    // Importiert einen spezifischen Artikel anhand der URL
+    if (action === 'import-p2-article') {
+      try {
+        const { url } = body;
+        if (!url) {
+          return NextResponse.json({ success: false, error: 'URL erforderlich' });
+        }
+        
+        console.log('[P2 Import] Importing:', url);
+        const startTime = Date.now();
+        const debugLog: string[] = [];
+        
+        debugLog.push(`📰 URL: ${url}`);
+        debugLog.push(`⏱️ Start: ${new Date().toISOString()}`);
+        
+        // Check if already imported
+        const existing = await prisma.articles.findFirst({
+          where: { sourceUrl: url }
+        });
+        
+        if (existing) {
+          return NextResponse.json({
+            success: false,
+            error: 'Artikel bereits importiert',
+            articleSlug: existing.slug,
+            debug: [...debugLog, `⚠️ Bereits vorhanden: /${existing.slug}`]
+          });
+        }
+        
+        // Fetch full text first
+        const { fetchFullText } = await import('@/lib/full-text-fetcher');
+        debugLog.push(`🔄 Hole Volltext...`);
+        
+        const fullText = await fetchFullText(url);
+        if (!fullText || fullText.length < 200) {
+          debugLog.push(`❌ Volltext zu kurz: ${fullText?.length || 0} Zeichen`);
+          return NextResponse.json({
+            success: false,
+            error: 'Volltext konnte nicht geladen werden',
+            debug: debugLog
+          });
+        }
+        
+        debugLog.push(`✓ Volltext: ${fullText.length} Zeichen`);
+        
+        // Import pipeline-v2 and process
+        const { runPipelineV2 } = await import('@/scripts/pipeline-v2');
+        
+        // Extract title from URL or use a placeholder
+        const urlParts = url.split('/');
+        const titleFromUrl = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1] || 'News Article';
+        const cleanTitle = titleFromUrl.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        
+        debugLog.push(`🚀 Starte Pipeline...`);
+        
+        const result = await runPipelineV2({
+          title: cleanTitle,
+          url: url,
+          text: fullText,
+          useFullTextMode: true,
+          trigger: 'manual'
+        });
+        
+        const duration = Date.now() - startTime;
+        debugLog.push(`⏱️ Dauer: ${Math.round(duration / 1000)}s`);
+        
+        if (result.success) {
+          debugLog.push(`✅ Artikel erstellt: /${result.slug}`);
+          return NextResponse.json({
+            success: true,
+            message: `✅ Artikel importiert (${Math.round(duration / 1000)}s)`,
+            articleSlug: result.slug,
+            articleTitle: result.title,
+            debug: debugLog
+          });
+        } else {
+          debugLog.push(`❌ Fehler: ${result.error}`);
+          return NextResponse.json({
+            success: false,
+            error: result.error || 'Import fehlgeschlagen',
+            debug: debugLog
+          });
+        }
+      } catch (error: any) {
+        console.error('[P2 Import] Error:', error);
+        return NextResponse.json({
+          success: false,
+          error: `Import fehlgeschlagen: ${error.message}`,
+          debug: [`❌ Exception: ${error.message}`]
+        });
+      }
+    }
+
+    // ========== P2 SINGLE ARTICLE GENERATOR (Legacy) ==========
     // Erstellt EINEN Artikel pro Klick (sucht frischeste News und verarbeitet sie)
     if (action === 'generate-single-p2') {
       try {

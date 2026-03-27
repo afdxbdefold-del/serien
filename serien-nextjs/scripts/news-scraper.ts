@@ -353,6 +353,24 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   return relevantArticles;
 }
 
+/**
+ * Fetch news articles from a single source (for preview/listing)
+ */
+export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  if (!source) {
+    throw new Error(`Unknown source: ${sourceKey}`);
+  }
+  
+  if (source.type === 'valnet') {
+    return scrapeValnetNews(sourceKey);
+  } else if (source.type === 'wordpress') {
+    return scrapeWordPressNews(sourceKey);
+  }
+  
+  throw new Error(`Unknown source type: ${source.type}`);
+}
+
 interface ProcessOptions {
   sources?: SourceKey[];
   limit?: number;

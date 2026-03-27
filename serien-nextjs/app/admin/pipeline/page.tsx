@@ -120,6 +120,15 @@ export default function AdminPipelinePage() {
   const [newChannelName, setNewChannelName] = useState('');
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [p2DebugLog, setP2DebugLog] = useState<string[]>([]);
+  const [p2NewsList, setP2NewsList] = useState<Array<{
+    title: string;
+    url: string;
+    timeAgo: string;
+    source: string;
+    isImported: boolean;
+  }>>([]);
+  const [p2NewsLoading, setP2NewsLoading] = useState(false);
+  const [p2SelectedUrl, setP2SelectedUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
@@ -243,11 +252,77 @@ export default function AdminPipelinePage() {
       }
     } catch (error) {
       setActionMessage({ type: 'error', text: 'Netzwerkfehler' });
-      if (action === 'generate-single-p2') {
+      if (action === 'generate-single-p2' || action === 'import-p2-article') {
         setP2DebugLog(prev => [...prev, '❌ Netzwerkfehler']);
       }
     } finally {
       setRunningAction(null);
+    }
+  };
+
+  // Fetch P2 News List
+  const fetchP2NewsList = async () => {
+    setP2NewsLoading(true);
+    setP2NewsList([]);
+    try {
+      const response = await fetch('/api/admin/pipeline', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ action: 'fetch-p2-news' })
+      });
+      const data = await response.json();
+      if (data.success && data.news) {
+        setP2NewsList(data.news);
+      } else {
+        setActionMessage({ type: 'error', text: data.error || 'News konnten nicht geladen werden' });
+      }
+    } catch (error) {
+      setActionMessage({ type: 'error', text: 'Netzwerkfehler beim Laden der News' });
+    } finally {
+      setP2NewsLoading(false);
+    }
+  };
+
+  // Import specific P2 article
+  const importP2Article = async (url: string) => {
+    setP2SelectedUrl(url);
+    setP2DebugLog(['🔄 Importiere Artikel...']);
+    setRunningAction('import-p2-article');
+    
+    try {
+      const response = await fetch('/api/admin/pipeline', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ action: 'import-p2-article', url })
+      });
+      const data = await response.json();
+      
+      if (data.debug) {
+        setP2DebugLog(data.debug);
+      }
+      
+      if (data.success) {
+        setActionMessage({ type: 'success', text: data.message || 'Artikel importiert' });
+        // Mark as imported in the list
+        setP2NewsList(prev => prev.map(n => 
+          n.url === url ? { ...n, isImported: true } : n
+        ));
+        setTimeout(fetchDashboard, 2000);
+      } else {
+        setActionMessage({ type: 'error', text: data.error || 'Import fehlgeschlagen' });
+      }
+    } catch (error) {
+      setP2DebugLog(prev => [...prev, '❌ Netzwerkfehler']);
+      setActionMessage({ type: 'error', text: 'Netzwerkfehler' });
+    } finally {
+      setRunningAction(null);
+      setP2SelectedUrl(null);
     }
   };
 
@@ -533,33 +608,116 @@ export default function AdminPipelinePage() {
               })}
             </div>
             
-            {/* P2 Single Article Generator - Big Button */}
+            {/* P2 Artikel-Generator mit News-Liste */}
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold mb-1">P2 Artikel-Generator</h3>
                   <p className="text-emerald-100 text-sm">
-                    Erstellt 1 Artikel aus den aktuellsten News (ScreenRant, Collider, Cinemaholic)
+                    Wähle einen Artikel aus den aktuellsten News (bis 3 Tage alt)
                   </p>
                 </div>
                 <button
-                  onClick={() => runAction('generate-single-p2')}
-                  disabled={runningAction === 'generate-single-p2' || hasRunningPipeline}
+                  onClick={fetchP2NewsList}
+                  disabled={p2NewsLoading}
                   className="flex items-center gap-3 px-6 py-4 bg-white text-emerald-600 rounded-xl font-bold text-lg hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
-                  {runningAction === 'generate-single-p2' ? (
+                  {p2NewsLoading ? (
                     <>
                       <Loader2 className="h-6 w-6 animate-spin" />
-                      Generiere...
+                      Lade News...
                     </>
                   ) : (
                     <>
-                      <Newspaper className="h-6 w-6" />
-                      1 Artikel erstellen
+                      <RefreshCw className="h-6 w-6" />
+                      News laden
                     </>
                   )}
                 </button>
               </div>
+              
+              {/* News Liste */}
+              {p2NewsList.length > 0 && (
+                <div className="bg-black/20 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-emerald-100">
+                      {p2NewsList.length} News gefunden ({p2NewsList.filter(n => !n.isImported).length} neu)
+                    </span>
+                    <button 
+                      onClick={() => setP2NewsList([])}
+                      className="text-xs text-emerald-200 hover:text-white"
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {p2NewsList.map((news, i) => (
+                      <div 
+                        key={i} 
+                        className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                          news.isImported 
+                            ? 'bg-black/20 opacity-60' 
+                            : 'bg-white/10 hover:bg-white/20'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              news.source === 'ScreenRant' ? 'bg-blue-500/30 text-blue-100' :
+                              news.source === 'Collider' ? 'bg-purple-500/30 text-purple-100' :
+                              'bg-orange-500/30 text-orange-100'
+                            }`}>
+                              {news.source}
+                            </span>
+                            {news.timeAgo && (
+                              <span className="text-xs text-emerald-200">{news.timeAgo}</span>
+                            )}
+                            {news.isImported && (
+                              <span className="text-xs px-2 py-0.5 bg-green-500/30 text-green-100 rounded">
+                                ✓ Importiert
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-white font-medium truncate" title={news.title}>
+                            {news.title}
+                          </p>
+                          <a 
+                            href={news.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-emerald-200 hover:text-white truncate block"
+                          >
+                            {news.url.substring(0, 60)}...
+                          </a>
+                        </div>
+                        {!news.isImported && (
+                          <button
+                            onClick={() => importP2Article(news.url)}
+                            disabled={runningAction === 'import-p2-article'}
+                            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                              p2SelectedUrl === news.url
+                                ? 'bg-yellow-500 text-yellow-900'
+                                : 'bg-white text-emerald-600 hover:bg-emerald-50'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {p2SelectedUrl === news.url ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Import...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4" />
+                                Import
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {/* Debug Output */}
               {p2DebugLog.length > 0 && (
