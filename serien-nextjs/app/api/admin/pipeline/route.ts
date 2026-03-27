@@ -65,6 +65,20 @@ export async function GET(request: NextRequest) {
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const since = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+    // Auto-cleanup: Mark stuck "running" runs as failed (prevents endless loops)
+    await prisma.pipeline_runs.updateMany({
+      where: {
+        status: 'running',
+        startedAt: { lt: tenMinutesAgo }
+      },
+      data: {
+        status: 'failed',
+        errorMessage: 'Timeout: Automatisch nach 10 Minuten abgebrochen',
+        completedAt: now
+      }
+    });
 
     // Get pipeline runs directly from prisma
     let pipelineRuns: any[] = [];
