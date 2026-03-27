@@ -1,6 +1,6 @@
 /**
- * Fandom.com Scraper - Browser Automation
- * Uses Playwright to bypass Cloudflare protection
+ * Fandom.com Scraper - Fetch-based (Serverless compatible)
+ * Uses fetch + Jina Reader as fallback for Cloudflare bypass
  */
 
 import * as cheerio from 'cheerio';
@@ -19,49 +19,48 @@ interface FandomCharacterData {
 }
 
 /**
- * Browser Automation (Playwright)
- * Bypasses Cloudflare by using a real browser
+ * Fetch via Jina Reader (Serverless compatible)
+ * No Playwright needed - works on Vercel
  */
 async function fetchViaBrowser(url: string): Promise<string | null> {
   try {
-    console.log(`[Fandom Browser] Launching browser for: ${url}`);
+    console.log(`[Fandom Fetch] Fetching: ${url}`);
 
-    // Dynamic import to avoid loading Playwright unless needed
-    const { chromium } = await import('playwright');
-
-    const browser = await chromium.launch({
-      headless: true,
+    // Try direct fetch first
+    const directResponse = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
     });
 
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    if (directResponse.ok) {
+      const html = await directResponse.text();
+      if (html.includes('portable-infobox') || html.includes('mw-parser-output')) {
+        console.log(`[Fandom Fetch] ✅ Direct fetch successful (${html.length} chars)`);
+        return html;
+      }
+    }
+
+    // Fallback to Jina Reader for Cloudflare-protected pages
+    console.log(`[Fandom Fetch] Direct fetch blocked, trying Jina Reader...`);
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const jinaResponse = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'text/html',
+      },
     });
 
-    const page = await context.newPage();
+    if (jinaResponse.ok) {
+      const content = await jinaResponse.text();
+      console.log(`[Fandom Fetch] ✅ Jina Reader successful (${content.length} chars)`);
+      return content;
+    }
 
-    // Navigate and wait for content
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000,
-    });
-
-    // Wait for character infobox or main content
-    await page.waitForSelector('.portable-infobox, .mw-parser-output', {
-      timeout: 10000,
-    }).catch(() => {
-      console.log('[Fandom Browser] Warning: Infobox not found, continuing...');
-    });
-
-    // Get page HTML
-    const html = await page.content();
-
-    await browser.close();
-
-    console.log(`[Fandom Browser] ✅ Content fetched (${html.length} chars)`);
-
-    return html;
+    console.log(`[Fandom Fetch] ❌ All methods failed`);
+    return null;
   } catch (error: any) {
-    console.log(`[Fandom Browser] Error: ${error.message}`);
+    console.log(`[Fandom Fetch] Error: ${error.message}`);
     return null;
   }
 }
