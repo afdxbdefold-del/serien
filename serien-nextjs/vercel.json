@@ -2,19 +2,19 @@
   "crons": [
     {
       "path": "/api/cron/news",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/releases",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/trends",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/youtube",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/30 * * * *"
     }
   ]
 }
