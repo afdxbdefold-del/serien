@@ -52,9 +52,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Step 2: Get unprocessed trends from DB
+    // Step 2: Get unprocessed trends from DB (nur letzte 6 Stunden)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    
+    // Zuerst: Alte Trends automatisch als verarbeitet markieren
+    await prisma.trending_topics.updateMany({
+      where: {
+        processed: false,
+        date: { lt: sixHoursAgo }
+      },
+      data: { processed: true }
+    });
+    
     const unprocessedTrends = await prisma.trending_topics.findMany({
-      where: { processed: false },
+      where: { 
+        processed: false,
+        date: { gte: sixHoursAgo }  // Nur frische Trends
+      },
       orderBy: { date: 'desc' },
       take: 3, // Max 3 per run to stay within time limit
     });

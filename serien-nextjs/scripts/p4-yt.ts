@@ -1367,8 +1367,22 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
   console.log('\n🎬 Verarbeite unverarbeitete Videos...\n');
   console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})`);
   
+  const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  
+  // Zuerst: Alte Videos automatisch als verarbeitet markieren (verhindert Endlosschleife)
+  await prisma.youtube_videos.updateMany({
+    where: {
+      processed: false,
+      publishedAt: { lt: sixHoursAgo }
+    },
+    data: { processed: true }
+  });
+  
   const unprocessedVideos = await prisma.youtube_videos.findMany({
-    where: { processed: false },
+    where: { 
+      processed: false,
+      publishedAt: { gte: sixHoursAgo }  // Nur frische Videos
+    },
     orderBy: { publishedAt: 'desc' },
     take: limit,
     include: { youtube_channels: true }
