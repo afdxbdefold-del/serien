@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get last 10 created articles with more details
+    // Get last 10 created articles with more details including word counts and scores
     const lastCreatedArticles = await prisma.articles.findMany({
       where: {
         createdAt: { gte: sevenDaysAgo },
@@ -289,11 +289,70 @@ export async function GET(request: NextRequest) {
         status: true,
         heroVideoUrl: true,
         sourceUrl: true,
+        contentHtml: true, // For word count
+        publishMode: true, // DISCOVER or SEARCH_ONLY
         users: { select: { name: true } },
-        series: { select: { name: true } },
+        series: { select: { name: true, tmdbId: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 20 // Increased to 20
+    });
+
+    // Get pipeline runs for these articles to get source word counts and anti-ai scores
+    const articleIds = lastCreatedArticles.map(a => a.id);
+    const relatedPipelineRuns = await prisma.pipeline_runs.findMany({
+      where: {
+        articleId: { in: articleIds }
+      },
+      select: {
+        articleId: true,
+        wordsCollected: true,
+        antiAiScore: true,
+      }
+    });
+
+    // Get discover scores for these articles
+    const discoverScores = await prisma.discover_score_dashboards.findMany({
+      where: {
+        articleId: { in: articleIds }
+      },
+      select: {
+        articleId: true,
+        discoverScore: true,
+        finalVerdict: true,
+      }
+    });
+
+    // Enrich articles with additional data
+    const enrichedArticles = lastCreatedArticles.map(article => {
+      const pipelineRun = relatedPipelineRuns.find(r => r.articleId === article.id);
+      const discoverData = discoverScores.find(d => d.articleId === article.id);
+      
+      // Calculate generated word count from HTML
+      const generatedWordCount = article.contentHtml 
+        ? article.contentHtml.replace(/<[^>]*>/g, ' ').split(/\s+/).filter((w: string) => w.length > 0).length
+        : 0;
+
+      return {
+        id: article.id,
+        title: article.title,
+        slug: article.slug,
+        category: article.category,
+        createdAt: article.createdAt,
+        publishedAt: article.publishedAt,
+        status: article.status,
+        heroVideoUrl: article.heroVideoUrl,
+        sourceUrl: article.sourceUrl,
+        publishMode: article.publishMode,
+        users: article.users,
+        series: article.series,
+        // New fields
+        sourceWordCount: pipelineRun?.wordsCollected || 0,
+        generatedWordCount,
+        antiAiScore: pipelineRun?.antiAiScore || null,
+        discoverScore: discoverData?.discoverScore || null,
+        discoverVerdict: discoverData?.finalVerdict || null,
+      };
     });
 
     // Check if any pipeline is currently running
@@ -301,7 +360,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       recentArticles,
-      lastCreatedArticles,
+      lastCreatedArticles: enrichedArticles,
       ytStats,
       trendStats,
       channels,

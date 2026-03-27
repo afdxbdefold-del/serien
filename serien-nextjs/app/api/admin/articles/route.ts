@@ -104,8 +104,18 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Support both query param and body
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  let id = searchParams.get('id');
+  
+  if (!id) {
+    try {
+      const body = await request.json();
+      id = body.articleId || body.id;
+    } catch {
+      // No body
+    }
+  }
 
   if (!id) {
     return NextResponse.json({ error: 'Article ID required' }, { status: 400 });
@@ -121,6 +131,15 @@ export async function DELETE(request: NextRequest) {
     if (!article) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
+
+    // Delete related data first (discover scores, qa, etc.)
+    await prisma.discover_score_dashboards.deleteMany({
+      where: { articleId: id }
+    }).catch(() => {});
+    
+    await prisma.qa_schemas.deleteMany({
+      where: { articleId: id }
+    }).catch(() => {});
 
     // Delete the article
     await prisma.articles.delete({

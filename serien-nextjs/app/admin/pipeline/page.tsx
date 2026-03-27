@@ -53,8 +53,15 @@ interface LastCreatedArticle {
   status: string;
   heroVideoUrl?: string;
   sourceUrl?: string;
+  publishMode?: string;
   users?: { name: string };
-  series?: { name: string };
+  series?: { name: string; tmdbId?: number };
+  // New fields
+  sourceWordCount?: number;
+  generatedWordCount?: number;
+  antiAiScore?: number | null;
+  discoverScore?: number | null;
+  discoverVerdict?: string | null;
 }
 
 interface YTChannel {
@@ -324,6 +331,32 @@ export default function AdminPipelinePage() {
     } finally {
       setRunningAction(null);
       setP2SelectedUrl(null);
+    }
+  };
+
+  // Delete article
+  const deleteArticle = async (articleId: string) => {
+    try {
+      const response = await fetch('/api/admin/articles', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ articleId })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setActionMessage({ type: 'success', text: 'Artikel gelöscht' });
+        // Remove from local state
+        setLastCreatedArticles(prev => prev.filter(a => a.id !== articleId));
+      } else {
+        setActionMessage({ type: 'error', text: data.error || 'Löschen fehlgeschlagen' });
+      }
+    } catch (error) {
+      setActionMessage({ type: 'error', text: 'Netzwerkfehler beim Löschen' });
     }
   };
 
@@ -980,6 +1013,44 @@ export default function AdminPipelinePage() {
               </div>
             </div>
 
+            {/* Article Stats Overview */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="text-sm text-gray-500 mb-1">Artikel (7 Tage)</div>
+                <div className="text-2xl font-bold text-gray-900">{lastCreatedArticles.length}</div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="text-sm text-gray-500 mb-1">Ø Wörter generiert</div>
+                <div className="text-2xl font-bold text-cyan-600">
+                  {lastCreatedArticles.length > 0 
+                    ? Math.round(lastCreatedArticles.reduce((sum, a) => sum + (a.generatedWordCount || 0), 0) / lastCreatedArticles.length)
+                    : 0}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="text-sm text-gray-500 mb-1">Ø Anti-AI Score</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {lastCreatedArticles.filter(a => a.antiAiScore).length > 0 
+                    ? Math.round(lastCreatedArticles.filter(a => a.antiAiScore).reduce((sum, a) => sum + (a.antiAiScore || 0), 0) / lastCreatedArticles.filter(a => a.antiAiScore).length)
+                    : '-'}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="text-sm text-gray-500 mb-1">Ø Discover Score</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {lastCreatedArticles.filter(a => a.discoverScore).length > 0 
+                    ? Math.round(lastCreatedArticles.filter(a => a.discoverScore).reduce((sum, a) => sum + (a.discoverScore || 0), 0) / lastCreatedArticles.filter(a => a.discoverScore).length)
+                    : '-'}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="text-sm text-gray-500 mb-1">Mit Video</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {lastCreatedArticles.filter(a => a.heroVideoUrl).length}
+                </div>
+              </div>
+            </div>
+
             {/* Last Created Articles */}
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -990,21 +1061,80 @@ export default function AdminPipelinePage() {
                 <p className="text-gray-500 text-center py-8">Keine Artikel in den letzten 7 Tagen</p>
               ) : (
                 <div className="space-y-3">
-                  {lastCreatedArticles.map((article) => (
-                    <div key={article.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {article.heroVideoUrl && <Video className="h-4 w-4 text-red-500" title="Hat Trailer" />}
-                          <a 
-                            href={`/${article.slug}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="font-medium text-gray-900 hover:text-cyan-600 truncate"
-                          >
-                            {article.title}
-                          </a>
+                  {lastCreatedArticles.map((article) => {
+                    // Calculate quality badge based on scores
+                    const antiAi = article.antiAiScore || 0;
+                    const discover = article.discoverScore || 0;
+                    const avgScore = (antiAi + discover) / 2;
+                    const qualityBadge = avgScore >= 75 ? 'excellent' : avgScore >= 60 ? 'good' : avgScore >= 40 ? 'ok' : 'poor';
+                    
+                    return (
+                      <div key={article.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        {/* Row 1: Title + Quality Badge */}
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {/* Quality Badge */}
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                qualityBadge === 'excellent' ? 'bg-green-100 text-green-700' :
+                                qualityBadge === 'good' ? 'bg-blue-100 text-blue-700' :
+                                qualityBadge === 'ok' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {qualityBadge === 'excellent' ? '★★★' : qualityBadge === 'good' ? '★★' : qualityBadge === 'ok' ? '★' : '⚠'}
+                              </span>
+                              
+                              {article.heroVideoUrl && <Video className="h-4 w-4 text-red-500" title="Hat Trailer" />}
+                              
+                              <a 
+                                href={`/${article.slug}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="font-medium text-gray-900 hover:text-cyan-600 truncate"
+                              >
+                                {article.title}
+                              </a>
+                            </div>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <a 
+                              href={`/${article.slug}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-gray-400 hover:text-cyan-600 rounded hover:bg-white"
+                              title="Artikel öffnen"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                            {article.series?.tmdbId && (
+                              <a 
+                                href={`/serie/${article.series.name?.toLowerCase().replace(/\s+/g, '-')}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-white"
+                                title="Serie öffnen"
+                              >
+                                <Tv className="h-4 w-4" />
+                              </a>
+                            )}
+                            <button 
+                              onClick={() => {
+                                if (confirm(`Artikel "${article.title}" wirklich löschen?`)) {
+                                  deleteArticle(article.id);
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-white"
+                              title="Artikel löschen"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                        
+                        {/* Row 2: Metadata */}
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mb-2">
                           <span className={`px-2 py-0.5 rounded ${
                             article.id.startsWith('yt-') ? 'bg-red-100 text-red-700' :
                             article.id.startsWith('trend-') ? 'bg-orange-100 text-orange-700' :
@@ -1012,42 +1142,87 @@ export default function AdminPipelinePage() {
                           }`}>
                             {article.id.startsWith('yt-') ? 'YouTube' : article.id.startsWith('trend-') ? 'Trends' : 'V2'}
                           </span>
-                          {article.series && <span>{article.series.name}</span>}
+                          {article.series && (
+                            <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
+                              {article.series.name}
+                            </span>
+                          )}
                           {article.users && <span>von {article.users.name}</span>}
                           <span>{formatTime(article.createdAt)}</span>
                         </div>
-                        {/* Source URL */}
+                        
+                        {/* Row 3: Word Count + Scores */}
+                        <div className="flex flex-wrap items-center gap-4 text-xs">
+                          {/* Word Count: Vorher → Nachher */}
+                          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border">
+                            <span className="text-gray-500">Wörter:</span>
+                            <span className="text-orange-600 font-medium">{article.sourceWordCount || '?'}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className={`font-medium ${
+                              (article.generatedWordCount || 0) >= 1500 ? 'text-green-600' :
+                              (article.generatedWordCount || 0) >= 1000 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {article.generatedWordCount || '?'}
+                            </span>
+                            {article.sourceWordCount && article.generatedWordCount && (
+                              <span className={`text-xs ${
+                                article.generatedWordCount > article.sourceWordCount ? 'text-green-500' : 'text-red-500'
+                              }`}>
+                                ({article.generatedWordCount > article.sourceWordCount ? '+' : ''}{Math.round((article.generatedWordCount / article.sourceWordCount - 1) * 100)}%)
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Anti-AI Score */}
+                          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border">
+                            <span className="text-gray-500">Anti-AI:</span>
+                            <span className={`font-medium ${
+                              (article.antiAiScore || 0) >= 80 ? 'text-green-600' :
+                              (article.antiAiScore || 0) >= 60 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {article.antiAiScore || '-'}/100
+                            </span>
+                          </div>
+                          
+                          {/* Discover Score */}
+                          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded border">
+                            <span className="text-gray-500">Discover:</span>
+                            <span className={`font-medium ${
+                              (article.discoverScore || 0) >= 70 ? 'text-green-600' :
+                              (article.discoverScore || 0) >= 50 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {article.discoverScore || '-'}/100
+                            </span>
+                            {article.discoverVerdict && (
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                article.discoverVerdict === 'PUBLISH' ? 'bg-green-100 text-green-700' :
+                                article.discoverVerdict === 'SEARCH_ONLY' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {article.discoverVerdict}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Row 4: Source URL */}
                         {article.sourceUrl && (
                           <a 
                             href={article.sourceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1 truncate max-w-md"
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-2 truncate max-w-lg"
                           >
                             <Link2 className="h-3 w-3 flex-shrink-0" />
                             <span className="truncate">{article.sourceUrl}</span>
                           </a>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          article.status === 'published' || article.status === 'PUBLISHED'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {article.status}
-                        </span>
-                        <a 
-                          href={`/${article.slug}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 text-gray-400 hover:text-cyan-600"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
