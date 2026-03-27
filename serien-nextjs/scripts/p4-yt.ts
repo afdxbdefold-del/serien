@@ -606,12 +606,29 @@ export async function generateArticleFromVideo(
     let tmdbData: { tmdbId: number; name: string; backdropPath: string | null; posterPath?: string | null; overview?: string; status?: string; firstAirDate?: string } | null = null;
     let dbSeries: any = null;
     
-    if (seriesName) {
+    // Try to find series even if seriesName extraction failed
+    const searchTerms = seriesName 
+      ? [seriesName] 
+      : video.title.split(/[\s\-:|]+/).filter((w: string) => w.length > 2).slice(0, 4);
+    
+    if (searchTerms.length > 0) {
       console.log('\n━'.repeat(60));
       console.log('STEP 2: TMDB SUCHE & SERIE ERSTELLEN');
       console.log('━'.repeat(60));
       
-      tmdbData = await findTmdbSeries(seriesName);
+      // Try seriesName first, then video title parts
+      if (seriesName) {
+        tmdbData = await findTmdbSeries(seriesName);
+      }
+      
+      // If no TMDB match, try title words
+      if (!tmdbData && !seriesName) {
+        for (let i = Math.min(4, searchTerms.length); i >= 2 && !tmdbData; i--) {
+          const searchTerm = searchTerms.slice(0, i).join(' ');
+          console.log(`   🔄 Fallback-Suche mit: "${searchTerm}"`);
+          tmdbData = await findTmdbSeries(searchTerm);
+        }
+      }
       
       if (tmdbData) {
         console.log(`   ✓ TMDB: ${tmdbData.name} (ID: ${tmdbData.tmdbId})`);

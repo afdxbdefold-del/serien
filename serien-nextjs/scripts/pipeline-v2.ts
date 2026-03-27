@@ -205,12 +205,44 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.time('⏱️  STEP 3: TMDB Resolution');
     logger.log('Schritt 3: TMDB-Auflösung...');
     
-    const searchResult = await searchTvEnhanced(source.title, fullSourceText);
+    let searchResult = await searchTvEnhanced(source.title, fullSourceText);
     
     if (!searchResult || searchResult.confidence < 0.6) {
-      console.log('❌ No confident TMDB match found');
-      await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
-      return null;
+      console.log('⚠️ No confident TMDB match found, trying DB fallback...');
+      
+      // DB FALLBACK: Search in local database for existing series
+      const titleWords = source.title.split(/[\s\-:,]+/).filter(w => w.length > 2);
+      let dbMatch = null;
+      
+      // Try progressively shorter search terms
+      for (let i = Math.min(5, titleWords.length); i >= 2 && !dbMatch; i--) {
+        const searchTerm = titleWords.slice(0, i).join(' ');
+        dbMatch = await prisma.series.findFirst({
+          where: {
+            OR: [
+              { title: { contains: searchTerm, mode: 'insensitive' } },
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+            ]
+          },
+          select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true }
+        });
+        if (dbMatch) {
+          console.log(`✅ DB Fallback: Found "${dbMatch.name}" using "${searchTerm}"`);
+          searchResult = {
+            tmdbId: dbMatch.tmdbId,
+            name: dbMatch.name || dbMatch.title,
+            confidence: 0.7,
+            matchMethod: 'db-fallback'
+          };
+          break;
+        }
+      }
+      
+      if (!searchResult || searchResult.confidence < 0.6) {
+        console.log('❌ No match found in TMDB or DB');
+        await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
+        return null;
+      }
     }
     
     logger.log(`Serie: ${searchResult.name} (TMDB: ${searchResult.tmdbId})`);
