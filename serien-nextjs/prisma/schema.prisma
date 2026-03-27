@@ -8,6 +8,70 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model ad_slots {
+  id          String   @id
+  position    String   @unique
+  name        String
+  description String?
+  adClient    String   @default("ca-pub-8583619451045805")
+  adSlot      String
+  width       Int
+  height      Int
+  isActive    Boolean  @default(true)
+  mobileOnly  Boolean  @default(false)
+  desktopOnly Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model analytics_events {
+  id          String   @id
+  sessionId   String
+  visitorId   String
+  event       String
+  path        String
+  referrer    String?
+  userAgent   String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  os          String?
+  duration    Int?
+  scrollDepth Int?
+  articleId   String?
+  seriesId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event])
+  @@index([path])
+  @@index([sessionId])
+  @@index([visitorId])
+}
+
+model analytics_sessions {
+  id         String   @id
+  sessionId  String   @unique
+  visitorId  String
+  startedAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  pageViews  Int      @default(1)
+  entryPage  String
+  exitPage   String?
+  referrer   String?
+  userAgent  String?
+  country    String?
+  device     String?
+  browser    String?
+  isActive   Boolean  @default(true)
+
+  @@index([isActive])
+  @@index([lastSeenAt])
+  @@index([visitorId])
+}
+
 model article_persons {
   articleId String
   personId  String
@@ -22,9 +86,9 @@ model article_qa {
   articleId     String   @unique
   questions     Json
   schemaEnabled Boolean  @default(true)
-  headingType   String?  @default("default") // episode, season, finale, ending, default
   generatedAt   DateTime @default(now())
   updatedAt     DateTime
+  headingType   String?  @default("default")
   articles      articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
 }
 
@@ -79,8 +143,8 @@ model articles {
   isRankingArticle          Boolean                     @default(false)
   metaDescription           String?
   ogImagePath               String?
-  isTrending                Boolean                     @default(false)
   isBreaking                Boolean                     @default(false)
+  isTrending                Boolean                     @default(false)
   article_persons           article_persons[]
   article_qa                article_qa?
   article_series            article_series[]
@@ -243,6 +307,45 @@ model persons {
   characters      characters[]
 }
 
+model pipeline_runs {
+  id             String    @id
+  pipeline       String
+  trigger        String
+  status         String
+  inputQuery     String?
+  inputVideoId   String?
+  inputSource    String?
+  articleId      String?
+  articleSlug    String?
+  articleTitle   String?
+  sourcesFound   Int       @default(0)
+  wordsCollected Int       @default(0)
+  factsExtracted Int       @default(0)
+  antiAiScore    Int?
+  durationMs     Int?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  errorMessage   String?
+  errorStep      String?
+  debugLog       String?
+  metadata       String?
+  createdAt      DateTime  @default(now())
+
+  @@index([articleId])
+  @@index([pipeline])
+  @@index([startedAt])
+  @@index([status])
+}
+
+model push_subscriptions {
+  id        String   @id
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
 model redirects {
   fromPath  String   @id @unique
   toPath    String
@@ -308,6 +411,67 @@ model series {
   upcoming_episodes   upcoming_episodes[]
 }
 
+model streaming_releases {
+  id           String    @id
+  tmdbId       Int
+  provider     String
+  date         DateTime  @db.Date
+  name         String
+  overview     String?
+  posterPath   String?
+  backdropPath String?
+  firstAirDate DateTime?
+  voteAverage  Float?
+  releaseType  String    @default("new_episode")
+  fetchedAt    DateTime  @default(now())
+
+  @@unique([tmdbId, provider, date])
+  @@index([date])
+  @@index([provider])
+}
+
+model trending_topics {
+  id           String    @id
+  query        String
+  title        String
+  category     String
+  growth       String?
+  tmdbId       Int?
+  seriesSlug   String?
+  articleSlugs String[]
+  date         DateTime
+  fetchedAt    DateTime  @default(now())
+  processed    Boolean   @default(false)
+  articleId    String?
+  processedAt  DateTime?
+
+  @@unique([query, date])
+  @@index([category])
+  @@index([date])
+  @@index([processed])
+}
+
+model upcoming_episodes {
+  id            String   @id
+  seriesId      Int
+  seriesName    String
+  seriesSlug    String
+  seasonNumber  Int
+  episodeNumber Int
+  episodeName   String?
+  airDate       DateTime
+  overview      String?
+  stillPath     String?
+  network       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  series        series   @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
+
+  @@unique([seriesId, seasonNumber, episodeNumber])
+  @@index([airDate])
+  @@index([network])
+}
+
 model users {
   id                  String          @id
   name                String?
@@ -326,241 +490,47 @@ model users {
   notifications       notifications[]
 }
 
-model upcoming_episodes {
-  id            String   @id @default(cuid())
-  seriesId      Int
-  seriesName    String
-  seriesSlug    String
-  seasonNumber  Int
-  episodeNumber Int
-  episodeName   String?
-  airDate       DateTime
-  overview      String?
-  stillPath     String?
-  network       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  series        series   @relation(fields: [seriesId], references: [tmdbId], onDelete: Cascade)
-
-  @@unique([seriesId, seasonNumber, episodeNumber])
-  @@index([airDate])
-  @@index([network])
-}
-
-model PushSubscription {
-  id        String   @id @default(cuid())
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("push_subscriptions")
-}
-
-model streaming_releases {
-  id            String   @id @default(cuid())
-  tmdbId        Int
-  provider      String
-  date          DateTime @db.Date
-  name          String
-  overview      String?
-  posterPath    String?
-  backdropPath  String?
-  firstAirDate  DateTime?
-  voteAverage   Float?
-  releaseType   String   @default("new_episode")
-  fetchedAt     DateTime @default(now())
-  
-  @@unique([tmdbId, provider, date], name: "tmdbId_provider_date")
-  @@index([date])
-  @@index([provider])
-}
-
-model ad_slots {
-  id          String   @id @default(cuid())
-  position    String   @unique // mobile_top, above_intro, below_intro, in_content, below_author, below_series_info, above_similar_news, above_footer
-  name        String   // Anzeigename für Admin
-  description String?  // Beschreibung der Position
-  adClient    String   @default("ca-pub-8583619451045805")
-  adSlot      String   // Die Slot-ID von AdSense
-  width       Int      // Breite in px
-  height      Int      // Höhe in px
-  isActive    Boolean  @default(true)
-  mobileOnly  Boolean  @default(false)
-  desktopOnly Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model analytics_events {
-  id          String   @id @default(cuid())
-  sessionId   String   // Unique session identifier
-  visitorId   String   // Persistent visitor ID (cookie)
-  event       String   // page_view, click, scroll, etc.
-  path        String   // URL path
-  referrer    String?  // Where they came from
-  userAgent   String?
-  country     String?
-  city        String?
-  device      String?  // mobile, tablet, desktop
-  browser     String?
-  os          String?
-  duration    Int?     // Time on page in seconds
-  scrollDepth Int?     // Max scroll percentage
-  articleId   String?  // If on article page
-  seriesId    String?  // If on series page
-  metadata    Json?    // Extra data
-  createdAt   DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([sessionId])
-  @@index([visitorId])
-  @@index([path])
-  @@index([event])
-}
-
-model analytics_sessions {
-  id          String   @id @default(cuid())
-  sessionId   String   @unique
-  visitorId   String
-  startedAt   DateTime @default(now())
-  lastSeenAt  DateTime @default(now())
-  pageViews   Int      @default(1)
-  entryPage   String
-  exitPage    String?
-  referrer    String?
-  userAgent   String?
-  country     String?
-  device      String?
-  browser     String?
-  isActive    Boolean  @default(true)
-
-  @@index([lastSeenAt])
-  @@index([isActive])
-  @@index([visitorId])
-}
-
-model trending_topics {
-  id          String   @id @default(cuid())
-  query       String   // Original search query
-  title       String   // Display title
-  category    String   // series, film, other
-  growth      String?  // +650%, Ausreißer, etc.
-  tmdbId      Int?     // Matched TMDB series ID
-  seriesSlug  String?  // Link to internal series
-  articleSlugs String[] // Generated articles for this trend
-  articleId   String?  // Main article generated for this trend
-  date        DateTime
-  fetchedAt   DateTime @default(now())
-  processed   Boolean  @default(false)
-  processedAt DateTime? // When the article was generated
-
-  @@unique([query, date])
-  @@index([date])
-  @@index([category])
-  @@index([processed])
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// YOUTUBE CHANNEL TRACKING
-// ══════════════════════════════════════════════════════════════════════════
-
 model youtube_channels {
-  id              String   @id @default(cuid())
-  channelId       String   @unique // YouTube channel ID (e.g., UCZqkRFHEWPkph0HFxeakEgQ)
-  name            String   // Display name (e.g., "Netflix Deutschland")
-  url             String   // Channel URL
-  thumbnailUrl    String?  // Channel thumbnail
-  description     String?  // Channel description
-  subscriberCount Int?     // Subscriber count (optional)
-  isActive        Boolean  @default(true) // Whether to check for new videos
-  checkInterval   Int      @default(60) // Check interval in minutes
-  lastCheckedAt   DateTime? // Last time we checked for new videos
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  videos          youtube_videos[]
-  
+  id              String           @id
+  channelId       String           @unique
+  name            String
+  url             String
+  thumbnailUrl    String?
+  description     String?
+  subscriberCount Int?
+  isActive        Boolean          @default(true)
+  checkInterval   Int              @default(60)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime
+  youtube_videos  youtube_videos[]
+
   @@index([isActive])
   @@index([lastCheckedAt])
 }
 
 model youtube_videos {
-  id              String   @id @default(cuid())
-  videoId         String   @unique // YouTube video ID (e.g., 0LbMUSw7B8s)
-  channelId       String   // Reference to youtube_channels.channelId
-  title           String   // Video title
-  description     String?  // Video description
-  thumbnailUrl    String?  // Video thumbnail (maxres or high)
-  duration        String?  // Video duration (e.g., "PT2M30S")
-  publishedAt     DateTime // When the video was published on YouTube
-  viewCount       Int?     // View count (optional)
-  likeCount       Int?     // Like count (optional)
-  
-  // Processing status
-  processed       Boolean  @default(false)
-  processedAt     DateTime?
-  articleId       String?  // Generated article ID
-  articleSlug     String?  // Generated article slug
-  
-  // Content extraction
-  transcript      String?  // Video transcript/subtitles (if available)
-  tags            String[] // Video tags
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  channel         youtube_channels @relation(fields: [channelId], references: [channelId], onDelete: Cascade)
-  
+  id               String           @id
+  videoId          String           @unique
+  channelId        String
+  title            String
+  description      String?
+  thumbnailUrl     String?
+  duration         String?
+  publishedAt      DateTime
+  viewCount        Int?
+  likeCount        Int?
+  processed        Boolean          @default(false)
+  processedAt      DateTime?
+  articleId        String?
+  articleSlug      String?
+  transcript       String?
+  tags             String[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  youtube_channels youtube_channels @relation(fields: [channelId], references: [channelId], onDelete: Cascade)
+
   @@index([channelId])
-  @@index([publishedAt])
   @@index([processed])
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// PIPELINE RUNS & LOGS
-// ══════════════════════════════════════════════════════════════════════════
-
-model pipeline_runs {
-  id              String   @id @default(cuid())
-  pipeline        String   // 'p3-trends', 'p4-youtube', 'pipeline-v2', 'cron-news'
-  trigger         String   // 'cron', 'manual', 'api'
-  status          String   // 'running', 'success', 'partial', 'failed'
-  
-  // Input
-  inputQuery      String?  // Search term / trend query
-  inputVideoId    String?  // YouTube video ID
-  inputSource     String?  // Source URL or identifier
-  
-  // Output
-  articleId       String?  // Generated article ID
-  articleSlug     String?  // Generated article slug
-  articleTitle    String?  // Generated article title
-  
-  // Metrics
-  sourcesFound    Int      @default(0)  // Number of sources scraped
-  wordsCollected  Int      @default(0)  // Total words from sources
-  factsExtracted  Int      @default(0)  // Facts extracted
-  antiAiScore     Int?     // Anti-AI filter score (0-100)
-  
-  // Timing
-  durationMs      Int?     // Total duration in milliseconds
-  startedAt       DateTime @default(now())
-  completedAt     DateTime?
-  
-  // Error tracking
-  errorMessage    String?  // Error message if failed
-  errorStep       String?  // Which step failed (scrape, llm, save, etc.)
-  
-  // Debug info (JSON)
-  debugLog        String?  // JSON array of log messages
-  metadata        String?  // Additional JSON metadata
-  
-  createdAt       DateTime @default(now())
-  
-  @@index([pipeline])
-  @@index([status])
-  @@index([startedAt])
-  @@index([articleId])
+  @@index([publishedAt])
 }
