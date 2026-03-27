@@ -663,7 +663,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             final_headline: structuredContent.headline || '',
             article_html: finalContentHtml || '',
             hero_image_metadata: {
-              url: backdropToUse || '',
+              url: selectedBackdrop ? `https://image.tmdb.org/t/p/original${selectedBackdrop}` : '',
               width: 1920,
               height: 1080,
               source: 'TMDB_BACKDROP' as const
