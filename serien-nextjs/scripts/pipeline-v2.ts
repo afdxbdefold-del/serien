@@ -593,66 +593,35 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log(`   ✅ Cast imported`);
       })(),
       
-      // Download trailer (or search if TMDB has none)
+      // Download trailer via RapidAPI (LOCAL VIDEO ONLY)
       (async () => {
         try {
-          // Get trailer ID from series trailers JSON
           const trailerId = findTrailerYouTubeId(dbSeries.trailers);
           
           if (trailerId) {
             console.log(`   🎬 Found trailer ID from TMDB: ${trailerId}`);
+            console.log(`   📥 Downloading via RapidAPI...`);
+            
+            // Download via RapidAPI and upload to storage
             const downloadResult = await downloadYouTubeTrailer(
               trailerId,
               dbSeries.name || dbSeries.title || ''
             );
             
             if (downloadResult.success && downloadResult.localPath) {
-              // Update article with trailer URL
               await prisma.articles.update({
                 where: { id: articleId },
                 data: { heroVideoUrl: downloadResult.localPath }
               });
-              console.log(`   ✅ Trailer downloaded and saved: ${downloadResult.localPath}`);
+              console.log(`   ✅ Local video saved: ${downloadResult.localPath}`);
             } else {
-              console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
+              console.log(`   ⚠️ Download failed: ${downloadResult.error}`);
             }
           } else {
-            // TMDB has no trailer - Try automatic YouTube search
-            console.log(`   ℹ️  No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
-            console.log(`   🔍 Searching YouTube for trailer...`);
-            
-            try {
-              const youtubeUrl = await searchYouTubeTrailer(dbSeries.name || dbSeries.title || '');
-              if (youtubeUrl) {
-                console.log(`   ✅ Found trailer on YouTube: ${youtubeUrl}`);
-                // Download and upload to Emergent Storage
-                const downloadResult = await downloadYouTubeTrailer(youtubeUrl, dbSeries.name || dbSeries.title || 'trailer');
-                if (downloadResult.success && downloadResult.localPath) {
-                  await prisma.articles.update({
-                    where: { id: articleId },
-                    data: { heroVideoUrl: downloadResult.localPath }
-                  });
-                  console.log(`   ✅ YouTube trailer saved`);
-                } else {
-                  // Fallback: Use YouTube URL directly
-                  await prisma.articles.update({
-                    where: { id: articleId },
-                    data: { heroVideoUrl: youtubeUrl }
-                  });
-                  console.log(`   ✅ YouTube URL saved (no download)`);
-                }
-              } else {
-                console.log(`   ⚠️  No trailer found on YouTube`);
-                console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
-                console.log(`   💡 Add via: npx tsx scripts/add-trailer.ts ${slug} [youtube-url]`);
-              }
-            } catch (searchError: any) {
-              console.log(`   ⚠️  YouTube search failed: ${searchError.message}`);
-              console.log(`   💡 Manual search: "${dbSeries.name || dbSeries.title} Trailer Deutsch"`);
-            }
+            console.log(`   ℹ️ No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
           }
         } catch (error: any) {
-          console.log(`   ❌ Trailer processing error: ${error.message}`);
+          console.log(`   ❌ Trailer error: ${error.message}`);
         }
       })(),
       

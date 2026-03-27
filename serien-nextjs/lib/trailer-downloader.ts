@@ -166,45 +166,12 @@ export async function downloadYouTubeTrailer(
 }
 
 /**
- * Search YouTube for series trailer (fallback if no TMDB trailer)
- * Priority: German trailer > English trailer
+ * Search YouTube for series trailer - DISABLED (requires yt-dlp)
+ * Use TMDB trailers only on serverless
  */
 export async function searchYouTubeTrailer(seriesName: string): Promise<string | null> {
-  try {
-    // Try German trailer first
-    console.log('🔍 Searching for German trailer on YouTube...');
-    let searchQuery = `${seriesName} offizieller trailer deutsch`;
-    let command = `yt-dlp "ytsearch1:${searchQuery}" --get-id --no-playlist`;
-
-    try {
-      const { stdout } = await execAsync(command, { timeout: 10000 });
-      const videoId = stdout.trim();
-
-      if (videoId && videoId.length === 11) {
-        console.log(`✅ Found German trailer via YouTube search: ${videoId}`);
-        return videoId;
-      }
-    } catch (error) {
-      console.log('⚠️ No German trailer found, trying English...');
-    }
-
-    // Fallback to English trailer
-    searchQuery = `${seriesName} official trailer`;
-    command = `yt-dlp "ytsearch1:${searchQuery}" --get-id --no-playlist`;
-
-    const { stdout } = await execAsync(command, { timeout: 10000 });
-    const videoId = stdout.trim();
-
-    if (videoId && videoId.length === 11) {
-      console.log(`✅ Found English trailer via YouTube search: ${videoId}`);
-      return videoId;
-    }
-
-    return null;
-  } catch (error: any) {
-    console.error('❌ YouTube search failed:', error.message);
-    return null;
-  }
+  console.log('⚠️ YouTube search disabled on serverless - use TMDB trailers only');
+  return null;
 }
 
 /**
