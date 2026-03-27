@@ -130,7 +130,7 @@ export default function AdminPipelinePage() {
   }>>([]);
   const [p2NewsLoading, setP2NewsLoading] = useState(false);
   const [p2SelectedUrl, setP2SelectedUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles' | 'videos'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -544,6 +544,7 @@ export default function AdminPipelinePage() {
             { id: 'youtube', label: 'P4-YouTube', icon: Youtube },
             { id: 'trends', label: 'P3-Trends', icon: Flame },
             { id: 'articles', label: 'Artikel', icon: Newspaper },
+            { id: 'videos', label: 'Video-Queue', icon: Video },
             { id: 'logs', label: 'Logs & Debug', icon: Bug },
           ].map(tab => (
             <button
@@ -1559,7 +1560,195 @@ export default function AdminPipelinePage() {
             )}
           </div>
         )}
+
+        {/* VIDEO QUEUE TAB */}
+        {activeTab === 'videos' && (
+          <VideoQueueTab token={localStorage.getItem('admin_token') || ''} />
+        )}
       </main>
+    </div>
+  );
+}
+
+// Video Queue Tab Component
+function VideoQueueTab({ token }: { token: string }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [enqueuing, setEnqueuing] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=stats');
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch video stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleProcess = async () => {
+    setProcessing(true);
+    try {
+      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=process');
+      const data = await res.json();
+      console.log('Process result:', data);
+      await fetchStats();
+    } catch (err) {
+      console.error('Process failed:', err);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleEnqueue = async () => {
+    setEnqueuing(true);
+    try {
+      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=enqueue');
+      const data = await res.json();
+      console.log('Enqueue result:', data);
+      await fetchStats();
+    } catch (err) {
+      console.error('Enqueue failed:', err);
+    } finally {
+      setEnqueuing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-cyan-600" />
+        <p className="mt-2 text-gray-500">Video-Queue wird geladen...</p>
+      </div>
+    );
+  }
+
+  const queueStats = stats?.stats || {};
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-yellow-600 mb-1">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm font-medium">Pending</span>
+          </div>
+          <p className="text-2xl font-bold">{queueStats.pending || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-blue-600 mb-1">
+            <Loader2 className="h-4 w-4" />
+            <span className="text-sm font-medium">Downloading</span>
+          </div>
+          <p className="text-2xl font-bold">{queueStats.downloading || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-green-600 mb-1">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">Completed</span>
+          </div>
+          <p className="text-2xl font-bold">{queueStats.completed || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-red-600 mb-1">
+            <XCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">Failed</span>
+          </div>
+          <p className="text-2xl font-bold">{queueStats.failed || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-purple-600 mb-1">
+            <Video className="h-4 w-4" />
+            <span className="text-sm font-medium">Total</span>
+          </div>
+          <p className="text-2xl font-bold">
+            {(queueStats.pending || 0) + (queueStats.downloading || 0) + (queueStats.completed || 0) + (queueStats.failed || 0)}
+          </p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-4">
+        <button
+          onClick={handleEnqueue}
+          disabled={enqueuing}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {enqueuing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Neue Artikel zur Queue hinzufügen
+        </button>
+        <button
+          onClick={handleProcess}
+          disabled={processing}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+        >
+          {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          Queue verarbeiten
+        </button>
+        <button
+          onClick={fetchStats}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Aktualisieren
+        </button>
+      </div>
+
+      {/* Recent Completed */}
+      {stats?.recentCompleted?.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            Zuletzt abgeschlossen
+          </h3>
+          <div className="space-y-2">
+            {stats.recentCompleted.map((item: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">{item.seriesName}</p>
+                  <p className="text-sm text-gray-500">{item.resultPath}</p>
+                </div>
+                <span className="text-sm text-green-600">
+                  {item.completedAt ? new Date(item.completedAt).toLocaleString('de-DE') : '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Failed */}
+      {stats?.recentFailed?.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-red-600" />
+            Zuletzt fehlgeschlagen
+          </h3>
+          <div className="space-y-2">
+            {stats.recentFailed.map((item: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900">{item.seriesName}</p>
+                  <p className="text-sm text-red-600">{item.lastError}</p>
+                </div>
+                <span className="text-sm text-gray-500">
+                  Versuche: {item.attempts}/3
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

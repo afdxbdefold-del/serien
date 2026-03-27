@@ -534,3 +534,25 @@ model youtube_videos {
   @@index([processed])
   @@index([publishedAt])
 }
+
+
+// Video Download Queue - Tracks async trailer downloads
+model video_download_queue {
+  id            String   @id @default(uuid())
+  articleId     String   @unique
+  seriesName    String
+  youtubeId     String
+  status        String   @default("pending") // pending, downloading, completed, failed
+  attempts      Int      @default(0)
+  maxAttempts   Int      @default(3)
+  lastError     String?
+  resultPath    String?  // Storage path after successful download
+  priority      Int      @default(0) // Higher = more important
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?
+
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}

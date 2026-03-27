@@ -778,51 +778,82 @@ export async function downloadVideoTrailer(
 
     // Special handling for YouTube: Use RapidAPI ONLY (no yt-dlp fallback)
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via RapidAPI (ONLY method on serverless)...');
+      console.log('   🚀 Attempting YouTube download via RapidAPI (parallel race)...');
       
+      // ═══════════════════════════════════════════════════════════════════
+      // OPTIMIZED: Parallel API calls - first success wins
+      // Order: #3 (fastest, direct URL) → #1 (polling) → #2 (slowest)
+      // ═══════════════════════════════════════════════════════════════════
+      
+      const tempFilePath3 = tempFilePath.replace('.mp4', '-api3.mp4');
+      const tempFilePath1 = tempFilePath.replace('.mp4', '-api1.mp4');
+      const tempFilePath2 = tempFilePath.replace('.mp4', '-api2.mp4');
+      
+      // Start all APIs in parallel
+      const api3Promise = downloadYouTubeViaRapidAPI3(videoId, tempFilePath3)
+        .then(r => ({ ...r, api: 3, path: tempFilePath3 }))
+        .catch(e => ({ success: false, error: e.message, api: 3, path: tempFilePath3 }));
+      
+      const api1Promise = downloadYouTubeViaRapidAPI(videoId, tempFilePath1)
+        .then(r => ({ ...r, api: 1, path: tempFilePath1 }))
+        .catch(e => ({ success: false, error: e.message, api: 1, path: tempFilePath1 }));
+      
+      // API #2 is slowest, add delay before starting
+      const api2Promise = new Promise<any>(resolve => setTimeout(resolve, 5000))
+        .then(() => downloadYouTubeViaRapidAPI2(videoId, tempFilePath2))
+        .then(r => ({ ...r, api: 2, path: tempFilePath2 }))
+        .catch(e => ({ success: false, error: e.message, api: 2, path: tempFilePath2 }));
+      
+      // Race: First successful download wins
       let downloadSuccessful = false;
       let downloadedFilePath: string | null = null;
+      let winningApi = 0;
       
-      // Try API #1 first
-      const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
-      
-      if (rapidResult.success) {
-        console.log('   ✅ RapidAPI #1 download successful!');
-        downloadSuccessful = true;
-        downloadedFilePath = tempFilePath;
-      } else {
-        console.log(`   ⚠️  RapidAPI #1 failed: ${rapidResult.error}`);
-        console.log('   🔄 Trying RapidAPI #2 (Fast Downloader)...');
+      // Use Promise.any to get first success, or Promise.all to get all results
+      try {
+        const results = await Promise.all([api3Promise, api1Promise, api2Promise]);
         
-        // Try API #2 as backup
-        const rapidResult2 = await downloadYouTubeViaRapidAPI2(videoId, tempFilePath);
-        
-        if (rapidResult2.success) {
-          console.log('   ✅ RapidAPI #2 download successful!');
-          downloadSuccessful = true;
-          downloadedFilePath = tempFilePath;
-        } else {
-          console.log(`   ⚠️  RapidAPI #2 failed: ${rapidResult2.error}`);
-          console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub)...');
-          
-          // Try API #3 as third backup
-          const rapidResult3 = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
-          
-          if (rapidResult3.success) {
-            console.log('   ✅ RapidAPI #3 download successful!');
+        // Find first successful result (prefer #3, then #1, then #2)
+        for (const result of results) {
+          if (result.success) {
             downloadSuccessful = true;
-            downloadedFilePath = tempFilePath;
-          } else {
-            console.log(`   ⚠️  RapidAPI #3 failed: ${rapidResult3.error}`);
-            // NO yt-dlp fallback - doesn't work on serverless
-            throw new Error('All RapidAPI methods failed. Video download not possible on serverless.');
+            downloadedFilePath = result.path;
+            winningApi = result.api;
+            console.log(`   ✅ RapidAPI #${result.api} won the race!`);
+            break;
           }
         }
+        
+        if (!downloadSuccessful) {
+          // Log all errors
+          for (const result of results) {
+            if (!result.success) {
+              console.log(`   ❌ RapidAPI #${result.api} failed: ${result.error}`);
+            }
+          }
+          throw new Error('All RapidAPI methods failed. Video download not possible on serverless.');
+        }
+        
+        // Cleanup unsuccessful temp files
+        for (const result of results) {
+          if (result.path !== downloadedFilePath) {
+            try {
+              await fs.unlink(result.path).catch(() => {});
+            } catch {}
+          }
+        }
+        
+        // Move winning file to final path
+        if (downloadedFilePath && downloadedFilePath !== tempFilePath) {
+          await fs.rename(downloadedFilePath, tempFilePath);
+          downloadedFilePath = tempFilePath;
+        }
+        
+      } catch (raceError: any) {
+        throw new Error(`Parallel download failed: ${raceError.message}`);
       }
       
-      // Skip ffmpeg re-encoding on serverless (not available)
-      // Modern browsers can play most MP4 formats directly
-      console.log('   ⏭️  Skipping ffmpeg re-encoding (serverless mode)');
+      console.log(`   ⏭️  Skipping ffmpeg re-encoding (serverless mode)`);
     } else {
       // For non-YouTube sources, use yt-dlp directly
       const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
