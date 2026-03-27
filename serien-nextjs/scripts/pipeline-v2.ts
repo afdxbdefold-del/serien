@@ -28,6 +28,7 @@ import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
@@ -468,6 +469,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const slug = generateSlug(structuredContent.headline);
     // articleId already generated in Step 7.5
     
+    // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
+    let selectedBackdrop = dbSeries.backdropPath;
+    try {
+      const articleCount = await prisma.articles.count({
+        where: { primarySeriesId: dbSeries.tmdbId }
+      });
+      const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 10);
+      if (topBackdrops.length > 0) {
+        const rotatedBackdrop = selectBackdropForArticle(topBackdrops, articleCount);
+        if (rotatedBackdrop) {
+          selectedBackdrop = rotatedBackdrop;
+          console.log(`🖼️  Backdrop rotiert: #${articleCount % topBackdrops.length + 1} von ${topBackdrops.length}`);
+        }
+      }
+    } catch (e) {
+      console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard');
+    }
+    
     await prisma.articles.create({
       data: {
         id: articleId,
@@ -476,8 +495,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         contentHtml: finalContentHtml,
         excerpt: structuredContent.lead,
         metaDescription: structuredContent.metaDescription,
-        heroImageUrl: dbSeries.backdropPath 
-          ? `https://image.tmdb.org/t/p/original${dbSeries.backdropPath}`
+        heroImageUrl: selectedBackdrop 
+          ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
           : null,
         tmdbId: dbSeries.tmdbId,
         primarySeriesId: dbSeries.tmdbId, // ✅ Set correct series ID for internal linking

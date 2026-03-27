@@ -32,6 +32,7 @@ import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } fr
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { discoverGate } from '../lib/discover-gate';
+import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 
 const prisma = new PrismaClient();
 
@@ -1281,6 +1282,26 @@ ${articleSources}
       ? `${info.articles[0].url}#trend-${Date.now()}`
       : `https://serien.de/trending/${slug}`;
     
+    // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
+    let selectedBackdrop = dbSeries?.backdropPath || info.tmdbData?.backdropPath || null;
+    if (dbSeries?.tmdbId) {
+      try {
+        const articleCount = await prisma.articles.count({
+          where: { primarySeriesId: dbSeries.tmdbId }
+        });
+        const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 10);
+        if (topBackdrops.length > 0) {
+          const rotatedBackdrop = selectBackdropForArticle(topBackdrops, articleCount);
+          if (rotatedBackdrop) {
+            selectedBackdrop = rotatedBackdrop;
+            console.log(`   🖼️  Backdrop rotiert: #${articleCount % topBackdrops.length + 1} von ${topBackdrops.length}`);
+          }
+        }
+      } catch (e) {
+        console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard');
+      }
+    }
+    
     const article = await prisma.articles.create({
       data: {
         id: articleId,
@@ -1296,8 +1317,8 @@ ${articleSources}
         // Series connection - use tmdbId as the series ID (since tmdbId is @id in schema)
         primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
-        heroImageUrl: dbSeries?.backdropPath 
-          ? `https://image.tmdb.org/t/p/w1280${dbSeries.backdropPath}`
+        heroImageUrl: selectedBackdrop 
+          ? `https://image.tmdb.org/t/p/w1280${selectedBackdrop}`
           : info.tmdbData?.backdropPath
             ? `https://image.tmdb.org/t/p/w1280${info.tmdbData.backdropPath}`
             : null,

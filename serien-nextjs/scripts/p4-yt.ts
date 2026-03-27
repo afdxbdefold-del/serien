@@ -30,6 +30,7 @@ import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { discoverGate } from '../lib/discover-gate';
+import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 
 const prisma = new PrismaClient();
 
@@ -1152,10 +1153,30 @@ ${additionalSources}
     // TMDB images are usually higher quality and more suitable for hero display
     let heroImageUrl = video.thumbnailUrl;
     
-    if (tmdbData?.backdropPath) {
-      // Use TMDB backdrop (1280px wide, cinematic)
-      heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
-      console.log(`   🖼️ Hero Image: TMDB Backdrop`);
+    if (tmdbData?.backdropPath && seriesIdForArticle) {
+      // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
+      try {
+        const articleCount = await prisma.articles.count({
+          where: { primarySeriesId: seriesIdForArticle }
+        });
+        const topBackdrops = await fetchTopBackdrops('tv', seriesIdForArticle, 10);
+        if (topBackdrops.length > 0) {
+          const rotatedBackdrop = selectBackdropForArticle(topBackdrops, articleCount);
+          if (rotatedBackdrop) {
+            heroImageUrl = `https://image.tmdb.org/t/p/w1280${rotatedBackdrop}`;
+            console.log(`   🖼️ Hero Image: TMDB Backdrop (rotiert #${articleCount % topBackdrops.length + 1} von ${topBackdrops.length})`);
+          } else {
+            heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
+            console.log(`   🖼️ Hero Image: TMDB Backdrop (Standard)`);
+          }
+        } else {
+          heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
+          console.log(`   🖼️ Hero Image: TMDB Backdrop`);
+        }
+      } catch (e) {
+        heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
+        console.log(`   🖼️ Hero Image: TMDB Backdrop (Rotation fehlgeschlagen)`);
+      }
     } else if (tmdbData?.posterPath) {
       // Fallback to poster if no backdrop
       heroImageUrl = `https://image.tmdb.org/t/p/w780${tmdbData.posterPath}`;
