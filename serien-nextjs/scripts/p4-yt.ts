@@ -1371,7 +1371,7 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
     where: { processed: false },
     orderBy: { publishedAt: 'desc' },
     take: limit,
-    include: { channel: true }
+    include: { youtube_channels: true }
   });
   
   if (unprocessedVideos.length === 0) {
@@ -1391,7 +1391,7 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
       thumbnailUrl: video.thumbnailUrl || '',
       publishedAt: video.publishedAt,
       channelId: video.channelId,
-      channelName: video.channel.name,
+      channelName: video.youtube_channels?.name || 'Unbekannt',
     }, trigger);
     
     results.push(result);
@@ -1464,7 +1464,7 @@ if (require.main === module) {
     const videoId = args[1];
     prisma.youtube_videos.findUnique({
       where: { videoId },
-      include: { channel: true }
+      include: { youtube_channels: true }
     })
       .then(async (video) => {
         if (!video) {
@@ -1478,7 +1478,7 @@ if (require.main === module) {
           thumbnailUrl: video.thumbnailUrl || '',
           publishedAt: video.publishedAt,
           channelId: video.channelId,
-          channelName: video.channel.name,
+          channelName: video.youtube_channels?.name || 'Unbekannt',
         });
         console.log('\nErgebnis:', JSON.stringify(result, null, 2));
       })

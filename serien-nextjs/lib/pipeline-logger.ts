@@ -52,6 +52,7 @@ export class PipelineLogger {
 
     const run = await prisma.pipeline_runs.create({
       data: {
+        id: crypto.randomUUID(),
         pipeline: this.pipeline,
         trigger: this.trigger,
         status: 'running',
