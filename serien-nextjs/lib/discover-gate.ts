@@ -122,12 +122,12 @@ const GENERIC_HEADLINE_PATTERNS = [
 export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGateResult> {
   const fail_reasons: string[] = [];
   
-  const plainText = input.article_html
+  const plainText = (input.article_html || '')
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   
-  const paragraphs = input.article_html.match(/<p>(.*?)<\/p>/g) || [];
+  const paragraphs = (input.article_html || '').match(/<p>(.*?)<\/p>/g) || [];
   const paragraphTexts = paragraphs.map(p => p.replace(/<\/?p>/g, '').trim());
 
   // === A) HEADLINE QUALITY (30 Punkte) ===

@@ -980,7 +980,7 @@ ${additionalSources}
         console.log(`   ✓ ${charResult.charactersLinked} Characters verlinkt`);
         
         // Debug: Check actual links
-        const charLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
+        const charLinks = (processedMarkdown?.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
         console.log(`   🔍 DEBUG: ${charLinks} Character-Links im Markdown`);
       } catch (e: any) {
         console.log(`   ⚠️ Character-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
@@ -993,7 +993,7 @@ ${additionalSources}
         console.log(`   ✓ ${castResult.castLinked} Cast-Mitglieder verlinkt`);
         
         // Debug: Check actual links
-        const castLinks = (processedMarkdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
+        const castLinks = (processedMarkdown?.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
         console.log(`   🔍 DEBUG: ${castLinks} Cast-Links im Markdown`);
       } catch (e: any) {
         console.log(`   ⚠️ Cast-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);

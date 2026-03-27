@@ -376,7 +376,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Linked ${characterLinkResult.charactersLinked} characters`);
     
     // DEBUG: Check if links are actually in markdown
-    const debugCharLinks = (structuredContent.markdown.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
+    const debugCharLinks = (structuredContent.markdown?.match(/\[([^\]]+)\]\(\/figur\/[^)]+\)/g) || []).length;
     console.log(`🔍 DEBUG: Markdown has ${debugCharLinks} character links`);
     
     // Link cast members in markdown
@@ -389,7 +389,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Linked ${castLinkResult.castLinked} cast members`);
     
     // DEBUG: Check if links are actually in markdown
-    const debugCastLinks = (structuredContent.markdown.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
+    const debugCastLinks = (structuredContent.markdown?.match(/\[([^\]]+)\]\(\/person\/[^)]+\)/g) || []).length;
     console.log(`🔍 DEBUG: Markdown has ${debugCastLinks} cast links`);
     
     // Link streamers to their hub pages (Netflix → /netflix-serien)
@@ -410,15 +410,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 7: Markdown to HTML');
     
-    const contentHtml = markdownToHtml(structuredContent.markdown);
+    const contentHtml = markdownToHtml(structuredContent.markdown || '');
     
     // DEBUG: Check if links survived HTML conversion
-    const debugHtmlCharLinks = (contentHtml.match(/href="\/figur\//g) || []).length;
-    const debugHtmlCastLinks = (contentHtml.match(/href="\/person\//g) || []).length;
+    const debugHtmlCharLinks = (contentHtml?.match(/href="\/figur\//g) || []).length;
+    const debugHtmlCastLinks = (contentHtml?.match(/href="\/person\//g) || []).length;
     console.log(`🔍 DEBUG: HTML has ${debugHtmlCharLinks} character links, ${debugHtmlCastLinks} cast links`);
     
     // Verify H2s survived conversion
-    const h2Count = (contentHtml.match(/<h2>/g) || []).length;
+    const h2Count = (contentHtml?.match(/<h2>/g) || []).length;
     console.log(`✅ HTML generated`);
     console.log(`   H2 tags: ${h2Count}`);
     
