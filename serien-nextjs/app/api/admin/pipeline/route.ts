@@ -5,30 +5,35 @@ const prisma = new PrismaClient();
 
 // Cron schedules (UTC times) - alle 6 Stunden
 const CRON_SCHEDULES = {
-  'p3-trends': { schedule: '0 */6 * * *', name: 'P3-Trends', hours: [0, 6, 12, 18] },
-  'p4-youtube': { schedule: '0 */6 * * *', name: 'P4-YouTube', hours: [0, 6, 12, 18] },
-  'cron-news': { schedule: '0 */6 * * *', name: 'News Import', hours: [0, 6, 12, 18] },
-  'cron-releases': { schedule: '0 */6 * * *', name: 'Releases', hours: [0, 6, 12, 18] },
+  'p3-trends': { schedule: '*/30 * * * *', name: 'P3-Trends', intervalMinutes: 30 },
+  'p4-youtube': { schedule: '*/30 * * * *', name: 'P4-YouTube', intervalMinutes: 30 },
+  'cron-news': { schedule: '*/30 * * * *', name: 'News Import', intervalMinutes: 30 },
+  'cron-releases': { schedule: '*/30 * * * *', name: 'Releases', intervalMinutes: 30 },
 };
 
-function getNextCronRun(hours: number[]): Date {
+function getNextCronRun(intervalMinutes: number): Date {
   const now = new Date();
-  const currentHour = now.getUTCHours();
+  const currentMinutes = now.getMinutes();
   
-  // Find next scheduled hour
-  let nextHour = hours.find(h => h > currentHour);
-  
-  if (nextHour === undefined) {
-    // Next run is tomorrow at first scheduled hour
-    nextHour = hours[0];
-    const tomorrow = new Date(now);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    tomorrow.setUTCHours(nextHour, 0, 0, 0);
-    return tomorrow;
-  }
+  // Calculate next run time based on interval
+  const nextIntervalMinute = Math.ceil(currentMinutes / intervalMinutes) * intervalMinutes;
   
   const nextRun = new Date(now);
-  nextRun.setUTCHours(nextHour, 0, 0, 0);
+  if (nextIntervalMinute >= 60) {
+    // Next hour
+    nextRun.setHours(nextRun.getHours() + 1);
+    nextRun.setMinutes(nextIntervalMinute - 60, 0, 0);
+  } else if (nextIntervalMinute === currentMinutes) {
+    // Currently at interval, next is in intervalMinutes
+    nextRun.setMinutes(currentMinutes + intervalMinutes, 0, 0);
+    if (nextRun.getMinutes() >= 60) {
+      nextRun.setHours(nextRun.getHours() + 1);
+      nextRun.setMinutes(nextRun.getMinutes() - 60);
+    }
+  } else {
+    nextRun.setMinutes(nextIntervalMinute, 0, 0);
+  }
+  
   return nextRun;
 }
 
@@ -155,7 +160,7 @@ export async function GET(request: NextRequest) {
         url: true,
         isActive: true,
         lastCheckedAt: true,
-        _count: { select: { videos: true } }
+        _count: { select: { youtube_videos: true } }
       },
       orderBy: { name: 'asc' }
     });
@@ -168,7 +173,7 @@ export async function GET(request: NextRequest) {
         videoId: true,
         title: true,
         publishedAt: true,
-        channel: { select: { name: true } }
+        youtube_channels: { select: { name: true } }
       },
       orderBy: { publishedAt: 'desc' },
       take: 10
@@ -248,7 +253,7 @@ export async function GET(request: NextRequest) {
     for (const [pipeline, config] of Object.entries(CRON_SCHEDULES)) {
       const lastRun = pipelineRunsArray.find((r: any) => r.pipeline === pipeline);
       cronStatus[pipeline] = {
-        nextRun: getNextCronRun(config.hours).toISOString(),
+        nextRun: getNextCronRun(config.intervalMinutes).toISOString(),
         lastRun: lastRun?.startedAt,
         lastStatus: lastRun?.status,
         schedule: config.schedule,
