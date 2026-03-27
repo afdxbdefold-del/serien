@@ -610,35 +610,39 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log(`   ✅ Cast imported`);
       })(),
       
-      // Download trailer via RapidAPI (LOCAL VIDEO ONLY)
+      // Download trailer via RapidAPI (FIRE-AND-FORGET - don't block pipeline!)
+      // This runs in background and updates the article later
       (async () => {
         try {
           const trailerId = findTrailerYouTubeId(dbSeries.trailers);
           
           if (trailerId) {
             console.log(`   🎬 Found trailer ID from TMDB: ${trailerId}`);
-            console.log(`   📥 Downloading via RapidAPI...`);
+            console.log(`   📥 Starting background download via RapidAPI...`);
             
-            // Download via RapidAPI and upload to storage
-            const downloadResult = await downloadYouTubeTrailer(
-              trailerId,
-              dbSeries.name || dbSeries.title || ''
-            );
-            
-            if (downloadResult.success && downloadResult.localPath) {
-              await prisma.articles.update({
-                where: { id: articleId },
-                data: { heroVideoUrl: downloadResult.localPath }
+            // Fire-and-forget: Don't await, just start the download
+            downloadYouTubeTrailer(trailerId, dbSeries.name || dbSeries.title || '')
+              .then(async (downloadResult) => {
+                if (downloadResult.success && downloadResult.localPath) {
+                  await prisma.articles.update({
+                    where: { id: articleId },
+                    data: { heroVideoUrl: downloadResult.localPath }
+                  });
+                  console.log(`   ✅ Local video saved (background): ${downloadResult.localPath}`);
+                } else {
+                  console.log(`   ⚠️ Download failed (background): ${downloadResult.error}`);
+                }
+              })
+              .catch((err) => {
+                console.log(`   ❌ Trailer download error (background): ${err.message}`);
               });
-              console.log(`   ✅ Local video saved: ${downloadResult.localPath}`);
-            } else {
-              console.log(`   ⚠️ Download failed: ${downloadResult.error}`);
-            }
+            
+            console.log(`   ⏳ Trailer download started in background`);
           } else {
             console.log(`   ℹ️ No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
           }
         } catch (error: any) {
-          console.log(`   ❌ Trailer error: ${error.message}`);
+          console.log(`   ❌ Trailer init error: ${error.message}`);
         }
       })(),
       
