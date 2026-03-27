@@ -861,7 +861,7 @@ export async function runP3TrendsPipeline(
     // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
     // Für Trends: Prüfe wann der TREND erkannt wurde, nicht das Alter der Recherche-Quellen
     // Die Quellen für die Recherche dürfen älter sein (Wikipedia, Hintergrund etc.)
-    const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden
+    const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
     
     // Hole das Trend-Datum aus der Datenbank (falls kein manueller Trend)
     let trendDate: Date | null = null;

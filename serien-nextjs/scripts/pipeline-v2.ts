@@ -125,7 +125,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
     // Pipeline-V2 verarbeitet einzelne News-Artikel - das Artikel-Datum IST das Thema-Datum
     const trigger = source.trigger || 'manual';
-    const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden
+    const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
     
     // Versuche das Veröffentlichungsdatum aus dem Artikel zu extrahieren
     let articleDate: Date | null = null;

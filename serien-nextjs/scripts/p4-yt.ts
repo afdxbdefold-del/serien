@@ -577,7 +577,7 @@ export async function generateArticleFromVideo(
   
   // ========== SOURCE AGE CHECK (6 Stunden Maximum) ==========
   const videoAge = now.getTime() - video.publishedAt.getTime();
-  const maxAgeMs = 6 * 60 * 60 * 1000; // 6 Stunden in Millisekunden
+  const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
   const videoAgeHours = Math.round(videoAge / (60 * 60 * 1000) * 10) / 10;
   
   if (videoAge > maxAgeMs && trigger !== 'manual') {
