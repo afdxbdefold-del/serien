@@ -680,10 +680,45 @@ export async function generateArticleFromVideo(
           }
         }
       } else {
-        console.log(`   ⚠️ Keine TMDB-Serie gefunden`);
-        // Require TMDB match for quality
-        await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
-        return { success: false, error: 'Keine TMDB-Serie gefunden' };
+        console.log(`   ⚠️ Keine TMDB-Serie gefunden via API`);
+        
+        // FALLBACK: Suche in lokaler DB
+        console.log(`   🔄 Fallback: Suche in lokaler Datenbank...`);
+        const searchTerms = [seriesName, video.title.split(' ').slice(0, 3).join(' ')].filter(Boolean);
+        
+        for (const term of searchTerms) {
+          if (!term || term.length < 3) continue;
+          const dbMatch = await prisma.series.findFirst({
+            where: {
+              OR: [
+                { title: { contains: term, mode: 'insensitive' } },
+                { name: { contains: term, mode: 'insensitive' } },
+              ]
+            }
+          });
+          
+          if (dbMatch) {
+            dbSeries = dbMatch;
+            tmdbSeries = {
+              tmdbId: dbMatch.tmdbId,
+              name: dbMatch.name || dbMatch.title,
+              overview: dbMatch.overview || '',
+              posterPath: dbMatch.posterPath,
+              backdropPath: dbMatch.backdropPath,
+              firstAirDate: dbMatch.firstAirDate?.toISOString().split('T')[0] || null,
+              voteAverage: dbMatch.voteAverage || 0,
+              status: dbMatch.status || 'Unknown',
+              networks: Array.isArray(dbMatch.networks) ? dbMatch.networks.join(', ') : '',
+            };
+            console.log(`   ✓ DB-Fallback: "${dbMatch.name}" (ID: ${dbMatch.tmdbId})`);
+            break;
+          }
+        }
+        
+        if (!tmdbSeries) {
+          await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
+          return { success: false, error: 'Keine TMDB-Serie gefunden' };
+        }
       }
     }
     

@@ -687,6 +687,54 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
       
       if (!info.tmdbData) {
         console.log(`      ⚠️ Keine TMDB-Serie gefunden für: ${searchTerm}`);
+        
+        // FALLBACK: Suche in lokaler DB nach existierenden Serien
+        console.log(`      🔄 Fallback: Suche in lokaler Datenbank...`);
+        const searchVariantsForDb = generateTrendSearchVariants(searchTerm);
+        for (const variant of searchVariantsForDb) {
+          if (variant.length < 3) continue;
+          const dbMatch = await prisma.series.findFirst({
+            where: {
+              OR: [
+                { title: { contains: variant, mode: 'insensitive' } },
+                { name: { contains: variant, mode: 'insensitive' } },
+              ]
+            },
+            select: {
+              tmdbId: true,
+              name: true,
+              title: true,
+              overview: true,
+              posterPath: true,
+              backdropPath: true,
+              firstAirDate: true,
+              voteAverage: true,
+              status: true,
+              networks: true,
+            }
+          });
+          
+          if (dbMatch) {
+            info.seriesName = dbMatch.name || dbMatch.title;
+            info.tmdbData = {
+              tmdbId: dbMatch.tmdbId,
+              name: dbMatch.name || dbMatch.title,
+              overview: dbMatch.overview || '',
+              posterPath: dbMatch.posterPath,
+              backdropPath: dbMatch.backdropPath,
+              firstAirDate: dbMatch.firstAirDate?.toISOString().split('T')[0] || null,
+              voteAverage: dbMatch.voteAverage || 0,
+              status: dbMatch.status || 'Unknown',
+              networks: Array.isArray(dbMatch.networks) ? dbMatch.networks.join(', ') : (dbMatch.networks || ''),
+            };
+            console.log(`      ✓ DB-Fallback: "${info.seriesName}" (ID: ${dbMatch.tmdbId})`);
+            break;
+          }
+        }
+        
+        if (!info.tmdbData) {
+          console.log(`      ❌ Auch kein DB-Match gefunden`);
+        }
       }
     }
   } catch (error) {
