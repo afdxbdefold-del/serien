@@ -36,18 +36,105 @@ export default function DesktopSeriesLayout({
   slug,
   characters,
 }: DesktopSeriesLayoutProps) {
+  const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
+  
   return (
-    <section className="container mx-auto px-6 py-8 lg:py-12 hidden lg:block" aria-labelledby="series-desktop">
+    <section className="hidden lg:block" aria-labelledby="series-desktop">
       <h1 id="series-desktop" className="sr-only">{series.name}</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <div className="lg:col-span-7">
-          
-          <DiscoverIntro 
-            seriesName={series.name || series.title}
-            content={series.discoverIntro || ''}
-            hasExtendedOverview={!!series.extendedOverview}
+      
+      {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
+      <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
+        {trailerKey ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&autoplay=0`}
+            title={`${series.name || series.title} Trailer`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
           />
+        ) : series.backdropPath ? (
+          <>
+            <Image
+              src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
+              alt={series.name || ''}
+              fill
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950/90 via-gray-950/40 to-transparent" />
+          </>
+        ) : null}
+        
+        {/* Series Info Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-gray-950 via-gray-950/80 to-transparent">
+          <div className="container mx-auto px-6">
+            <div className="flex items-end gap-6">
+              {series.posterPath && (
+                <Image
+                  src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
+                  alt={series.name || ''}
+                  width={140}
+                  height={210}
+                  className="rounded-lg shadow-2xl border-2 border-white/20 hidden xl:block"
+                />
+              )}
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold text-white mb-3">{series.name}</h2>
+                <div className="flex items-center gap-3 flex-wrap">
+                  {series.voteAverage && (
+                    <RatingWithContext 
+                      rating={series.voteAverage} 
+                      voteCount={series.voteCount || undefined}
+                    />
+                  )}
+                  {series.firstAirDate && (
+                    <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg text-sm text-white">
+                      {new Date(series.firstAirDate).getFullYear()}
+                    </span>
+                  )}
+                  {series.numberOfSeasons && (
+                    <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg text-sm text-white">
+                      {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
+                    </span>
+                  )}
+                  {series.status && (
+                    <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                      series.status === 'Returning Series' || series.status === 'Running'
+                        ? 'bg-green-500/80 text-white'
+                        : 'bg-white/20 text-white'
+                    }`}>
+                      {series.status === 'Returning Series' ? 'Läuft' : 
+                       series.status === 'Ended' ? 'Beendet' : series.status}
+                    </span>
+                  )}
+                </div>
+                {series.overview && (
+                  <p className="text-gray-200 mt-3 line-clamp-2 max-w-3xl">
+                    {series.overview}
+                  </p>
+                )}
+                <div className="mt-4">
+                  <FollowButtonLocal 
+                    tmdbId={series.tmdbId} 
+                    seriesName={series.name || ''} 
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* CONTENT SECTION - Grid darunter */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8">
+            
+            <DiscoverIntro 
+              seriesName={series.name || series.title}
+              content={series.discoverIntro || ''}
+              hasExtendedOverview={!!series.extendedOverview}
+            />
 
           <WhereToStreamBox 
             seriesId={series.tmdbId}
@@ -271,154 +358,62 @@ export default function DesktopSeriesLayout({
               networks={series.networks as string[]}
             />
           </div>
-        </div>
 
-        {seriesQA && seriesQA.length > 0 && (
-          <div className="lg:col-span-7 mt-8">
-            <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
-          </div>
-        )}
+          {seriesQA && seriesQA.length > 0 && (
+            <div className="mt-8">
+              <SeriesQA questions={seriesQA} seriesName={series.name || series.title} />
+            </div>
+          )}
 
-        <div className="lg:col-span-7">
           <DiscoverStatus
             seriesName={series.name || series.title}
             content={series.discoverStatus || ''}
           />
-        </div>
 
-        <div className="lg:col-span-7">
           <MiniQA qa={series.discoverQA as any || []} />
         </div>
 
-        <div className="hidden lg:block lg:col-span-5">
-          <div className="lg:sticky lg:top-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
-              <div className="relative w-full aspect-[16/9] bg-gray-900">
-                {/* YouTube Trailer im Hero wenn verfügbar */}
-                {trailers.length > 0 && trailers[0]?.key ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${trailers[0].key}?rel=0&modestbranding=1`}
-                    title={`${series.name || series.title} Trailer`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 w-full h-full"
-                  />
-                ) : series.backdropPath ? (
-                  <>
-                    <Image
-                      src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
-                      alt={series.name || ''}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                  </>
-                ) : null}
-                
-                {/* Poster nur zeigen wenn KEIN Trailer */}
-                {(!trailers.length || !trailers[0]?.key) && series.posterPath && (
-                  <div className="absolute bottom-0 left-6 transform translate-y-1/2">
-                    <Image
-                      src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
-                      alt={series.name || ''}
-                      width={120}
-                      height={180}
-                      className="rounded-lg shadow-2xl border-4 border-white dark:border-gray-800 w-[120px] h-auto"
-                    />
-                  </div>
-                )}
-              </div>
-              
-              <div className={trailers.length > 0 && trailers[0]?.key ? "px-6 py-6" : "pt-16 px-6 pb-6"}>
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-[120px]">
-                    <div className="flex flex-col gap-2">
-                      {series.voteAverage && (
-                        <RatingWithContext 
-                          rating={series.voteAverage} 
-                          voteCount={series.voteCount || undefined}
-                          className="w-full"
-                        />
-                      )}
-                      {series.firstAirDate && (
-                        <div className="bg-gray-100 dark:bg-gray-700 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
-                          {new Date(series.firstAirDate).getFullYear()}
-                        </div>
-                      )}
-                      {series.numberOfSeasons && (
-                        <div className="bg-gray-100 dark:bg-gray-700 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 text-center">
-                          {series.numberOfSeasons} {series.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'}
-                        </div>
-                      )}
-                      {series.status && (
-                        <div className={`px-2 py-1.5 rounded-lg text-xs font-medium text-center ${
-                          series.status === 'Returning Series' || series.status === 'Running'
-                            ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
-                        }`}>
-                          {series.status === 'Returning Series' ? 'Läuft' : 
-                           series.status === 'Ended' ? 'Beendet' : series.status}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mb-3" aria-label={`Serie: ${series.name}`}>
-                      {series.name}
-                    </p>
-                    {series.overview && (
-                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4 text-sm">
-                        {series.overview}
-                      </p>
-                    )}
-                    <div>
-                      <FollowButtonLocal 
-                        tmdbId={series.tmdbId} 
-                        seriesName={series.name || ''} 
-                      />
-                    </div>
+        {/* Rechte Sidebar */}
+        <div className="lg:col-span-4">
+          <div className="lg:sticky lg:top-6 space-y-6">
+            
+            {/* Networks & Genres Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+              {series.networks && series.networks.length > 0 && (
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Sender/Plattform</div>
+                  <div className="flex flex-wrap gap-2">
+                    {series.networks.map((network: string) => (
+                      <span key={network} className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-lg text-sm font-medium">
+                        {network}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
               
-              <div className="border-t border-gray-200 p-6 space-y-4">
-                {series.networks && series.networks.length > 0 && (
-                  <div>
-                    <div className="text-sm text-gray-600 mb-2 font-medium">Sender/Plattform</div>
-                    <div className="flex flex-wrap gap-2">
-                      {series.networks.map((network) => (
-                        <span key={network} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium">
-                          {network}
-                        </span>
-                      ))}
-                    </div>
+              {series.genres && series.genres.length > 0 && (
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 font-medium">Genres</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(series.genres as any[]).map((genre: any) => (
+                      <span key={typeof genre === 'string' ? genre : genre.name} className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-lg text-sm">
+                        {typeof genre === 'string' ? genre : genre.name}
+                      </span>
+                    ))}
                   </div>
-                )}
-                
-                {series.genres && series.genres.length > 0 && (
-                  <div>
-                    <div className="text-sm text-gray-600 mb-2 font-medium">Genres</div>
-                    <div className="flex flex-wrap gap-2">
-                      {series.genres.map((genre) => (
-                        <span key={genre} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
+            {/* Cast Preview */}
             {cast.length > 0 && (
-              <div className="bg-white rounded-xl shadow-xl p-6 mt-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">🎭 Cast</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Besetzung</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  {cast.slice(0, 6).map((actor) => (
-                    <div key={actor.id} className="text-center">
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 mb-2">
+                  {cast.slice(0, 6).map((actor: any) => (
+                    <div key={actor.id || actor.name} className="text-center">
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2">
                         {actor.profile_path ? (
                           <Image
                             src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
@@ -428,33 +423,19 @@ export default function DesktopSeriesLayout({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <Tv className="h-8 w-8" />
+                            <Tv className="h-6 w-6" />
                           </div>
                         )}
                       </div>
-                      <div className="text-xs font-medium text-gray-900 line-clamp-1">{actor.name}</div>
+                      <div className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1">{actor.name}</div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {trailers.length > 0 && trailers[0].key && (
-              <div className="bg-white rounded-xl shadow-xl p-6 mt-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">🎬 Trailer</h3>
-                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${trailers[0].key}`}
-                    title="Series Trailer"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full"
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
+      </div>
       </div>
     </section>
   );
