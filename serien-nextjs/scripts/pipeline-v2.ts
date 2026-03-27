@@ -677,10 +677,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
       })(),
       
-      // Discover Gate
+      // Discover Gate - Score berechnen und speichern
       (async () => {
         try {
-          await discoverGate({
+          const gateResult = await discoverGate({
             final_headline: structuredContent.headline || '',
             article_html: finalContentHtml || '',
             hero_image_metadata: {
@@ -692,7 +692,31 @@ export async function runPipelineV2(source: PipelineV2Source) {
             publishedAt: new Date(),
             primary_series: dbSeries.name || dbSeries.title || ''
           });
-          console.log(`   ✅ Discover Gate processed`);
+          
+          // Save to discover_score_dashboards
+          await prisma.discover_score_dashboards.create({
+            data: {
+              id: crypto.randomUUID(),
+              articleId: articleId,
+              timestamp: new Date(),
+              finalVerdict: gateResult.discover_eligible ? 'DISCOVER_OK' : 'SEARCH_ONLY',
+              discoverScore: gateResult.scores.total,
+              headlineMetrics: gateResult.dashboard.headline as any,
+              freshnessMetrics: gateResult.dashboard.freshness as any,
+              contentMetrics: gateResult.dashboard.content_opening as any,
+              imageMetrics: gateResult.dashboard.image_visual as any,
+              trustMetrics: gateResult.dashboard.trust_clarity as any,
+            }
+          });
+          
+          // Update article publishMode based on score
+          const publishMode = gateResult.discover_eligible ? 'DISCOVER' : 'SEARCH_ONLY';
+          await prisma.articles.update({
+            where: { id: articleId },
+            data: { publishMode }
+          });
+          
+          console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/100 → ${publishMode}`);
         } catch (error: any) {
           console.log(`   ⚠️  Discover Gate failed: ${error.message}`);
         }
