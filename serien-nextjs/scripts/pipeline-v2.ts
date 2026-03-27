@@ -75,6 +75,74 @@ function generateSlug(title: string): string {
     .replace(/^-|-$/g, '');
 }
 
+/**
+ * Extract potential series name candidates from title and text
+ * Used for exact DB matching (no substring search!)
+ */
+function extractSeriesNameCandidates(title: string, articleText: string): string[] {
+  const candidates: string[] = [];
+  
+  // Quote characters to detect series names in quotes
+  const quoteChars = ["'", '"', '\u2018', '\u2019', '\u201C', '\u201D', '\u201E', '\u00BB', '\u00AB'];
+  
+  // Strategy 1: Find quoted text in title (highest priority)
+  for (const openQuote of quoteChars) {
+    const startIdx = title.indexOf(openQuote);
+    if (startIdx === -1) continue;
+    
+    for (const closeQuote of quoteChars) {
+      const endIdx = title.indexOf(closeQuote, startIdx + 1);
+      if (endIdx === -1 || endIdx === startIdx) continue;
+      
+      const extracted = title.substring(startIdx + 1, endIdx).trim();
+      if (extracted.length >= 2 && extracted.length <= 50 && !candidates.includes(extracted)) {
+        candidates.push(extracted);
+      }
+    }
+  }
+  
+  // Strategy 2: Find quoted text in first 300 chars of article
+  const firstPart = articleText.substring(0, 300);
+  for (const openQuote of quoteChars) {
+    const startIdx = firstPart.indexOf(openQuote);
+    if (startIdx === -1) continue;
+    
+    for (const closeQuote of quoteChars) {
+      const endIdx = firstPart.indexOf(closeQuote, startIdx + 1);
+      if (endIdx === -1 || endIdx === startIdx) continue;
+      
+      const extracted = firstPart.substring(startIdx + 1, endIdx).trim();
+      if (extracted.length >= 2 && extracted.length <= 50 && !candidates.includes(extracted)) {
+        candidates.push(extracted);
+      }
+    }
+  }
+  
+  // Strategy 3: Known series names (exact match only)
+  const knownSeries = [
+    'Dune', 'Dune: Prophecy', 'The Boys', 'Stranger Things', 'Wednesday',
+    'House of the Dragon', 'The Last of Us', 'Squid Game', 'Severance',
+    'The Walking Dead', 'Yellowstone', 'The White Lotus', 'The Bear',
+    'Bridgerton', 'Reacher', 'Fallout', 'Shogun', 'The Penguin',
+    'Arcane', 'One Piece', 'Avatar', 'Loki', 'Ahsoka', 'Andor',
+    'The Mandalorian', 'The Witcher', 'The Gentlemen', 'Baby Reindeer',
+    'Kennedy', 'The Agency', 'Paradise', 'School Spirits'
+  ];
+  
+  for (const series of knownSeries) {
+    const titleLower = title.toLowerCase();
+    const seriesLower = series.toLowerCase();
+    
+    // Check for word boundary match in title
+    const regex = new RegExp(`\\b${seriesLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(title) && !candidates.includes(series)) {
+      candidates.push(series);
+    }
+  }
+  
+  return candidates;
+}
+
 export async function runPipelineV2(source: PipelineV2Source) {
   console.log('\n' + '='.repeat(70));
   console.log('🚀 PIPELINE V2 - OPTIMIZED');
@@ -219,42 +287,52 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     let searchResult = await searchTvEnhanced(source.title, fullSourceText);
     
+    // ══════════════════════════════════════════════════════════════════════════
+    // TMDB MATCH VALIDATION - Strenge Prüfung vor DB-Fallback
+    // ══════════════════════════════════════════════════════════════════════════
     if (!searchResult || searchResult.confidence < 0.6) {
-      console.log('⚠️ No confident TMDB match found, trying DB fallback...');
+      console.log('⚠️ No confident TMDB match found (confidence < 60%)');
+      console.log(`   TMDB Result: ${searchResult ? `${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)` : 'null'}`);
       
-      // DB FALLBACK: Search in local database for existing series
-      const titleWords = source.title.split(/[\s\-:,]+/).filter(w => w.length > 2);
+      // DB FALLBACK: Nur mit exakter Übereinstimmung - KEINE Substring-Suche!
+      // Dies verhindert falsche Zuordnungen wie "Dune" → "ZatsuTabi"
+      const candidates = extractSeriesNameCandidates(source.title, fullSourceText);
       let dbMatch = null;
       
-      // Try progressively shorter search terms
-      for (let i = Math.min(5, titleWords.length); i >= 2 && !dbMatch; i--) {
-        const searchTerm = titleWords.slice(0, i).join(' ');
+      console.log(`   📋 Trying exact DB match for candidates: ${candidates.join(', ')}`);
+      
+      for (const candidate of candidates) {
+        // Nur exakte Matches (case-insensitive) - KEINE contains-Suche!
         dbMatch = await prisma.series.findFirst({
           where: {
             OR: [
-              { title: { contains: searchTerm, mode: 'insensitive' } },
-              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { title: { equals: candidate, mode: 'insensitive' } },
+              { name: { equals: candidate, mode: 'insensitive' } },
             ]
           },
           select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true }
         });
+        
         if (dbMatch) {
-          console.log(`✅ DB Fallback: Found "${dbMatch.name}" using "${searchTerm}"`);
+          console.log(`✅ DB Exact Match: Found "${dbMatch.name}" for "${candidate}"`);
           searchResult = {
             tmdbId: dbMatch.tmdbId,
             name: dbMatch.name || dbMatch.title,
-            confidence: 0.7,
-            matchMethod: 'db-fallback'
+            confidence: 0.85, // Exact match = high confidence
+            matchMethod: 'db-exact-match'
           };
           break;
         }
       }
       
       if (!searchResult || searchResult.confidence < 0.6) {
-        console.log('❌ No match found in TMDB or DB');
-        await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
+        console.log('❌ No match found in TMDB or DB (strict matching)');
+        console.log('   → Artikel wird übersprungen, um falsche Zuordnungen zu vermeiden');
+        await logger.fail('Keine TMDB-Serie gefunden (strenge Prüfung)', 'tmdb-resolution');
         return null;
       }
+    } else {
+      console.log(`✅ TMDB Match accepted: ${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)`);
     }
     
     logger.log(`Serie: ${searchResult.name} (TMDB: ${searchResult.tmdbId})`);
