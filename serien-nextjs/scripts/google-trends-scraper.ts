@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config';
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -109,7 +109,7 @@ async function fetchTrendsRSS(): Promise<string[]> {
       if (!response.ok) continue;
       
       const xml = await response.text();
-      const $ = cheerio.load(xml, { xmlMode: true });
+      const $ = cheerioLoad(xml, { xmlMode: true });
       
       $('item title').each((_, el) => {
         const title = $(el).text().trim();
@@ -295,7 +295,7 @@ async function findNewsForTrend(trend: string): Promise<string[]> {
     if (!response.ok) return newsUrls;
     
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = cheerioLoad(html);
     
     // Extract URLs from search results
     $('a[href*="screenrant.com"], a[href*="thecinemaholic.com"], a[href*="tvline.com"]').each((_, el) => {

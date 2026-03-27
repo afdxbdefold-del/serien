@@ -12,7 +12,7 @@
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
@@ -248,7 +248,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       if (!response?.ok) continue;
       
       const html = await response.text();
-      const $ = cheerio.load(html);
+      const $ = cheerioLoad(html);
       
       $('.result, .web-result').each((i, el) => {
         if (results.length >= 25) return; // More results for trends
@@ -304,7 +304,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
     
     if (gnResponse?.ok) {
       const xml = await gnResponse.text();
-      const $ = cheerio.load(xml, { xmlMode: true });
+      const $ = cheerioLoad(xml, { xmlMode: true });
       
       $('item').each((i, el) => {
         if (i >= 10) return;
@@ -388,7 +388,7 @@ async function scrapeWithCheerio(url: string): Promise<ScrapedArticle | null> {
     if (!response.ok) return null;
     
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = cheerioLoad(html);
     
     // Remove noise
     $('script, style, nav, footer, aside, header, .ad, .advertisement, .sidebar, .comments, .related, .newsletter, [role="navigation"], [role="banner"]').remove();

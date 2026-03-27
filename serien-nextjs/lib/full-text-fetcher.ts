@@ -6,7 +6,7 @@
  * Fallback: Jina AI Reader API
  */
 
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad, type Cheerio, type Element } from 'cheerio';
 
 export interface FullTextResult {
   fullText: string;
@@ -73,7 +73,7 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
     }
 
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = cheerioLoad(html);
     
     // Get domain
     const urlObj = new URL(url);
@@ -87,7 +87,7 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
     $(removeSelectors.join(', ')).remove();
     
     // Find content element
-    let $content: cheerio.Cheerio<cheerio.Element> | null = null;
+    let $content: Cheerio<Element> | null = null;
     for (const selector of selectors.content) {
       const $el = $(selector);
       if ($el.length > 0 && $el.text().trim().length > 100) {

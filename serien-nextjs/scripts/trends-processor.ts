@@ -7,7 +7,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { runPipelineV2 } from './pipeline-v2';
 
 const prisma = new PrismaClient();
@@ -46,7 +46,7 @@ async function fetchDailyTrends(): Promise<string[]> {
     }
     
     const xml = await response.text();
-    const $ = cheerio.load(xml, { xmlMode: true });
+    const $ = cheerioLoad(xml, { xmlMode: true });
     
     $('item title').each((_, el) => {
       const title = $(el).text().trim();
@@ -90,7 +90,7 @@ async function searchNewsArticles(query: string): Promise<string[]> {
     if (!response.ok) return urls;
     
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = cheerioLoad(html);
     
     // Extract URLs from DuckDuckGo results
     $('a.result__url, a.result__a').each((_, el) => {

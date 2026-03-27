@@ -5,7 +5,7 @@
  * Works on Vercel and other serverless platforms
  */
 
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad, type Cheerio, type Element } from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 import { runPipelineV2 } from './pipeline-v2';
 
@@ -155,13 +155,13 @@ async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
   }
   
   const html = await response.text();
-  const $ = cheerio.load(html);
+  const $ = cheerioLoad(html);
   
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
   
   // Helper: Decode base64 time from ScreenRant's data-b64-ts attribute
-  const decodeTimeFromB64 = ($el: cheerio.Cheerio<cheerio.Element>): string => {
+  const decodeTimeFromB64 = ($el: Cheerio<Element>): string => {
     const b64Time = $el.find('[data-b64-ts]').first().attr('data-b64-ts');
     if (b64Time) {
       try {

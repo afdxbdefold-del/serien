@@ -5,7 +5,7 @@
  * for the latest streaming TV news
  */
 
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 import { runPipelineV2 } from './pipeline-v2';
 
@@ -82,7 +82,7 @@ async function scrapeTVLineNews(): Promise<NewsArticle[]> {
   }
   
   const html = await response.text();
-  const $ = cheerio.load(html);
+  const $ = cheerioLoad(html);
   
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();

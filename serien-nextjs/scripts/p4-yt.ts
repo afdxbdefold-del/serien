@@ -13,7 +13,7 @@
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
@@ -198,7 +198,7 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
     }
     
     const xml = await response.text();
-    const $ = cheerio.load(xml, { xmlMode: true });
+    const $ = cheerioLoad(xml, { xmlMode: true });
     
     // Get channel name from feed
     const channelName = $('feed > title').text() || 'Unknown Channel';

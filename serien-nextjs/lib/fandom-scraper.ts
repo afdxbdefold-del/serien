@@ -3,7 +3,7 @@
  * Uses fetch + Jina Reader as fallback for Cloudflare bypass
  */
 
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 
 interface FandomCharacterData {
   name: string;
@@ -69,7 +69,7 @@ async function fetchViaBrowser(url: string): Promise<string | null> {
  * Parse character data from HTML
  */
 function parseCharacterData(html: string, url: string): FandomCharacterData {
-  const $ = cheerio.load(html);
+  const $ = cheerioLoad(html);
 
   // Check if this is a valid character page
   const pageTitle = $('h1.page-header__title, h1#firstHeading').text().trim();

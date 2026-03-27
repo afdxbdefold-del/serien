@@ -11,7 +11,7 @@
 
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import * as cheerio from 'cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
 import { getTvDetailsComplete } from '../lib/tmdb';
 
@@ -303,7 +303,7 @@ async function scrapeArticle(url: string): Promise<ImportedArticle | null> {
     }
     
     const html = await response.text();
-    const $ = cheerio.load(html);
+    const $ = cheerioLoad(html);
     
     // Extract title
     const title = $('h1').first().text().trim() || 
