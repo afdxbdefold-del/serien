@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     // Create event
     await prisma.analytics_events.create({
       data: {
+        id: crypto.randomUUID(),
         sessionId,
         visitorId,
         event,
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
           isActive: true,
         },
         create: {
+          id: crypto.randomUUID(),
           sessionId,
           visitorId,
           entryPage: path,

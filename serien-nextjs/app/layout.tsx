@@ -1,5 +1,6 @@
 import './globals.css';
 import LayoutWrapper from '@/components/LayoutWrapper';
+import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 import { Inter } from 'next/font/google';
 
@@ -98,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors`}>
+        <AnalyticsTracker />
         <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
