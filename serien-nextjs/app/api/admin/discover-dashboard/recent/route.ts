@@ -23,30 +23,40 @@ export async function GET(request: NextRequest) {
     const dashboards = await prisma.discover_score_dashboards.findMany({
       take: limit,
       orderBy: { timestamp: 'desc' },
-      include: {
-        article: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            publishMode: true,
-            publishedAt: true,
-            primarySeriesId: true,
-          },
-        },
-      },
     });
+    
+    // Get article info for each dashboard
+    const articleIds = dashboards.map(d => d.articleId);
+    const articles = await prisma.articles.findMany({
+      where: { id: { in: articleIds } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        publishMode: true,
+        publishedAt: true,
+      }
+    });
+    
+    // Merge article data into dashboards
+    const articlesMap = new Map(articles.map(a => [a.id, a]));
+    const dashboardsWithArticles = dashboards.map(d => ({
+      ...d,
+      article: articlesMap.get(d.articleId) || null
+    }));
 
     // Statistics
     const total = await prisma.discover_score_dashboards.count();
-    const discoverOk = dashboards.filter(d => d.finalVerdict === 'DISCOVER_OK').length;
-    const searchOnly = dashboards.filter(d => d.finalVerdict === 'SEARCH_ONLY').length;
-    const avgDiscoverScore = dashboards.reduce((sum, d) => sum + d.discoverScore, 0) / dashboards.length;
+    const discoverOk = dashboardsWithArticles.filter(d => d.finalVerdict === 'DISCOVER_OK').length;
+    const searchOnly = dashboardsWithArticles.filter(d => d.finalVerdict === 'SEARCH_ONLY').length;
+    const avgDiscoverScore = dashboardsWithArticles.length > 0 
+      ? dashboardsWithArticles.reduce((sum, d) => sum + d.discoverScore, 0) / dashboardsWithArticles.length 
+      : 0;
 
     return NextResponse.json({
       success: true,
       data: {
-        dashboards,
+        dashboards: dashboardsWithArticles,
         statistics: {
           total,
           limit,
