@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * STEP 1: Content Classification
  * Classifies articles into SINGLE_SERIES_NEWS, MULTI_SERIES_EDITORIAL, or SKIP
@@ -95,7 +96,7 @@ Classify this content now.
       throw new Error('No response from classifier');
     }
 
-    const result = JSON.parse(content) as ClassificationResult;
+    const result = parseJsonResponse(content) as ClassificationResult;
     
     // Validation
     const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'MOVIE', 'MIXED', 'UNKNOWN'];

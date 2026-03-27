@@ -222,7 +222,20 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
       response_format: { type: 'json_object' },
     });
 
-    const content = response.choices[0]?.message?.content || '{}';
+    let content = response.choices[0]?.message?.content || '{}';
+    
+    // Clean markdown code blocks if present
+    content = content.trim();
+    if (content.startsWith('```json')) {
+      content = content.slice(7);
+    } else if (content.startsWith('```')) {
+      content = content.slice(3);
+    }
+    if (content.endsWith('```')) {
+      content = content.slice(0, -3);
+    }
+    content = content.trim();
+    
     return JSON.parse(content);
   } catch (error: any) {
     console.log(`   ❌ LLM call failed: ${error.message}`);

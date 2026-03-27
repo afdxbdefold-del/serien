@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * Editorial Context Generation for Series Hubs
  * UPDATED: Discover-Optimierung gemäß Instruction (März 2026)
@@ -85,7 +86,7 @@ Erstelle evergreen "Warum relevant"-Erklärung (kulturelle/Markt-Relevanz, KEIN 
       return generateFallbackRelevance(seriesName, overview, status, voteAverage);
     }
 
-    const parsed = JSON.parse(content);
+    const parsed = parseJsonResponse(content);
     
     if (parsed.text && parsed.text.length > 20) {
       return {

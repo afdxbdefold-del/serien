@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * STEP 3: Fact Extraction
  * Extracts structured facts from source articles
@@ -90,7 +91,7 @@ Extract all facts now (preserve exact wording, no translation).
       throw new Error('No response from fact extractor');
     }
 
-    const facts = JSON.parse(content) as ExtractedFacts;
+    const facts = parseJsonResponse(content) as ExtractedFacts;
     
     console.log('✅ Facts extracted:');
     console.log(`  Series: ${facts.series_names.length}`);

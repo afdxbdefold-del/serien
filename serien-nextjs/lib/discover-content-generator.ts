@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * Google Discover Content Generator
  * Generates evergreen, editorial content for Series Hub pages
@@ -180,7 +181,7 @@ Schreibe jetzt die Inhalte:`;
     }
 
     // Parse JSON response
-    const parsedContent = JSON.parse(content);
+    const parsedContent = parseJsonResponse(content);
 
     // Validate minimum length
     if (parsedContent.evergreenIntro.length < 250) {

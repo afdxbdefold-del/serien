@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * Q&A Generator - Simplified Version
  * Generates 2-3 Q&A pairs for articles
@@ -82,7 +83,7 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
       return [];
     }
 
-    const parsed = JSON.parse(content);
+    const parsed = parseJsonResponse(content);
     const questions = (parsed.questions || []).slice(0, 3);
 
     if (questions.length > 0) {
@@ -188,7 +189,7 @@ Beispiele für GUTE Fragen:
       return generateFallbackSeriesQA(input);
     }
 
-    const parsed = JSON.parse(content);
+    const parsed = parseJsonResponse(content);
     const questions = (parsed.questions || []).slice(0, 5);
 
     if (questions.length > 0) {

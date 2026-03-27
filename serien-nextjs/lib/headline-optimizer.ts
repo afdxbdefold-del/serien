@@ -1,3 +1,4 @@
+import { parseJsonResponse } from './json-utils';
 /**
  * EMERGENT_HEADLINE_OPTIMIZATION
  * 
@@ -96,7 +97,7 @@ Erstelle jetzt 5 optimierte Überschriften-Varianten mit Bewertungen.`;
     const content = data.choices[0].message.content;
     
     // Parse JSON response
-    const variants: HeadlineVariant[] = JSON.parse(content).map((v: any) => ({
+    const variants: HeadlineVariant[] = parseJsonResponse(content).map((v: any) => ({
       ...v,
       totalScore: v.naturalness + v.clarity + v.discoverSuitability,
     }));
