@@ -93,6 +93,7 @@ export default function AdminDashboardPage() {
               { id: 'discover', label: '🎯 Discover Analytics', href: '/admin/discover-analytics' },
               { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
               { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
+              { id: 'series', label: '📺 Serien', href: '/admin/series' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
               { id: 'users', label: '👥 Users', href: null },
