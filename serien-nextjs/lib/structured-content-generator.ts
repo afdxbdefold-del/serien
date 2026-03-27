@@ -170,30 +170,34 @@ Nutze Namen statt "ein Arzt", "das Team", "die Crew"!`;
 /**
  * Call LLM with structured output format
  */
-async function callLLMStructured(prompt: string): Promise<any> {
-  const emergentApiKey = process.env.EMERGENT_LLM_KEY;
+async function callLLMStructured(prompt: string, retries = 2): Promise<any> {
+  const apiKey = process.env.OPENAI_API_KEY;
   
-  if (!emergentApiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found');
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY not found');
   }
   
-  try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: emergentApiKey,
-      baseURL: 'http://localhost:8002/v1',
-    });
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { default: OpenAI } = await import('openai');
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        baseURL: 'https://api.openai.com/v1',
+        timeout: 60000, // 60 second timeout
+      });
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'Du bist ein Experte für strukturierte, professionelle TV-Serien-Artikel. Du folgst IMMER der vorgegebenen Struktur.',
-        },
-        {
-          role: 'user',
-          content: prompt + `
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'Du bist ein Experte für strukturierte, professionelle TV-Serien-Artikel. Du folgst IMMER der vorgegebenen Struktur.',
+          },
+          {
+            role: 'user',
+            content: prompt + `
 
 OUTPUT FORMAT (JSON):
 {
@@ -236,11 +240,22 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
     }
     content = content.trim();
     
-    return JSON.parse(content);
-  } catch (error: any) {
-    console.log(`   ❌ LLM call failed: ${error.message}`);
-    throw error;
+      return JSON.parse(content);
+    } catch (error: any) {
+      lastError = error;
+      const errorType = error.code || error.name || 'Unknown';
+      console.log(`   ⚠️ LLM attempt ${attempt}/${retries} failed: [${errorType}] ${error.message}`);
+      
+      if (attempt < retries) {
+        const delay = attempt * 2000; // 2s, 4s
+        console.log(`   ⏳ Retrying in ${delay/1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
   }
+  
+  // All retries failed
+  throw new Error(`LLM failed after ${retries} attempts: ${lastError?.message || 'Unknown error'}`);
 }
 
 /**
