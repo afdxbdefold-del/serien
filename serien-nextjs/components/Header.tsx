@@ -35,6 +35,7 @@ const MORE_ITEMS = [
   { name: 'Neue Videos', href: '/neue-videos', icon: Play, description: 'Trailer & Ankündigungen' },
   { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
   { name: '90 Day Fiancé', href: '/in-90-tagen-zum-altar', icon: Tv, description: 'Franchise Hub' },
+  { name: 'Walking Dead', href: '/the-walking-dead', icon: Tv, description: 'Franchise Hub' },
   { name: 'Personen', href: '/personen', icon: Users, description: 'Schauspieler & Crew' },
   { name: 'Figuren', href: '/figuren', icon: Tv, description: 'Beliebte Seriencharaktere' },
   { name: 'Autoren', href: '/autoren', icon: PenLine, description: 'Unsere Redaktion' },
