@@ -102,7 +102,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.time('⏱️  STEP 1: Full Text Fetch');
     logger.log('Schritt 1: Volltext-Abruf...');
     
-    let fullSourceText = source.text;
+    let fullSourceText = source.text || source.sourceText || '';
     let sourceWordCount = 0;
     
     if (source.useFullTextMode) {
