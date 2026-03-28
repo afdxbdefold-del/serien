@@ -441,8 +441,8 @@ async function downloadViaYtDlp(
 }
 
 /**
- * Download YouTube video using YT-API (Primary - most reliable!)
- * This API provides direct download URLs instantly
+ * Download YouTube video using yt-video-audio-downloader-api (PRIMARY - WORKS!)
+ * This API provides direct download URLs that actually work
  */
 async function downloadYouTubeViaYTAPI(
   videoId: string,
@@ -454,76 +454,47 @@ async function downloadYouTubeViaYTAPI(
       return { success: false, error: 'No RapidAPI key found in environment' };
     }
 
-    console.log('   🌐 Using YT-API (Primary)...');
+    console.log('   🌐 Using yt-video-audio-downloader-api (Primary)...');
 
-    const apiUrl = `https://yt-api.p.rapidapi.com/dl?id=${videoId}`;
-
-    const response = await fetch(apiUrl, {
-      method: 'GET',
+    const response = await fetch('https://yt-video-audio-downloader-api.p.rapidapi.com/download', {
+      method: 'POST',
       headers: {
-        'x-rapidapi-host': 'yt-api.p.rapidapi.com',
+        'x-rapidapi-host': 'yt-video-audio-downloader-api.p.rapidapi.com',
         'x-rapidapi-key': rapidApiKey,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
+      body: JSON.stringify({
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        format: 'mp4',
+        quality: '360'
+      })
     });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
-      return { success: false, error: `YT-API error: ${response.status} ${response.statusText} - ${errorText}` };
+      return { success: false, error: `API error: ${response.status} - ${errorText}` };
     }
 
     const data = await response.json();
     
-    if (data.status !== 'OK') {
-      return { success: false, error: `YT-API status: ${data.status}` };
+    if (data.error) {
+      return { success: false, error: data.error };
     }
 
-    // Get best format (prefer 360p or 480p for smaller files)
-    const formats = data.formats || [];
-    const adaptiveFormats = data.adaptiveFormats || [];
+    const downloadUrl = data.downloadUrl || data.streamUrl;
     
-    // Prefer combined format (video+audio)
-    let downloadUrl = null;
-    let quality = 'unknown';
-    
-    for (const fmt of formats) {
-      if (fmt.url && fmt.mimeType?.includes('video/mp4')) {
-        downloadUrl = fmt.url;
-        quality = fmt.qualityLabel || 'mp4';
-        break;
-      }
-    }
-    
-    // Fallback to adaptive format
     if (!downloadUrl) {
-      for (const fmt of adaptiveFormats) {
-        if (fmt.url && fmt.mimeType?.includes('video/mp4')) {
-          downloadUrl = fmt.url;
-          quality = fmt.qualityLabel || 'mp4';
-          break;
-        }
-      }
+      return { success: false, error: 'No download URL in response' };
     }
 
-    if (!downloadUrl) {
-      return { success: false, error: 'No MP4 format found in YT-API response' };
-    }
-
-    console.log(`   ✅ Got download URL! Quality: ${quality}`);
+    console.log(`   ✅ Got download URL! File: ${data.filename || 'video.mp4'}`);
     console.log('   📥 Downloading video...');
 
-    // Download the video file with proper headers to avoid 403
+    // Download the video file
     const videoResponse = await fetch(downloadUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'identity',
-        'Range': 'bytes=0-',
-        'Referer': 'https://www.youtube.com/',
-        'Origin': 'https://www.youtube.com',
-        'Sec-Fetch-Dest': 'video',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       }
     });
     
@@ -534,7 +505,7 @@ async function downloadYouTubeViaYTAPI(
     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
     await fs.writeFile(tempFilePath, videoBuffer);
 
-    console.log(`   ✅ Downloaded via YT-API: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`   ✅ Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
     return { success: true };
 
   } catch (error: any) {
