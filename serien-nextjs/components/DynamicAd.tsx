@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -64,9 +65,9 @@ async function getAdSlots(): Promise<Record<string, AdConfig>> {
  */
 export default function DynamicAd({ position, className = '' }: DynamicAdProps) {
   const adRef = useRef<HTMLModElement>(null);
-  const adPushed = useRef(false);
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -95,22 +96,26 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     loadConfig();
   }, [position]);
 
+  // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || adPushed.current || !adRef.current) return;
+    if (!config || !adRef.current) return;
     
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (isProd) {
-      adPushed.current = true;
-      // Push immediately
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.error('DynamicAd error:', e);
-      }
+      // Small delay for DOM to be ready
+      const timer = setTimeout(() => {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          // Silently ignore
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [config]);
+  }, [config, pathname]); // Re-run on pathname change
 
   if (!isVisible || !config) {
     return null;
@@ -119,6 +124,7 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
   return (
     <div className={`flex justify-center ${className}`} data-ad-position={position}>
       <ins
+        key={`${position}-${pathname}`} // Force re-render on navigation
         ref={adRef}
         className="adsbygoogle"
         style={{ 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useId } from 'react';
+import { usePathname } from 'next/navigation';
 
 interface ArticleAdProps {
   slot: string;
@@ -15,18 +16,14 @@ interface ArticleAdProps {
  */
 export default function ArticleAd({ slot, width, height, className = '' }: ArticleAdProps) {
   const adRef = useRef<HTMLModElement>(null);
-  const adPushed = useRef(false);
   const uniqueId = useId();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (adPushed.current) return;
-    
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (isProd && adRef.current) {
-      adPushed.current = true;
-      
       // Use IntersectionObserver to load ads when they come into view
       const observer = new IntersectionObserver(
         (entries) => {
@@ -36,7 +33,7 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
                 try {
                   (window.adsbygoogle = window.adsbygoogle || []).push({});
                 } catch (e) {
-                  console.error('ArticleAd error:', e);
+                  // Silently ignore
                 }
               }, 200);
               observer.disconnect();
@@ -50,11 +47,12 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
       
       return () => observer.disconnect();
     }
-  }, []);
+  }, [pathname]); // Re-run on pathname change
 
   return (
     <div className={`flex justify-center ${className}`}>
       <ins
+        key={`${slot}-${pathname}`} // Force re-render on navigation
         ref={adRef}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}

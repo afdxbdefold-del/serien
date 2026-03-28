@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -26,7 +27,7 @@ export default function MobileTopAd() {
   const [isProduction, setIsProduction] = useState(false);
   const [hideAd, setHideAd] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const adPushed = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
@@ -52,20 +53,24 @@ export default function MobileTopAd() {
     loadConfig();
   }, []);
 
+  // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !isProduction || adPushed.current) return;
+    if (!config || !isProduction) return;
     
-    adPushed.current = true;
+    // Reset hide state on navigation
+    setHideAd(false);
     
-    // Push immediately
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.error('Ad loading error:', e);
-    }
+    // Small delay to ensure DOM is ready after navigation
+    const timer = setTimeout(() => {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        // Silently ignore - ad might already be pushed
+      }
+    }, 100);
     
     // Check if ad was filled after 4 seconds
-    setTimeout(() => {
+    const checkTimer = setTimeout(() => {
       if (containerRef.current) {
         const ins = containerRef.current.querySelector('ins.adsbygoogle');
         if (ins) {
@@ -76,7 +81,12 @@ export default function MobileTopAd() {
         }
       }
     }, 4000);
-  }, [config, isProduction]);
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(checkTimer);
+    };
+  }, [config, isProduction, pathname]); // Re-run on pathname change
 
   if (!isProduction || hideAd || !config) {
     return null;
@@ -85,6 +95,7 @@ export default function MobileTopAd() {
   return (
     <div ref={containerRef} className="lg:hidden flex justify-center" data-ad-position="mobile_top">
       <ins
+        key={pathname} // Force re-render on navigation
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
         data-ad-client={config.adClient}

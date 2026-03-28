@@ -1,29 +1,31 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 /**
  * Sticky Bottom Ad
  * Fixed at the bottom of the viewport
  */
 export default function StickyBottomAd() {
-  const adPushed = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
-    if (isProd && !adPushed.current) {
-      adPushed.current = true;
-      setTimeout(() => {
+    if (isProd) {
+      const timer = setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
-          console.error('Sticky ad error:', e);
+          // Silently ignore
         }
       }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [pathname]); // Re-run on pathname change
 
   return (
     <div 
@@ -31,6 +33,7 @@ export default function StickyBottomAd() {
       id="sticky-bottom-ad"
     >
       <ins
+        key={pathname} // Force re-render on navigation
         className="adsbygoogle"
         style={{ display: 'inline-block', width: '320px', height: '100px' }}
         data-ad-client="ca-pub-8583619451045805"

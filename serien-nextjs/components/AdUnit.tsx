@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 interface AdUnitProps {
   slot: string;
@@ -20,6 +21,7 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
   const [isProduction, setIsProduction] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
   const adRef = useRef<HTMLModElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check if we're in production
@@ -54,26 +56,35 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
     };
   }, []);
 
+  // Re-initialize ad on route change
   useEffect(() => {
     if (hasConsent && isProduction) {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        
-        // Check if ad actually rendered after a delay
-        const checkTimer = setTimeout(() => {
-          if (adRef.current) {
-            const adHeight = adRef.current.offsetHeight;
-            // Only show if ad has actual content (height > 0)
-            setAdLoaded(adHeight > 0);
-          }
-        }, 2000);
-        
-        return () => clearTimeout(checkTimer);
-      } catch (e) {
-        console.error('AdSense error:', e);
-      }
+      // Reset ad state
+      setAdLoaded(false);
+      
+      // Small delay for DOM to be ready
+      const pushTimer = setTimeout(() => {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          // Silently ignore
+        }
+      }, 100);
+      
+      // Check if ad actually rendered after a delay
+      const checkTimer = setTimeout(() => {
+        if (adRef.current) {
+          const adHeight = adRef.current.offsetHeight;
+          setAdLoaded(adHeight > 0);
+        }
+      }, 2000);
+      
+      return () => {
+        clearTimeout(pushTimer);
+        clearTimeout(checkTimer);
+      };
     }
-  }, [hasConsent, isProduction]);
+  }, [hasConsent, isProduction, pathname]); // Re-run on pathname change
 
   // Don't render anything if no consent
   if (!hasConsent) {
@@ -86,7 +97,7 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
       <div className={`ad-container ${className}`}>
         <div className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-            📢 Werbeanzeige
+            Werbeanzeige
           </p>
           <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
             (Wird in Produktion angezeigt)
@@ -109,6 +120,7 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
       }}
     >
       <ins
+        key={`${slot}-${pathname}`} // Force re-render on navigation
         ref={adRef}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
