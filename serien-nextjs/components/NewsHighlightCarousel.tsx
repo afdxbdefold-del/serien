@@ -10,6 +10,7 @@ interface NewsHighlight {
   title: string;
   excerpt?: string;
   heroLocalUrl?: string;
+  heroImageUrl?: string;
   tmdbId?: number;
   tmdbType?: string;
   publishedAt: string;
@@ -82,7 +83,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   if (!news || news.length === 0) return null;
 
   const currentNews = news[currentIndex];
-  const imageUrl = currentNews.heroLocalUrl || 
+  const imageUrl = currentNews.heroImageUrl || currentNews.heroLocalUrl || 
     (currentNews.tmdbId && currentNews.tmdbType 
       ? `/img/hero/${currentNews.tmdbType}/${currentNews.tmdbId}` 
       : '/placeholders/hero.jpg');
@@ -128,7 +129,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
         <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden">
           {/* Background Images - First image is LCP priority */}
           {news.map((item, index) => {
-            const imgUrl = item.heroLocalUrl || 
+            const imgUrl = item.heroImageUrl || item.heroLocalUrl || 
               (item.tmdbId && item.tmdbType 
                 ? `/img/hero/${item.tmdbType}/${item.tmdbId}` 
                 : '/placeholders/hero.jpg');

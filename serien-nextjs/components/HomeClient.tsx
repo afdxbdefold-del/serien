@@ -225,6 +225,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     title={item.title}
                     excerpt={item.excerpt}
                     heroLocalUrl={item.heroLocalUrl}
+                    heroImageUrl={item.heroImageUrl}
                     cardImageUrl={item.cardImageUrl}
                     tmdbId={item.tmdbId}
                     tmdbType={item.tmdbType}
@@ -257,6 +258,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                       title={item.title}
                       excerpt={item.excerpt}
                       heroLocalUrl={item.heroLocalUrl}
+                      heroImageUrl={item.heroImageUrl}
                       cardImageUrl={item.cardImageUrl}
                       tmdbId={item.tmdbId}
                       tmdbType={item.tmdbType}
@@ -305,6 +307,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                       title={item.title}
                       excerpt={item.excerpt}
                       heroLocalUrl={item.heroLocalUrl}
+                      heroImageUrl={item.heroImageUrl}
                       cardImageUrl={item.cardImageUrl}
                       tmdbId={item.tmdbId}
                       tmdbType={item.tmdbType}

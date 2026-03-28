@@ -23,6 +23,7 @@ interface NewsCardProps {
   title: string;
   excerpt?: string;
   heroLocalUrl?: string;
+  heroImageUrl?: string;
   cardImageUrl?: string;
   tmdbId?: number;
   tmdbType?: string;
@@ -41,6 +42,7 @@ export default function NewsCard({
   title,
   excerpt,
   heroLocalUrl,
+  heroImageUrl,
   cardImageUrl,
   tmdbId,
   tmdbType,
@@ -104,9 +106,9 @@ export default function NewsCard({
       <article className="group bg-white dark:bg-[hsl(230,25%,9%)] rounded-xl border border-gray-200 dark:border-[hsl(230,25%,15%)] hover:shadow-lg dark:hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] dark:hover:border-cyan-500/40 transition-all duration-500 overflow-hidden cursor-pointer card-lift">
         {/* Image - Using hero/backdrop images (16:9) */}
         <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-[hsl(230,25%,12%)]">
-          {(cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
+          {(heroImageUrl || cardImageUrl || heroLocalUrl || (tmdbId && tmdbType)) ? (
             <Image
-              src={cardImageUrl || (tmdbId && tmdbType ? `/img/hero/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
+              src={heroImageUrl || cardImageUrl || (tmdbId && tmdbType ? `/img/hero/${tmdbType}/${tmdbId}` : heroLocalUrl!)}
               alt={title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
