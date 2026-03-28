@@ -113,7 +113,6 @@ export default function AdminPipelinePage() {
   const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
   const [pipelineStats, setPipelineStats] = useState<Record<string, any>>({});
   const [ytStats, setYtStats] = useState<any>({});
-  const [trendStats, setTrendStats] = useState<any>({});
   const [articleStats, setArticleStats] = useState<any>({});
   const [topErrors, setTopErrors] = useState<TopError[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -122,7 +121,6 @@ export default function AdminPipelinePage() {
   
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [trendSearchTerm, setTrendSearchTerm] = useState('');
   const [v2Url, setV2Url] = useState('');
   const [newChannelUrl, setNewChannelUrl] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
@@ -137,7 +135,7 @@ export default function AdminPipelinePage() {
   }>>([]);
   const [p2NewsLoading, setP2NewsLoading] = useState(false);
   const [p2SelectedUrl, setP2SelectedUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'trends' | 'logs' | 'articles' | 'videos'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'v2' | 'youtube' | 'logs' | 'articles' | 'videos'>('overview');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [hoursFilter, setHoursFilter] = useState(24);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -183,7 +181,6 @@ export default function AdminPipelinePage() {
       setPipelineRuns(data.pipelineRuns || []);
       setPipelineStats(data.pipelineStats || {});
       setYtStats(data.ytStats || {});
-      setTrendStats(data.trendStats || {});
       setArticleStats(data.articleStats || {});
       setTopErrors(data.topErrors || []);
       setChartData(data.chartData || []);
@@ -388,7 +385,6 @@ export default function AdminPipelinePage() {
   const getPipelineBadge = (pipeline: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
       'p4-youtube': { bg: 'bg-red-100', text: 'text-red-700', label: 'YouTube' },
-      'p3-trends': { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Trends' },
       'pipeline-v2': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'V2' },
       'cron-news': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'News' },
     };
@@ -512,7 +508,7 @@ export default function AdminPipelinePage() {
                     </span>
                   )}
                 </h1>
-                <p className="text-sm text-gray-500">P3-Trends, P4-YouTube, Pipeline-V2</p>
+                <p className="text-sm text-gray-500">P4-YouTube, Pipeline-V2</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -575,7 +571,6 @@ export default function AdminPipelinePage() {
             { id: 'overview', label: 'Übersicht', icon: Activity },
             { id: 'v2', label: 'Pipeline-V2', icon: Tv },
             { id: 'youtube', label: 'P4-YouTube', icon: Youtube },
-            { id: 'trends', label: 'P3-Trends', icon: Flame },
             { id: 'articles', label: 'Artikel', icon: Newspaper },
             { id: 'videos', label: 'Video-Queue', icon: Video },
             { id: 'logs', label: 'Logs & Debug', icon: Bug },
@@ -600,9 +595,10 @@ export default function AdminPipelinePage() {
           <div className="space-y-6">
             {/* Cron Status with Manual Trigger */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {Object.entries(cronStatus).map(([pipeline, status]) => {
+              {Object.entries(cronStatus)
+                .filter(([pipeline]) => pipeline !== 'p3-trends') // Filter out trends
+                .map(([pipeline, status]) => {
                 const triggerAction = {
-                  'p3-trends': 'trigger-cron-trends',
                   'p4-youtube': 'trigger-cron-youtube',
                   'cron-news': 'trigger-cron-news',
                   'cron-releases': 'trigger-cron-releases',
@@ -1597,74 +1593,6 @@ export default function AdminPipelinePage() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TRENDS TAB */}
-        {activeTab === 'trends' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-orange-600" />
-                  Manueller Trend-Artikel
-                </h2>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={trendSearchTerm}
-                    onChange={(e) => setTrendSearchTerm(e.target.value)}
-                    placeholder="z.B. Stranger Things Staffel 5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <button
-                    onClick={() => trendSearchTerm && runAction('trends-process', { searchTerm: trendSearchTerm })}
-                    disabled={!trendSearchTerm || runningAction !== null}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
-                  >
-                    {runningAction === 'trends-process' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                    Artikel generieren
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-gray-600" />
-                  Cron-Schedule
-                </h2>
-                <div className="space-y-3 text-sm">
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <p className="font-medium text-orange-800">P3-Trends</p>
-                    <p className="text-orange-600">4x täglich: 09:00, 13:00, 18:00, 22:00</p>
-                  </div>
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="font-medium text-red-800">P4-YouTube</p>
-                    <p className="text-red-600">6x täglich: 08:00, 11:00, 14:00, 17:00, 20:00, 23:00</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Trend-Statistiken</h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-gray-900">{trendStats.totalTrends || 0}</div>
-                    <div className="text-sm text-gray-500">Gesamt</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-gray-900">{trendStats.recentTrends || 0}</div>
-                    <div className="text-sm text-gray-500">7 Tage</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-green-600">{trendStats.processedTrends || 0}</div>
-                    <div className="text-sm text-gray-500">Verarbeitet</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

@@ -14,10 +14,6 @@
       "schedule": "*/30 * * * *"
     },
     {
-      "path": "/api/cron/trends",
-      "schedule": "*/30 * * * *"
-    },
-    {
       "path": "/api/cron/youtube",
       "schedule": "*/30 * * * *"
     },
