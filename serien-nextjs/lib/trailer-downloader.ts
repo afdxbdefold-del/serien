@@ -15,6 +15,13 @@ import * as os from 'os';
 
 const execAsync = promisify(exec);
 
+// Hardcoded fallback for Vercel (env vars sometimes don't load)
+const RAPIDAPI_KEY_FALLBACK = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
+
+function getRapidApiKey(): string | null {
+  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP || RAPIDAPI_KEY_FALLBACK;
+}
+
 interface TrailerDownloadResult {
   success: boolean;
   localPath?: string; // Now contains cloud URL
@@ -498,7 +505,7 @@ async function downloadYouTubeViaYTAPI(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const rapidApiKey = process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP;
+    const rapidApiKey = getRapidApiKey();
     if (!rapidApiKey) {
       return { success: false, error: 'No RapidAPI key found in environment' };
     }
@@ -571,7 +578,7 @@ async function downloadYouTubeViaRapidAPI3(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const rapidApiKey = process.env.RAPIDAPI_KEY_BACKUP || process.env.RAPIDAPI_KEY;
+    const rapidApiKey = getRapidApiKey();
     if (!rapidApiKey) {
       return { success: false, error: 'No RapidAPI key found in environment' };
     }
@@ -635,7 +642,7 @@ async function downloadYouTubeViaRapidAPI2(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Use backup API key or primary key
-    const rapidApiKey = process.env.RAPIDAPI_KEY_BACKUP || process.env.RAPIDAPI_KEY;
+    const rapidApiKey = getRapidApiKey();
     if (!rapidApiKey) {
       return { success: false, error: 'No RapidAPI key found in environment' };
     }
@@ -727,7 +734,7 @@ async function downloadYouTubeViaRapidAPI(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const rapidApiKey = process.env.RAPIDAPI_KEY;
+    const rapidApiKey = getRapidApiKey();
     if (!rapidApiKey) {
       return { success: false, error: 'RAPIDAPI_KEY not found in environment' };
     }
