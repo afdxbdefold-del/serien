@@ -849,63 +849,33 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // Special handling for YouTube: Use YT-API as primary, RapidAPI as backup
+    // Special handling for YouTube: Use RapidAPI #1 as primary (most reliable!)
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via YT-API + RapidAPI fallbacks...');
+      console.log('   🚀 Attempting YouTube download via RapidAPI #1...');
       
-      // ═══════════════════════════════════════════════════════════════════
-      // TRY YT-API FIRST (most reliable, fastest)
-      // ═══════════════════════════════════════════════════════════════════
+      // RapidAPI #1 is the most reliable - works even for geo-blocked videos
+      const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
       
-      const ytApiResult = await downloadYouTubeViaYTAPI(videoId, tempFilePath);
-      
-      if (ytApiResult.success) {
-        console.log('   ✅ YT-API download successful!');
+      if (rapidResult.success) {
+        console.log('   ✅ RapidAPI #1 download successful!');
       } else {
-        console.log(`   ⚠️ YT-API failed: ${ytApiResult.error}`);
-        console.log('   🔄 Trying RapidAPI fallbacks (parallel)...');
+        console.log(`   ⚠️ RapidAPI #1 failed: ${rapidResult.error}`);
+        console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub) as fallback...');
         
-        // Fallback to old RapidAPI methods in parallel
-        const tempFilePath3 = tempFilePath.replace('.mp4', '-api3.mp4');
-        const tempFilePath1 = tempFilePath.replace('.mp4', '-api1.mp4');
-        const tempFilePath2 = tempFilePath.replace('.mp4', '-api2.mp4');
+        const rapid3Result = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
         
-        const api3Promise = downloadYouTubeViaRapidAPI3(videoId, tempFilePath3)
-          .then(r => ({ ...r, api: 3, path: tempFilePath3 }))
-          .catch(e => ({ success: false, error: e.message, api: 3, path: tempFilePath3 }));
-        
-        const api1Promise = downloadYouTubeViaRapidAPI(videoId, tempFilePath1)
-          .then(r => ({ ...r, api: 1, path: tempFilePath1 }))
-          .catch(e => ({ success: false, error: e.message, api: 1, path: tempFilePath1 }));
-        
-        const api2Promise = downloadYouTubeViaRapidAPI2(videoId, tempFilePath2)
-          .then(r => ({ ...r, api: 2, path: tempFilePath2 }))
-          .catch(e => ({ success: false, error: e.message, api: 2, path: tempFilePath2 }));
-        
-        const results = await Promise.all([api3Promise, api1Promise, api2Promise]);
-        
-        let fallbackSuccess = false;
-        for (const result of results) {
-          if (result.success) {
-            fallbackSuccess = true;
-            // Move successful file to main tempFilePath
-            await fs.rename(result.path, tempFilePath);
-            console.log(`   ✅ RapidAPI #${result.api} fallback successful!`);
-            break;
+        if (rapid3Result.success) {
+          console.log('   ✅ RapidAPI #3 fallback successful!');
+        } else {
+          console.log(`   ⚠️ RapidAPI #3 failed: ${rapid3Result.error}`);
+          console.log('   🔄 Trying RapidAPI #2 as last fallback...');
+          
+          const rapid2Result = await downloadYouTubeViaRapidAPI2(videoId, tempFilePath);
+          
+          if (!rapid2Result.success) {
+            throw new Error(`All RapidAPI methods failed. Last error: ${rapid2Result.error}`);
           }
-        }
-        
-        // Cleanup failed temp files
-        for (const result of results) {
-          if (!result.success) {
-            try { await fs.unlink(result.path).catch(() => {}); } catch {}
-          }
-        }
-        
-        if (!fallbackSuccess) {
-          // All methods failed
-          const errors = results.map(r => `API#${r.api}: ${r.error}`).join('; ');
-          throw new Error(`All download methods failed. ${errors}`);
+          console.log('   ✅ RapidAPI #2 fallback successful!');
         }
       }
       
