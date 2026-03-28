@@ -280,6 +280,21 @@ export async function runPipelineV2(source: PipelineV2Source) {
       return null;
     }
     
+    // REJECT Feature/Essay articles - they have no news value
+    if (classification.content_type === 'FEATURE_ESSAY') {
+      console.log('⚠️  Article skipped: Feature/Essay ohne aktuelle Nachricht');
+      console.log(`   Grund: ${classification.reasoning || 'Keine neue Meldung, nur Analyse/Retrospektive'}`);
+      await logger.fail('Feature/Essay - keine News', 'classification');
+      return null;
+    }
+    
+    // REJECT Movie and Mixed content
+    if (classification.content_type === 'MOVIE' || classification.content_type === 'MIXED') {
+      console.log(`⚠️  Article skipped: ${classification.content_type}`);
+      await logger.fail(`${classification.content_type} - nur Serien erlaubt`, 'classification');
+      return null;
+    }
+    
     // Map to our internal type
     const contentType = classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
 

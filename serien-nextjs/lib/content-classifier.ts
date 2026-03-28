@@ -1,7 +1,7 @@
 import { parseJsonResponse } from './json-utils';
 /**
  * STEP 1: Content Classification
- * Classifies articles into SINGLE_SERIES_NEWS, MULTI_SERIES_EDITORIAL, or SKIP
+ * Classifies articles into SINGLE_SERIES_NEWS, MULTI_SERIES_EDITORIAL, FEATURE_ESSAY, or SKIP
  */
 
 import OpenAI from 'openai';
@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 export type ContentType = 
   | 'SINGLE_SERIES_NEWS' 
   | 'MULTI_SERIES_EDITORIAL' 
+  | 'FEATURE_ESSAY'
   | 'MOVIE' 
   | 'MIXED' 
   | 'UNKNOWN';
@@ -25,41 +26,53 @@ export interface ClassificationResult {
   reasoning?: string;
 }
 
-const CLASSIFIER_PROMPT = `You are a strict entertainment content classifier for a German TV series news website.
+const CLASSIFIER_PROMPT = `You are a strict entertainment content classifier for a German TV series NEWS website.
 
 Your ONLY task is to classify incoming articles into ONE of these types:
-- SINGLE_SERIES_NEWS: News about ONE specific TV series (e.g. "Stranger Things Season 5 confirmed")
-- MULTI_SERIES_EDITORIAL: Editorial/listicle about MULTIPLE TV series (e.g. "Top 10 Netflix series in 2026", "Best sci-fi series")
+
+✅ ACCEPTED TYPES:
+- SINGLE_SERIES_NEWS: ACTUAL NEWS about ONE specific TV series
+  Examples: "Stranger Things Season 5 release date", "Game of Thrones spinoff cancelled", "New cast member announced"
+  MUST contain: A NEW event, announcement, update, or development
+  
+- MULTI_SERIES_EDITORIAL: Editorial/listicle about MULTIPLE TV series 
+  Examples: "Top 10 Netflix series in 2026", "Best sci-fi series to watch"
+
+⛔ REJECTED TYPES:
+- FEATURE_ESSAY: Evergreen analysis, retrospective, opinion piece with NO new news
+  Examples: "Why Mad Men is a masterpiece", "Steven Spielberg's favorite show", "What makes Breaking Bad great"
+  These have NO new event - they're just analysis of existing content. REJECT these!
+  
 - MOVIE: About movies (REJECT)
 - MIXED: About both movies AND TV series (REJECT)
 - UNKNOWN: Cannot determine or unclear (REJECT)
 
 CRITICAL RULES:
 1. TV series ONLY - no movies
-2. Editorials listing multiple TV series are ALLOWED and encouraged
-3. If the article mentions even ONE movie prominently → classify as MOVIE or MIXED
-4. Extract series names you find (even if classification is MOVIE/MIXED/UNKNOWN)
+2. NEWS requires a NEW EVENT (release, cancellation, casting, renewal, etc.)
+3. If it's just "Why X is great" or "Celebrity loves X" with NO new development → FEATURE_ESSAY (REJECT)
+4. Old interviews or retrospectives are NOT news → FEATURE_ESSAY
 5. Be strict: when in doubt, use UNKNOWN
 
 ⚠️ IMPORTANT - AVOID THESE COMMON MISTAKES:
-- "X's Rival" or "Competitor to X" means the article is NOT about X, but about something else
-  Example: "'The Pitt' Rival Renewed" → Article is about the RIVAL (Chicago Med), NOT The Pitt!
-- "Following X's success" or "Like X" → Article is about a DIFFERENT show, not X
-- Always identify the PRIMARY SUBJECT of the article, not just mentioned shows
-- The series_candidates should contain ONLY the show(s) the article is ACTUALLY ABOUT
+- "X's Rival" or "Competitor to X" means the article is NOT about X
+- "Following X's success" → Article is about a DIFFERENT show
+- Celebrity opinions about old shows are FEATURE_ESSAY, not NEWS
+- "17 years ago..." or referencing old interviews = NOT current news
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
-  "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "MOVIE" | "MIXED" | "UNKNOWN",
+  "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "FEATURE_ESSAY" | "MOVIE" | "MIXED" | "UNKNOWN",
   "confidence": 0.0-1.0,
-  "primary_series": "The MAIN series this article is about (not just mentioned)",
+  "primary_series": "The MAIN series this article is about (if applicable)",
   "series_candidates": ["Series Name 1", "Series Name 2"],
   "signals": {
     "title": ["keyword from title that helped classification"],
     "text": ["keyword from text that helped classification"]
   },
-  "reasoning": "brief 1-sentence explanation of what this article is ACTUALLY about"
+  "reasoning": "brief 1-sentence explanation - what NEW event does this article report? If none, say so."
 }`;
+
 
 export async function classifyContent(
   title: string,
@@ -108,7 +121,7 @@ Classify this content now.
     const result = parseJsonResponse(content) as ClassificationResult;
     
     // Validation
-    const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'MOVIE', 'MIXED', 'UNKNOWN'];
+    const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'FEATURE_ESSAY', 'MOVIE', 'MIXED', 'UNKNOWN'];
     if (!validTypes.includes(result.content_type)) {
       throw new Error(`Invalid content_type: ${result.content_type}`);
     }
