@@ -441,6 +441,108 @@ async function downloadViaYtDlp(
 }
 
 /**
+ * Download YouTube video using YT-API (Primary - most reliable!)
+ * This API provides direct download URLs instantly
+ */
+async function downloadYouTubeViaYTAPI(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const rapidApiKey = process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP;
+    if (!rapidApiKey) {
+      return { success: false, error: 'No RapidAPI key found in environment' };
+    }
+
+    console.log('   🌐 Using YT-API (Primary)...');
+
+    const apiUrl = `https://yt-api.p.rapidapi.com/dl?id=${videoId}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': 'yt-api.p.rapidapi.com',
+        'x-rapidapi-key': rapidApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      return { success: false, error: `YT-API error: ${response.status} ${response.statusText} - ${errorText}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.status !== 'OK') {
+      return { success: false, error: `YT-API status: ${data.status}` };
+    }
+
+    // Get best format (prefer 360p or 480p for smaller files)
+    const formats = data.formats || [];
+    const adaptiveFormats = data.adaptiveFormats || [];
+    
+    // Prefer combined format (video+audio)
+    let downloadUrl = null;
+    let quality = 'unknown';
+    
+    for (const fmt of formats) {
+      if (fmt.url && fmt.mimeType?.includes('video/mp4')) {
+        downloadUrl = fmt.url;
+        quality = fmt.qualityLabel || 'mp4';
+        break;
+      }
+    }
+    
+    // Fallback to adaptive format
+    if (!downloadUrl) {
+      for (const fmt of adaptiveFormats) {
+        if (fmt.url && fmt.mimeType?.includes('video/mp4')) {
+          downloadUrl = fmt.url;
+          quality = fmt.qualityLabel || 'mp4';
+          break;
+        }
+      }
+    }
+
+    if (!downloadUrl) {
+      return { success: false, error: 'No MP4 format found in YT-API response' };
+    }
+
+    console.log(`   ✅ Got download URL! Quality: ${quality}`);
+    console.log('   📥 Downloading video...');
+
+    // Download the video file with proper headers to avoid 403
+    const videoResponse = await fetch(downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Range': 'bytes=0-',
+        'Referer': 'https://www.youtube.com/',
+        'Origin': 'https://www.youtube.com',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+      }
+    });
+    
+    if (!videoResponse.ok) {
+      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded via YT-API: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download YouTube video using RapidAPI #3 (Cloud API Hub)
  * Third backup API - returns direct download URL
  */
@@ -776,84 +878,67 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // Special handling for YouTube: Use RapidAPI ONLY (no yt-dlp fallback)
+    // Special handling for YouTube: Use YT-API as primary, RapidAPI as backup
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via RapidAPI (parallel race)...');
+      console.log('   🚀 Attempting YouTube download via YT-API + RapidAPI fallbacks...');
       
       // ═══════════════════════════════════════════════════════════════════
-      // OPTIMIZED: Parallel API calls - first success wins
-      // Order: #3 (fastest, direct URL) → #1 (polling) → #2 (slowest)
+      // TRY YT-API FIRST (most reliable, fastest)
       // ═══════════════════════════════════════════════════════════════════
       
-      const tempFilePath3 = tempFilePath.replace('.mp4', '-api3.mp4');
-      const tempFilePath1 = tempFilePath.replace('.mp4', '-api1.mp4');
-      const tempFilePath2 = tempFilePath.replace('.mp4', '-api2.mp4');
+      const ytApiResult = await downloadYouTubeViaYTAPI(videoId, tempFilePath);
       
-      // Start all APIs in parallel
-      const api3Promise = downloadYouTubeViaRapidAPI3(videoId, tempFilePath3)
-        .then(r => ({ ...r, api: 3, path: tempFilePath3 }))
-        .catch(e => ({ success: false, error: e.message, api: 3, path: tempFilePath3 }));
-      
-      const api1Promise = downloadYouTubeViaRapidAPI(videoId, tempFilePath1)
-        .then(r => ({ ...r, api: 1, path: tempFilePath1 }))
-        .catch(e => ({ success: false, error: e.message, api: 1, path: tempFilePath1 }));
-      
-      // API #2 is slowest, add delay before starting
-      const api2Promise = new Promise<any>(resolve => setTimeout(resolve, 5000))
-        .then(() => downloadYouTubeViaRapidAPI2(videoId, tempFilePath2))
-        .then(r => ({ ...r, api: 2, path: tempFilePath2 }))
-        .catch(e => ({ success: false, error: e.message, api: 2, path: tempFilePath2 }));
-      
-      // Race: First successful download wins
-      let downloadSuccessful = false;
-      let downloadedFilePath: string | null = null;
-      let winningApi = 0;
-      
-      // Use Promise.any to get first success, or Promise.all to get all results
-      try {
+      if (ytApiResult.success) {
+        console.log('   ✅ YT-API download successful!');
+      } else {
+        console.log(`   ⚠️ YT-API failed: ${ytApiResult.error}`);
+        console.log('   🔄 Trying RapidAPI fallbacks (parallel)...');
+        
+        // Fallback to old RapidAPI methods in parallel
+        const tempFilePath3 = tempFilePath.replace('.mp4', '-api3.mp4');
+        const tempFilePath1 = tempFilePath.replace('.mp4', '-api1.mp4');
+        const tempFilePath2 = tempFilePath.replace('.mp4', '-api2.mp4');
+        
+        const api3Promise = downloadYouTubeViaRapidAPI3(videoId, tempFilePath3)
+          .then(r => ({ ...r, api: 3, path: tempFilePath3 }))
+          .catch(e => ({ success: false, error: e.message, api: 3, path: tempFilePath3 }));
+        
+        const api1Promise = downloadYouTubeViaRapidAPI(videoId, tempFilePath1)
+          .then(r => ({ ...r, api: 1, path: tempFilePath1 }))
+          .catch(e => ({ success: false, error: e.message, api: 1, path: tempFilePath1 }));
+        
+        const api2Promise = downloadYouTubeViaRapidAPI2(videoId, tempFilePath2)
+          .then(r => ({ ...r, api: 2, path: tempFilePath2 }))
+          .catch(e => ({ success: false, error: e.message, api: 2, path: tempFilePath2 }));
+        
         const results = await Promise.all([api3Promise, api1Promise, api2Promise]);
         
-        // Find first successful result (prefer #3, then #1, then #2)
+        let fallbackSuccess = false;
         for (const result of results) {
           if (result.success) {
-            downloadSuccessful = true;
-            downloadedFilePath = result.path;
-            winningApi = result.api;
-            console.log(`   ✅ RapidAPI #${result.api} won the race!`);
+            fallbackSuccess = true;
+            // Move successful file to main tempFilePath
+            await fs.rename(result.path, tempFilePath);
+            console.log(`   ✅ RapidAPI #${result.api} fallback successful!`);
             break;
           }
         }
         
-        if (!downloadSuccessful) {
-          // Log all errors
-          for (const result of results) {
-            if (!result.success) {
-              console.log(`   ❌ RapidAPI #${result.api} failed: ${result.error}`);
-            }
-          }
-          throw new Error('All RapidAPI methods failed. Video download not possible on serverless.');
-        }
-        
-        // Cleanup unsuccessful temp files
+        // Cleanup failed temp files
         for (const result of results) {
-          if (result.path !== downloadedFilePath) {
-            try {
-              await fs.unlink(result.path).catch(() => {});
-            } catch {}
+          if (!result.success) {
+            try { await fs.unlink(result.path).catch(() => {}); } catch {}
           }
         }
         
-        // Move winning file to final path
-        if (downloadedFilePath && downloadedFilePath !== tempFilePath) {
-          await fs.rename(downloadedFilePath, tempFilePath);
-          downloadedFilePath = tempFilePath;
+        if (!fallbackSuccess) {
+          // All methods failed
+          const errors = results.map(r => `API#${r.api}: ${r.error}`).join('; ');
+          throw new Error(`All download methods failed. ${errors}`);
         }
-        
-      } catch (raceError: any) {
-        throw new Error(`Parallel download failed: ${raceError.message}`);
       }
       
-      console.log(`   ⏭️  Skipping ffmpeg re-encoding (serverless mode)`);
+      console.log('   ⏭️ Skipping ffmpeg re-encoding (serverless mode)');
     } else {
       // For non-YouTube sources, use yt-dlp directly
       const ytdlpResult = await downloadViaYtDlp(videoUrl, tempFilePath, source);
