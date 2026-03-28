@@ -258,6 +258,31 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 2: Classification');
     
+    // ══════════════════════════════════════════════════════════════════════════
+    // FAST TITLE PRE-CHECK - Erkennt Listicles/Editorials am Titel (spart LLM-Kosten)
+    // ══════════════════════════════════════════════════════════════════════════
+    const titleLower = source.title.toLowerCase();
+    
+    // Patterns die auf MULTI_SERIES_EDITORIAL hindeuten
+    const editorialPatterns = [
+      /favorite\s*(series|show|tv)/i,
+      /lieblings?\s*serie/i,
+      /all[- ]time\s*favorite/i,
+      /top\s*\d+/i,
+      /best\s*(series|shows|tv)/i,
+      /worst\s*(series|shows|tv)/i,
+      /ranking/i,
+      /\d+\s*(best|top|greatest)/i,
+      /must[- ]watch/i,
+      /binge[- ]worthy/i,
+    ];
+    
+    const isLikelyEditorial = editorialPatterns.some(p => p.test(source.title));
+    
+    if (isLikelyEditorial) {
+      console.log(`   📋 Titel-Pattern erkannt: Wahrscheinlich Editorial/Listicle`);
+    }
+    
     const classification = await classifyContent(
       source.title,
       source.url,

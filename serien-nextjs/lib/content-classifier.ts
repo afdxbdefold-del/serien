@@ -62,6 +62,12 @@ CRITICAL RULES:
 - "Following X's success" → Article is about a DIFFERENT show
 - "Steven Spielberg's favorite show" with mentions of multiple series → MULTI_SERIES_EDITORIAL
 
+TITLE PATTERNS → AUTOMATIC CLASSIFICATION:
+- "Top 10...", "Best...", "Ranking..." → MULTI_SERIES_EDITORIAL
+- "X's Favorite Series/Show" → MULTI_SERIES_EDITORIAL
+- "All-Time Favorite" → MULTI_SERIES_EDITORIAL
+- "Must-Watch Series" → MULTI_SERIES_EDITORIAL
+
 Return ONLY valid JSON (no markdown, no explanation):
 {
   "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "FEATURE_ESSAY" | "MOVIE" | "MIXED" | "UNKNOWN",
