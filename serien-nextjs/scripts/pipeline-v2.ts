@@ -33,6 +33,7 @@ import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
+import { checkForDuplicate, quickTitleSimilarityCheck } from '../lib/duplicate-checker';
 
 const prisma = new PrismaClient();
 
@@ -391,6 +392,40 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
     }
     console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+
+    // ========== STEP 3.5: DUPLICATE CHECK ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 3.5: DUPLICATE CHECK 🔍');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 3.5: Duplicate Check');
+    logger.log('Prüfe auf Duplikate...');
+
+    const duplicateResult = await checkForDuplicate(
+      source.title,
+      fullSourceText.substring(0, 500), // Erste 500 Zeichen als Zusammenfassung
+      dbSeries.tmdbId,
+      dbSeries.name || dbSeries.title || ''
+    );
+
+    console.log(`   📂 Thema-Kategorie: ${duplicateResult.topicCategory}`);
+    console.log(`   📝 Kern-Ereignis: ${duplicateResult.coreEvent}`);
+    console.log(`   🎯 Confidence: ${(duplicateResult.confidence * 100).toFixed(0)}%`);
+
+    if (duplicateResult.isDuplicate) {
+      console.log(`\n⛔ DUPLIKAT ERKANNT!`);
+      console.log(`   Grund: ${duplicateResult.reason}`);
+      console.log(`   Duplikat von: ${duplicateResult.duplicateOf || 'unbekannt'}`);
+      console.log(`   → Artikel wird übersprungen.`);
+      logger.log(`Duplikat erkannt: ${duplicateResult.reason}`);
+      await logger.fail(`Duplikat: ${duplicateResult.coreEvent}`, 'duplicate-check');
+      console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
+      return null;
+    }
+
+    console.log(`✅ Kein Duplikat - Thema ist neu: "${duplicateResult.coreEvent}"`);
+    logger.log(`Thema OK: ${duplicateResult.topicCategory} - ${duplicateResult.coreEvent}`);
+    logger.addMetadata('topicCategory', duplicateResult.topicCategory);
+    console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
 
     logStep('4_fact_extraction');
     // ========== STEP 4: FACT EXTRACTION ==========
