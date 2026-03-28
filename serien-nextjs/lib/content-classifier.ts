@@ -36,12 +36,15 @@ Your ONLY task is to classify incoming articles into ONE of these types:
   MUST contain: A NEW event, announcement, update, or development
   
 - MULTI_SERIES_EDITORIAL: Editorial/listicle about MULTIPLE TV series 
-  Examples: "Top 10 Netflix series in 2026", "Best sci-fi series to watch"
+  Examples: "Top 10 Netflix series", "Best sci-fi series to watch", "Celebrity's favorite TV shows"
+  INCLUDES: Celebrity opinions listing multiple shows, retrospectives comparing series, recommendation lists
+  → If the article mentions 2+ different TV series as main subjects → MULTI_SERIES_EDITORIAL
+  → STILL set primary_series to the MAIN focus (e.g., if "Spielberg loves Mad Men" → primary_series = "Mad Men")
 
 ⛔ REJECTED TYPES:
-- FEATURE_ESSAY: Evergreen analysis, retrospective, opinion piece with NO new news
-  Examples: "Why Mad Men is a masterpiece", "Steven Spielberg's favorite show", "What makes Breaking Bad great"
-  These have NO new event - they're just analysis of existing content. REJECT these!
+- FEATURE_ESSAY: Analysis about ONLY ONE series with NO new news
+  Examples: "Why Breaking Bad is a masterpiece", "What makes The Wire great"
+  ONLY use this if: Article is about ONE series AND has no new event
   
 - MOVIE: About movies (REJECT)
 - MIXED: About both movies AND TV series (REJECT)
@@ -50,15 +53,14 @@ Your ONLY task is to classify incoming articles into ONE of these types:
 CRITICAL RULES:
 1. TV series ONLY - no movies
 2. NEWS requires a NEW EVENT (release, cancellation, casting, renewal, etc.)
-3. If it's just "Why X is great" or "Celebrity loves X" with NO new development → FEATURE_ESSAY (REJECT)
-4. Old interviews or retrospectives are NOT news → FEATURE_ESSAY
-5. Be strict: when in doubt, use UNKNOWN
+3. If article mentions MULTIPLE series (even without news) → MULTI_SERIES_EDITORIAL (ACCEPT!)
+4. FEATURE_ESSAY only for single-series analysis without news
+5. Celebrity talking about their favorite shows = MULTI_SERIES_EDITORIAL (they usually mention multiple)
 
 ⚠️ IMPORTANT - AVOID THESE COMMON MISTAKES:
 - "X's Rival" or "Competitor to X" means the article is NOT about X
 - "Following X's success" → Article is about a DIFFERENT show
-- Celebrity opinions about old shows are FEATURE_ESSAY, not NEWS
-- "17 years ago..." or referencing old interviews = NOT current news
+- "Steven Spielberg's favorite show" with mentions of multiple series → MULTI_SERIES_EDITORIAL
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
@@ -70,7 +72,7 @@ Return ONLY valid JSON (no markdown, no explanation):
     "title": ["keyword from title that helped classification"],
     "text": ["keyword from text that helped classification"]
   },
-  "reasoning": "brief 1-sentence explanation - what NEW event does this article report? If none, say so."
+  "reasoning": "brief 1-sentence explanation - what NEW event does this article report? If none but multiple series mentioned, say so."
 }`;
 
 
