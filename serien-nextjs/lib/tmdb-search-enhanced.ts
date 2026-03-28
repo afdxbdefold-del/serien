@@ -456,20 +456,72 @@ export async function searchTvEnhanced(
   console.log(`   Title: "${title}"`);
   console.log(`   Text (first 100): "${articleText.substring(0, 100)}"`);
   
-  // Extract potential series names
-  const candidates = extractSeriesNameFromContext(title, articleText);
-  console.log(`   Candidates: ${candidates.join(', ') || '(none)'}`);
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRIORITY 1: Try the EXACT title first (likely from classifier's primary_series)
+  // This prevents false matches like "Mad Men" → "Always Meet Again"
+  // ══════════════════════════════════════════════════════════════════════════
+  console.log(`   🎯 Priority search for exact title: "${title}"`);
   
-  if (candidates.length === 0) {
-    console.log('   ⚠️  No series name candidates found');
-    return null;
+  try {
+    const exactResponse = await fetch(
+      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+    );
+    
+    if (exactResponse.ok) {
+      const exactData = await exactResponse.json();
+      
+      if (exactData.results && exactData.results.length > 0) {
+        // Check if the top result is a GOOD match for the exact title
+        const topResult = exactData.results[0];
+        const exactConfidence = calculateEnhancedConfidence(title, topResult, articleText);
+        
+        // If the exact title search yields high confidence (>70%), use it immediately
+        if (exactConfidence >= 0.70) {
+          console.log(`   ✅ Exact title match: "${topResult.name}" (${(exactConfidence * 100).toFixed(1)}%)`);
+          return {
+            tmdbId: topResult.id,
+            name: topResult.name,
+            originalName: topResult.original_name,
+            confidence: exactConfidence,
+            matchMethod: `Exact title: "${title}"`,
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.log(`   ⚠️ Exact title search failed: ${error}`);
+  }
+  
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRIORITY 2: Extract candidates from context (fallback)
+  // ══════════════════════════════════════════════════════════════════════════
+  const candidates = extractSeriesNameFromContext(title, articleText);
+  
+  // Filter out candidates that are common words or too short
+  const filteredCandidates = candidates.filter(c => {
+    const lower = c.toLowerCase();
+    // Skip common words that aren't series names
+    const skipWords = ['always', 'never', 'just', 'only', 'still', 'even', 'also', 'more', 'most', 'very', 'really', 'watched', 'favorite'];
+    return !skipWords.includes(lower) && c.length >= 3;
+  });
+  
+  console.log(`   📝 Quoted in intro: ${candidates.slice(0, 3).map(c => `"${c}"`).join(', ') || '(none)'}`);
+  
+  if (filteredCandidates.length > 0) {
+    console.log(`   ✅ Using quoted/alternative candidates`);
+    console.log(`   Candidates: ${filteredCandidates.join(', ')}`);
+  }
+  
+  if (filteredCandidates.length === 0) {
+    console.log('   ⚠️  No valid series name candidates found, using title only');
+    filteredCandidates.push(title); // Use title as fallback
   }
   
   // Try each candidate
   let bestResult: EnhancedSearchResult | null = null;
   let bestConfidence = 0;
   
-  for (const candidate of candidates) {
+  for (const candidate of filteredCandidates) {
     console.log(`   🔎 Searching for: "${candidate}"`);
     
     try {
