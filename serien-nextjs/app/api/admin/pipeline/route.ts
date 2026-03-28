@@ -256,23 +256,79 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Cron status - next runs and last run status
+    // Cron status - next runs, last run status, and detailed stats
     const cronStatus: Record<string, { 
       nextRun: string; 
       lastRun?: string; 
       lastStatus?: string;
       schedule: string;
+      successCount: number;
+      failCount: number;
+      avgDuration: number;
+      lastError?: string;
+      articlesCreated: number;
     }> = {};
     
-    for (const [pipeline, config] of Object.entries(CRON_SCHEDULES)) {
-      const lastRun = pipelineRunsArray.find((r: any) => r.pipeline === pipeline);
+    // Remove p3-trends from schedules
+    const activeSchedules = Object.entries(CRON_SCHEDULES).filter(([key]) => key !== 'p3-trends');
+    
+    for (const [pipeline, config] of activeSchedules) {
+      // Get all runs for this pipeline in the last 7 days
+      const pipelineRuns7d = pipelineRunsArray.filter((r: any) => r.pipeline === pipeline);
+      const lastRun = pipelineRuns7d[0]; // Most recent
+      
+      // Count successes and failures
+      const successCount = pipelineRuns7d.filter((r: any) => r.status === 'success').length;
+      const failCount = pipelineRuns7d.filter((r: any) => r.status === 'failed').length;
+      
+      // Calculate average duration of successful runs
+      const successfulRuns = pipelineRuns7d.filter((r: any) => r.status === 'success' && r.completedAt);
+      const avgDuration = successfulRuns.length > 0
+        ? successfulRuns.reduce((acc: number, r: any) => {
+            const duration = new Date(r.completedAt).getTime() - new Date(r.startedAt).getTime();
+            return acc + duration;
+          }, 0) / successfulRuns.length
+        : 0;
+      
+      // Get last error message
+      const lastFailedRun = pipelineRuns7d.find((r: any) => r.status === 'failed');
+      
+      // Count articles created by this pipeline
+      const articlesCreated = await prisma.articles.count({
+        where: {
+          id: { startsWith: pipeline === 'p4-youtube' ? 'yt-' : pipeline === 'cron-news' ? 'v2-' : '' },
+          createdAt: { gte: sevenDaysAgo }
+        }
+      });
+      
       cronStatus[pipeline] = {
         nextRun: getNextCronRun(config.intervalMinutes).toISOString(),
         lastRun: lastRun?.startedAt,
         lastStatus: lastRun?.status,
         schedule: config.schedule,
+        successCount,
+        failCount,
+        avgDuration: Math.round(avgDuration),
+        lastError: lastFailedRun?.errorMessage?.substring(0, 150),
+        articlesCreated,
       };
     }
+    
+    // Add cron-videos status
+    const videoRuns = pipelineRunsArray.filter((r: any) => r.pipeline === 'cron-videos' || r.pipeline === 'video-download');
+    const videoSuccessCount = videoRuns.filter((r: any) => r.status === 'success').length;
+    const videoFailCount = videoRuns.filter((r: any) => r.status === 'failed').length;
+    
+    cronStatus['cron-videos'] = {
+      nextRun: getNextCronRun(15).toISOString(), // Every 15 minutes
+      lastRun: videoRuns[0]?.startedAt,
+      lastStatus: videoRuns[0]?.status,
+      schedule: '*/15 * * * *',
+      successCount: videoSuccessCount,
+      failCount: videoFailCount,
+      avgDuration: 0,
+      articlesCreated: 0,
+    };
 
     // Get last 10 created articles with more details including word counts and scores
     const lastCreatedArticles = await prisma.articles.findMany({

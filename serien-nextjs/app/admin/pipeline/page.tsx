@@ -101,6 +101,11 @@ interface CronStatus {
   lastRun?: string;
   lastStatus?: string;
   schedule: string;
+  successCount?: number;
+  failCount?: number;
+  avgDuration?: number;
+  lastError?: string;
+  articlesCreated?: number;
 }
 
 export default function AdminPipelinePage() {
@@ -387,6 +392,8 @@ export default function AdminPipelinePage() {
       'p4-youtube': { bg: 'bg-red-100', text: 'text-red-700', label: 'YouTube' },
       'pipeline-v2': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'V2' },
       'cron-news': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'News' },
+      'cron-releases': { bg: 'bg-green-100', text: 'text-green-700', label: 'Releases' },
+      'cron-videos': { bg: 'bg-pink-100', text: 'text-pink-700', label: 'Videos' },
     };
     const badge = badges[pipeline] || { bg: 'bg-gray-100', text: 'text-gray-700', label: pipeline };
     return <span className={`px-2 py-1 ${badge.bg} ${badge.text} rounded-full text-xs font-medium`}>{badge.label}</span>;
@@ -602,24 +609,96 @@ export default function AdminPipelinePage() {
                   'p4-youtube': 'trigger-cron-youtube',
                   'cron-news': 'trigger-cron-news',
                   'cron-releases': 'trigger-cron-releases',
+                  'cron-videos': 'trigger-cron-videos',
                 }[pipeline];
+                
+                const successRate = status.successCount && status.failCount !== undefined
+                  ? Math.round((status.successCount / (status.successCount + status.failCount)) * 100)
+                  : null;
                 
                 return (
                   <div key={pipeline} className="bg-white rounded-xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-3">
                       {getPipelineBadge(pipeline)}
                       {status.lastStatus && getStatusBadge(status.lastStatus)}
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">Nächster Lauf:</span>
-                      <span className="font-medium text-cyan-600">{formatRelativeTime(status.nextRun)}</span>
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-green-600">{status.successCount || 0}</div>
+                        <div className="text-xs text-gray-500">Erfolge</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2 text-center">
+                        <div className="text-lg font-bold text-red-600">{status.failCount || 0}</div>
+                        <div className="text-xs text-gray-500">Fehler</div>
+                      </div>
                     </div>
-                    {status.lastRun && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Letzter: {formatTime(status.lastRun)}
+                    
+                    {/* Success Rate Bar */}
+                    {successRate !== null && (
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-500">Erfolgsrate</span>
+                          <span className={successRate >= 80 ? 'text-green-600' : successRate >= 50 ? 'text-yellow-600' : 'text-red-600'}>
+                            {successRate}%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full ${successRate >= 80 ? 'bg-green-500' : successRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                            style={{ width: `${successRate}%` }}
+                          />
+                        </div>
                       </div>
                     )}
+                    
+                    {/* Artikel erstellt */}
+                    {status.articlesCreated !== undefined && status.articlesCreated > 0 && (
+                      <div className="flex items-center gap-2 text-sm mb-2 p-2 bg-emerald-50 rounded-lg">
+                        <FileText className="h-4 w-4 text-emerald-600" />
+                        <span className="text-emerald-700 font-medium">{status.articlesCreated} Artikel erstellt</span>
+                      </div>
+                    )}
+                    
+                    {/* Timing */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-500">Nächster:</span>
+                        <span className="font-medium text-cyan-600">{formatRelativeTime(status.nextRun)}</span>
+                      </div>
+                      {status.lastRun && (
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-500">Letzter:</span>
+                          <span className="text-gray-700">{formatTime(status.lastRun)}</span>
+                        </div>
+                      )}
+                      {status.avgDuration && (
+                        <div className="flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-500">Ø Dauer:</span>
+                          <span className="text-gray-700">{Math.round(status.avgDuration / 1000)}s</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Last Error */}
+                    {status.lastError && status.lastStatus === 'failed' && (
+                      <div className="mt-2 p-2 bg-red-50 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-red-700 line-clamp-2">{status.lastError}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Schedule Info */}
+                    <div className="mt-2 text-xs text-gray-400">
+                      Schedule: {status.schedule}
+                    </div>
+                    
                     {triggerAction && (
                       <button
                         onClick={() => runAction(triggerAction)}
