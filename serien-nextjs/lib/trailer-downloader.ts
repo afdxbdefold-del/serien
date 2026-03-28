@@ -175,6 +175,55 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
 }
 
 /**
+ * Search YouTube for trailer using RapidAPI YouTube Search
+ * Fallback when TMDB has no trailer
+ */
+export async function searchYouTubeTrailerViaAPI(seriesName: string, language: 'de' | 'en' = 'de'): Promise<string | null> {
+  try {
+    // Build search query
+    const langSuffix = language === 'de' ? 'Deutsch German' : 'Official';
+    const searchQuery = `${seriesName} Trailer ${langSuffix}`.trim();
+    console.log(`   🔍 Searching YouTube for: "${searchQuery}"`);
+
+    // Direct YouTube search via web scraping (no API needed)
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+    
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': language === 'de' ? 'de-DE,de;q=0.9' : 'en-US,en;q=0.9',
+      }
+    });
+
+    if (!response.ok) {
+      console.log(`   ⚠️ YouTube search failed: ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    
+    // Extract video IDs from YouTube response
+    const videoIdMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
+    
+    if (videoIdMatches && videoIdMatches.length > 0) {
+      // Get first unique video ID
+      const firstMatch = videoIdMatches[0].match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+      if (firstMatch && firstMatch[1]) {
+        const videoId = firstMatch[1];
+        console.log(`   ✅ Found YouTube video ID: ${videoId}`);
+        return videoId;
+      }
+    }
+
+    console.log(`   ⚠️ No YouTube results found for "${seriesName}"`);
+    return null;
+  } catch (error: any) {
+    console.log(`   ❌ YouTube search error: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Search Netflix for series trailer (NEW: Primary source #1)
  * Netflix hosts trailers directly on their platform (no DRM for trailers)
  */

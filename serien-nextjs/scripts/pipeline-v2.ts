@@ -21,7 +21,7 @@ import { extractFacts } from '../lib/fact-extractor';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
-import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
+import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailerViaAPI } from '../lib/trailer-downloader';
 import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { qualityCheck } from '../lib/quality-checker';
@@ -776,10 +776,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Download trailer via RapidAPI - SYNCHRON (muss vor Pipeline-Ende fertig sein!)
       (async () => {
         try {
-          const trailerId = findTrailerYouTubeId(dbSeries.trailers);
+          let trailerId = findTrailerYouTubeId(dbSeries.trailers);
+          
+          // FALLBACK: Wenn kein Trailer auf TMDB, suche auf YouTube
+          if (!trailerId) {
+            console.log(`   ℹ️ No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
+            console.log(`   🔍 Searching YouTube for trailer...`);
+            
+            // Erst deutsch versuchen, dann englisch
+            trailerId = await searchYouTubeTrailerViaAPI(dbSeries.name || dbSeries.title || '', 'de');
+            
+            if (!trailerId) {
+              console.log(`   🔍 No German trailer found, trying English...`);
+              trailerId = await searchYouTubeTrailerViaAPI(dbSeries.name || dbSeries.title || '', 'en');
+            }
+          }
           
           if (trailerId) {
-            console.log(`   🎬 Found trailer ID from TMDB: ${trailerId}`);
+            console.log(`   🎬 Trailer ID: ${trailerId}`);
             console.log(`   📥 Downloading trailer via RapidAPI (SYNC)...`);
             
             // SYNCHRON: Warten bis Download fertig ist!
@@ -795,7 +809,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
               console.log(`   ⚠️ Download failed: ${downloadResult.error}`);
             }
           } else {
-            console.log(`   ℹ️ No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
+            console.log(`   ⚠️ No trailer found (TMDB + YouTube search)`);
           }
         } catch (error: any) {
           console.log(`   ❌ Trailer download error: ${error.message}`);
