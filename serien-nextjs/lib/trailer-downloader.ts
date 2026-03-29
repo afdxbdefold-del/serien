@@ -15,15 +15,29 @@ import * as os from 'os';
 
 const execAsync = promisify(exec);
 
-// Hardcoded fallback for Vercel (env vars sometimes don't load)
-const RAPIDAPI_KEY_FALLBACK = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
+// ========== RAPIDAPI CONFIGURATION (März 2026) ==========
+const RAPIDAPI_KEY = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
 
-// NEW: yt-api.p.rapidapi.com configuration (Primary API 2026)
-const YT_API_HOST = 'yt-api.p.rapidapi.com';
-const YT_API_KEY = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
+// PRIMARY: youtube-convert-download-api-mp3-mp4 (schnellste, zuverlässigste)
+const API_PRIMARY = {
+  host: 'youtube-convert-download-api-mp3-mp4.p.rapidapi.com',
+  key: RAPIDAPI_KEY,
+};
+
+// FALLBACK 1: yt-api.p.rapidapi.com (gut für Suche)
+const API_FALLBACK_1 = {
+  host: 'yt-api.p.rapidapi.com',
+  key: RAPIDAPI_KEY,
+};
+
+// FALLBACK 2: any-video-downloader2 (17 Formate, aber Quota-Limits)
+const API_FALLBACK_2 = {
+  host: 'any-video-downloader2.p.rapidapi.com',
+  key: RAPIDAPI_KEY,
+};
 
 function getRapidApiKey(): string {
-  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP || YT_API_KEY || RAPIDAPI_KEY_FALLBACK;
+  return process.env.RAPIDAPI_KEY || RAPIDAPI_KEY;
 }
 
 interface TrailerDownloadResult {
@@ -186,72 +200,87 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
 }
 
 /**
- * Search YouTube for trailer using RapidAPI yt-api.p.rapidapi.com (NEW PRIMARY)
- * Fallback when TMDB has no trailer
+ * Search YouTube for trailer using RapidAPI
+ * Priority: 1. youtube-convert-download-api 2. yt-api.p.rapidapi.com
  */
 export async function searchYouTubeTrailerViaAPI(seriesName: string, language: 'de' | 'en' = 'de'): Promise<string | null> {
   try {
-    // Build search query
     const langSuffix = language === 'de' ? 'Trailer Deutsch' : 'Official Trailer';
     const searchQuery = `${seriesName} ${langSuffix}`.trim();
     console.log(`   🔍 Searching YouTube for: "${searchQuery}"`);
 
-    // Use hardcoded yt-api.p.rapidapi.com
+    // PRIMARY: youtube-convert-download-api-mp3-mp4
     try {
       const searchResponse = await fetch(
-        `https://${YT_API_HOST}/search?query=${encodeURIComponent(searchQuery)}`,
+        `https://${API_PRIMARY.host}/search?query=${encodeURIComponent(searchQuery)}`,
         {
           method: 'GET',
           headers: {
-            'x-rapidapi-key': YT_API_KEY,
-            'x-rapidapi-host': YT_API_HOST,
+            'x-rapidapi-key': API_PRIMARY.key,
+            'x-rapidapi-host': API_PRIMARY.host,
           },
         }
       );
 
       if (searchResponse.ok) {
         const data = await searchResponse.json();
-        
-        // Find first video result
-        if (data.data && Array.isArray(data.data)) {
-          const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
+        if (data.contents && Array.isArray(data.contents)) {
+          const videoResult = data.contents.find((item: any) => item.videoId);
           if (videoResult) {
-            console.log(`   ✅ Found via yt-api: ${videoResult.videoId} - ${videoResult.title}`);
+            console.log(`   ✅ Found via PRIMARY API: ${videoResult.videoId}`);
             return videoResult.videoId;
           }
         }
       }
-    } catch (apiError: any) {
-      console.log(`   ⚠️ yt-api search failed: ${apiError.message}`);
+    } catch (e: any) {
+      console.log(`   ⚠️ PRIMARY search failed: ${e.message}`);
     }
 
-    // Fallback: Direct YouTube HTML scraping
+    // FALLBACK 1: yt-api.p.rapidapi.com
+    try {
+      const searchResponse = await fetch(
+        `https://${API_FALLBACK_1.host}/search?query=${encodeURIComponent(searchQuery)}`,
+        {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': API_FALLBACK_1.key,
+            'x-rapidapi-host': API_FALLBACK_1.host,
+          },
+        }
+      );
+
+      if (searchResponse.ok) {
+        const data = await searchResponse.json();
+        if (data.data && Array.isArray(data.data)) {
+          const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
+          if (videoResult) {
+            console.log(`   ✅ Found via FALLBACK 1: ${videoResult.videoId}`);
+            return videoResult.videoId;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log(`   ⚠️ FALLBACK 1 search failed: ${e.message}`);
+    }
+
+    // FALLBACK: Direct YouTube HTML scraping
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
-    
     const response = await fetch(searchUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept-Language': language === 'de' ? 'de-DE,de;q=0.9' : 'en-US,en;q=0.9',
       }
     });
 
-    if (!response.ok) {
-      console.log(`   ⚠️ YouTube search failed: ${response.status}`);
-      return null;
-    }
-
-    const html = await response.text();
-    
-    // Extract video IDs from YouTube response
-    const videoIdMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
-    
-    if (videoIdMatches && videoIdMatches.length > 0) {
-      // Get first unique video ID
-      const firstMatch = videoIdMatches[0].match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (firstMatch && firstMatch[1]) {
-        const videoId = firstMatch[1];
-        console.log(`   ✅ Found YouTube video ID: ${videoId}`);
-        return videoId;
+    if (response.ok) {
+      const html = await response.text();
+      const videoIdMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
+      if (videoIdMatches && videoIdMatches.length > 0) {
+        const firstMatch = videoIdMatches[0].match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        if (firstMatch && firstMatch[1]) {
+          console.log(`   ✅ Found via HTML scraping: ${firstMatch[1]}`);
+          return firstMatch[1];
+        }
       }
     }
 
@@ -530,106 +559,260 @@ async function downloadViaYtDlp(
 }
 
 /**
- * Download YouTube video using yt-api.p.rapidapi.com (NEW PRIMARY - 2026)
- * This is the newest and most reliable API
+ * PRIMARY: Download via youtube-convert-download-api-mp3-mp4
+ * Schnellste und zuverlässigste API (März 2026)
  */
-async function downloadYouTubeViaYTApiNew(
+async function downloadViaPrimary(
   videoId: string,
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('   🌐 Using yt-api.p.rapidapi.com (NEW Primary)...');
+    console.log('   🌐 PRIMARY: youtube-convert-download-api-mp3-mp4...');
 
-    // Step 1: Get video info with download links
-    const infoResponse = await fetch(`https://${YT_API_HOST}/dl?id=${videoId}`, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': YT_API_KEY,
-        'x-rapidapi-host': YT_API_HOST,
-      },
-    });
+    const response = await fetch(
+      `https://${API_PRIMARY.host}/dl?videoId=${videoId}`,
+      {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': API_PRIMARY.key,
+          'x-rapidapi-host': API_PRIMARY.host,
+        },
+      }
+    );
 
-    if (!infoResponse.ok) {
-      const errorText = await infoResponse.text().catch(() => '');
-      return { success: false, error: `yt-api error: ${infoResponse.status} - ${errorText}` };
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      if (errorText.includes('exceeded')) {
+        return { success: false, error: 'QUOTA_EXCEEDED' };
+      }
+      return { success: false, error: `API error: ${response.status}` };
     }
 
-    const data = await infoResponse.json();
+    const data = await response.json();
     
-    if (data.status === 'fail' || data.error) {
-      return { success: false, error: data.message || data.error || 'API returned error' };
+    if (data.message?.includes('exceeded')) {
+      return { success: false, error: 'QUOTA_EXCEEDED' };
     }
 
-    // Find best video format (prefer 360p or lowest available for smaller files)
-    let downloadUrl: string | null = null;
-    let formatInfo: string = 'unknown';
-
-    // Check for formats array
-    if (data.formats && Array.isArray(data.formats)) {
-      // Find video+audio format with lowest quality (smaller file)
-      const videoFormats = data.formats.filter((f: any) => 
-        f.mimeType?.includes('video/mp4') && f.hasAudio !== false
-      );
-      
-      // Sort by height (ascending) to get lowest quality first
-      videoFormats.sort((a: any, b: any) => (a.height || 9999) - (b.height || 9999));
-      
-      if (videoFormats.length > 0) {
-        downloadUrl = videoFormats[0].url;
-        formatInfo = `${videoFormats[0].height}p`;
-      }
-    }
-
-    // Fallback: check adaptiveFormats
-    if (!downloadUrl && data.adaptiveFormats && Array.isArray(data.adaptiveFormats)) {
-      const mp4Formats = data.adaptiveFormats.filter((f: any) => 
-        f.mimeType?.includes('video/mp4')
-      );
-      mp4Formats.sort((a: any, b: any) => (a.height || 9999) - (b.height || 9999));
-      
-      if (mp4Formats.length > 0) {
-        downloadUrl = mp4Formats[0].url;
-        formatInfo = `${mp4Formats[0].height}p (adaptive)`;
-      }
-    }
-
+    const downloadUrl = data.dlUrl;
     if (!downloadUrl) {
-      return { success: false, error: 'No downloadable video format found in response' };
+      return { success: false, error: 'No download URL in response' };
     }
 
-    console.log(`   ✅ Got download URL! Format: ${formatInfo}`);
-    console.log(`   📝 Title: ${data.title || 'Unknown'}`);
+    console.log('   ✅ Got download URL!');
     console.log('   📥 Downloading video...');
 
-    // Download the video file with proper headers for googlevideo.com
     const videoResponse = await fetch(downloadUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'identity',
-        'Range': 'bytes=0-',
-        'Origin': 'https://www.youtube.com',
-        'Referer': 'https://www.youtube.com/',
-        'Sec-Fetch-Dest': 'video',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       }
     });
-    
+
     if (!videoResponse.ok) {
-      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+      return { success: false, error: `Download failed: ${videoResponse.status}` };
     }
 
     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
     await fs.writeFile(tempFilePath, videoBuffer);
 
-    console.log(`   ✅ Downloaded via yt-api: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`   ✅ Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
     return { success: true };
 
   } catch (error: any) {
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * FALLBACK 1: Download via yt-api.p.rapidapi.com
+ */
+async function downloadViaFallback1(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('   🌐 FALLBACK 1: yt-api.p.rapidapi.com...');
+
+    const response = await fetch(
+      `https://${API_FALLBACK_1.host}/dl?id=${videoId}`,
+      {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': API_FALLBACK_1.key,
+          'x-rapidapi-host': API_FALLBACK_1.host,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      if (errorText.includes('exceeded')) {
+        return { success: false, error: 'QUOTA_EXCEEDED' };
+      }
+      return { success: false, error: `API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.message?.includes('exceeded')) {
+      return { success: false, error: 'QUOTA_EXCEEDED' };
+    }
+
+    // Find MP4 format
+    let downloadUrl: string | null = null;
+    if (data.formats && Array.isArray(data.formats)) {
+      const mp4Format = data.formats.find((f: any) => f.mimeType?.includes('video/mp4'));
+      if (mp4Format) {
+        downloadUrl = mp4Format.url;
+      }
+    }
+
+    if (!downloadUrl) {
+      return { success: false, error: 'No MP4 format found' };
+    }
+
+    console.log(`   ✅ Got download URL! Title: ${data.title || 'Unknown'}`);
+    console.log('   📥 Downloading video...');
+
+    const videoResponse = await fetch(downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.youtube.com/',
+      }
+    });
+
+    if (!videoResponse.ok) {
+      return { success: false, error: `Download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * FALLBACK 2: Download via any-video-downloader2
+ */
+async function downloadViaFallback2(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('   🌐 FALLBACK 2: any-video-downloader2...');
+
+    const response = await fetch(
+      `https://${API_FALLBACK_2.host}/index.php`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'x-rapidapi-key': API_FALLBACK_2.key,
+          'x-rapidapi-host': API_FALLBACK_2.host,
+        },
+        body: `url=https://www.youtube.com/watch?v=${videoId}`,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      if (errorText.includes('exceeded')) {
+        return { success: false, error: 'QUOTA_EXCEEDED' };
+      }
+      return { success: false, error: `API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.message?.includes('exceeded')) {
+      return { success: false, error: 'QUOTA_EXCEEDED' };
+    }
+
+    if (!data.success || !data.medias || data.medias.length === 0) {
+      return { success: false, error: 'No media found' };
+    }
+
+    // Find 360p or lowest quality MP4
+    const medias = data.medias.filter((m: any) => m.ext === 'mp4');
+    const media = medias.find((m: any) => m.label?.includes('360p')) || medias[0];
+    
+    if (!media?.url) {
+      return { success: false, error: 'No download URL found' };
+    }
+
+    console.log(`   ✅ Got download URL! Title: ${data.title || 'Unknown'}`);
+    console.log('   📥 Downloading video...');
+
+    const videoResponse = await fetch(media.url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.youtube.com/',
+      }
+    });
+
+    if (!videoResponse.ok) {
+      return { success: false, error: `Download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Download YouTube video with fallback chain
+ * Priority: PRIMARY -> FALLBACK 1 -> FALLBACK 2
+ */
+async function downloadYouTubeWithFallback(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  // PRIMARY
+  const primaryResult = await downloadViaPrimary(videoId, tempFilePath);
+  if (primaryResult.success) {
+    console.log('   ✅ PRIMARY API erfolgreich!');
+    return primaryResult;
+  }
+  console.log(`   ⚠️ PRIMARY failed: ${primaryResult.error}`);
+
+  // FALLBACK 1
+  const fallback1Result = await downloadViaFallback1(videoId, tempFilePath);
+  if (fallback1Result.success) {
+    console.log('   ✅ FALLBACK 1 erfolgreich!');
+    return fallback1Result;
+  }
+  console.log(`   ⚠️ FALLBACK 1 failed: ${fallback1Result.error}`);
+
+  // FALLBACK 2
+  const fallback2Result = await downloadViaFallback2(videoId, tempFilePath);
+  if (fallback2Result.success) {
+    console.log('   ✅ FALLBACK 2 erfolgreich!');
+    return fallback2Result;
+  }
+  console.log(`   ⚠️ FALLBACK 2 failed: ${fallback2Result.error}`);
+
+  return { success: false, error: `All APIs failed. Last: ${fallback2Result.error}` };
+}
+
+/**
+ * @deprecated Use downloadViaPrimary/downloadViaFallback1/downloadViaFallback2
+ */
+async function downloadYouTubeViaYTApiNew(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  return downloadViaFallback1(videoId, tempFilePath);
 }
 
 /**
@@ -1051,43 +1234,14 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // Special handling for YouTube: Use new yt-api as primary (most reliable 2026!)
+    // YouTube: Use new TOP 3 API fallback chain (März 2026)
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via yt-api.p.rapidapi.com (NEW)...');
+      console.log('   🚀 Starting YouTube download with TOP 3 APIs...');
       
-      // NEW yt-api is the most reliable - use as primary
-      const newApiResult = await downloadYouTubeViaYTApiNew(videoId, tempFilePath);
+      const result = await downloadYouTubeWithFallback(videoId, tempFilePath);
       
-      if (newApiResult.success) {
-        console.log('   ✅ yt-api.p.rapidapi.com download successful!');
-      } else {
-        console.log(`   ⚠️ yt-api.p.rapidapi.com failed: ${newApiResult.error}`);
-        console.log('   🔄 Trying yt-video-audio-downloader-api as fallback...');
-        
-        const ytApiResult = await downloadYouTubeViaYTAPI(videoId, tempFilePath);
-        
-        if (ytApiResult.success) {
-          console.log('   ✅ yt-video-audio-downloader-api fallback successful!');
-        } else {
-          console.log(`   ⚠️ yt-video-audio-downloader-api failed: ${ytApiResult.error}`);
-          console.log('   🔄 Trying RapidAPI #1 (youtube-info-download-api) as backup...');
-          
-          const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
-          
-          if (rapidResult.success) {
-            console.log('   ✅ RapidAPI #1 fallback successful!');
-          } else {
-            console.log(`   ⚠️ RapidAPI #1 failed: ${rapidResult.error}`);
-            console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub) as last resort...');
-            
-            const rapid3Result = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
-            
-            if (!rapid3Result.success) {
-              throw new Error(`All download methods failed. Last error: ${rapid3Result.error}`);
-            }
-            console.log('   ✅ RapidAPI #3 fallback successful!');
-          }
-        }
+      if (!result.success) {
+        throw new Error(`All APIs failed: ${result.error}`);
       }
       
       console.log('   ⏭️ Skipping ffmpeg re-encoding (serverless mode)');
