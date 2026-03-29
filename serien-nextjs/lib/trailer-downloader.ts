@@ -18,8 +18,12 @@ const execAsync = promisify(exec);
 // Hardcoded fallback for Vercel (env vars sometimes don't load)
 const RAPIDAPI_KEY_FALLBACK = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
 
-function getRapidApiKey(): string | null {
-  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP || RAPIDAPI_KEY_FALLBACK;
+// NEW: yt-api.p.rapidapi.com configuration (Primary API 2026)
+const YT_API_HOST = 'yt-api.p.rapidapi.com';
+const YT_API_KEY = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
+
+function getRapidApiKey(): string {
+  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY_BACKUP || YT_API_KEY || RAPIDAPI_KEY_FALLBACK;
 }
 
 interface TrailerDownloadResult {
@@ -187,42 +191,38 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
  */
 export async function searchYouTubeTrailerViaAPI(seriesName: string, language: 'de' | 'en' = 'de'): Promise<string | null> {
   try {
-    const rapidApiKey = getRapidApiKey();
-    
     // Build search query
     const langSuffix = language === 'de' ? 'Trailer Deutsch' : 'Official Trailer';
     const searchQuery = `${seriesName} ${langSuffix}`.trim();
     console.log(`   🔍 Searching YouTube for: "${searchQuery}"`);
 
-    // Try new yt-api.p.rapidapi.com first (if API key available)
-    if (rapidApiKey) {
-      try {
-        const searchResponse = await fetch(
-          `https://yt-api.p.rapidapi.com/search?query=${encodeURIComponent(searchQuery)}`,
-          {
-            method: 'GET',
-            headers: {
-              'x-rapidapi-key': rapidApiKey,
-              'x-rapidapi-host': 'yt-api.p.rapidapi.com',
-            },
-          }
-        );
+    // Use hardcoded yt-api.p.rapidapi.com
+    try {
+      const searchResponse = await fetch(
+        `https://${YT_API_HOST}/search?query=${encodeURIComponent(searchQuery)}`,
+        {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': YT_API_KEY,
+            'x-rapidapi-host': YT_API_HOST,
+          },
+        }
+      );
 
-        if (searchResponse.ok) {
-          const data = await searchResponse.json();
-          
-          // Find first video result
-          if (data.data && Array.isArray(data.data)) {
-            const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
-            if (videoResult) {
-              console.log(`   ✅ Found via yt-api: ${videoResult.videoId} - ${videoResult.title}`);
-              return videoResult.videoId;
-            }
+      if (searchResponse.ok) {
+        const data = await searchResponse.json();
+        
+        // Find first video result
+        if (data.data && Array.isArray(data.data)) {
+          const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
+          if (videoResult) {
+            console.log(`   ✅ Found via yt-api: ${videoResult.videoId} - ${videoResult.title}`);
+            return videoResult.videoId;
           }
         }
-      } catch (apiError: any) {
-        console.log(`   ⚠️ yt-api search failed: ${apiError.message}`);
       }
+    } catch (apiError: any) {
+      console.log(`   ⚠️ yt-api search failed: ${apiError.message}`);
     }
 
     // Fallback: Direct YouTube HTML scraping
@@ -538,19 +538,14 @@ async function downloadYouTubeViaYTApiNew(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const rapidApiKey = getRapidApiKey();
-    if (!rapidApiKey) {
-      return { success: false, error: 'No RapidAPI key found in environment' };
-    }
-
     console.log('   🌐 Using yt-api.p.rapidapi.com (NEW Primary)...');
 
     // Step 1: Get video info with download links
-    const infoResponse = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+    const infoResponse = await fetch(`https://${YT_API_HOST}/dl?id=${videoId}`, {
       method: 'GET',
       headers: {
-        'x-rapidapi-key': rapidApiKey,
-        'x-rapidapi-host': 'yt-api.p.rapidapi.com',
+        'x-rapidapi-key': YT_API_KEY,
+        'x-rapidapi-host': YT_API_HOST,
       },
     });
 
