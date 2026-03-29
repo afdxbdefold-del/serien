@@ -36,6 +36,12 @@ const API_FALLBACK_2 = {
   key: RAPIDAPI_KEY,
 };
 
+// FALLBACK 3: youtube-info-download-api (async mit progress polling)
+const API_FALLBACK_3 = {
+  host: 'youtube-info-download-api.p.rapidapi.com',
+  key: RAPIDAPI_KEY,
+};
+
 function getRapidApiKey(): string {
   return process.env.RAPIDAPI_KEY || RAPIDAPI_KEY;
 }
@@ -771,8 +777,101 @@ async function downloadViaFallback2(
 }
 
 /**
+ * FALLBACK 3: Download via youtube-info-download-api (async mit polling)
+ */
+async function downloadViaFallback3(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('   🌐 FALLBACK 3: youtube-info-download-api...');
+
+    const url = `https://${API_FALLBACK_3.host}/ajax/download.php?format=360&url=https://www.youtube.com/watch?v=${videoId}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': API_FALLBACK_3.key,
+        'x-rapidapi-host': API_FALLBACK_3.host,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      if (errorText.includes('exceeded')) {
+        return { success: false, error: 'QUOTA_EXCEEDED' };
+      }
+      return { success: false, error: `API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.message?.includes('exceeded')) {
+      return { success: false, error: 'QUOTA_EXCEEDED' };
+    }
+
+    if (!data.success || !data.progress_url) {
+      return { success: false, error: data.message || 'No progress URL' };
+    }
+
+    console.log(`   ✅ Job started: ${data.title || 'Unknown'}`);
+    console.log('   ⏳ Polling for completion...');
+
+    // Poll progress URL (max 60 seconds)
+    let downloadUrl: string | null = null;
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      try {
+        const progressRes = await fetch(data.progress_url);
+        if (progressRes.ok) {
+          const progress = await progressRes.json();
+          
+          if (progress.download_url) {
+            downloadUrl = progress.download_url;
+            console.log('   ✅ Download ready!');
+            break;
+          }
+          
+          if (progress.text?.toLowerCase().includes('error')) {
+            return { success: false, error: progress.text };
+          }
+        }
+      } catch (e) {
+        // Continue polling
+      }
+    }
+
+    if (!downloadUrl) {
+      return { success: false, error: 'Timeout - no download URL after 60s' };
+    }
+
+    console.log('   📥 Downloading video...');
+
+    const videoResponse = await fetch(downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      }
+    });
+
+    if (!videoResponse.ok) {
+      return { success: false, error: `Download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Download YouTube video with fallback chain
- * Priority: PRIMARY -> FALLBACK 1 -> FALLBACK 2
+ * Priority: PRIMARY -> FALLBACK 1 -> FALLBACK 2 -> FALLBACK 3
  */
 async function downloadYouTubeWithFallback(
   videoId: string,
@@ -802,7 +901,15 @@ async function downloadYouTubeWithFallback(
   }
   console.log(`   ⚠️ FALLBACK 2 failed: ${fallback2Result.error}`);
 
-  return { success: false, error: `All APIs failed. Last: ${fallback2Result.error}` };
+  // FALLBACK 3
+  const fallback3Result = await downloadViaFallback3(videoId, tempFilePath);
+  if (fallback3Result.success) {
+    console.log('   ✅ FALLBACK 3 erfolgreich!');
+    return fallback3Result;
+  }
+  console.log(`   ⚠️ FALLBACK 3 failed: ${fallback3Result.error}`);
+
+  return { success: false, error: `All 4 APIs failed. Last: ${fallback3Result.error}` };
 }
 
 /**
