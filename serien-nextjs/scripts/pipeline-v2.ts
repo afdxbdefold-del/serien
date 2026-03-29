@@ -453,6 +453,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`✅ Series created: ${dbSeries.name}`);
     } else {
       console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
+      
+      // FIX: Wenn trailers null/leer sind, aus TMDB nachladen!
+      if (!dbSeries.trailers || (Array.isArray(dbSeries.trailers) && dbSeries.trailers.length === 0)) {
+        console.log(`   ⚠️ No trailers in DB, fetching from TMDB...`);
+        try {
+          const completeDetails = await getTvDetailsComplete(searchResult.tmdbId, 'de-DE');
+          if (completeDetails?.trailers && completeDetails.trailers.length > 0) {
+            await prisma.series.update({
+              where: { tmdbId: searchResult.tmdbId },
+              data: { trailers: completeDetails.trailers }
+            });
+            dbSeries.trailers = completeDetails.trailers;
+            console.log(`   ✅ Trailers updated: ${completeDetails.trailers.length} found`);
+          }
+        } catch (e: any) {
+          console.log(`   ⚠️ Failed to fetch trailers: ${e.message}`);
+        }
+      }
     }
     console.timeEnd('⏱️  STEP 3: TMDB Resolution');
 
