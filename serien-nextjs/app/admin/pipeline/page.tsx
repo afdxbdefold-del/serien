@@ -1089,10 +1089,14 @@ export default function AdminPipelinePage() {
             </div>
 
             {/* Article Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
               <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="text-sm text-gray-500 mb-1">Artikel (7 Tage)</div>
-                <div className="text-2xl font-bold text-gray-900">{lastCreatedArticles.length}</div>
+                <div className="text-sm text-gray-500 mb-1">Publiziert (7d)</div>
+                <div className="text-2xl font-bold text-gray-900">{lastCreatedArticles.filter(a => a.status === 'published').length}</div>
+              </div>
+              <div className="bg-white rounded-xl border border-orange-200 p-4">
+                <div className="text-sm text-orange-600 mb-1">Drafts (7d)</div>
+                <div className="text-2xl font-bold text-orange-600">{lastCreatedArticles.filter(a => a.status === 'draft').length}</div>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-4">
                 <div className="text-sm text-gray-500 mb-1">Ø Wörter generiert</div>
@@ -1158,6 +1162,12 @@ export default function AdminPipelinePage() {
                               }`}>
                                 {qualityBadge === 'excellent' ? '★★★' : qualityBadge === 'good' ? '★★' : qualityBadge === 'ok' ? '★' : '⚠'}
                               </span>
+                              
+                              {article.status === 'draft' && (
+                                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                                  DRAFT
+                                </span>
+                              )}
                               
                               {article.heroVideoUrl && <Video className="h-4 w-4 text-red-500" title="Hat Trailer" />}
                               

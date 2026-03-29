@@ -339,21 +339,25 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let searchResult = await searchTvEnhanced(searchQuery, fullSourceText);
     
     // ══════════════════════════════════════════════════════════════════════════
-    // TMDB MATCH VALIDATION - Strenge Prüfung vor DB-Fallback
+    // TMDB MATCH VALIDATION - Strenge Prüfung mit Draft-Fallback
     // ══════════════════════════════════════════════════════════════════════════
-    if (!searchResult || searchResult.confidence < 0.6) {
-      console.log('⚠️ No confident TMDB match found (confidence < 60%)');
+    const PUBLISH_THRESHOLD = 0.70; // 70% für automatische Veröffentlichung
+    const DRAFT_THRESHOLD = 0.50;   // 50% für Draft (zur manuellen Prüfung)
+    
+    let saveAsDraft = false;
+    let draftReason = '';
+    
+    if (!searchResult || searchResult.confidence < DRAFT_THRESHOLD) {
+      console.log('⚠️ No confident TMDB match found (confidence < 50%)');
       console.log(`   TMDB Result: ${searchResult ? `${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)` : 'null'}`);
       
       // DB FALLBACK: Nur mit exakter Übereinstimmung - KEINE Substring-Suche!
-      // Dies verhindert falsche Zuordnungen wie "Dune" → "ZatsuTabi"
       const candidates = extractSeriesNameCandidates(source.title, fullSourceText);
       let dbMatch = null;
       
       console.log(`   📋 Trying exact DB match for candidates: ${candidates.join(', ')}`);
       
       for (const candidate of candidates) {
-        // Nur exakte Matches (case-insensitive) - KEINE contains-Suche!
         dbMatch = await prisma.series.findFirst({
           where: {
             OR: [
@@ -369,20 +373,39 @@ export async function runPipelineV2(source: PipelineV2Source) {
           searchResult = {
             tmdbId: dbMatch.tmdbId,
             name: dbMatch.name || dbMatch.title,
-            confidence: 0.85, // Exact match = high confidence
+            confidence: 0.85,
             matchMethod: 'db-exact-match'
           };
           break;
         }
       }
       
-      if (!searchResult || searchResult.confidence < 0.6) {
-        console.log('❌ No match found in TMDB or DB (strict matching)');
-        console.log('   → Artikel wird übersprungen, um falsche Zuordnungen zu vermeiden');
-        await logger.fail('Keine TMDB-Serie gefunden (strenge Prüfung)', 'tmdb-resolution');
-        return null;
+      if (!searchResult || searchResult.confidence < DRAFT_THRESHOLD) {
+        // Komplett keine Zuordnung möglich -> Als Draft speichern
+        console.log('❌ No match found in TMDB or DB');
+        console.log('   → Artikel wird als DRAFT gespeichert (keine Serie gefunden)');
+        saveAsDraft = true;
+        draftReason = `Keine Serie gefunden (TMDB: ${searchResult ? `${searchResult.name} ${(searchResult.confidence * 100).toFixed(0)}%` : 'null'})`;
+        
+        // Verwende eine Fallback-Serie oder null
+        if (!searchResult) {
+          // Kein Match - wir brauchen trotzdem eine Serie für den Artikel
+          // Speichere ohne Serie (tmdbId = null)
+          await logger.log(`Draft: ${draftReason}`);
+        }
       }
-    } else {
+    }
+    
+    // Prüfe ob Confidence für Veröffentlichung reicht
+    if (searchResult && searchResult.confidence < PUBLISH_THRESHOLD && !saveAsDraft) {
+      console.log(`⚠️ Confidence below publish threshold (${(searchResult.confidence * 100).toFixed(0)}% < 70%)`);
+      console.log(`   → Artikel wird als DRAFT gespeichert (unsichere Zuordnung)`);
+      saveAsDraft = true;
+      draftReason = `Unsichere Zuordnung: ${searchResult.name} (${(searchResult.confidence * 100).toFixed(0)}%)`;
+      logger.log(`Draft: ${draftReason}`);
+    }
+    
+    if (searchResult && !saveAsDraft) {
       console.log(`✅ TMDB Match accepted: ${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)`);
     }
     
@@ -699,6 +722,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard');
     }
     
+    // Determine final status based on confidence
+    const finalStatus = saveAsDraft ? 'draft' : 'published';
+    const finalPublishedAt = saveAsDraft ? null : now;
+    
     await prisma.articles.create({
       data: {
         id: articleId,
@@ -711,20 +738,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
           ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
           : null,
         tmdbId: dbSeries.tmdbId,
-        primarySeriesId: dbSeries.tmdbId, // ✅ Set correct series ID for internal linking
+        primarySeriesId: dbSeries.tmdbId,
         tmdbType: 'tv',
-        authorId: getRandomAuthor(), // ✅ Random author from editorial team
-        status: 'published', // ✅ Auto-publish articles
-        publishedAt: now, // ✅ Set publication timestamp
+        authorId: getRandomAuthor(),
+        status: finalStatus,
+        publishedAt: finalPublishedAt,
         createdAt: now,
         updatedAt: now,
         sourceUrl: source.url,
+        // Store draft reason in metadata if available
+        ...(saveAsDraft && draftReason ? { 
+          metadata: { draftReason, confidence: searchResult?.confidence || 0 } 
+        } : {}),
       },
     });
     
-    console.log(`✅ Article published`);
-    console.log(`   ID: ${articleId}`);
-    console.log(`   Slug: ${slug}`);
+    if (saveAsDraft) {
+      console.log(`📝 Article saved as DRAFT`);
+      console.log(`   Reason: ${draftReason}`);
+      console.log(`   ID: ${articleId}`);
+      console.log(`   Slug: ${slug}`);
+      logger.log(`Draft gespeichert: ${draftReason}`);
+    } else {
+      console.log(`✅ Article published`);
+      console.log(`   ID: ${articleId}`);
+      console.log(`   Slug: ${slug}`);
+    }
     console.timeEnd('⏱️  STEP 8: Publish');
 
     // ========== STEP 9: POST-PROCESSING (PARALLEL!) ==========
@@ -896,15 +935,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
     // ========== SUCCESS ==========
     console.log('\n' + '='.repeat(70));
-    console.log('🎉 PIPELINE V2 COMPLETE');
+    if (saveAsDraft) {
+      console.log('📝 PIPELINE V2 COMPLETE (DRAFT)');
+    } else {
+      console.log('🎉 PIPELINE V2 COMPLETE');
+    }
     console.log('='.repeat(70));
-    console.log(`✅ Article: ${structuredContent.headline}`);
-    console.log(`✅ Slug: ${slug}`);
+    console.log(`${saveAsDraft ? '📝' : '✅'} Article: ${structuredContent.headline}`);
+    console.log(`${saveAsDraft ? '📝' : '✅'} Slug: ${slug}`);
+    console.log(`${saveAsDraft ? '📝' : '✅'} Status: ${finalStatus.toUpperCase()}`);
+    if (saveAsDraft) {
+      console.log(`⚠️  Draft Reason: ${draftReason}`);
+    }
     console.log(`✅ H2 Count: ${h2Count}`);
+    console.log(`✅ Series: ${searchResult?.name || 'Unknown'} (${(searchResult?.confidence || 0) * 100}%)`);
     console.log(`✅ Character Links: Yes`);
     console.log('='.repeat(70));
     
-    logger.log(`Artikel gespeichert: ${slug}`);
+    logger.log(`Artikel gespeichert: ${slug} (${finalStatus})`);
+    logger.addMetadata('status', finalStatus);
+    if (saveAsDraft) {
+      logger.addMetadata('draftReason', draftReason);
+    }
+    
     await logger.success({
       articleId,
       articleSlug: slug,
