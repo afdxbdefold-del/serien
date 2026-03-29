@@ -405,6 +405,7 @@ model series {
   spokenLanguages     String[]
   tagline             String?
   trailers            Json?
+  localTrailerPath    String?             // Lokaler Pfad zum heruntergeladenen Trailer
   type                String?
   voteAverage         Float?
   voteCount           Int?
