@@ -182,17 +182,50 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
 }
 
 /**
- * Search YouTube for trailer using RapidAPI YouTube Search
+ * Search YouTube for trailer using RapidAPI yt-api.p.rapidapi.com (NEW PRIMARY)
  * Fallback when TMDB has no trailer
  */
 export async function searchYouTubeTrailerViaAPI(seriesName: string, language: 'de' | 'en' = 'de'): Promise<string | null> {
   try {
+    const rapidApiKey = getRapidApiKey();
+    
     // Build search query
-    const langSuffix = language === 'de' ? 'Deutsch German' : 'Official';
-    const searchQuery = `${seriesName} Trailer ${langSuffix}`.trim();
+    const langSuffix = language === 'de' ? 'Trailer Deutsch' : 'Official Trailer';
+    const searchQuery = `${seriesName} ${langSuffix}`.trim();
     console.log(`   🔍 Searching YouTube for: "${searchQuery}"`);
 
-    // Direct YouTube search via web scraping (no API needed)
+    // Try new yt-api.p.rapidapi.com first (if API key available)
+    if (rapidApiKey) {
+      try {
+        const searchResponse = await fetch(
+          `https://yt-api.p.rapidapi.com/search?query=${encodeURIComponent(searchQuery)}`,
+          {
+            method: 'GET',
+            headers: {
+              'x-rapidapi-key': rapidApiKey,
+              'x-rapidapi-host': 'yt-api.p.rapidapi.com',
+            },
+          }
+        );
+
+        if (searchResponse.ok) {
+          const data = await searchResponse.json();
+          
+          // Find first video result
+          if (data.data && Array.isArray(data.data)) {
+            const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
+            if (videoResult) {
+              console.log(`   ✅ Found via yt-api: ${videoResult.videoId} - ${videoResult.title}`);
+              return videoResult.videoId;
+            }
+          }
+        }
+      } catch (apiError: any) {
+        console.log(`   ⚠️ yt-api search failed: ${apiError.message}`);
+      }
+    }
+
+    // Fallback: Direct YouTube HTML scraping
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
     
     const response = await fetch(searchUrl, {
@@ -497,7 +530,107 @@ async function downloadViaYtDlp(
 }
 
 /**
- * Download YouTube video using yt-video-audio-downloader-api (PRIMARY - WORKS!)
+ * Download YouTube video using yt-api.p.rapidapi.com (NEW PRIMARY - 2026)
+ * This is the newest and most reliable API
+ */
+async function downloadYouTubeViaYTApiNew(
+  videoId: string,
+  tempFilePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const rapidApiKey = getRapidApiKey();
+    if (!rapidApiKey) {
+      return { success: false, error: 'No RapidAPI key found in environment' };
+    }
+
+    console.log('   🌐 Using yt-api.p.rapidapi.com (NEW Primary)...');
+
+    // Step 1: Get video info with download links
+    const infoResponse = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': rapidApiKey,
+        'x-rapidapi-host': 'yt-api.p.rapidapi.com',
+      },
+    });
+
+    if (!infoResponse.ok) {
+      const errorText = await infoResponse.text().catch(() => '');
+      return { success: false, error: `yt-api error: ${infoResponse.status} - ${errorText}` };
+    }
+
+    const data = await infoResponse.json();
+    
+    if (data.status === 'fail' || data.error) {
+      return { success: false, error: data.message || data.error || 'API returned error' };
+    }
+
+    // Find best video format (prefer 360p or lowest available for smaller files)
+    let downloadUrl: string | null = null;
+    let formatInfo: string = 'unknown';
+
+    // Check for formats array
+    if (data.formats && Array.isArray(data.formats)) {
+      // Find video+audio format with lowest quality (smaller file)
+      const videoFormats = data.formats.filter((f: any) => 
+        f.mimeType?.includes('video/mp4') && f.hasAudio !== false
+      );
+      
+      // Sort by height (ascending) to get lowest quality first
+      videoFormats.sort((a: any, b: any) => (a.height || 9999) - (b.height || 9999));
+      
+      if (videoFormats.length > 0) {
+        downloadUrl = videoFormats[0].url;
+        formatInfo = `${videoFormats[0].height}p`;
+      }
+    }
+
+    // Fallback: check adaptiveFormats
+    if (!downloadUrl && data.adaptiveFormats && Array.isArray(data.adaptiveFormats)) {
+      const mp4Formats = data.adaptiveFormats.filter((f: any) => 
+        f.mimeType?.includes('video/mp4')
+      );
+      mp4Formats.sort((a: any, b: any) => (a.height || 9999) - (b.height || 9999));
+      
+      if (mp4Formats.length > 0) {
+        downloadUrl = mp4Formats[0].url;
+        formatInfo = `${mp4Formats[0].height}p (adaptive)`;
+      }
+    }
+
+    if (!downloadUrl) {
+      return { success: false, error: 'No downloadable video format found in response' };
+    }
+
+    console.log(`   ✅ Got download URL! Format: ${formatInfo}`);
+    console.log(`   📝 Title: ${data.title || 'Unknown'}`);
+    console.log('   📥 Downloading video...');
+
+    // Download the video file
+    const videoResponse = await fetch(downloadUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.youtube.com/',
+      }
+    });
+    
+    if (!videoResponse.ok) {
+      return { success: false, error: `Video download failed: ${videoResponse.status}` };
+    }
+
+    const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    await fs.writeFile(tempFilePath, videoBuffer);
+
+    console.log(`   ✅ Downloaded via yt-api: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    return { success: true };
+
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Download YouTube video using yt-video-audio-downloader-api (BACKUP)
  * This API provides direct download URLs that actually work
  */
 async function downloadYouTubeViaYTAPI(
@@ -510,7 +643,7 @@ async function downloadYouTubeViaYTAPI(
       return { success: false, error: 'No RapidAPI key found in environment' };
     }
 
-    console.log('   🌐 Using yt-video-audio-downloader-api (Primary)...');
+    console.log('   🌐 Using yt-video-audio-downloader-api (Backup)...');
 
     const response = await fetch('https://yt-video-audio-downloader-api.p.rapidapi.com/download', {
       method: 'POST',
@@ -905,33 +1038,42 @@ export async function downloadVideoTrailer(
     console.log(`🎬 Downloading trailer from ${source}: ${videoUrl}`);
     console.log(`   Temp file: ${tempFilePath}`);
 
-    // Special handling for YouTube: Use RapidAPI #1 as primary (most reliable!)
+    // Special handling for YouTube: Use new yt-api as primary (most reliable 2026!)
     if (source === 'YouTube') {
-      console.log('   🚀 Attempting YouTube download via RapidAPI #1...');
+      console.log('   🚀 Attempting YouTube download via yt-api.p.rapidapi.com (NEW)...');
       
-      // RapidAPI #1 is the most reliable - works even for geo-blocked videos
-      const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
+      // NEW yt-api is the most reliable - use as primary
+      const newApiResult = await downloadYouTubeViaYTApiNew(videoId, tempFilePath);
       
-      if (rapidResult.success) {
-        console.log('   ✅ RapidAPI #1 download successful!');
+      if (newApiResult.success) {
+        console.log('   ✅ yt-api.p.rapidapi.com download successful!');
       } else {
-        console.log(`   ⚠️ RapidAPI #1 failed: ${rapidResult.error}`);
-        console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub) as fallback...');
+        console.log(`   ⚠️ yt-api.p.rapidapi.com failed: ${newApiResult.error}`);
+        console.log('   🔄 Trying yt-video-audio-downloader-api as fallback...');
         
-        const rapid3Result = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
+        const ytApiResult = await downloadYouTubeViaYTAPI(videoId, tempFilePath);
         
-        if (rapid3Result.success) {
-          console.log('   ✅ RapidAPI #3 fallback successful!');
+        if (ytApiResult.success) {
+          console.log('   ✅ yt-video-audio-downloader-api fallback successful!');
         } else {
-          console.log(`   ⚠️ RapidAPI #3 failed: ${rapid3Result.error}`);
-          console.log('   🔄 Trying RapidAPI #2 as last fallback...');
+          console.log(`   ⚠️ yt-video-audio-downloader-api failed: ${ytApiResult.error}`);
+          console.log('   🔄 Trying RapidAPI #1 (youtube-info-download-api) as backup...');
           
-          const rapid2Result = await downloadYouTubeViaRapidAPI2(videoId, tempFilePath);
+          const rapidResult = await downloadYouTubeViaRapidAPI(videoId, tempFilePath);
           
-          if (!rapid2Result.success) {
-            throw new Error(`All RapidAPI methods failed. Last error: ${rapid2Result.error}`);
+          if (rapidResult.success) {
+            console.log('   ✅ RapidAPI #1 fallback successful!');
+          } else {
+            console.log(`   ⚠️ RapidAPI #1 failed: ${rapidResult.error}`);
+            console.log('   🔄 Trying RapidAPI #3 (Cloud API Hub) as last resort...');
+            
+            const rapid3Result = await downloadYouTubeViaRapidAPI3(videoId, tempFilePath);
+            
+            if (!rapid3Result.success) {
+              throw new Error(`All download methods failed. Last error: ${rapid3Result.error}`);
+            }
+            console.log('   ✅ RapidAPI #3 fallback successful!');
           }
-          console.log('   ✅ RapidAPI #2 fallback successful!');
         }
       }
       
