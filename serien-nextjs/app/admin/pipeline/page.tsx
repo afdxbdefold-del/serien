@@ -8,7 +8,7 @@ import {
   Youtube, Flame, Tv, ExternalLink, Trash2, ToggleLeft, ToggleRight,
   Zap, FileText, TrendingUp, AlertCircle, ChevronDown, ChevronUp,
   Activity, Timer, Target, Bug, Download, Bell, BellOff, Link2,
-  BarChart3, AlertTriangle, Calendar, Video, Newspaper, Plus, X
+  BarChart3, AlertTriangle, Calendar, Video, Newspaper, Plus, X, Film
 } from 'lucide-react';
 
 interface PipelineRun {
@@ -535,6 +535,15 @@ export default function AdminPipelinePage() {
                 title="404 Errors anzeigen"
               >
                 <AlertTriangle className="h-4 w-4" />
+              </Link>
+              
+              {/* Trailer Import Link */}
+              <Link
+                href="/admin/trailers"
+                className="flex items-center gap-2 px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+                title="Trailer Import Manager"
+              >
+                <Film className="h-4 w-4" />
               </Link>
               
               {/* Export CSV */}
