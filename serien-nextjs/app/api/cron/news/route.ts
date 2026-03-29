@@ -32,6 +32,8 @@ function isAuthorized(request: NextRequest): boolean {
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   // Verify authorization
   if (!isAuthorized(request)) {
     console.log('[CRON] Unauthorized request to /api/cron/news');
@@ -42,6 +44,8 @@ export async function GET(request: NextRequest) {
     // Dynamic import to avoid bundling issues
     const { processAllNews } = await import('@/scripts/news-scraper');
     
+    console.log('[CRON] Starting news import...');
+    
     // Scrape from ScreenRant, Collider and Cinemaholic
     const result = await processAllNews({
       sources: ['screenrant', 'collider', 'cinemaholic'],
@@ -50,21 +54,80 @@ export async function GET(request: NextRequest) {
       onlyNew: true,
     });
 
-    // Log the run
-    console.log(`[CRON] News import: ${result.processed} processed, ${result.failed} failed`);
+    const duration = Date.now() - startTime;
+    
+    // Log the run - auch wenn keine News
+    if (result.processed === 0 && result.failed === 0) {
+      console.log(`[CRON] News import: Keine neuen News gefunden (${result.skipped || 0} übersprungen, ${Math.round(duration/1000)}s)`);
+      
+      // Log to pipeline_runs for dashboard visibility
+      await prisma.pipeline_runs.create({
+        data: {
+          id: `cron-news-${Date.now()}`,
+          pipeline: 'cron-news',
+          trigger: 'cron',
+          status: 'success',
+          startedAt: new Date(startTime),
+          completedAt: new Date(),
+          metadata: {
+            message: 'Keine neuen News gefunden',
+            skipped: result.skipped || 0,
+            duration,
+          }
+        }
+      });
+    } else {
+      console.log(`[CRON] News import: ${result.processed} verarbeitet, ${result.failed} fehlgeschlagen (${Math.round(duration/1000)}s)`);
+      
+      // Log successful run with articles
+      await prisma.pipeline_runs.create({
+        data: {
+          id: `cron-news-${Date.now()}`,
+          pipeline: 'cron-news',
+          trigger: 'cron',
+          status: result.failed > 0 ? 'partial' : 'success',
+          startedAt: new Date(startTime),
+          completedAt: new Date(),
+          metadata: {
+            processed: result.processed,
+            failed: result.failed,
+            skipped: result.skipped || 0,
+            bySource: result.bySource,
+            duration,
+          }
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
+      duration: `${Math.round(duration/1000)}s`,
       result: {
         processed: result.processed,
         failed: result.failed,
         skipped: result.skipped,
         bySource: result.bySource,
+        message: result.processed === 0 ? 'Keine neuen News gefunden' : undefined,
       },
     });
   } catch (error: any) {
+    const duration = Date.now() - startTime;
     console.error('[CRON] News import error:', error.message);
+    
+    // Log failed run
+    await prisma.pipeline_runs.create({
+      data: {
+        id: `cron-news-${Date.now()}`,
+        pipeline: 'cron-news',
+        trigger: 'cron',
+        status: 'failed',
+        startedAt: new Date(startTime),
+        completedAt: new Date(),
+        errorMessage: error.message,
+        metadata: { duration }
+      }
+    });
     
     return NextResponse.json({
       success: false,
