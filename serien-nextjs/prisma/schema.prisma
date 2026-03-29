@@ -24,6 +24,21 @@ model ad_slots {
   updatedAt   DateTime
 }
 
+model error_logs {
+  id        String   @id
+  type      String   // '404', '500', etc.
+  path      String
+  referrer  String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  
+  @@index([type])
+  @@index([createdAt])
+  @@index([path])
+}
+
+
 model analytics_events {
   id          String   @id
   sessionId   String
