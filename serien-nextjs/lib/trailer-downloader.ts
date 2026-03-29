@@ -573,10 +573,10 @@ async function downloadViaPrimary(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('   🌐 PRIMARY: youtube-convert-download-api-mp3-mp4...');
+    console.log('   🌐 PRIMARY: youtube-convert-download-api-mp3-mp4 (360p)...');
 
     const response = await fetch(
-      `https://${API_PRIMARY.host}/dl?videoId=${videoId}`,
+      `https://${API_PRIMARY.host}/dl?videoId=${videoId}&quality=360`,
       {
         method: 'GET',
         headers: {
@@ -606,7 +606,7 @@ async function downloadViaPrimary(
     }
 
     console.log('   ✅ Got download URL!');
-    console.log('   📥 Downloading video...');
+    console.log('   📥 Downloading video (360p)...');
 
     const videoResponse = await fetch(downloadUrl, {
       headers: {
@@ -730,7 +730,7 @@ async function downloadViaFallback2(
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('   🌐 FALLBACK 2: yt-api.p.rapidapi.com...');
+    console.log('   🌐 FALLBACK 2: yt-api.p.rapidapi.com (360p)...');
 
     const response = await fetch(
       `https://${API_FALLBACK_2.host}/dl?id=${videoId}`,
@@ -757,12 +757,23 @@ async function downloadViaFallback2(
       return { success: false, error: 'QUOTA_EXCEEDED' };
     }
 
-    // Find MP4 format
+    // Find 360p MP4 format (or lowest quality available)
     let downloadUrl: string | null = null;
+    let formatLabel = 'unknown';
+    
     if (data.formats && Array.isArray(data.formats)) {
-      const mp4Format = data.formats.find((f: any) => f.mimeType?.includes('video/mp4'));
-      if (mp4Format) {
-        downloadUrl = mp4Format.url;
+      // Filter MP4 formats and sort by height (lowest first)
+      const mp4Formats = data.formats
+        .filter((f: any) => f.mimeType?.includes('video/mp4'))
+        .sort((a: any, b: any) => (a.height || 9999) - (b.height || 9999));
+      
+      // Prefer 360p, otherwise take lowest
+      const format360 = mp4Formats.find((f: any) => f.height === 360 || f.qualityLabel === '360p');
+      const selectedFormat = format360 || mp4Formats[0];
+      
+      if (selectedFormat) {
+        downloadUrl = selectedFormat.url;
+        formatLabel = selectedFormat.qualityLabel || `${selectedFormat.height}p`;
       }
     }
 
@@ -770,8 +781,8 @@ async function downloadViaFallback2(
       return { success: false, error: 'No MP4 format found' };
     }
 
-    console.log(`   ✅ Got download URL! Title: ${data.title || 'Unknown'}`);
-    console.log('   📥 Downloading video...');
+    console.log(`   ✅ Got download URL! Format: ${formatLabel}, Title: ${data.title || 'Unknown'}`);
+    console.log('   📥 Downloading video (360p)...');
 
     const videoResponse = await fetch(downloadUrl, {
       headers: {
