@@ -830,38 +830,54 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log(`   ✅ Cast imported`);
       })(),
       
-      // Download trailer via RapidAPI - SYNCHRON (muss vor Pipeline-Ende fertig sein!)
+      // Download trailer via RapidAPI - NUTZE SERIES TRAILER wenn vorhanden
       (async () => {
         try {
+          // PRÜFE: Hat die Serie schon einen lokalen Trailer?
+          if (dbSeries.localTrailerPath) {
+            console.log(`   ✅ Using existing series trailer: ${dbSeries.localTrailerPath}`);
+            await prisma.articles.update({
+              where: { id: articleId },
+              data: { heroVideoUrl: dbSeries.localTrailerPath }
+            });
+            return;
+          }
+          
+          // Serie hat noch keinen Trailer → einmalig herunterladen
+          console.log(`   ℹ️ Series has no local trailer, downloading...`);
+          
           let trailerId = findTrailerYouTubeId(dbSeries.trailers);
           
           // FALLBACK: Wenn kein Trailer auf TMDB, suche auf YouTube
           if (!trailerId) {
-            console.log(`   ℹ️ No trailer on TMDB for "${dbSeries.name || dbSeries.title}"`);
             console.log(`   🔍 Searching YouTube for trailer...`);
-            
-            // Erst deutsch versuchen, dann englisch
             trailerId = await searchYouTubeTrailerViaAPI(dbSeries.name || dbSeries.title || '', 'de');
             
             if (!trailerId) {
-              console.log(`   🔍 No German trailer found, trying English...`);
               trailerId = await searchYouTubeTrailerViaAPI(dbSeries.name || dbSeries.title || '', 'en');
             }
           }
           
           if (trailerId) {
             console.log(`   🎬 Trailer ID: ${trailerId}`);
-            console.log(`   📥 Downloading trailer via RapidAPI (SYNC)...`);
+            console.log(`   📥 Downloading trailer (360p)...`);
             
-            // SYNCHRON: Warten bis Download fertig ist!
             const downloadResult = await downloadYouTubeTrailer(trailerId, dbSeries.name || dbSeries.title || '');
             
             if (downloadResult.success && downloadResult.localPath) {
+              // Speichere in SERIE (für alle zukünftigen Artikel)
+              await prisma.series.update({
+                where: { tmdbId: dbSeries.tmdbId },
+                data: { localTrailerPath: downloadResult.localPath }
+              });
+              
+              // Speichere in ARTIKEL
               await prisma.articles.update({
                 where: { id: articleId },
                 data: { heroVideoUrl: downloadResult.localPath }
               });
-              console.log(`   ✅ Local video saved: ${downloadResult.localPath}`);
+              
+              console.log(`   ✅ Trailer saved to series & article: ${downloadResult.localPath}`);
             } else {
               console.log(`   ⚠️ Download failed: ${downloadResult.error}`);
             }
@@ -869,7 +885,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             console.log(`   ⚠️ No trailer found (TMDB + YouTube search)`);
           }
         } catch (error: any) {
-          console.log(`   ❌ Trailer download error: ${error.message}`);
+          console.log(`   ❌ Trailer error: ${error.message}`);
         }
       })(),
       
