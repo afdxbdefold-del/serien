@@ -62,6 +62,13 @@ CRITICAL RULES:
 - "Following X's success" → Article is about a DIFFERENT show
 - "Steven Spielberg's favorite show" with mentions of multiple series → MULTI_SERIES_EDITORIAL
 
+CRITICAL - SERIES NAME EXTRACTION:
+- If title is GENERIC (e.g., "Netflix's Crime Thriller", "HBO's New Drama"), you MUST find the series name IN THE TEXT
+- Look for: author names (Jø Nesbø → Harry Hole), actor names + show mentions, specific show titles in quotes
+- Example: "Netflix's Crime Thriller..." + text mentions "Detective Hole" → primary_series = "Harry Hole" or "Detective Hole"
+- Example: "HBO's Drama Hit..." + text mentions "The White Lotus" → primary_series = "The White Lotus"
+- NEVER leave primary_series empty if the article is about a specific series
+
 TITLE PATTERNS → AUTOMATIC CLASSIFICATION:
 - "Top 10...", "Best...", "Ranking..." → MULTI_SERIES_EDITORIAL
 - "X's Favorite Series/Show" → MULTI_SERIES_EDITORIAL
