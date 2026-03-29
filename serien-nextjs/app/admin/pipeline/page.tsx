@@ -528,6 +528,15 @@ export default function AdminPipelinePage() {
                 {notificationsEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
               </button>
               
+              {/* 404 Errors Link */}
+              <Link
+                href="/admin/errors"
+                className="flex items-center gap-2 px-3 py-2 text-orange-600 hover:bg-orange-50 rounded-lg"
+                title="404 Errors anzeigen"
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </Link>
+              
               {/* Export CSV */}
               <button
                 onClick={exportCSV}
