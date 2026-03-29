@@ -17,19 +17,20 @@ export const metadata: Metadata = {
 
 // Get new videos data - no caching, always fresh
 async function getNewVideosData() {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // Get recent YouTube videos with their articles
-  const videos = await prisma.youtube_videos.findMany({
-    where: {
-      publishedAt: { gte: thirtyDaysAgo },
-    },
-    orderBy: { publishedAt: 'desc' },
-    take: 30,
-    include: {
-      channel: {
-        select: {
+    // Get recent YouTube videos with their articles
+    const videos = await prisma.youtube_videos.findMany({
+      where: {
+        publishedAt: { gte: thirtyDaysAgo },
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 30,
+      include: {
+        channel: {
+          select: {
             name: true,
             thumbnailUrl: true,
           },
@@ -87,6 +88,19 @@ async function getNewVideosData() {
         articlesGenerated: processedVideos,
       },
     };
+  } catch (error) {
+    console.error('[neue-videos] Error fetching data:', error);
+    // Return empty data on error instead of crashing
+    return {
+      videos: [],
+      channels: [],
+      stats: {
+        totalVideos: 0,
+        processedVideos: 0,
+        articlesGenerated: 0,
+      },
+    };
+  }
 }
 
 // Format date - ensure date is a Date object
