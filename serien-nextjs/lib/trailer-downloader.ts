@@ -601,11 +601,19 @@ async function downloadYouTubeViaYTApiNew(
     console.log(`   📝 Title: ${data.title || 'Unknown'}`);
     console.log('   📥 Downloading video...');
 
-    // Download the video file
+    // Download the video file with proper headers for googlevideo.com
     const videoResponse = await fetch(downloadUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'identity',
+        'Range': 'bytes=0-',
+        'Origin': 'https://www.youtube.com',
         'Referer': 'https://www.youtube.com/',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
       }
     });
     
@@ -1026,7 +1034,17 @@ export async function downloadVideoTrailer(
       videoUrl = `https://www.imdb.com/video/vi${imdbId}/`;
       source = 'IMDB';
     } else {
-      videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      // Check if videoId is already a full YouTube URL
+      if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
+        videoUrl = videoId;
+        // Extract actual video ID from URL
+        const urlMatch = videoId.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (urlMatch) {
+          videoId = urlMatch[1];
+        }
+      } else {
+        videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      }
       source = 'YouTube';
     }
 
