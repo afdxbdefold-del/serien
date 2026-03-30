@@ -122,8 +122,18 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
     return null;
   }
 
-  // Priority 1: German official trailer
-  const germanOfficialTrailer = trailersJson.find((t: any) => 
+  // Filter out Kinocheck trailers (often have watermarks)
+  const isKinocheck = (t: any) => 
+    t.name?.toLowerCase().includes('kinocheck') ||
+    t.name?.toLowerCase().includes('kino check');
+  
+  const filteredTrailers = trailersJson.filter((t: any) => !isKinocheck(t));
+  
+  // If ALL trailers are Kinocheck, use original list as fallback
+  const trailers = filteredTrailers.length > 0 ? filteredTrailers : trailersJson;
+
+  // Priority 1: German official trailer (NOT Kinocheck)
+  const germanOfficialTrailer = trailers.find((t: any) => 
     t.type === 'Trailer' && 
     t.site === 'YouTube' && 
     t.name?.toLowerCase().includes('official') &&
@@ -135,8 +145,8 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
     return germanOfficialTrailer.key;
   }
 
-  // Priority 2: Any German trailer
-  const germanTrailer = trailersJson.find((t: any) => 
+  // Priority 2: Any German trailer (NOT Kinocheck)
+  const germanTrailer = trailers.find((t: any) => 
     t.type === 'Trailer' && 
     t.site === 'YouTube' &&
     (t.iso_639_1 === 'de' || t.name?.toLowerCase().includes('deutsch'))
@@ -148,7 +158,7 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
   }
 
   // Priority 3: English official trailer (fallback)
-  const englishOfficialTrailer = trailersJson.find((t: any) => 
+  const englishOfficialTrailer = trailers.find((t: any) => 
     t.type === 'Trailer' && 
     t.site === 'YouTube' && 
     t.name?.toLowerCase().includes('official') &&
@@ -161,7 +171,7 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
   }
 
   // Priority 4: Any English trailer
-  const englishTrailer = trailersJson.find((t: any) => 
+  const englishTrailer = trailers.find((t: any) => 
     t.type === 'Trailer' && 
     t.site === 'YouTube' &&
     (t.iso_639_1 === 'en' || !t.iso_639_1)
@@ -173,7 +183,7 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
   }
 
   // Priority 5: Any trailer as last resort
-  const anyTrailer = trailersJson.find((t: any) => 
+  const anyTrailer = trailers.find((t: any) => 
     t.type === 'Trailer' && t.site === 'YouTube'
   );
 
@@ -208,12 +218,21 @@ export async function searchYouTubeTrailer(seriesName: string): Promise<string |
 /**
  * Search YouTube for trailer using RapidAPI
  * Priority: 1. youtube-convert-download-api 2. yt-api.p.rapidapi.com
+ * Avoids Kinocheck channel results
  */
 export async function searchYouTubeTrailerViaAPI(seriesName: string, language: 'de' | 'en' = 'de'): Promise<string | null> {
   try {
     const langSuffix = language === 'de' ? 'Trailer Deutsch' : 'Official Trailer';
-    const searchQuery = `${seriesName} ${langSuffix}`.trim();
+    // Add "-kinocheck" to exclude Kinocheck results
+    const searchQuery = `${seriesName} ${langSuffix} -kinocheck`.trim();
     console.log(`   🔍 Searching YouTube for: "${searchQuery}"`);
+
+    // Helper to check if result is from Kinocheck
+    const isKinocheck = (item: any) => {
+      const title = (item.title || '').toLowerCase();
+      const channel = (item.channelTitle || item.channelName || '').toLowerCase();
+      return title.includes('kinocheck') || channel.includes('kinocheck');
+    };
 
     // PRIMARY: youtube-convert-download-api-mp3-mp4
     try {
@@ -231,7 +250,10 @@ export async function searchYouTubeTrailerViaAPI(seriesName: string, language: '
       if (searchResponse.ok) {
         const data = await searchResponse.json();
         if (data.contents && Array.isArray(data.contents)) {
-          const videoResult = data.contents.find((item: any) => item.videoId);
+          // Find first non-Kinocheck result
+          const videoResult = data.contents.find((item: any) => 
+            item.videoId && !isKinocheck(item)
+          );
           if (videoResult) {
             console.log(`   ✅ Found via PRIMARY API: ${videoResult.videoId}`);
             return videoResult.videoId;
@@ -258,7 +280,10 @@ export async function searchYouTubeTrailerViaAPI(seriesName: string, language: '
       if (searchResponse.ok) {
         const data = await searchResponse.json();
         if (data.data && Array.isArray(data.data)) {
-          const videoResult = data.data.find((item: any) => item.type === 'video' && item.videoId);
+          // Find first non-Kinocheck video result
+          const videoResult = data.data.find((item: any) => 
+            item.type === 'video' && item.videoId && !isKinocheck(item)
+          );
           if (videoResult) {
             console.log(`   ✅ Found via FALLBACK 1: ${videoResult.videoId}`);
             return videoResult.videoId;
