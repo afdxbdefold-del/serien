@@ -84,6 +84,8 @@ export default function TrailerImportPage() {
   
   // Ref to track stop signal (avoids stale closure)
   const shouldStopRef = useRef(false);
+  // Track initial trailer count when import starts
+  const initialTrailerCountRef = useRef(0);
 
   // Fetch stats and status
   const fetchStats = useCallback(async () => {
@@ -138,8 +140,9 @@ export default function TrailerImportPage() {
   }, [filter, search]);
 
   // Start batch import
-  const startImport = async () => {
+  const startImport = () => {
     shouldStopRef.current = false;
+    initialTrailerCountRef.current = stats?.withTrailer || 0;
     setBatchImport({
       isRunning: true,
       processed: 0,
@@ -150,73 +153,82 @@ export default function TrailerImportPage() {
       errors: [],
       shouldStop: false
     });
-    
-    // Start processing loop
-    processNextBatch();
   };
   
-  // Process one batch - uses ref to check stop signal
-  const processNextBatch = async () => {
-    if (shouldStopRef.current) {
-      setBatchImport(prev => ({ ...prev, isRunning: false }));
-      return;
-    }
+  // Effect to run batch processing when isRunning changes
+  useEffect(() => {
+    if (!batchImport.isRunning || shouldStopRef.current) return;
     
-    try {
-      const res = await fetch('/api/admin/trailers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'process-batch', 
-          options: {
-            batchSize: importOptions.batchSize,
-            filter: importOptions.filter
-          }
-        })
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+    let isMounted = true;
+    
+    const processNextBatch = async () => {
+      if (shouldStopRef.current || !isMounted) {
+        setBatchImport(prev => ({ ...prev, isRunning: false }));
+        return;
       }
       
-      const data = await res.json();
-      
-      setBatchImport(prev => {
-        const newState = {
-          ...prev,
-          processed: prev.processed + (data.processed || 0),
-          success: prev.success + (data.success || 0),
-          failed: prev.failed + (data.failed || 0),
-          noTrailer: prev.noTrailer + (data.noTrailer || 0),
-          remaining: data.remaining || 0,
-          errors: [...prev.errors, ...(data.errors || [])].slice(-10)
-        };
+      try {
+        const res = await fetch('/api/admin/trailers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'process-batch', 
+            options: {
+              batchSize: importOptions.batchSize,
+              filter: importOptions.filter
+            }
+          })
+        });
         
-        // Check if done
-        if (data.done || data.remaining === 0) {
-          return { ...newState, isRunning: false };
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
         
-        return newState;
-      });
-      
-      fetchStats();
-      
-      // Continue if not done and not stopped
-      if (!data.done && data.remaining > 0 && !shouldStopRef.current) {
-        setTimeout(processNextBatch, 500);
-      } else if (data.done) {
-        fetchSeries();
+        const data = await res.json();
+        
+        // Check if done
+        const isDone = data.done || data.remaining === 0;
+        
+        if (isMounted) {
+          setBatchImport(prev => ({
+            ...prev,
+            isRunning: !isDone && !shouldStopRef.current,
+            processed: prev.processed + (data.processed || 0),
+            success: prev.success + (data.success || 0),
+            failed: prev.failed + (data.failed || 0),
+            noTrailer: prev.noTrailer + (data.noTrailer || 0),
+            remaining: data.remaining || 0,
+            errors: [...prev.errors, ...(data.errors || [])].slice(-10)
+          }));
+          
+          fetchStats();
+          
+          if (isDone) {
+            fetchSeries();
+          }
+        }
+      } catch (error: any) {
+        console.error('Batch error:', error);
+        // Don't stop on errors - just log and continue
+        if (isMounted) {
+          setBatchImport(prev => ({ 
+            ...prev, 
+            // Keep running unless manually stopped
+            processed: prev.processed + 1,
+            failed: prev.failed + 1,
+            errors: [...prev.errors, error.message || 'Unbekannter Fehler'].slice(-10)
+          }));
+        }
       }
-    } catch (error: any) {
-      console.error('Batch error:', error);
-      setBatchImport(prev => ({ 
-        ...prev, 
-        isRunning: false,
-        errors: [...prev.errors, error.message || 'Unbekannter Fehler'].slice(-10)
-      }));
-    }
-  };
+    };
+    
+    // Small delay before processing
+    const timer = setTimeout(processNextBatch, 500);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [batchImport.isRunning, batchImport.processed]); // Re-run when processed changes
 
   // Stop import
   const stopImport = () => {
@@ -385,14 +397,17 @@ export default function TrailerImportPage() {
             </div>
 
             {/* Progress Bar */}
-            {(batchImport.isRunning || batchImport.processed > 0) && (
+            {(batchImport.isRunning || batchImport.processed > 0 || (stats && initialTrailerCountRef.current > 0 && stats.withTrailer > initialTrailerCountRef.current)) && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">
-                    {batchImport.isRunning ? 'Verarbeite...' : 'Fertig'} - {batchImport.remaining} verbleibend
+                    {batchImport.isRunning ? 'Verarbeite...' : 'Fertig'} - {stats?.withoutTrailer || 0} verbleibend
                   </span>
                   <span className="font-medium">
-                    {batchImport.processed} verarbeitet
+                    {/* Show real progress from stats diff */}
+                    {stats && initialTrailerCountRef.current > 0 
+                      ? `${stats.withTrailer - initialTrailerCountRef.current} neue Trailer`
+                      : `${batchImport.processed} verarbeitet`}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
@@ -402,8 +417,8 @@ export default function TrailerImportPage() {
                   />
                 </div>
                 <div className="flex gap-4 text-sm">
-                  <span className="text-green-600">✓ {batchImport.success}</span>
-                  <span className="text-red-600">✗ {batchImport.failed}</span>
+                  <span className="text-green-600">✓ {stats && initialTrailerCountRef.current > 0 ? stats.withTrailer - initialTrailerCountRef.current : batchImport.success} erfolgreich</span>
+                  <span className="text-red-600">✗ {batchImport.failed} fehlgeschlagen</span>
                   <span className="text-yellow-600">⚠ {batchImport.noTrailer} kein Trailer</span>
                 </div>
                 {batchImport.errors.length > 0 && (
