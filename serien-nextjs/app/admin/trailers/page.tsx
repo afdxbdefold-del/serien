@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -81,6 +81,9 @@ export default function TrailerImportPage() {
     errors: [] as string[],
     shouldStop: false
   });
+  
+  // Ref to track stop signal (avoids stale closure)
+  const shouldStopRef = useRef(false);
 
   // Fetch stats and status
   const fetchStats = useCallback(async () => {
@@ -136,6 +139,7 @@ export default function TrailerImportPage() {
 
   // Start batch import
   const startImport = async () => {
+    shouldStopRef.current = false;
     setBatchImport({
       isRunning: true,
       processed: 0,
@@ -147,12 +151,13 @@ export default function TrailerImportPage() {
       shouldStop: false
     });
     
-    processBatch();
+    // Start processing loop
+    processNextBatch();
   };
   
-  // Process one batch
-  const processBatch = async () => {
-    if (batchImport.shouldStop) {
+  // Process one batch - uses ref to check stop signal
+  const processNextBatch = async () => {
+    if (shouldStopRef.current) {
       setBatchImport(prev => ({ ...prev, isRunning: false }));
       return;
     }
@@ -170,39 +175,52 @@ export default function TrailerImportPage() {
         })
       });
       
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
       const data = await res.json();
       
-      setBatchImport(prev => ({
-        ...prev,
-        processed: prev.processed + data.processed,
-        success: prev.success + data.success,
-        failed: prev.failed + data.failed,
-        noTrailer: prev.noTrailer + data.noTrailer,
-        remaining: data.remaining || 0,
-        errors: [...prev.errors, ...(data.errors || [])].slice(-10)
-      }));
+      setBatchImport(prev => {
+        const newState = {
+          ...prev,
+          processed: prev.processed + (data.processed || 0),
+          success: prev.success + (data.success || 0),
+          failed: prev.failed + (data.failed || 0),
+          noTrailer: prev.noTrailer + (data.noTrailer || 0),
+          remaining: data.remaining || 0,
+          errors: [...prev.errors, ...(data.errors || [])].slice(-10)
+        };
+        
+        // Check if done
+        if (data.done || data.remaining === 0) {
+          return { ...newState, isRunning: false };
+        }
+        
+        return newState;
+      });
       
       fetchStats();
-      fetchSeries();
       
-      if (data.done) {
-        setBatchImport(prev => ({ ...prev, isRunning: false }));
-        alert(`Import abgeschlossen! ${batchImport.success + data.success} erfolgreich.`);
-      } else if (!batchImport.shouldStop) {
-        // Process next batch after short delay
-        setTimeout(processBatch, 1000);
+      // Continue if not done and not stopped
+      if (!data.done && data.remaining > 0 && !shouldStopRef.current) {
+        setTimeout(processNextBatch, 500);
+      } else if (data.done) {
+        fetchSeries();
       }
     } catch (error: any) {
+      console.error('Batch error:', error);
       setBatchImport(prev => ({ 
         ...prev, 
         isRunning: false,
-        errors: [...prev.errors, error.message]
+        errors: [...prev.errors, error.message || 'Unbekannter Fehler'].slice(-10)
       }));
     }
   };
 
   // Stop import
   const stopImport = () => {
+    shouldStopRef.current = true;
     setBatchImport(prev => ({ ...prev, shouldStop: true, isRunning: false }));
   };
 
