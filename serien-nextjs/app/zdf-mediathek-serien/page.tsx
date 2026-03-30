@@ -56,6 +56,7 @@ const getZDFMediathekData = unstable_cache(
           title: true,
           slug: true,
           posterPath: true,
+          posterLocalUrl: true,
           backdropPath: true,
           firstAirDate: true,
           voteAverage: true,
@@ -137,6 +138,7 @@ const getZDFMediathekData = unstable_cache(
           title: true,
           slug: true,
           posterPath: true,
+          posterLocalUrl: true,
           firstAirDate: true,
           voteAverage: true,
           overview: true,
@@ -328,7 +330,7 @@ export default async function ZDFMediathekSerienPage() {
                     <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
                       {series.posterPath ? (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w342${series.posterPath}`}
+                          src={series.posterLocalUrl || `https://image.tmdb.org/t/p/w342${series.posterPath}`}
                           alt={series.name || series.title || ''}
                           fill
                           className="object-cover"
@@ -489,7 +491,7 @@ export default async function ZDFMediathekSerienPage() {
                     <div className="flex-shrink-0 relative w-16 h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
                       {series.posterPath ? (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w185${series.posterPath}`}
+                          src={series.posterLocalUrl || `https://image.tmdb.org/t/p/w185${series.posterPath}`}
                           alt={series.name || series.title || ''}
                           fill
                           className="object-cover"
@@ -566,7 +568,7 @@ export default async function ZDFMediathekSerienPage() {
                   <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 shadow group-hover:shadow-lg transition-all group-hover:-translate-y-1">
                     {series.posterPath ? (
                       <Image
-                        src={`https://image.tmdb.org/t/p/w185${series.posterPath}`}
+                        src={series.posterLocalUrl || `https://image.tmdb.org/t/p/w185${series.posterPath}`}
                         alt={series.name || series.title || ''}
                         fill
                         className="object-cover"
