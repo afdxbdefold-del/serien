@@ -1,17 +1,19 @@
 /**
- * Image URL Helper - Returns local images with TMDB fallback
+ * Image URL Helper - Returns Vercel Blob URLs with TMDB fallback
  */
+
+const BLOB_BASE = 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
 
 export function getPersonImageUrl(
   localProfilePath: string | null | undefined,
   tmdbId: number | null | undefined,
   profilePath: string | null | undefined
 ): string {
-  // Priority: local path > generated local path > TMDB
-  if (localProfilePath) return localProfilePath;
-  if (tmdbId) return `/images/persons/${tmdbId}.jpg`;
+  // Priority: blob URL > generated blob path > TMDB fallback
+  if (localProfilePath?.startsWith('https://')) return localProfilePath;
+  if (tmdbId) return `${BLOB_BASE}/persons/${tmdbId}.jpg`;
   if (profilePath) return `https://image.tmdb.org/t/p/w185${profilePath}`;
-  return '/images/placeholder-person.jpg';
+  return '/images/placeholder-person.svg';
 }
 
 export function getSeriesPosterUrl(
@@ -19,10 +21,10 @@ export function getSeriesPosterUrl(
   tmdbId: number | null | undefined,
   posterPath: string | null | undefined
 ): string {
-  if (posterLocalUrl) return posterLocalUrl;
-  if (tmdbId) return `/images/series/${tmdbId}/poster.jpg`;
+  if (posterLocalUrl?.startsWith('https://')) return posterLocalUrl;
+  if (tmdbId) return `${BLOB_BASE}/series/${tmdbId}/poster.jpg`;
   if (posterPath) return `https://image.tmdb.org/t/p/w500${posterPath}`;
-  return '/images/placeholder-poster.jpg';
+  return '/images/placeholder-poster.svg';
 }
 
 export function getSeriesBackdropUrl(
@@ -30,8 +32,8 @@ export function getSeriesBackdropUrl(
   tmdbId: number | null | undefined,
   backdropPath: string | null | undefined
 ): string {
-  if (backdropLocalUrl) return backdropLocalUrl;
-  if (tmdbId) return `/images/series/${tmdbId}/backdrop.jpg`;
+  if (backdropLocalUrl?.startsWith('https://')) return backdropLocalUrl;
+  if (tmdbId) return `${BLOB_BASE}/series/${tmdbId}/backdrop.jpg`;
   if (backdropPath) return `https://image.tmdb.org/t/p/w1280${backdropPath}`;
-  return '/images/placeholder-backdrop.jpg';
+  return '/images/placeholder-backdrop.svg';
 }
