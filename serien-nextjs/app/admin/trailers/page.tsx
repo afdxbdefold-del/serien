@@ -66,7 +66,7 @@ export default function TrailerImportPage() {
   
   // Import options
   const [importOptions, setImportOptions] = useState({
-    batchSize: 5,
+    batchSize: 1,  // Reduced to 1 to avoid timeout
     filter: 'without-trailer'
   });
   
@@ -168,6 +168,10 @@ export default function TrailerImportPage() {
       }
       
       try {
+        // Long timeout for slow downloads (2 minutes)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        
         const res = await fetch('/api/admin/trailers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -177,8 +181,11 @@ export default function TrailerImportPage() {
               batchSize: importOptions.batchSize,
               filter: importOptions.filter
             }
-          })
+          }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
@@ -364,16 +371,17 @@ export default function TrailerImportPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Batch-Größe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Batch-Größe (1 empfohlen)</label>
                 <input
                   type="number"
                   value={importOptions.batchSize}
-                  onChange={(e) => setImportOptions({ ...importOptions, batchSize: parseInt(e.target.value) || 5 })}
+                  onChange={(e) => setImportOptions({ ...importOptions, batchSize: Math.min(3, Math.max(1, parseInt(e.target.value) || 1)) })}
                   className="w-full px-3 py-2 border rounded-lg"
                   disabled={batchImport.isRunning}
                   min={1}
-                  max={20}
+                  max={3}
                 />
+                <p className="text-xs text-gray-500 mt-1">Downloads dauern ~20s pro Serie</p>
               </div>
               <div className="flex items-end">
                 {batchImport.isRunning ? (
