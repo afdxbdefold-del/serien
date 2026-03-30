@@ -167,75 +167,164 @@ export async function POST(request: NextRequest) {
   
   // Download single series trailer
   if (action === 'download-single' && tmdbId) {
-    const series = await prisma.series.findUnique({
-      where: { tmdbId: parseInt(tmdbId) },
+    try {
+      const series = await prisma.series.findUnique({
+        where: { tmdbId: parseInt(tmdbId) },
+        select: {
+          tmdbId: true,
+          name: true,
+          title: true,
+          trailers: true,
+          localTrailerPath: true
+        }
+      });
+      
+      if (!series) {
+        return NextResponse.json({ error: 'Series not found' }, { status: 404 });
+      }
+      
+      const name = series.name || series.title || '';
+      
+      // Find trailer ID
+      let trailerId = findTrailerYouTubeId(series.trailers);
+      
+      if (!trailerId) {
+        const tmdbTrailers = await fetchTrailersFromTMDB(series.tmdbId);
+        if (tmdbTrailers.length > 0) {
+          trailerId = tmdbTrailers[0].key;
+          await prisma.series.update({
+            where: { tmdbId: series.tmdbId },
+            data: { trailers: tmdbTrailers }
+          });
+        }
+      }
+      
+      if (!trailerId) {
+        trailerId = await searchYouTubeTrailerViaAPI(name, 'de');
+        if (!trailerId) {
+          trailerId = await searchYouTubeTrailerViaAPI(name, 'en');
+        }
+      }
+      
+      if (!trailerId) {
+        return NextResponse.json({ error: 'No trailer found' }, { status: 404 });
+      }
+      
+      const result = await downloadYouTubeTrailer(trailerId, name);
+      
+      if (result.success && result.localPath) {
+        await prisma.series.update({
+          where: { tmdbId: series.tmdbId },
+          data: { localTrailerPath: result.localPath }
+        });
+        return NextResponse.json({ success: true, path: result.localPath });
+      }
+      
+      return NextResponse.json({ error: result.error }, { status: 500 });
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+  
+  // Process next batch (called repeatedly from frontend)
+  if (action === 'process-batch') {
+    const batchSize = options?.batchSize || 5;
+    const filter = options?.filter || 'without-trailer';
+    
+    let where: any = {};
+    if (filter === 'without-trailer') {
+      where.localTrailerPath = null;
+    } else if (filter === 'has-tmdb') {
+      where.trailers = { not: null };
+      where.NOT = { trailers: { equals: [] } };
+      where.localTrailerPath = null;
+    }
+    
+    const series = await prisma.series.findMany({
+      where,
+      orderBy: { tmdbId: 'asc' },
+      take: batchSize,
       select: {
         tmdbId: true,
         name: true,
         title: true,
-        trailers: true,
-        localTrailerPath: true
+        trailers: true
       }
     });
     
-    if (!series) {
-      return NextResponse.json({ error: 'Series not found' }, { status: 404 });
-    }
-    
-    const name = series.name || series.title || '';
-    
-    // Find trailer ID
-    let trailerId = findTrailerYouTubeId(series.trailers);
-    
-    if (!trailerId) {
-      const tmdbTrailers = await fetchTrailersFromTMDB(series.tmdbId);
-      if (tmdbTrailers.length > 0) {
-        trailerId = tmdbTrailers[0].key;
-        await prisma.series.update({
-          where: { tmdbId: series.tmdbId },
-          data: { trailers: tmdbTrailers }
-        });
-      }
-    }
-    
-    if (!trailerId) {
-      trailerId = await searchYouTubeTrailerViaAPI(name, 'de');
-      if (!trailerId) {
-        trailerId = await searchYouTubeTrailerViaAPI(name, 'en');
-      }
-    }
-    
-    if (!trailerId) {
-      return NextResponse.json({ error: 'No trailer found' }, { status: 404 });
-    }
-    
-    const result = await downloadYouTubeTrailer(trailerId, name);
-    
-    if (result.success && result.localPath) {
-      await prisma.series.update({
-        where: { tmdbId: series.tmdbId },
-        data: { localTrailerPath: result.localPath }
+    if (series.length === 0) {
+      return NextResponse.json({ 
+        done: true, 
+        message: 'Alle Serien verarbeitet',
+        processed: 0 
       });
-      return NextResponse.json({ success: true, path: result.localPath });
     }
     
-    return NextResponse.json({ error: result.error }, { status: 500 });
-  }
-  
-  // Start bulk import
-  if (action === 'start') {
-    if (importStatus.isRunning) {
-      return NextResponse.json({ error: 'Import already running' }, { status: 400 });
+    const results = {
+      processed: 0,
+      success: 0,
+      failed: 0,
+      noTrailer: 0,
+      errors: [] as string[]
+    };
+    
+    for (const s of series) {
+      const name = s.name || s.title || '';
+      results.processed++;
+      
+      try {
+        // Find trailer ID
+        let trailerId = findTrailerYouTubeId(s.trailers);
+        
+        if (!trailerId) {
+          const tmdbTrailers = await fetchTrailersFromTMDB(s.tmdbId);
+          if (tmdbTrailers.length > 0) {
+            trailerId = tmdbTrailers[0].key;
+            await prisma.series.update({
+              where: { tmdbId: s.tmdbId },
+              data: { trailers: tmdbTrailers }
+            });
+          }
+        }
+        
+        if (!trailerId) {
+          trailerId = await searchYouTubeTrailerViaAPI(name, 'de');
+          if (!trailerId) {
+            trailerId = await searchYouTubeTrailerViaAPI(name, 'en');
+          }
+        }
+        
+        if (!trailerId) {
+          results.noTrailer++;
+          continue;
+        }
+        
+        const result = await downloadYouTubeTrailer(trailerId, name);
+        
+        if (result.success && result.localPath) {
+          await prisma.series.update({
+            where: { tmdbId: s.tmdbId },
+            data: { localTrailerPath: result.localPath }
+          });
+          results.success++;
+        } else {
+          results.failed++;
+          results.errors.push(`${name}: ${result.error}`);
+        }
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push(`${name}: ${error.message}`);
+      }
     }
     
-    const skip = options?.skip || 0;
-    const limit = options?.limit || 0;
-    const filter = options?.filter || 'without-trailer';
+    // Get remaining count
+    const remaining = await prisma.series.count({ where });
     
-    // Start async import
-    startBulkImport(skip, limit, filter);
-    
-    return NextResponse.json({ message: 'Import started' });
+    return NextResponse.json({
+      done: remaining === 0,
+      remaining,
+      ...results
+    });
   }
   
   // Refresh TMDB trailers for all series
@@ -247,7 +336,8 @@ export async function POST(request: NextRequest) {
           { trailers: { equals: [] } }
         ]
       },
-      select: { tmdbId: true, name: true }
+      select: { tmdbId: true, name: true },
+      take: 50 // Process in batches
     });
     
     let updated = 0;
@@ -263,7 +353,19 @@ export async function POST(request: NextRequest) {
       await new Promise(r => setTimeout(r, 250));
     }
     
-    return NextResponse.json({ message: `Updated ${updated} series with TMDB trailers` });
+    const remaining = await prisma.series.count({
+      where: {
+        OR: [
+          { trailers: null },
+          { trailers: { equals: [] } }
+        ]
+      }
+    });
+    
+    return NextResponse.json({ 
+      message: `${updated} Serien aktualisiert`,
+      remaining
+    });
   }
   
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

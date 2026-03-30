@@ -66,9 +66,20 @@ export default function TrailerImportPage() {
   
   // Import options
   const [importOptions, setImportOptions] = useState({
-    skip: 0,
-    limit: 100,
+    batchSize: 5,
     filter: 'without-trailer'
+  });
+  
+  // Batch import state
+  const [batchImport, setBatchImport] = useState({
+    isRunning: false,
+    processed: 0,
+    success: 0,
+    failed: 0,
+    noTrailer: 0,
+    remaining: 0,
+    errors: [] as string[],
+    shouldStop: false
   });
 
   // Fetch stats and status
@@ -123,32 +134,76 @@ export default function TrailerImportPage() {
     fetchSeries();
   }, [filter, search]);
 
-  // Start import
+  // Start batch import
   const startImport = async () => {
+    setBatchImport({
+      isRunning: true,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      noTrailer: 0,
+      remaining: stats?.withoutTrailer || 0,
+      errors: [],
+      shouldStop: false
+    });
+    
+    processBatch();
+  };
+  
+  // Process one batch
+  const processBatch = async () => {
+    if (batchImport.shouldStop) {
+      setBatchImport(prev => ({ ...prev, isRunning: false }));
+      return;
+    }
+    
     try {
-      await fetch('/api/admin/trailers', {
+      const res = await fetch('/api/admin/trailers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start', options: importOptions })
+        body: JSON.stringify({ 
+          action: 'process-batch', 
+          options: {
+            batchSize: importOptions.batchSize,
+            filter: importOptions.filter
+          }
+        })
       });
+      
+      const data = await res.json();
+      
+      setBatchImport(prev => ({
+        ...prev,
+        processed: prev.processed + data.processed,
+        success: prev.success + data.success,
+        failed: prev.failed + data.failed,
+        noTrailer: prev.noTrailer + data.noTrailer,
+        remaining: data.remaining || 0,
+        errors: [...prev.errors, ...(data.errors || [])].slice(-10)
+      }));
+      
       fetchStats();
-    } catch (error) {
-      console.error('Failed to start import:', error);
+      fetchSeries();
+      
+      if (data.done) {
+        setBatchImport(prev => ({ ...prev, isRunning: false }));
+        alert(`Import abgeschlossen! ${batchImport.success + data.success} erfolgreich.`);
+      } else if (!batchImport.shouldStop) {
+        // Process next batch after short delay
+        setTimeout(processBatch, 1000);
+      }
+    } catch (error: any) {
+      setBatchImport(prev => ({ 
+        ...prev, 
+        isRunning: false,
+        errors: [...prev.errors, error.message]
+      }));
     }
   };
 
   // Stop import
-  const stopImport = async () => {
-    try {
-      await fetch('/api/admin/trailers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'stop' })
-      });
-      fetchStats();
-    } catch (error) {
-      console.error('Failed to stop import:', error);
-    }
+  const stopImport = () => {
+    setBatchImport(prev => ({ ...prev, shouldStop: true, isRunning: false }));
   };
 
   // Download single trailer
@@ -264,14 +319,14 @@ export default function TrailerImportPage() {
           
           <div className="p-4 space-y-4">
             {/* Import Options */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Filter</label>
                 <select
                   value={importOptions.filter}
                   onChange={(e) => setImportOptions({ ...importOptions, filter: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
-                  disabled={importStatus?.isRunning}
+                  disabled={batchImport.isRunning}
                 >
                   <option value="without-trailer">Ohne Trailer</option>
                   <option value="has-tmdb">Mit TMDB Trailer (ungeladen)</option>
@@ -279,29 +334,19 @@ export default function TrailerImportPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Überspringen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Batch-Größe</label>
                 <input
                   type="number"
-                  value={importOptions.skip}
-                  onChange={(e) => setImportOptions({ ...importOptions, skip: parseInt(e.target.value) || 0 })}
+                  value={importOptions.batchSize}
+                  onChange={(e) => setImportOptions({ ...importOptions, batchSize: parseInt(e.target.value) || 5 })}
                   className="w-full px-3 py-2 border rounded-lg"
-                  disabled={importStatus?.isRunning}
-                  min={0}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Limit (0 = alle)</label>
-                <input
-                  type="number"
-                  value={importOptions.limit}
-                  onChange={(e) => setImportOptions({ ...importOptions, limit: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  disabled={importStatus?.isRunning}
-                  min={0}
+                  disabled={batchImport.isRunning}
+                  min={1}
+                  max={20}
                 />
               </div>
               <div className="flex items-end">
-                {importStatus?.isRunning ? (
+                {batchImport.isRunning ? (
                   <button
                     onClick={stopImport}
                     className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2"
@@ -322,29 +367,32 @@ export default function TrailerImportPage() {
             </div>
 
             {/* Progress Bar */}
-            {importStatus?.isRunning && (
+            {(batchImport.isRunning || batchImport.processed > 0) && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">
-                    {importStatus.currentIndex} / {importStatus.totalSeries}: {importStatus.currentSeries}
+                    {batchImport.isRunning ? 'Verarbeite...' : 'Fertig'} - {batchImport.remaining} verbleibend
                   </span>
-                  <span className="font-medium">{getProgressPercent()}%</span>
+                  <span className="font-medium">
+                    {batchImport.processed} verarbeitet
+                  </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
-                    className="bg-purple-600 h-3 rounded-full transition-all duration-300"
-                    style={{ width: `${getProgressPercent()}%` }}
+                    className={`h-3 rounded-full transition-all duration-300 ${batchImport.isRunning ? 'bg-purple-600' : 'bg-green-600'}`}
+                    style={{ width: `${stats ? Math.round(((stats.withTrailer) / stats.total) * 100) : 0}%` }}
                   />
                 </div>
                 <div className="flex gap-4 text-sm">
-                  <span className="text-green-600">✓ {importStatus.success}</span>
-                  <span className="text-red-600">✗ {importStatus.failed}</span>
-                  <span className="text-gray-500">⏭ {importStatus.skipped}</span>
-                  <span className="text-yellow-600">⚠ {importStatus.noTrailer}</span>
+                  <span className="text-green-600">✓ {batchImport.success}</span>
+                  <span className="text-red-600">✗ {batchImport.failed}</span>
+                  <span className="text-yellow-600">⚠ {batchImport.noTrailer} kein Trailer</span>
                 </div>
-                {importStatus.lastError && (
-                  <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                    Letzter Fehler: {importStatus.lastError}
+                {batchImport.errors.length > 0 && (
+                  <div className="text-sm text-red-600 bg-red-50 p-2 rounded max-h-24 overflow-y-auto">
+                    {batchImport.errors.map((err, i) => (
+                      <div key={i}>{err}</div>
+                    ))}
                   </div>
                 )}
               </div>
