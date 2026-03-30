@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         percentComplete: total > 0 ? Math.round((withTrailer / total) * 100) : 0,
         storageInfo: {
           provider: 'Cloudflare R2',
-          publicUrl: process.env.R2_PUBLIC_URL || 'https://pub-123f15a3ef8046ef838c6f186d87bffe.r2.dev'
+          publicUrl: process.env.R2_PUBLIC_URL
         }
       },
       recentImports: recentWithTrailers,

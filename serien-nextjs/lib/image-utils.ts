@@ -2,7 +2,7 @@
  * Image URL Helper - Returns Vercel Blob URLs with TMDB fallback
  */
 
-const BLOB_BASE = 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
+const BLOB_BASE = process.env.NEXT_PUBLIC_BLOB_URL || process.env.BLOB_PUBLIC_URL || 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
 
 export function getPersonImageUrl(
   localProfilePath: string | null | undefined,

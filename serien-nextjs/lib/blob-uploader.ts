@@ -5,7 +5,7 @@
 
 import { put } from '@vercel/blob';
 
-const BLOB_BASE = 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
+const BLOB_BASE = process.env.BLOB_PUBLIC_URL || process.env.NEXT_PUBLIC_BLOB_URL!;
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 interface UploadResult {

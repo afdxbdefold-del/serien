@@ -11,7 +11,7 @@ const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'serien-trailer';
 const R2_ENDPOINT = process.env.R2_ENDPOINT!;
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-123f15a3ef8046ef838c6f186d87bffe.r2.dev';
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!;
 
 // Initialize S3 client for R2
 let s3Client: S3Client | null = null;
