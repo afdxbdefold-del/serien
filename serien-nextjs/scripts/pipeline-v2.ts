@@ -28,6 +28,7 @@ import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { uploadSeriesImages } from '../lib/blob-uploader';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
@@ -449,6 +450,22 @@ export async function runPipelineV2(source: PipelineV2Source) {
           updatedAt: new Date(),
         }
       });
+      
+      // ✅ Upload images to Vercel Blob (async, don't block)
+      uploadSeriesImages(searchResult.tmdbId, completeDetails.posterPath, completeDetails.backdropPath)
+        .then(({ posterUrl, backdropUrl }) => {
+          if (posterUrl || backdropUrl) {
+            prisma.series.update({
+              where: { tmdbId: searchResult.tmdbId },
+              data: {
+                ...(posterUrl && { posterLocalUrl: posterUrl }),
+                ...(backdropUrl && { backdropLocalUrl: backdropUrl }),
+              }
+            }).catch(() => {});
+            console.log(`   📸 Images uploaded to Blob`);
+          }
+        })
+        .catch((e) => console.log(`   ⚠️ Blob upload failed: ${e.message}`));
       
       console.log(`✅ Series created: ${dbSeries.name}`);
     } else {

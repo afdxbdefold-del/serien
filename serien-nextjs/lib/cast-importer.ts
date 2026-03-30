@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { uploadPersonProfile } from './blob-uploader';
 
 const prisma = new PrismaClient();
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -114,6 +115,20 @@ export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
             updatedAt: new Date(),
           },
         });
+
+        // ✅ Upload profile image to Vercel Blob (async)
+        if (member.profile_path) {
+          uploadPersonProfile(member.id, member.profile_path)
+            .then((blobUrl) => {
+              if (blobUrl) {
+                prisma.persons.update({
+                  where: { tmdbId: member.id },
+                  data: { localProfilePath: blobUrl }
+                }).catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
 
         console.log(`   ✅ Imported: ${member.name}`);
         importedCount++;
