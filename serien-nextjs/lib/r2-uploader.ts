@@ -4,16 +4,14 @@
  */
 
 import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import 'dotenv/config';
 
 // R2 Configuration from environment
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'serien-trailers';
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'serien-trailer';
 const R2_ENDPOINT = process.env.R2_ENDPOINT!;
-const R2_ACCOUNT_ID = R2_ENDPOINT?.match(/([a-f0-9]+)\.r2\.cloudflarestorage/)?.[1] || '';
-
-// Public URL for accessing files (after enabling public access)
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || `https://pub-${R2_ACCOUNT_ID}.r2.dev`;
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-123f15a3ef8046ef838c6f186d87bffe.r2.dev';
 
 // Initialize S3 client for R2
 let s3Client: S3Client | null = null;
