@@ -75,6 +75,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           name: true,
           slug: true,
           profilePath: true,
+          localProfilePath: true,
         },
       },
     },
@@ -102,6 +103,8 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
         select: {
           name: true,
           profilePath: true,
+          localProfilePath: true,
+          tmdbId: true,
         }
       }
     }
@@ -269,10 +272,10 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                   Darsteller & Besetzung
                 </h2>
                 <div className="flex items-start gap-4">
-                  {character.persons.profilePath && (
+                  {(character.persons.localProfilePath || character.persons.profilePath) && (
                     <Link href={`/person/${character.persons.slug}`}>
                       <Image
-                        src={`https://image.tmdb.org/t/p/w185${character.persons.profilePath}`}
+                        src={character.persons.localProfilePath || `/images/persons/${character.persons.tmdbId}.jpg`}
                         alt={character.persons.name}
                         width={80}
                         height={120}
@@ -312,6 +315,14 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                         {relChar.imageUrl ? (
                           <Image
                             src={relChar.imageUrl}
+                            alt={relChar.name}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : relChar.persons?.localProfilePath || relChar.persons?.tmdbId ? (
+                          <Image
+                            src={relChar.persons.localProfilePath || `/images/persons/${relChar.persons.tmdbId}.jpg`}
                             alt={relChar.name}
                             fill
                             sizes="(max-width: 640px) 50vw, 25vw"

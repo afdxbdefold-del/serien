@@ -8,6 +8,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
+import { getPersonImageUrl } from '@/lib/image-utils';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -169,8 +170,21 @@ export default async function PersonPage({ params }: PageProps) {
       title: true,
       slug: true,
       posterPath: true,
+      posterLocalUrl: true,
     }
   });
+  
+  // Get local person data for image
+  const localPerson = await prisma.persons.findUnique({
+    where: { tmdbId: tmdbId },
+    select: { localProfilePath: true, profilePath: true }
+  });
+  
+  const personImageUrl = getPersonImageUrl(
+    localPerson?.localProfilePath,
+    tmdbId,
+    localPerson?.profilePath || person.profile_path
+  );
 
   // Format biography into 2-4 paragraphs
   const bioParagraphs = person.biography
@@ -186,7 +200,7 @@ export default async function PersonPage({ params }: PageProps) {
             {/* Profile Image */}
             <div className="flex-shrink-0">
               <Image
-                src={getTMDBProfileImageUrl(person.profile_path, 'h632')}
+                src={personImageUrl}
                 alt={person.name}
                 width={150}
                 height={225}
@@ -317,9 +331,9 @@ export default async function PersonPage({ params }: PageProps) {
                       className="group"
                     >
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition bg-gray-200 dark:bg-gray-800">
-                        {series.posterPath ? (
+                        {(series.posterLocalUrl || series.posterPath) ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w342${series.posterPath}`}
+                            src={series.posterLocalUrl || `/images/series/${series.tmdbId}/poster.jpg`}
                             alt={series.name || series.title || ''}
                             fill
                             sizes="(max-width: 640px) 33vw, 200px"

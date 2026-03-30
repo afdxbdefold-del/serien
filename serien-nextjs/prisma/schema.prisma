@@ -306,20 +306,21 @@ model notifications {
 }
 
 model persons {
-  id              String            @id
-  tmdbId          Int               @unique
-  slug            String            @unique
-  name            String
-  biography       String?
-  profilePath     String?
-  knownFor        String?
-  birthDate       DateTime?
-  birthPlace      String?
-  popularity      Float?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime
-  article_persons article_persons[]
-  characters      characters[]
+  id               String            @id
+  tmdbId           Int               @unique
+  slug             String            @unique
+  name             String
+  biography        String?
+  profilePath      String?
+  localProfilePath String?
+  knownFor         String?
+  birthDate        DateTime?
+  birthPlace       String?
+  popularity       Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime
+  article_persons  article_persons[]
+  characters       characters[]
 }
 
 model pipeline_runs {
