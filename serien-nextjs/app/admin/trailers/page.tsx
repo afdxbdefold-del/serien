@@ -24,9 +24,14 @@ import {
 interface Stats {
   total: number;
   withTrailer: number;
+  withR2Trailer?: number;
   withoutTrailer: number;
   withTmdbTrailers: number;
   percentComplete: number;
+  storageInfo?: {
+    provider: string;
+    publicUrl: string;
+  };
 }
 
 interface ImportStatus {
@@ -321,7 +326,7 @@ export default function TrailerImportPage() {
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-sm border">
               <div className="text-sm text-gray-500">Gesamt Serien</div>
               <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -329,6 +334,10 @@ export default function TrailerImportPage() {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-green-200 bg-green-50">
               <div className="text-sm text-green-600">Mit Trailer</div>
               <div className="text-2xl font-bold text-green-700">{stats.withTrailer}</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-orange-200 bg-orange-50">
+              <div className="text-sm text-orange-600">Auf R2</div>
+              <div className="text-2xl font-bold text-orange-700">{stats.withR2Trailer || 0}</div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm border border-red-200 bg-red-50">
               <div className="text-sm text-red-600">Ohne Trailer</div>
@@ -341,6 +350,21 @@ export default function TrailerImportPage() {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-purple-200 bg-purple-50">
               <div className="text-sm text-purple-600">Fortschritt</div>
               <div className="text-2xl font-bold text-purple-700">{stats.percentComplete}%</div>
+            </div>
+          </div>
+        )}
+        
+        {/* R2 Storage Info */}
+        {stats?.storageInfo && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <span className="text-xl">☁️</span>
+              </div>
+              <div>
+                <div className="font-medium text-orange-900">Storage: {stats.storageInfo.provider}</div>
+                <div className="text-sm text-orange-600 font-mono">{stats.storageInfo.publicUrl}</div>
+              </div>
             </div>
           </div>
         )}

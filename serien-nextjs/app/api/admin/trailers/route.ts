@@ -62,6 +62,9 @@ export async function GET(request: NextRequest) {
     const withTrailer = await prisma.series.count({
       where: { localTrailerPath: { not: null } }
     });
+    const withR2Trailer = await prisma.series.count({
+      where: { localTrailerPath: { startsWith: 'https://pub-' } }
+    });
     const withTmdbTrailers = await prisma.series.count({
       where: { 
         trailers: { not: null },
@@ -87,9 +90,14 @@ export async function GET(request: NextRequest) {
       stats: {
         total,
         withTrailer,
+        withR2Trailer,
         withoutTrailer: total - withTrailer,
         withTmdbTrailers,
-        percentComplete: total > 0 ? Math.round((withTrailer / total) * 100) : 0
+        percentComplete: total > 0 ? Math.round((withTrailer / total) * 100) : 0,
+        storageInfo: {
+          provider: 'Cloudflare R2',
+          publicUrl: process.env.R2_PUBLIC_URL || 'https://pub-123f15a3ef8046ef838c6f186d87bffe.r2.dev'
+        }
       },
       recentImports: recentWithTrailers,
       importStatus
