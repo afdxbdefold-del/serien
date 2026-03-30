@@ -4,7 +4,7 @@
  * WARNUNG: Das Herunterladen von YouTube-Videos verstößt gegen YouTube TOS!
  * Nur auf eigene Verantwortung nutzen.
  * 
- * Storage: Uses Emergent Object Storage for cloud video hosting
+ * Storage: Uses Cloudflare R2 for cloud video hosting
  */
 
 import { exec } from 'child_process';
@@ -12,6 +12,7 @@ import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { uploadToR2, isR2Configured } from './r2-uploader';
 
 const execAsync = promisify(exec);
 
@@ -1423,13 +1424,17 @@ export async function downloadVideoTrailer(
     const videoBuffer = await fs.readFile(tempFilePath);
     console.log(`📦 File size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
-    // Upload to Emergent Object Storage
-    const storagePath = `${APP_NAME}/trailers/${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`;
-    console.log(`☁️  Uploading to cloud: ${storagePath}`);
+    // Upload to Cloudflare R2
+    const r2Key = `trailers/${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`;
+    console.log(`☁️  Uploading to R2: ${r2Key}`);
     
-    const uploadResult = await uploadToStorage(storagePath, videoBuffer, 'video/mp4');
+    const uploadResult = await uploadToR2(r2Key, videoBuffer, 'video/mp4');
     
-    console.log(`✅ Upload complete: ${uploadResult.path}`);
+    if (!uploadResult.success) {
+      throw new Error(`R2 upload failed: ${uploadResult.error}`);
+    }
+    
+    console.log(`✅ Upload complete: ${uploadResult.url}`);
     console.log(`   Source: ${source}`);
 
     // Cleanup temp file
@@ -1440,10 +1445,10 @@ export async function downloadVideoTrailer(
       console.log('⚠️  Temp cleanup failed (non-critical)');
     }
 
-    // Return storage path (this will be stored in DB)
+    // Return R2 URL (this will be stored in DB)
     return {
       success: true,
-      localPath: uploadResult.path
+      localPath: uploadResult.url
     };
 
   } catch (error: any) {
