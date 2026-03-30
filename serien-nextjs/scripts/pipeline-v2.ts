@@ -467,6 +467,37 @@ export async function runPipelineV2(source: PipelineV2Source) {
         })
         .catch((e) => console.log(`   ⚠️ Blob upload failed: ${e.message}`));
       
+      // ✅ Download trailer to R2 immediately for new series
+      (async () => {
+        try {
+          let trailerId = findTrailerYouTubeId(completeDetails.trailers || []);
+          
+          // Fallback: YouTube-Suche wenn kein TMDB-Trailer
+          if (!trailerId) {
+            console.log(`   🔍 Searching YouTube for trailer...`);
+            trailerId = await searchYouTubeTrailerViaAPI(completeDetails.name, 'de');
+            if (!trailerId) {
+              trailerId = await searchYouTubeTrailerViaAPI(completeDetails.name, 'en');
+            }
+          }
+          
+          if (trailerId) {
+            console.log(`   📥 Downloading trailer to R2...`);
+            const downloadResult = await downloadYouTubeTrailer(trailerId, completeDetails.name);
+            
+            if (downloadResult.success && downloadResult.localPath) {
+              await prisma.series.update({
+                where: { tmdbId: searchResult.tmdbId },
+                data: { localTrailerPath: downloadResult.localPath }
+              });
+              console.log(`   ✅ Trailer saved to R2: ${downloadResult.localPath}`);
+            }
+          }
+        } catch (e: any) {
+          console.log(`   ⚠️ Trailer download failed: ${e.message}`);
+        }
+      })();
+      
       console.log(`✅ Series created: ${dbSeries.name}`);
     } else {
       console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
