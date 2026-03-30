@@ -20,9 +20,10 @@ let importStatus = {
   shouldStop: false,
 };
 
-// Fetch trailers from TMDB
+// Fetch trailers from TMDB - PRIORITÄT: DEUTSCH
 async function fetchTrailersFromTMDB(tmdbId: number): Promise<any[]> {
   try {
+    // ERST Deutsch versuchen
     const deRes = await fetch(
       `https://api.themoviedb.org/3/tv/${tmdbId}/videos?api_key=${TMDB_API_KEY}&language=de-DE`
     );
@@ -32,8 +33,12 @@ async function fetchTrailersFromTMDB(tmdbId: number): Promise<any[]> {
       v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')
     );
     
-    if (deTrailers.length > 0) return deTrailers;
+    // Deutsche Trailer gefunden? → Direkt zurückgeben
+    if (deTrailers.length > 0) {
+      return deTrailers;
+    }
     
+    // NUR wenn KEINE deutschen Trailer → Englisch als Fallback
     const enRes = await fetch(
       `https://api.themoviedb.org/3/tv/${tmdbId}/videos?api_key=${TMDB_API_KEY}&language=en-US`
     );
