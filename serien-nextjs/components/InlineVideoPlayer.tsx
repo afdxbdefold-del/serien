@@ -6,8 +6,9 @@ import { Play } from 'lucide-react';
 
 interface InlineVideoPlayerProps {
   heroImageUrl: string;
-  trailerUrl: string | null;
+  trailerUrl?: string | null;
   title: string;
+  fullWidth?: boolean;
 }
 
 // Extract YouTube video ID from various URL formats
@@ -24,7 +25,7 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: InlineVideoPlayerProps) {
+export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -106,10 +107,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
               className="w-full h-full"
               controls
               playsInline
-              muted
-              autoPlay
-              preload="auto"
-              src={videoUrl}
+              preload="metadata"
               onError={(e) => {
                 console.error('❌ Video error:', e);
                 const video = e.currentTarget;
@@ -121,6 +119,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
               }}
               onLoadedData={() => console.log('✅ Video loaded')}
             >
+              <source src={videoUrl} type="video/mp4" />
               Dein Browser unterstützt HTML5 Video nicht.
             </video>
           )}

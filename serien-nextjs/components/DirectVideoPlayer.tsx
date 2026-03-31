@@ -39,7 +39,8 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   // Cleanup blob URL on unmount
   useEffect(() => {
     return () => {
-      if (blobUrl) {
+      // Only revoke blob URLs, not external URLs
+      if (blobUrl && blobUrl.startsWith('blob:')) {
         URL.revokeObjectURL(blobUrl);
       }
     };
@@ -61,9 +62,17 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       return;
     }
 
-    const videoSrc = trailerUrl.startsWith('http') 
-      ? trailerUrl 
-      : `/api/trailer/${trailerUrl}`;
+    // For external URLs (R2, etc.), use direct video src instead of blob
+    if (trailerUrl.startsWith('http')) {
+      setLoading(false);
+      setShowVideo(true);
+      setVideoReady(true);
+      setBlobUrl(trailerUrl); // Use URL directly
+      return;
+    }
+
+    // For local trailer IDs, fetch via API
+    const videoSrc = `/api/trailer/${trailerUrl}`;
 
     setLoading(true);
     setShowVideo(true);

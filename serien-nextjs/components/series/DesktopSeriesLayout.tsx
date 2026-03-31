@@ -17,6 +17,7 @@ interface DesktopSeriesLayoutProps {
   creators: any[];
   seasons: any[];
   trailers: any[];
+  localTrailerUrl: string | null;
   relevanceContext: any;
   statusContext: any;
   seriesQA: any[];
@@ -30,12 +31,14 @@ export default function DesktopSeriesLayout({
   creators,
   seasons,
   trailers,
+  localTrailerUrl,
   relevanceContext,
   statusContext,
   seriesQA,
   slug,
   characters,
 }: DesktopSeriesLayoutProps) {
+  // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
   
   return (
@@ -44,7 +47,19 @@ export default function DesktopSeriesLayout({
       
       {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
       <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
-        {trailerKey ? (
+        {localTrailerUrl ? (
+          // R2-hosted video (self-hosted, no YouTube embed)
+          <video
+            className="absolute inset-0 w-full h-full object-cover"
+            controls
+            playsInline
+            preload="metadata"
+            poster={series.backdropPath ? `https://image.tmdb.org/t/p/original${series.backdropPath}` : undefined}
+          >
+            <source src={localTrailerUrl} type="video/mp4" />
+            Dein Browser unterstützt HTML5 Video nicht.
+          </video>
+        ) : trailerKey ? (
           <iframe
             src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&autoplay=0`}
             title={`${series.name || series.title} Trailer`}

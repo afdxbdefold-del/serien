@@ -190,6 +190,14 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   const crew = (series.crew as any[]) || [];
   const trailers = (series.trailers as any[]) || [];
   const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
+  
+  // R2 Trailer URL (self-hosted) - prioritize over YouTube embed
+  const localTrailerUrl = series.localTrailerPath && 
+    series.localTrailerPath !== 'unavailable' && 
+    series.localTrailerPath !== 'SKIP' &&
+    series.localTrailerPath.startsWith('http')
+    ? series.localTrailerPath 
+    : null;
   const seasons = series.seasons as any[] || [];
   
   // Enrich cast with person page slugs for linking (single query instead of 6)
@@ -318,6 +326,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         creators={creators || []}
         seasons={seasons || []}
         trailers={trailers || []}
+        localTrailerUrl={localTrailerUrl}
         relevanceContext={relevanceContext || null}
         statusContext={statusContext || null}
         seriesQA={seriesQA || []}
@@ -331,6 +340,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         creators={creators || []}
         seasons={seasons || []}
         trailers={trailers || []}
+        localTrailerUrl={localTrailerUrl}
         relevanceContext={relevanceContext || null}
         statusContext={statusContext || null}
         seriesQA={seriesQA || []}

@@ -20,7 +20,7 @@ import ContentWithAds from '@/components/ContentWithAds';
 import { AdSlot } from '@/components/AdSlot';
 
 // Lazy load heavy client components
-const InlineVideoPlayer = dynamic(() => import('@/components/DirectVideoPlayer'), {
+const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
   ssr: true,
   loading: () => (
     <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-900 animate-pulse" />
@@ -72,7 +72,8 @@ const getArticle = (slug: string) => unstable_cache(
             title: true, 
             name: true, 
             slug: true, 
-            networks: true 
+            networks: true,
+            localTrailerPath: true 
           }
         },
         article_qa: {
@@ -328,7 +329,7 @@ export default async function ArticlePage({ params }: PageProps) {
             ) : (
               <InlineVideoPlayer
                 heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                trailerUrl={article.heroVideoUrl || article.trailerLocalUrl}
+                trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
                 title={article.title}
                 fullWidth={true}
               />
