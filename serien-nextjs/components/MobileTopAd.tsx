@@ -20,18 +20,14 @@ interface AdConfig {
 
 /**
  * Mobile Top Banner Ad - Lädt Konfiguration aus DB
- * Properly reinitializes on client-side navigation
+ * Hidden when no ad is displayed or not configured
  */
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
   const [hideAd, setHideAd] = useState(false);
-  const [adKey, setAdKey] = useState(0);
-  const [shouldRenderIns, setShouldRenderIns] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const lastPathRef = useRef(pathname);
-  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
@@ -57,32 +53,21 @@ export default function MobileTopAd() {
     loadConfig();
   }, []);
 
-  // Detect route changes and force re-render
+  // Re-initialize ad on route change
   useEffect(() => {
-    if (pathname !== lastPathRef.current) {
-      lastPathRef.current = pathname;
-      hasInitializedRef.current = false;
-      setHideAd(false);
-      setShouldRenderIns(false);
-      setAdKey(prev => prev + 1);
-    }
-  }, [pathname]);
-
-  // Initialize ad
-  useEffect(() => {
-    if (!config || !isProduction || hasInitializedRef.current) return;
+    if (!config || !isProduction) return;
     
-    hasInitializedRef.current = true;
-    setShouldRenderIns(true);
+    // Reset hide state on navigation
+    setHideAd(false);
     
-    // Push after DOM update
+    // Small delay to ensure DOM is ready after navigation
     const timer = setTimeout(() => {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
-        console.log('Ad push error:', e);
+        // Silently ignore - ad might already be pushed
       }
-    }, 200);
+    }, 100);
     
     // Check if ad was filled after 4 seconds
     const checkTimer = setTimeout(() => {
@@ -101,7 +86,7 @@ export default function MobileTopAd() {
       clearTimeout(timer);
       clearTimeout(checkTimer);
     };
-  }, [config, isProduction, adKey]);
+  }, [config, isProduction, pathname]); // Re-run on pathname change
 
   if (!isProduction || hideAd || !config) {
     return null;
@@ -109,15 +94,13 @@ export default function MobileTopAd() {
 
   return (
     <div ref={containerRef} className="lg:hidden flex justify-center" data-ad-position="mobile_top">
-      {shouldRenderIns && (
-        <ins
-          key={`mobile-top-${adKey}`}
-          className="adsbygoogle"
-          style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
-          data-ad-client={config.adClient}
-          data-ad-slot={config.adSlot}
-        />
-      )}
+      <ins
+        key={pathname} // Force re-render on navigation
+        className="adsbygoogle"
+        style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
+        data-ad-client={config.adClient}
+        data-ad-slot={config.adSlot}
+      />
     </div>
   );
 }

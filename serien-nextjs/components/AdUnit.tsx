@@ -17,67 +17,116 @@ declare global {
 }
 
 export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
+  const [hasConsent, setHasConsent] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
-  const [adKey, setAdKey] = useState(0);
-  const [shouldRenderIns, setShouldRenderIns] = useState(false);
-  const adContainerRef = useRef<HTMLDivElement>(null);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const adRef = useRef<HTMLModElement>(null);
   const pathname = usePathname();
-  const lastPathRef = useRef(pathname);
-  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
+    // Check if we're in production
     setIsProduction(window.location.hostname !== 'localhost' && !window.location.hostname.includes('preview'));
+    
+    // Check for cookie consent
+    const consent = localStorage.getItem('ads-consent');
+    if (consent === 'true') {
+      setHasConsent(true);
+    }
+
+    // Listen for consent changes
+    const handleStorage = () => {
+      const newConsent = localStorage.getItem('ads-consent');
+      setHasConsent(newConsent === 'true');
+    };
+
+    window.addEventListener('storage', handleStorage);
+    
+    // Check periodically for same-tab consent
+    const interval = setInterval(() => {
+      const newConsent = localStorage.getItem('ads-consent');
+      if (newConsent === 'true') {
+        setHasConsent(true);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
   }, []);
 
-  // Force re-render on route change
+  // Re-initialize ad on route change
   useEffect(() => {
-    if (pathname !== lastPathRef.current) {
-      lastPathRef.current = pathname;
-      hasInitializedRef.current = false;
-      setShouldRenderIns(false);
-      setAdKey(prev => prev + 1);
+    if (hasConsent && isProduction) {
+      // Reset ad state
+      setAdLoaded(false);
+      
+      // Small delay for DOM to be ready
+      const pushTimer = setTimeout(() => {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          // Silently ignore
+        }
+      }, 100);
+      
+      // Check if ad actually rendered after a delay
+      const checkTimer = setTimeout(() => {
+        if (adRef.current) {
+          const adHeight = adRef.current.offsetHeight;
+          setAdLoaded(adHeight > 0);
+        }
+      }, 2000);
+      
+      return () => {
+        clearTimeout(pushTimer);
+        clearTimeout(checkTimer);
+      };
     }
-  }, [pathname]);
+  }, [hasConsent, isProduction, pathname]); // Re-run on pathname change
 
-  // Initialize ad
-  useEffect(() => {
-    if (!isProduction || hasInitializedRef.current) return;
+  // Don't render anything if no consent
+  if (!hasConsent) {
+    return null;
+  }
 
-    hasInitializedRef.current = true;
-    setShouldRenderIns(true);
-
-    const timer = setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.log('Ad push error:', e);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [isProduction, adKey]);
-
+  // Show placeholder in development/preview
   if (!isProduction) {
     return (
       <div className={`ad-container ${className}`}>
         <div className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Ad Placeholder</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+            Werbeanzeige
+          </p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">
+            (Wird in Produktion angezeigt)
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={adContainerRef} className={`ad-container flex justify-center ${className}`}>
-      {shouldRenderIns && (
-        <ins
-          key={`ad-${slot}-${adKey}`}
-          className="adsbygoogle"
-          style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
-          data-ad-client="ca-pub-8583619451045805"
-          data-ad-slot={slot}
-        />
-      )}
+    <div 
+      className={`ad-container ${className}`} 
+      style={{ 
+        minHeight: 0, 
+        overflow: 'hidden',
+        // Collapse if ad hasn't loaded after timeout
+        maxHeight: adLoaded ? 'none' : 0,
+        opacity: adLoaded ? 1 : 0,
+        transition: 'opacity 0.3s ease'
+      }}
+    >
+      <ins
+        key={`${slot}-${pathname}`} // Force re-render on navigation
+        ref={adRef}
+        className="adsbygoogle"
+        style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
+        data-ad-client="ca-pub-8583619451045805"
+        data-ad-slot={slot}
+      />
     </div>
   );
 }

@@ -17,7 +17,6 @@ interface MobileSeriesLayoutProps {
   creators: any[];
   seasons: any[];
   trailers: any[];
-  localTrailerUrl: string | null;
   relevanceContext: any;
   statusContext: any;
   seriesQA: any[];
@@ -31,7 +30,6 @@ export default function MobileSeriesLayout({
   creators,
   seasons,
   trailers,
-  localTrailerUrl,
   relevanceContext,
   statusContext,
   seriesQA,
@@ -47,7 +45,6 @@ export default function MobileSeriesLayout({
           posterPath={series.posterPath}
           seriesName={series.name || ''}
           trailerKey={trailers.length > 0 ? trailers[0].key : null}
-          localTrailerUrl={localTrailerUrl}
         />
         
         <div className="pt-6 px-6 pb-6">

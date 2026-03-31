@@ -10,7 +10,6 @@ import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
-import R2VideoPlayer from '@/components/R2VideoPlayer';
 
 interface DesktopSeriesLayoutProps {
   series: any;
@@ -18,7 +17,6 @@ interface DesktopSeriesLayoutProps {
   creators: any[];
   seasons: any[];
   trailers: any[];
-  localTrailerUrl: string | null;
   relevanceContext: any;
   statusContext: any;
   seriesQA: any[];
@@ -32,14 +30,12 @@ export default function DesktopSeriesLayout({
   creators,
   seasons,
   trailers,
-  localTrailerUrl,
   relevanceContext,
   statusContext,
   seriesQA,
   slug,
   characters,
 }: DesktopSeriesLayoutProps) {
-  // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
   
   return (
@@ -48,12 +44,7 @@ export default function DesktopSeriesLayout({
       
       {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
       <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
-        {localTrailerUrl ? (
-          <R2VideoPlayer
-            src={localTrailerUrl}
-            poster={series.backdropPath ? `https://image.tmdb.org/t/p/w780${series.backdropPath}` : undefined}
-          />
-        ) : trailerKey ? (
+        {trailerKey ? (
           <iframe
             src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&autoplay=0`}
             title={`${series.name || series.title} Trailer`}

@@ -1,14 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
-import R2VideoPlayer from '@/components/R2VideoPlayer';
+import { Play, X } from 'lucide-react';
 
 interface MobileHeroWithVideoProps {
   backdropPath: string | null;
   posterPath: string | null;
   seriesName: string;
   trailerKey: string | null;
-  localTrailerUrl?: string | null;
 }
 
 export default function MobileHeroWithVideo({
@@ -16,21 +16,8 @@ export default function MobileHeroWithVideo({
   posterPath,
   seriesName,
   trailerKey,
-  localTrailerUrl,
 }: MobileHeroWithVideoProps) {
-  // Prioritize R2-hosted local trailer over YouTube embed
-  if (localTrailerUrl) {
-    return (
-      <div className="relative w-full aspect-video bg-gray-900">
-        <R2VideoPlayer
-          src={localTrailerUrl}
-          poster={backdropPath ? `https://image.tmdb.org/t/p/w780${backdropPath}` : undefined}
-        />
-      </div>
-    );
-  }
-
-  // Fallback: YouTube embed if no local trailer
+  // Wenn Trailer vorhanden, direkt anzeigen (nicht erst nach Klick)
   if (trailerKey) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
@@ -68,7 +55,7 @@ export default function MobileHeroWithVideo({
             alt={seriesName}
             width={80}
             height={120}
-            className="shadow-2xl border-2 border-white/20"
+            className="rounded-lg shadow-2xl border-2 border-white/20"
           />
         </div>
       )}
