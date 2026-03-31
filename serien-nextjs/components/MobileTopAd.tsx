@@ -19,23 +19,20 @@ interface AdConfig {
 }
 
 /**
- * Mobile Top Banner Ad - Lädt Konfiguration aus DB
- * Google CMP handles consent automatically
+ * Mobile Top Banner Ad - Force remount on navigation
  */
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
-  const [hideAd, setHideAd] = useState(false);
-  const [adKey, setAdKey] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(true);
   const pathname = usePathname();
+  const initialPathRef = useRef(pathname);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     setIsProduction(isProd);
 
-    // Fetch ad config
     const loadConfig = async () => {
       try {
         const res = await fetch('/api/ads/slots');
@@ -54,54 +51,46 @@ export default function MobileTopAd() {
     loadConfig();
   }, []);
 
-  // Re-initialize ad on route change
+  // Force complete remount on navigation
   useEffect(() => {
-    if (!config || !isProduction) return;
-    
-    setHideAd(false);
-    setAdKey(prev => prev + 1);
-  }, [config, isProduction, pathname]);
+    if (pathname !== initialPathRef.current) {
+      setMounted(false);
+      initialPathRef.current = pathname;
+      
+      const timer = setTimeout(() => {
+        setMounted(true);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
 
+  // Push ad when mounted
   useEffect(() => {
-    if (!config || !isProduction || !containerRef.current) return;
+    if (!mounted || !config || !isProduction) return;
     
     const timer = setTimeout(() => {
       try {
-        const ins = containerRef.current?.querySelector('ins.adsbygoogle');
-        if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        }
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
         // Silently ignore
       }
-    }, 300);
+    }, 200);
     
-    const checkTimer = setTimeout(() => {
-      if (containerRef.current) {
-        const ins = containerRef.current.querySelector('ins.adsbygoogle');
-        if (ins) {
-          const status = ins.getAttribute('data-ad-status');
-          if (status === 'unfilled') {
-            setHideAd(true);
-          }
-        }
-      }
-    }, 4000);
-    
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(checkTimer);
-    };
-  }, [adKey, config, isProduction]);
+    return () => clearTimeout(timer);
+  }, [mounted, config, isProduction]);
 
-  if (!isProduction || hideAd || !config) {
+  if (!isProduction || !config) {
     return null;
   }
 
+  if (!mounted) {
+    return <div className="lg:hidden" style={{ height: config.height }} />;
+  }
+
   return (
-    <div ref={containerRef} className="lg:hidden flex justify-center" data-ad-position="mobile_top">
+    <div className="lg:hidden flex justify-center" data-ad-position="mobile_top">
       <ins
-        key={`mobile-top-${adKey}`}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
         data-ad-client={config.adClient}

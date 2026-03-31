@@ -64,11 +64,11 @@ async function getAdSlots(): Promise<Record<string, AdConfig>> {
  * - above_footer
  */
 export default function DynamicAd({ position, className = '' }: DynamicAdProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
-  const [adKey, setAdKey] = useState(0);
+  const [mounted, setMounted] = useState(true);
   const pathname = usePathname();
+  const initialPathRef = useRef(pathname);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -76,7 +76,6 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
       const slotConfig = slots[position];
       
       if (slotConfig) {
-        // Check device restrictions
         const isMobile = window.innerWidth < 1024;
         
         if (slotConfig.mobileOnly && !isMobile) {
@@ -97,48 +96,51 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     loadConfig();
   }, [position]);
 
-  // Re-initialize ad on route change
+  // Force complete remount on navigation
   useEffect(() => {
-    if (!config) return;
-    
-    const isProd = window.location.hostname !== 'localhost' && 
-                   !window.location.hostname.includes('preview');
-    
-    if (isProd) {
-      setAdKey(prev => prev + 1);
-    }
-  }, [config, pathname]);
-
-  useEffect(() => {
-    if (!config || !containerRef.current) return;
-    
-    const isProd = window.location.hostname !== 'localhost' && 
-                   !window.location.hostname.includes('preview');
-    
-    if (isProd) {
+    if (pathname !== initialPathRef.current) {
+      setMounted(false);
+      initialPathRef.current = pathname;
+      
       const timer = setTimeout(() => {
-        try {
-          const ins = containerRef.current?.querySelector('ins.adsbygoogle');
-          if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
-            (window.adsbygoogle = window.adsbygoogle || []).push({});
-          }
-        } catch (e) {
-          // Silently ignore
-        }
-      }, 300);
+        setMounted(true);
+      }, 100);
       
       return () => clearTimeout(timer);
     }
-  }, [adKey, config]);
+  }, [pathname]);
+
+  // Push ad when mounted
+  useEffect(() => {
+    if (!mounted || !config) return;
+    
+    const isProd = window.location.hostname !== 'localhost' && 
+                   !window.location.hostname.includes('preview');
+    
+    if (!isProd) return;
+
+    const timer = setTimeout(() => {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        // Silently ignore
+      }
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [mounted, config]);
 
   if (!isVisible || !config) {
     return null;
   }
 
+  if (!mounted) {
+    return <div className={`flex justify-center ${className}`} style={{ width: config.width, height: config.height }} />;
+  }
+
   return (
-    <div ref={containerRef} className={`flex justify-center ${className}`} data-ad-position={position}>
+    <div className={`flex justify-center ${className}`} data-ad-position={position}>
       <ins
-        key={`${position}-${adKey}`}
         className="adsbygoogle"
         style={{ 
           display: 'inline-block', 

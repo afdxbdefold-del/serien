@@ -19,38 +19,43 @@ declare global {
 export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const [adKey, setAdKey] = useState(0);
+  const [mounted, setMounted] = useState(true);
+  const initialPathRef = useRef(pathname);
 
+  // Force complete remount on navigation
   useEffect(() => {
+    if (pathname !== initialPathRef.current) {
+      setMounted(false);
+      initialPathRef.current = pathname;
+      
+      // Remount after a short delay
+      const timer = setTimeout(() => {
+        setMounted(true);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
+
+  // Push ad when mounted
+  useEffect(() => {
+    if (!mounted) return;
+    
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (!isProd) return;
 
-    // Increment key to force re-render of ins element
-    setAdKey(prev => prev + 1);
-  }, [pathname]);
-
-  useEffect(() => {
-    const isProd = window.location.hostname !== 'localhost' && 
-                   !window.location.hostname.includes('preview');
-    
-    if (!isProd || !containerRef.current) return;
-
-    // Wait for the new ins element to be in DOM
     const timer = setTimeout(() => {
       try {
-        const ins = containerRef.current?.querySelector('ins.adsbygoogle');
-        if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        }
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
         // Silently ignore
       }
-    }, 300);
+    }, 200);
     
     return () => clearTimeout(timer);
-  }, [adKey]);
+  }, [mounted]);
 
   // Show placeholder in development/preview
   if (typeof window !== 'undefined' && 
@@ -66,10 +71,13 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
     );
   }
 
+  if (!mounted) {
+    return <div className={`ad-container ${className}`} style={{ width, height }} />;
+  }
+
   return (
     <div ref={containerRef} className={`ad-container ${className}`}>
       <ins
-        key={`${slot}-${adKey}`}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client="ca-pub-8583619451045805"

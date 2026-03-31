@@ -17,45 +17,53 @@ declare global {
 }
 
 /**
- * Article Ad Unit - Client Component
- * Google CMP handles consent automatically
+ * Article Ad Unit - Force remount on navigation for AdSense compatibility
  */
 export default function ArticleAd({ slot, width, height, className = '' }: ArticleAdProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const [adKey, setAdKey] = useState(0);
+  const [mounted, setMounted] = useState(true);
+  const initialPathRef = useRef(pathname);
+  const hasIntersected = useRef(false);
 
+  // Force complete remount on navigation
   useEffect(() => {
+    if (pathname !== initialPathRef.current) {
+      setMounted(false);
+      hasIntersected.current = false;
+      initialPathRef.current = pathname;
+      
+      const timer = setTimeout(() => {
+        setMounted(true);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
+
+  // Push ad when mounted and visible
+  useEffect(() => {
+    if (!mounted) return;
+    
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (!isProd) return;
 
-    // Increment key to force re-render
-    setAdKey(prev => prev + 1);
-  }, [pathname]);
+    const container = document.getElementById(`article-ad-${slot}`);
+    if (!container) return;
 
-  useEffect(() => {
-    const isProd = window.location.hostname !== 'localhost' && 
-                   !window.location.hostname.includes('preview');
-    
-    if (!isProd || !containerRef.current) return;
-
-    // Use IntersectionObserver to load ads when they come into view
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const ins = containerRef.current?.querySelector('ins.adsbygoogle');
-            if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
-              setTimeout(() => {
-                try {
-                  (window.adsbygoogle = window.adsbygoogle || []).push({});
-                } catch (e) {
-                  // Silently ignore
-                }
-              }, 200);
-            }
+          if (entry.isIntersecting && !hasIntersected.current) {
+            hasIntersected.current = true;
+            setTimeout(() => {
+              try {
+                (window.adsbygoogle = window.adsbygoogle || []).push({});
+              } catch (e) {
+                // Silently ignore
+              }
+            }, 200);
             observer.disconnect();
           }
         });
@@ -63,15 +71,18 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
       { rootMargin: '200px' }
     );
     
-    observer.observe(containerRef.current);
+    observer.observe(container);
     
     return () => observer.disconnect();
-  }, [adKey]);
+  }, [mounted, slot]);
+
+  if (!mounted) {
+    return <div className={`flex justify-center ${className}`} style={{ width, height }} />;
+  }
 
   return (
-    <div ref={containerRef} className={`flex justify-center ${className}`}>
+    <div id={`article-ad-${slot}`} className={`flex justify-center ${className}`}>
       <ins
-        key={`${slot}-${adKey}`}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client="ca-pub-8583619451045805"
