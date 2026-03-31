@@ -34,7 +34,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   // If no trailer, just show the image
   if (!trailerUrl) {
     return (
-      <div className="relative aspect-video rounded-2xl overflow-hidden">
+      <div className="relative aspect-video overflow-hidden">
         <Image
           src={heroImageUrl}
           alt={title}
