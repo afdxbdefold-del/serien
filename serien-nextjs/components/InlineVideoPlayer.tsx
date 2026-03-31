@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play } from 'lucide-react';
+import { Play, Volume2 } from 'lucide-react';
 
 interface InlineVideoPlayerProps {
   heroImageUrl: string;
@@ -28,6 +28,8 @@ function getYouTubeVideoId(url: string): string | null {
 export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // If no trailer, just show the image
   if (!trailerUrl) {
@@ -53,9 +55,65 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
     ? trailerUrl 
     : `/api/trailer/${trailerUrl}?v=3`;
 
-  // With trailer: Show image with play button, then video
+  // Check if it's an R2 video (self-hosted MP4)
+  const isR2Video = !isYouTube && trailerUrl.startsWith('http');
+
+  const handleUnmute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+    }
+  };
+
+  // For R2 videos: Autoplay immediately with muted + unmute button (like R2VideoPlayer)
+  if (isR2Video) {
+    return (
+      <div className={`relative ${fullWidth ? 'aspect-[16/9] md:aspect-[21/9]' : 'aspect-video'} overflow-hidden bg-black`}>
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster={heroImageUrl}
+          onError={(e) => {
+            console.error('❌ Video error:', e);
+            setHasError(true);
+          }}
+        >
+          <source src={videoUrl} type="video/mp4" />
+        </video>
+        
+        {/* Cyan Unmute Button - centered */}
+        {isMuted && !hasError && (
+          <button
+            onClick={handleUnmute}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"
+          >
+            <Volume2 className="w-5 h-5" />
+            Ton aktivieren
+          </button>
+        )}
+
+        {hasError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+            <Image
+              src={heroImageUrl}
+              alt={title}
+              fill
+              className="object-cover"
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // For YouTube videos: Keep the click-to-play behavior
   return (
-    <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
+    <div className={`relative ${fullWidth ? 'aspect-[16/9] md:aspect-[21/9]' : 'aspect-video'} overflow-hidden bg-black`}>
       {!isPlaying ? (
         <>
           {/* Hero Image */}
@@ -92,7 +150,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
                 </button>
               </div>
             </div>
-          ) : isYouTube ? (
+          ) : (
             /* YouTube Embed */
             <iframe
               className="w-full h-full"
@@ -101,27 +159,6 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
-          ) : (
-            /* Video Player for R2/storage videos - optimized for streaming */
-            <video
-              className="w-full h-full"
-              controls
-              playsInline
-              preload="auto"
-              autoPlay
-              onError={(e) => {
-                console.error('❌ Video error:', e);
-                const video = e.currentTarget;
-                console.error('Error code:', video.error?.code);
-                console.error('Error message:', video.error?.message);
-                console.error('Video URL:', videoUrl);
-                setTimeout(() => setHasError(true), 2000);
-              }}
-              onLoadedData={() => console.log('✅ Video loaded')}
-            >
-              <source src={videoUrl} type="video/mp4" />
-              Dein Browser unterstützt HTML5 Video nicht.
-            </video>
           )}
         </>
       )}

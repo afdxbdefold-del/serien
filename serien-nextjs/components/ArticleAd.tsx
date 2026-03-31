@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useId } from 'react';
+import { useEffect, useRef, useId, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface ArticleAdProps {
@@ -13,13 +13,48 @@ interface ArticleAdProps {
 /**
  * Article Ad Unit - Client Component
  * Handles its own adsbygoogle.push() call with staggered timing
+ * Respects cookie consent (GDPR compliance)
  */
 export default function ArticleAd({ slot, width, height, className = '' }: ArticleAdProps) {
   const adRef = useRef<HTMLModElement>(null);
   const uniqueId = useId();
   const pathname = usePathname();
+  const [hasConsent, setHasConsent] = useState(false);
+
+  // Check for cookie consent
+  useEffect(() => {
+    const consent = localStorage.getItem('ads-consent');
+    if (consent === 'true') {
+      setHasConsent(true);
+    }
+
+    // Listen for consent changes
+    const handleStorage = () => {
+      const newConsent = localStorage.getItem('ads-consent');
+      setHasConsent(newConsent === 'true');
+    };
+
+    window.addEventListener('storage', handleStorage);
+    
+    // Check periodically for same-tab consent
+    const interval = setInterval(() => {
+      const newConsent = localStorage.getItem('ads-consent');
+      if (newConsent === 'true') {
+        setHasConsent(true);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
+    // Don't load ads without consent
+    if (!hasConsent) return;
+
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
@@ -47,7 +82,12 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
       
       return () => observer.disconnect();
     }
-  }, [pathname]); // Re-run on pathname change
+  }, [pathname, hasConsent]); // Re-run on pathname change or consent change
+
+  // Don't render anything if no consent
+  if (!hasConsent) {
+    return null;
+  }
 
   return (
     <div className={`flex justify-center ${className}`}>
