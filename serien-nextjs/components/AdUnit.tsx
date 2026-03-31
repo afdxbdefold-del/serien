@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface AdUnitProps {
@@ -10,52 +10,30 @@ interface AdUnitProps {
   className?: string;
 }
 
-declare global {
-  interface Window {
-    adsbygoogle: any[];
-  }
-}
-
+/**
+ * AdUnit with iframe reload on navigation
+ * Creates an iframe that reloads on route change to refresh ads
+ */
 export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(true);
-  const initialPathRef = useRef(pathname);
 
-  // Force complete remount on navigation
   useEffect(() => {
-    if (pathname !== initialPathRef.current) {
-      setMounted(false);
-      initialPathRef.current = pathname;
-      
-      // Remount after a short delay
-      const timer = setTimeout(() => {
-        setMounted(true);
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [pathname]);
-
-  // Push ad when mounted
-  useEffect(() => {
-    if (!mounted) return;
-    
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (!isProd) return;
 
-    const timer = setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        // Silently ignore
-      }
-    }, 200);
-    
-    return () => clearTimeout(timer);
-  }, [mounted]);
+    // Reload iframe on navigation
+    if (iframeRef.current) {
+      const iframe = iframeRef.current;
+      const currentSrc = iframe.src;
+      iframe.src = '';
+      setTimeout(() => {
+        iframe.src = currentSrc;
+      }, 50);
+    }
+  }, [pathname]);
 
   // Show placeholder in development/preview
   if (typeof window !== 'undefined' && 
@@ -71,17 +49,33 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
     );
   }
 
-  if (!mounted) {
-    return <div className={`ad-container ${className}`} style={{ width, height }} />;
-  }
+  // Create ad HTML for iframe
+  const adHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805" crossorigin="anonymous"></script>
+      <style>body{margin:0;padding:0;overflow:hidden;}</style>
+    </head>
+    <body>
+      <ins class="adsbygoogle"
+        style="display:inline-block;width:${width}px;height:${height}px"
+        data-ad-client="ca-pub-8583619451045805"
+        data-ad-slot="${slot}"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </body>
+    </html>
+  `;
 
   return (
-    <div ref={containerRef} className={`ad-container ${className}`}>
-      <ins
-        className="adsbygoogle"
-        style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
-        data-ad-client="ca-pub-8583619451045805"
-        data-ad-slot={slot}
+    <div className={`ad-container ${className}`}>
+      <iframe
+        ref={iframeRef}
+        srcDoc={adHtml}
+        width={width}
+        height={height}
+        style={{ border: 'none', overflow: 'hidden' }}
+        scrolling="no"
       />
     </div>
   );

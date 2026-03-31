@@ -3,12 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
-declare global {
-  interface Window {
-    adsbygoogle: any[];
-  }
-}
-
 interface AdConfig {
   adClient: string;
   adSlot: string;
@@ -19,14 +13,13 @@ interface AdConfig {
 }
 
 /**
- * Mobile Top Banner Ad - Force remount on navigation
+ * Mobile Top Banner Ad with iframe reload
  */
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
-  const [mounted, setMounted] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const pathname = usePathname();
-  const initialPathRef = useRef(pathname);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
@@ -51,50 +44,48 @@ export default function MobileTopAd() {
     loadConfig();
   }, []);
 
-  // Force complete remount on navigation
+  // Reload iframe on navigation
   useEffect(() => {
-    if (pathname !== initialPathRef.current) {
-      setMounted(false);
-      initialPathRef.current = pathname;
-      
-      const timer = setTimeout(() => {
-        setMounted(true);
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [pathname]);
+    if (!isProduction || !iframeRef.current) return;
 
-  // Push ad when mounted
-  useEffect(() => {
-    if (!mounted || !config || !isProduction) return;
-    
-    const timer = setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        // Silently ignore
-      }
-    }, 200);
-    
-    return () => clearTimeout(timer);
-  }, [mounted, config, isProduction]);
+    const iframe = iframeRef.current;
+    const currentSrc = iframe.src;
+    iframe.src = '';
+    setTimeout(() => {
+      iframe.src = currentSrc;
+    }, 50);
+  }, [pathname, isProduction]);
 
   if (!isProduction || !config) {
     return null;
   }
 
-  if (!mounted) {
-    return <div className="lg:hidden" style={{ height: config.height }} />;
-  }
+  const adHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adClient}" crossorigin="anonymous"></script>
+      <style>body{margin:0;padding:0;overflow:hidden;}</style>
+    </head>
+    <body>
+      <ins class="adsbygoogle"
+        style="display:inline-block;width:${config.width}px;height:${config.height}px"
+        data-ad-client="${config.adClient}"
+        data-ad-slot="${config.adSlot}"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </body>
+    </html>
+  `;
 
   return (
     <div className="lg:hidden flex justify-center" data-ad-position="mobile_top">
-      <ins
-        className="adsbygoogle"
-        style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
-        data-ad-client={config.adClient}
-        data-ad-slot={config.adSlot}
+      <iframe
+        ref={iframeRef}
+        srcDoc={adHtml}
+        width={config.width}
+        height={config.height}
+        style={{ border: 'none', overflow: 'hidden' }}
+        scrolling="no"
       />
     </div>
   );
