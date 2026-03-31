@@ -1,3 +1,6 @@
+'use client';
+
+import { useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Tv } from 'lucide-react';
@@ -40,6 +43,16 @@ export default function DesktopSeriesLayout({
 }: DesktopSeriesLayoutProps) {
   // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Autoplay video when component mounts
+  useEffect(() => {
+    if (localTrailerUrl && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.log('Autoplay blocked:', err);
+      });
+    }
+  }, [localTrailerUrl]);
   
   return (
     <section className="hidden lg:block" aria-labelledby="series-desktop">
@@ -50,6 +63,7 @@ export default function DesktopSeriesLayout({
         {localTrailerUrl ? (
           // R2-hosted video (self-hosted, optimized for streaming)
           <video
+            ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
             controls
             autoPlay

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Play } from 'lucide-react';
 
@@ -28,11 +28,21 @@ function getYouTubeVideoId(url: string): string | null {
 export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  // If no trailer, just show the image
+  // Handle autoplay when video starts playing
+  useEffect(() => {
+    if (isPlaying && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.log('Autoplay blocked:', err);
+      });
+    }
+  }, [isPlaying]);
+
+  // No trailer - just show image
   if (!trailerUrl) {
     return (
-      <div className="relative aspect-video rounded-2xl overflow-hidden">
+      <div className="relative aspect-video overflow-hidden bg-black">
         <Image
           src={heroImageUrl}
           alt={title}
@@ -55,7 +65,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
 
   // With trailer: Show image with play button, then video
   return (
-    <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
+    <div className="relative aspect-video overflow-hidden bg-black">
       {!isPlaying ? (
         <>
           {/* Hero Image */}
@@ -78,19 +88,17 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       ) : (
         <>
           {hasError ? (
-            <div className="flex items-center justify-center h-full bg-gray-900 text-white p-8 text-center">
-              <div>
-                <p className="text-lg mb-4">⚠️ Video kann nicht geladen werden</p>
-                <button 
-                  onClick={() => {
-                    setHasError(false);
-                    setIsPlaying(false);
-                  }}
-                  className="px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100"
-                >
-                  Zurück
-                </button>
-              </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white">
+              <p className="text-lg mb-4">Video kann nicht geladen werden</p>
+              <button
+                onClick={() => {
+                  setHasError(false);
+                  setIsPlaying(false);
+                }}
+                className="px-4 py-2 bg-white text-gray-900 hover:bg-gray-100"
+              >
+                Zurück
+              </button>
             </div>
           ) : isYouTube ? (
             /* YouTube Embed */
@@ -102,25 +110,21 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               allowFullScreen
             />
           ) : (
-            /* Video Player for R2/storage videos - optimized for streaming */
+            /* Video Player for R2/storage videos */
             <video
+              ref={videoRef}
               className="w-full h-full"
               controls
               playsInline
-              preload="auto"
               autoPlay
+              muted
+              preload="auto"
               onError={(e) => {
-                console.error('❌ Video error:', e);
-                const video = e.currentTarget;
-                console.error('Error code:', video.error?.code);
-                console.error('Error message:', video.error?.message);
-                console.error('Video URL:', videoUrl);
+                console.error('Video error:', e);
                 setTimeout(() => setHasError(true), 2000);
               }}
-              onLoadedData={() => console.log('✅ Video loaded')}
             >
               <source src={videoUrl} type="video/mp4" />
-              Dein Browser unterstützt HTML5 Video nicht.
             </video>
           )}
         </>

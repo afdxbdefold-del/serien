@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play, X } from 'lucide-react';
 
 interface MobileHeroWithVideoProps {
   backdropPath: string | null;
@@ -19,11 +18,23 @@ export default function MobileHeroWithVideo({
   trailerKey,
   localTrailerUrl,
 }: MobileHeroWithVideoProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Autoplay video when component mounts
+  useEffect(() => {
+    if (localTrailerUrl && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.log('Autoplay blocked:', err);
+      });
+    }
+  }, [localTrailerUrl]);
+
   // Prioritize R2-hosted local trailer over YouTube embed
   if (localTrailerUrl) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
         <video
+          ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
           controls
           autoPlay
@@ -76,7 +87,7 @@ export default function MobileHeroWithVideo({
             alt={seriesName}
             width={80}
             height={120}
-            className="rounded-lg shadow-2xl border-2 border-white/20"
+            className="shadow-2xl border-2 border-white/20"
           />
         </div>
       )}
