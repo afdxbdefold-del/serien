@@ -16,11 +16,6 @@ declare global {
   }
 }
 
-/**
- * Article Ad Unit - Client Component
- * Handles its own adsbygoogle.push() call
- * Properly reinitializes on client-side navigation
- */
 export default function ArticleAd({ slot, width, height, className = '' }: ArticleAdProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -29,7 +24,7 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
   const lastPathRef = useRef(pathname);
   const hasInitializedRef = useRef(false);
 
-  // Detect route changes and force re-render
+  // Detect route changes
   useEffect(() => {
     if (pathname !== lastPathRef.current) {
       lastPathRef.current = pathname;
@@ -54,7 +49,6 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
             hasInitializedRef.current = true;
             setIsVisible(true);
             
-            // Push after DOM update
             setTimeout(() => {
               try {
                 (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -79,15 +73,14 @@ export default function ArticleAd({ slot, width, height, className = '' }: Artic
                  window.location.hostname !== 'localhost' && 
                  !window.location.hostname.includes('preview');
 
-  // Show placeholder in development
   if (!isProd) {
     return (
       <div className={`flex justify-center ${className}`}>
         <div 
-          className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center"
+          className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center"
           style={{ width: `${width}px`, height: `${height}px` }}
         >
-          <span className="text-gray-400 text-sm">Ad Placeholder</span>
+          <span className="text-gray-400 text-sm">Ad</span>
         </div>
       </div>
     );
