@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -23,51 +22,28 @@ interface AdConfig {
   desktopOnly: boolean;
 }
 
-// Cache für Ad-Konfigurationen
 let adSlotsCache: Record<string, AdConfig> | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 Minuten
 
 async function getAdSlots(): Promise<Record<string, AdConfig>> {
-  const now = Date.now();
-  
-  // Return cached if still valid
-  if (adSlotsCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return adSlotsCache;
-  }
+  if (adSlotsCache) return adSlotsCache;
   
   try {
     const res = await fetch('/api/ads/slots');
     if (res.ok) {
       adSlotsCache = await res.json();
-      cacheTimestamp = now;
       return adSlotsCache || {};
     }
-  } catch (error) {
-    console.error('Failed to fetch ad slots:', error);
+  } catch (e) {
+    console.error('Failed to load ad slots:', e);
   }
-  
-  return adSlotsCache || {};
+  return {};
 }
 
-/**
- * DynamicAd - Lädt Ad-Konfiguration aus der Datenbank
- * 
- * Positionen:
- * - mobile_top
- * - above_intro
- * - below_intro
- * - in_content (spezielle Behandlung in ContentWithAds)
- * - below_author
- * - below_series_info
- * - above_similar_news
- * - above_footer
- */
 export default function DynamicAd({ position, className = '' }: DynamicAdProps) {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const pathname = usePathname();
+  const adRef = useRef<HTMLModElement>(null);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -95,59 +71,38 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     loadConfig();
   }, [position]);
 
-  // Reload iframe on navigation
   useEffect(() => {
-    if (!config || !iframeRef.current) return;
+    if (isInitialized.current || !config) return;
     
-    const isProd = window.location.hostname !== 'localhost' && 
+    const isProd = typeof window !== 'undefined' && 
+                   window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
-    if (!isProd) return;
+    if (isProd && adRef.current) {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        isInitialized.current = true;
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }, [config]);
 
-    const iframe = iframeRef.current;
-    const currentSrc = iframe.src;
-    iframe.src = '';
-    setTimeout(() => {
-      iframe.src = currentSrc;
-    }, 50);
-  }, [pathname, config]);
-
-  if (!isVisible || !config) {
-    return null;
-  }
-
-  const adHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adClient}" crossorigin="anonymous"></script>
-      <style>body{margin:0;padding:0;overflow:hidden;}</style>
-    </head>
-    <body>
-      <ins class="adsbygoogle"
-        style="display:inline-block;width:${config.width}px;height:${config.height}px"
-        data-ad-client="${config.adClient}"
-        data-ad-slot="${config.adSlot}"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </body>
-    </html>
-  `;
+  if (!isVisible || !config) return null;
 
   return (
     <div className={`flex justify-center ${className}`} data-ad-position={position}>
-      <iframe
-        ref={iframeRef}
-        srcDoc={adHtml}
-        width={config.width}
-        height={config.height}
-        style={{ border: 'none', overflow: 'hidden' }}
-        scrolling="no"
+      <ins
+        ref={adRef}
+        className="adsbygoogle"
+        style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
+        data-ad-client={config.adClient}
+        data-ad-slot={config.adSlot}
       />
     </div>
   );
 }
 
-// Export für ContentWithAds
 export async function getInContentAdConfig(): Promise<AdConfig | null> {
   const slots = await getAdSlots();
   return slots['in_content'] || null;
