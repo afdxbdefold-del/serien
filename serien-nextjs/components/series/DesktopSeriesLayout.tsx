@@ -48,16 +48,17 @@ export default function DesktopSeriesLayout({
       {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
       <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
         {localTrailerUrl ? (
-          // R2-hosted video (self-hosted, no YouTube embed)
+          // R2-hosted video (self-hosted, optimized for streaming)
           <video
             className="absolute inset-0 w-full h-full object-cover"
             controls
+            autoPlay
+            muted
             playsInline
-            preload="metadata"
-            poster={series.backdropPath ? `https://image.tmdb.org/t/p/original${series.backdropPath}` : undefined}
+            preload="auto"
+            poster={series.backdropPath ? `https://image.tmdb.org/t/p/w1280${series.backdropPath}` : undefined}
           >
             <source src={localTrailerUrl} type="video/mp4" />
-            Dein Browser unterstützt HTML5 Video nicht.
           </video>
         ) : trailerKey ? (
           <iframe

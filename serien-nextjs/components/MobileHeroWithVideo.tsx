@@ -26,12 +26,13 @@ export default function MobileHeroWithVideo({
         <video
           className="absolute inset-0 w-full h-full object-cover"
           controls
+          autoPlay
+          muted
           playsInline
-          preload="metadata"
-          poster={backdropPath ? `https://image.tmdb.org/t/p/original${backdropPath}` : undefined}
+          preload="auto"
+          poster={backdropPath ? `https://image.tmdb.org/t/p/w1280${backdropPath}` : undefined}
         >
           <source src={localTrailerUrl} type="video/mp4" />
-          Dein Browser unterstützt HTML5 Video nicht.
         </video>
       </div>
     );

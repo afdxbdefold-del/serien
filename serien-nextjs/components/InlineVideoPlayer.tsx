@@ -102,19 +102,19 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               allowFullScreen
             />
           ) : (
-            /* Video Player for local/storage videos */
+            /* Video Player for R2/storage videos - optimized for streaming */
             <video
               className="w-full h-full"
               controls
               playsInline
-              preload="metadata"
+              preload="auto"
+              autoPlay
               onError={(e) => {
                 console.error('❌ Video error:', e);
                 const video = e.currentTarget;
                 console.error('Error code:', video.error?.code);
                 console.error('Error message:', video.error?.message);
                 console.error('Video URL:', videoUrl);
-                // Wait a bit before showing error to allow retries
                 setTimeout(() => setHasError(true), 2000);
               }}
               onLoadedData={() => console.log('✅ Video loaded')}
