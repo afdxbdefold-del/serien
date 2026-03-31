@@ -56,7 +56,7 @@ export default function DesktopSeriesLayout({
             muted
             playsInline
             preload="auto"
-            poster={series.backdropPath ? `https://image.tmdb.org/t/p/w1280${series.backdropPath}` : undefined}
+            poster={series.backdropPath ? `https://image.tmdb.org/t/p/w780${series.backdropPath}` : undefined}
           >
             <source src={localTrailerUrl} type="video/mp4" />
           </video>
