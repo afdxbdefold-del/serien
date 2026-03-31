@@ -47,7 +47,7 @@ export default function R2VideoPlayer({ src, poster, className = '' }: R2VideoPl
       {isMuted && (
         <button
           onClick={handleUnmute}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"
         >
           <Volume2 className="w-5 h-5" />
           Ton aktivieren
