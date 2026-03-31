@@ -26,6 +26,7 @@ export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
   const [hideAd, setHideAd] = useState(false);
+  const [adKey, setAdKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
@@ -58,14 +59,22 @@ export default function MobileTopAd() {
     if (!config || !isProduction) return;
     
     setHideAd(false);
+    setAdKey(prev => prev + 1);
+  }, [config, isProduction, pathname]);
+
+  useEffect(() => {
+    if (!config || !isProduction || !containerRef.current) return;
     
     const timer = setTimeout(() => {
       try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        const ins = containerRef.current?.querySelector('ins.adsbygoogle');
+        if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        }
       } catch (e) {
         // Silently ignore
       }
-    }, 100);
+    }, 300);
     
     const checkTimer = setTimeout(() => {
       if (containerRef.current) {
@@ -83,7 +92,7 @@ export default function MobileTopAd() {
       clearTimeout(timer);
       clearTimeout(checkTimer);
     };
-  }, [config, isProduction, pathname]);
+  }, [adKey, config, isProduction]);
 
   if (!isProduction || hideAd || !config) {
     return null;
@@ -92,7 +101,7 @@ export default function MobileTopAd() {
   return (
     <div ref={containerRef} className="lg:hidden flex justify-center" data-ad-position="mobile_top">
       <ins
-        key={pathname}
+        key={`mobile-top-${adKey}`}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
         data-ad-client={config.adClient}

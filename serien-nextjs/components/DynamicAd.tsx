@@ -64,9 +64,10 @@ async function getAdSlots(): Promise<Record<string, AdConfig>> {
  * - above_footer
  */
 export default function DynamicAd({ position, className = '' }: DynamicAdProps) {
-  const adRef = useRef<HTMLModElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const [adKey, setAdKey] = useState(0);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -98,7 +99,18 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !adRef.current) return;
+    if (!config) return;
+    
+    const isProd = window.location.hostname !== 'localhost' && 
+                   !window.location.hostname.includes('preview');
+    
+    if (isProd) {
+      setAdKey(prev => prev + 1);
+    }
+  }, [config, pathname]);
+
+  useEffect(() => {
+    if (!config || !containerRef.current) return;
     
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
@@ -106,25 +118,27 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     if (isProd) {
       const timer = setTimeout(() => {
         try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          const ins = containerRef.current?.querySelector('ins.adsbygoogle');
+          if (ins && !ins.hasAttribute('data-adsbygoogle-status')) {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+          }
         } catch (e) {
           // Silently ignore
         }
-      }, 100);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [config, pathname]);
+  }, [adKey, config]);
 
   if (!isVisible || !config) {
     return null;
   }
 
   return (
-    <div className={`flex justify-center ${className}`} data-ad-position={position}>
+    <div ref={containerRef} className={`flex justify-center ${className}`} data-ad-position={position}>
       <ins
-        key={`${position}-${pathname}`}
-        ref={adRef}
+        key={`${position}-${adKey}`}
         className="adsbygoogle"
         style={{ 
           display: 'inline-block', 
