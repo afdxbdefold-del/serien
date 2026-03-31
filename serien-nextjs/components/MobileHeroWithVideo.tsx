@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
-import { Play, X } from 'lucide-react';
+import R2VideoPlayer from '@/components/R2VideoPlayer';
 
 interface MobileHeroWithVideoProps {
   backdropPath: string | null;
@@ -23,17 +22,10 @@ export default function MobileHeroWithVideo({
   if (localTrailerUrl) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
-        <video
-          className="absolute inset-0 w-full h-full object-cover"
-          controls
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          poster={backdropPath ? `https://image.tmdb.org/t/p/w1280${backdropPath}` : undefined}
-        >
-          <source src={localTrailerUrl} type="video/mp4" />
-        </video>
+        <R2VideoPlayer
+          src={localTrailerUrl}
+          poster={backdropPath ? `https://image.tmdb.org/t/p/w780${backdropPath}` : undefined}
+        />
       </div>
     );
   }
