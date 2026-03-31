@@ -25,6 +25,7 @@ interface AdConfig {
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
   const [hideAd, setHideAd] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -33,6 +34,21 @@ export default function MobileTopAd() {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     setIsProduction(isProd);
+
+    // Check consent
+    const consent = localStorage.getItem('ads-consent');
+    if (consent === 'true') {
+      setHasConsent(true);
+    }
+
+    // Listen for consent changes
+    const interval = setInterval(() => {
+      const newConsent = localStorage.getItem('ads-consent');
+      if (newConsent === 'true') {
+        setHasConsent(true);
+        clearInterval(interval);
+      }
+    }, 1000);
 
     // Fetch ad config
     const loadConfig = async () => {
@@ -51,11 +67,13 @@ export default function MobileTopAd() {
     };
     
     loadConfig();
+
+    return () => clearInterval(interval);
   }, []);
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !isProduction) return;
+    if (!config || !isProduction || !hasConsent) return;
     
     // Reset hide state on navigation
     setHideAd(false);
@@ -86,16 +104,16 @@ export default function MobileTopAd() {
       clearTimeout(timer);
       clearTimeout(checkTimer);
     };
-  }, [config, isProduction, pathname]); // Re-run on pathname change
+  }, [config, isProduction, hasConsent, pathname]);
 
-  if (!isProduction || hideAd || !config) {
+  if (!hasConsent || !isProduction || hideAd || !config) {
     return null;
   }
 
   return (
     <div ref={containerRef} className="lg:hidden flex justify-center" data-ad-position="mobile_top">
       <ins
-        key={pathname} // Force re-render on navigation
+        key={pathname}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
         data-ad-client={config.adClient}

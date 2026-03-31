@@ -90,6 +90,13 @@ export async function AdSlot({ position, className = '' }: AdSlotProps) {
               var ad = document.getElementById('${adId}');
               if (!ad) return;
               
+              // Check consent first
+              var consent = localStorage.getItem('ads-consent');
+              if (consent !== 'true') {
+                ad.parentElement.style.display = 'none';
+                return;
+              }
+              
               // Check device restrictions
               var isMobile = window.innerWidth < 1024;
               var container = ad.parentElement;

@@ -67,9 +67,24 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
   const adRef = useRef<HTMLModElement>(null);
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const [hasConsent, setHasConsent] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
+    // Check consent
+    const consent = localStorage.getItem('ads-consent');
+    if (consent === 'true') {
+      setHasConsent(true);
+    }
+
+    const interval = setInterval(() => {
+      const newConsent = localStorage.getItem('ads-consent');
+      if (newConsent === 'true') {
+        setHasConsent(true);
+        clearInterval(interval);
+      }
+    }, 1000);
+
     const loadConfig = async () => {
       const slots = await getAdSlots();
       const slotConfig = slots[position];
@@ -94,11 +109,13 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     };
     
     loadConfig();
+
+    return () => clearInterval(interval);
   }, [position]);
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !adRef.current) return;
+    if (!config || !adRef.current || !hasConsent) return;
     
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
@@ -115,16 +132,16 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
       
       return () => clearTimeout(timer);
     }
-  }, [config, pathname]); // Re-run on pathname change
+  }, [config, hasConsent, pathname]);
 
-  if (!isVisible || !config) {
+  if (!hasConsent || !isVisible || !config) {
     return null;
   }
 
   return (
     <div className={`flex justify-center ${className}`} data-ad-position={position}>
       <ins
-        key={`${position}-${pathname}`} // Force re-render on navigation
+        key={`${position}-${pathname}`}
         ref={adRef}
         className="adsbygoogle"
         style={{ 

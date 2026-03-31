@@ -19,7 +19,6 @@ declare global {
 export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
   const [hasConsent, setHasConsent] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
-  const [adLoaded, setAdLoaded] = useState(false);
   const adRef = useRef<HTMLModElement>(null);
   const pathname = usePathname();
 
@@ -58,12 +57,9 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (hasConsent && isProduction) {
-      // Reset ad state
-      setAdLoaded(false);
-      
+    if (hasConsent && isProduction && adRef.current) {
       // Small delay for DOM to be ready
-      const pushTimer = setTimeout(() => {
+      const timer = setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
@@ -71,20 +67,9 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
         }
       }, 100);
       
-      // Check if ad actually rendered after a delay
-      const checkTimer = setTimeout(() => {
-        if (adRef.current) {
-          const adHeight = adRef.current.offsetHeight;
-          setAdLoaded(adHeight > 0);
-        }
-      }, 2000);
-      
-      return () => {
-        clearTimeout(pushTimer);
-        clearTimeout(checkTimer);
-      };
+      return () => clearTimeout(timer);
     }
-  }, [hasConsent, isProduction, pathname]); // Re-run on pathname change
+  }, [hasConsent, isProduction, pathname]);
 
   // Don't render anything if no consent
   if (!hasConsent) {
@@ -108,19 +93,9 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
   }
 
   return (
-    <div 
-      className={`ad-container ${className}`} 
-      style={{ 
-        minHeight: 0, 
-        overflow: 'hidden',
-        // Collapse if ad hasn't loaded after timeout
-        maxHeight: adLoaded ? 'none' : 0,
-        opacity: adLoaded ? 1 : 0,
-        transition: 'opacity 0.3s ease'
-      }}
-    >
+    <div className={`ad-container ${className}`}>
       <ins
-        key={`${slot}-${pathname}`} // Force re-render on navigation
+        key={`${slot}-${pathname}`}
         ref={adRef}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
