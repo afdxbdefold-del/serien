@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Volume2 } from 'lucide-react';
 
 interface R2VideoPlayerProps {
@@ -11,6 +11,12 @@ interface R2VideoPlayerProps {
 export default function R2VideoPlayer({ src, poster }: R2VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   const handleUnmute = () => {
     if (videoRef.current) {
