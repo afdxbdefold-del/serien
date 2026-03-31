@@ -698,7 +698,8 @@ async function downloadViaFallback1(
 
     // Poll progress URL (max 60 seconds)
     let downloadUrl: string | null = null;
-    for (let i = 0; i < 30; i++) {
+    // Reduced polling: 10 polls * 2s = 20s max (faster batch processing)
+    for (let i = 0; i < 10; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       try {
@@ -722,7 +723,7 @@ async function downloadViaFallback1(
     }
 
     if (!downloadUrl) {
-      return { success: false, error: 'Timeout - no download URL after 60s' };
+      return { success: false, error: 'Timeout - no download URL after 20s' };
     }
 
     console.log('   📥 Downloading video...');
@@ -926,23 +927,10 @@ async function downloadYouTubeWithFallback(
   videoId: string,
   tempFilePath: string
 ): Promise<{ success: boolean; error?: string }> {
-  // PRIMARY
-  const primaryResult = await downloadViaPrimary(videoId, tempFilePath);
-  if (primaryResult.success) {
-    console.log('   ✅ PRIMARY API erfolgreich!');
-    return primaryResult;
-  }
-  console.log(`   ⚠️ PRIMARY failed: ${primaryResult.error}`);
+  // SKIP PRIMARY (returns empty files) - Start with FALLBACK 2
+  console.log('   ⏭️ Skipping PRIMARY API (broken), using FALLBACK 2...');
 
-  // FALLBACK 1
-  const fallback1Result = await downloadViaFallback1(videoId, tempFilePath);
-  if (fallback1Result.success) {
-    console.log('   ✅ FALLBACK 1 erfolgreich!');
-    return fallback1Result;
-  }
-  console.log(`   ⚠️ FALLBACK 1 failed: ${fallback1Result.error}`);
-
-  // FALLBACK 2
+  // FALLBACK 2 (yt-api.p.rapidapi.com) - Most reliable
   const fallback2Result = await downloadViaFallback2(videoId, tempFilePath);
   if (fallback2Result.success) {
     console.log('   ✅ FALLBACK 2 erfolgreich!');
@@ -958,7 +946,15 @@ async function downloadYouTubeWithFallback(
   }
   console.log(`   ⚠️ FALLBACK 3 failed: ${fallback3Result.error}`);
 
-  return { success: false, error: `All 4 APIs failed. Last: ${fallback3Result.error}` };
+  // FALLBACK 1 (async, slower but reliable)
+  const fallback1Result = await downloadViaFallback1(videoId, tempFilePath);
+  if (fallback1Result.success) {
+    console.log('   ✅ FALLBACK 1 erfolgreich!');
+    return fallback1Result;
+  }
+  console.log(`   ⚠️ FALLBACK 1 failed: ${fallback1Result.error}`);
+
+  return { success: false, error: `All 3 Fallback APIs failed. Last: ${fallback1Result.error}` };
 }
 
 /**
