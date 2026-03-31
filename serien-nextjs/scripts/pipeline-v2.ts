@@ -812,10 +812,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         createdAt: now,
         updatedAt: now,
         sourceUrl: source.url,
-        // Store draft reason in metadata if available
-        ...(saveAsDraft && draftReason ? { 
-          metadata: { draftReason, confidence: searchResult?.confidence || 0 } 
-        } : {}),
+        // Draft reason logged in debugLog, not stored in metadata
+        confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
       },
     });
     

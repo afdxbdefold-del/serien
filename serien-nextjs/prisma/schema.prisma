@@ -24,21 +24,6 @@ model ad_slots {
   updatedAt   DateTime
 }
 
-model error_logs {
-  id        String   @id
-  type      String   // '404', '500', etc.
-  path      String
-  referrer  String?
-  userAgent String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-  
-  @@index([type])
-  @@index([createdAt])
-  @@index([path])
-}
-
-
 model analytics_events {
   id          String   @id
   sessionId   String
@@ -265,6 +250,20 @@ model discover_score_dashboards {
   @@index([timestamp])
 }
 
+model error_logs {
+  id        String   @id
+  type      String
+  path      String
+  referrer  String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+  @@index([type])
+}
+
 model follows {
   userId       String
   tmdbSeriesId Int
@@ -312,13 +311,13 @@ model persons {
   name             String
   biography        String?
   profilePath      String?
-  localProfilePath String?
   knownFor         String?
   birthDate        DateTime?
   birthPlace       String?
   popularity       Float?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime
+  localProfilePath String?
   article_persons  article_persons[]
   characters       characters[]
 }
@@ -406,7 +405,6 @@ model series {
   spokenLanguages     String[]
   tagline             String?
   trailers            Json?
-  localTrailerPath    String?             // Lokaler Pfad zum heruntergeladenen Trailer
   type                String?
   voteAverage         Float?
   voteCount           Int?
@@ -421,6 +419,7 @@ model series {
   discoverQA          Json?
   discoverStatus      String?
   backdrops           Json?
+  localTrailerPath    String?
   article_series      article_series[]
   articles            articles[]
   characters          characters[]
@@ -507,6 +506,26 @@ model users {
   notifications       notifications[]
 }
 
+model video_download_queue {
+  id          String    @id
+  articleId   String    @unique
+  seriesName  String
+  youtubeId   String
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  lastError   String?
+  resultPath  String?
+  priority    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  completedAt DateTime?
+
+  @@index([createdAt])
+  @@index([priority])
+  @@index([status])
+}
+
 model youtube_channels {
   id              String           @id
   channelId       String           @unique
@@ -550,26 +569,4 @@ model youtube_videos {
   @@index([channelId])
   @@index([processed])
   @@index([publishedAt])
-}
-
-
-// Video Download Queue - Tracks async trailer downloads
-model video_download_queue {
-  id            String   @id @default(uuid())
-  articleId     String   @unique
-  seriesName    String
-  youtubeId     String
-  status        String   @default("pending") // pending, downloading, completed, failed
-  attempts      Int      @default(0)
-  maxAttempts   Int      @default(3)
-  lastError     String?
-  resultPath    String?  // Storage path after successful download
-  priority      Int      @default(0) // Higher = more important
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  completedAt   DateTime?
-
-  @@index([status])
-  @@index([priority])
-  @@index([createdAt])
 }
