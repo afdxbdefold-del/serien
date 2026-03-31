@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 
 interface AdUnitProps {
@@ -19,9 +19,10 @@ declare global {
 export default function AdUnit({ slot, width, height, className = '' }: AdUnitProps) {
   const [hasConsent, setHasConsent] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
-  const [adLoaded, setAdLoaded] = useState(false);
-  const adRef = useRef<HTMLModElement>(null);
+  const [adKey, setAdKey] = useState(0);
+  const adContainerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const lastPathRef = useRef(pathname);
 
   useEffect(() => {
     // Check if we're in production
@@ -56,35 +57,31 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
     };
   }, []);
 
-  // Re-initialize ad on route change
+  // Force re-render and re-initialize ad on route change
   useEffect(() => {
-    if (hasConsent && isProduction) {
-      // Reset ad state
-      setAdLoaded(false);
-      
-      // Small delay for DOM to be ready
-      const pushTimer = setTimeout(() => {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          // Silently ignore
-        }
-      }, 100);
-      
-      // Check if ad actually rendered after a delay
-      const checkTimer = setTimeout(() => {
-        if (adRef.current) {
-          const adHeight = adRef.current.offsetHeight;
-          setAdLoaded(adHeight > 0);
-        }
-      }, 2000);
-      
-      return () => {
-        clearTimeout(pushTimer);
-        clearTimeout(checkTimer);
-      };
+    if (pathname !== lastPathRef.current) {
+      lastPathRef.current = pathname;
+      // Increment key to force complete re-mount of ad element
+      setAdKey(prev => prev + 1);
     }
-  }, [hasConsent, isProduction, pathname]); // Re-run on pathname change
+  }, [pathname]);
+
+  // Initialize ad when component mounts or key changes
+  useEffect(() => {
+    if (!hasConsent || !isProduction) return;
+
+    // Wait for DOM to be ready
+    const timer = setTimeout(() => {
+      try {
+        // Push new ad request
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.log('Ad push error:', e);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [hasConsent, isProduction, adKey]);
 
   // Don't render anything if no consent
   if (!hasConsent) {
@@ -109,19 +106,11 @@ export default function AdUnit({ slot, width, height, className = '' }: AdUnitPr
 
   return (
     <div 
-      className={`ad-container ${className}`} 
-      style={{ 
-        minHeight: 0, 
-        overflow: 'hidden',
-        // Collapse if ad hasn't loaded after timeout
-        maxHeight: adLoaded ? 'none' : 0,
-        opacity: adLoaded ? 1 : 0,
-        transition: 'opacity 0.3s ease'
-      }}
+      ref={adContainerRef}
+      className={`ad-container flex justify-center ${className}`}
     >
       <ins
-        key={`${slot}-${pathname}`} // Force re-render on navigation
-        ref={adRef}
+        key={`ad-${slot}-${adKey}`}
         className="adsbygoogle"
         style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client="ca-pub-8583619451045805"
