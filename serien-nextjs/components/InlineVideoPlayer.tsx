@@ -90,6 +90,7 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
           loop
           muted
           playsInline
+          controls
           preload="auto"
           poster={heroImageUrl}
           onError={(e) => {
