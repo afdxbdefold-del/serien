@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -21,18 +22,18 @@ interface AdConfig {
 }
 
 /**
- * Renders article content with ads inserted after every 2nd paragraph
- * Ad configuration loaded from database
+ * Renders article content with ads inserted after every 2nd paragraph.
+ * Route-aware: re-injects ads on SPA navigation via usePathname().
  */
 export default function ContentWithAds({ 
   html, 
   className = ''
 }: ContentWithAdsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const adsInitialized = useRef(false);
   const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
+  const pathname = usePathname();
 
-  // Fetch ad config on mount
+  // Fetch ad config once
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -48,19 +49,22 @@ export default function ContentWithAds({
         console.error('Failed to load in-content ad config:', error);
       }
     };
-    
     loadConfig();
   }, []);
 
+  // Inject ads whenever html changes OR pathname changes (SPA navigation)
   useEffect(() => {
-    if (!containerRef.current || adsInitialized.current || !adConfig) return;
-    adsInitialized.current = true;
+    if (!containerRef.current || !adConfig) return;
 
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
 
-    // Find all paragraphs
+    // Remove previously injected ads first
+    const oldAds = containerRef.current.querySelectorAll('.content-ad-unit');
+    oldAds.forEach(el => el.remove());
+
+    // Find all paragraphs and insert ads
     const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
@@ -69,15 +73,7 @@ export default function ContentWithAds({
     paragraphs.forEach((el) => {
       paragraphCount++;
 
-      // Insert ad after every 2nd paragraph
       if (paragraphCount % 2 === 0 && adsInserted < maxAds) {
-        // Check if ad already exists after this element
-        const nextEl = el.nextElementSibling;
-        if (nextEl && nextEl.classList.contains('content-ad-unit')) {
-          return;
-        }
-
-        // Create ad container
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit my-6 not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
@@ -89,19 +85,17 @@ export default function ContentWithAds({
                data-ad-slot="${adConfig.adSlot}"></ins>
         `;
 
-        // Insert after paragraph
         el.after(adContainer);
         adsInserted++;
 
-        // Push ad immediately
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
         } catch (e) {
-          console.error('Ad error:', e);
+          // AdSense push error
         }
       }
     });
-  }, [html, adConfig]);
+  }, [html, adConfig, pathname]);
 
   return (
     <div 

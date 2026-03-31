@@ -17,7 +17,7 @@ import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
-import { AdSlot } from '@/components/AdSlot';
+import ClientAdSlot from '@/components/ClientAdSlot';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
@@ -25,10 +25,6 @@ const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer')
   loading: () => (
     <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-900 animate-pulse" />
   ),
-});
-
-const AdUnit = dynamic(() => import('@/components/AdUnit'), {
-  loading: () => null,
 });
 
 // Helper to safely convert Date or ISO string to Date object
@@ -420,7 +416,7 @@ export default async function ArticlePage({ params }: PageProps) {
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
           {/* Ad Unit - Above Intro */}
-          <AdSlot position="above_intro" className="mb-6" />
+          <ClientAdSlot position="above_intro" className="mb-6" />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
@@ -430,7 +426,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Intro */}
-          <AdSlot position="below_intro" className="mb-8" />
+          <ClientAdSlot position="below_intro" className="mb-8" />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
@@ -481,7 +477,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Author */}
-          <AdSlot position="below_author" className="my-8" />
+          <ClientAdSlot position="below_author" className="my-8" />
 
           {/* Series Infobox */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -493,7 +489,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Below Series Info */}
-          <AdSlot position="below_series_info" className="my-8" />
+          <ClientAdSlot position="below_series_info" className="my-8" />
 
           {/* Where to Stream Box */}
           {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
@@ -506,7 +502,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Above Similar News */}
-          <AdSlot position="above_similar_news" className="my-8" />
+          <ClientAdSlot position="above_similar_news" className="my-8" />
 
           {/* Related News */}
           {relatedNews.length > 0 && (
@@ -533,7 +529,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Ad Unit - Above Footer */}
-          <AdSlot position="above_footer" className="my-8" />
+          <ClientAdSlot position="above_footer" className="my-8" />
         </div>
       </article>
     </div>

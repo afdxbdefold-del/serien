@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 declare global {
   interface Window {
@@ -17,10 +18,41 @@ interface AdConfig {
   desktopOnly: boolean;
 }
 
+function MobileAdInner({ config }: { config: AdConfig }) {
+  const adRef = useRef<HTMLModElement>(null);
+
+  useEffect(() => {
+    if (!adRef.current) return;
+
+    const isProd = window.location.hostname !== 'localhost' &&
+                   !window.location.hostname.includes('preview');
+    if (!isProd) return;
+
+    const timer = setTimeout(() => {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        // ignore
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <ins
+      ref={adRef}
+      className="adsbygoogle"
+      style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
+      data-ad-client={config.adClient}
+      data-ad-slot={config.adSlot}
+    />
+  );
+}
+
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
-  const adRef = useRef<HTMLModElement>(null);
-  const isInitialized = useRef(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -39,34 +71,11 @@ export default function MobileTopAd() {
     loadConfig();
   }, []);
 
-  useEffect(() => {
-    if (isInitialized.current || !config) return;
-    
-    const isProd = typeof window !== 'undefined' && 
-                   window.location.hostname !== 'localhost' && 
-                   !window.location.hostname.includes('preview');
-    
-    if (isProd && adRef.current) {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        isInitialized.current = true;
-      } catch (e) {
-        // Ignore
-      }
-    }
-  }, [config]);
-
   if (!config) return null;
 
   return (
-    <div className="lg:hidden flex justify-center">
-      <ins
-        ref={adRef}
-        className="adsbygoogle"
-        style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
-        data-ad-client={config.adClient}
-        data-ad-slot={config.adSlot}
-      />
+    <div className="lg:hidden flex justify-center" data-testid="mobile-top-ad">
+      <MobileAdInner key={`mobile-top-${pathname}`} config={config} />
     </div>
   );
 }
