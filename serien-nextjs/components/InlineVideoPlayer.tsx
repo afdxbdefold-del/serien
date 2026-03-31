@@ -53,23 +53,23 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   // R2 Base URL for self-hosted videos
   const R2_BASE_URL = 'https://pub-123f15a3ef8046ef838c6f186d87bffe.r2.dev';
 
-  // Check if it's an MP4 file (R2 video - either full URL or relative path)
+  // Check if it's an MP4 file (R2 video)
   const isMP4 = !isYouTube && (trailerUrl.endsWith('.mp4') || trailerUrl.includes('/trailers/'));
   
-  // Build video URL for non-YouTube videos
-  // Full R2 URLs use directly, relative paths go through /api/trailer/ proxy (Emergent Storage)
+  // Build video URL - only R2 supported
   let videoUrl = '';
-  if (!isYouTube) {
+  if (!isYouTube && isMP4) {
     if (trailerUrl.startsWith('http')) {
-      // Full URL (R2 or other) - use directly
+      // Full R2 URL - use directly
       videoUrl = trailerUrl;
     } else {
-      // Relative path (Emergent Storage) - use API proxy
-      videoUrl = `/api/trailer/${trailerUrl}?v=3`;
+      // Relative path - convert to R2 URL
+      const fileName = trailerUrl.split('/').pop();
+      videoUrl = `${R2_BASE_URL}/trailers/${fileName}`;
     }
   }
 
-  // Check if it's an R2/self-hosted video (MP4 file)
+  // Check if it's an R2 video
   const isR2Video = isMP4;
 
   const handleUnmute = () => {
