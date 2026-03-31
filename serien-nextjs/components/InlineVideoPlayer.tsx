@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Play } from 'lucide-react';
+import { Play, Volume2 } from 'lucide-react';
 
 interface InlineVideoPlayerProps {
   heroImageUrl: string;
@@ -28,6 +28,7 @@ function getYouTubeVideoId(url: string): string | null {
 export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Handle autoplay when video starts playing
@@ -38,6 +39,13 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
       });
     }
   }, [isPlaying]);
+
+  const handleUnmute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+    }
+  };
 
   // No trailer - just show image
   if (!trailerUrl) {
@@ -110,22 +118,35 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               allowFullScreen
             />
           ) : (
-            /* Video Player for R2/storage videos */
-            <video
-              ref={videoRef}
-              className="w-full h-full"
-              controls
-              playsInline
-              autoPlay
-              muted
-              preload="auto"
-              onError={(e) => {
-                console.error('Video error:', e);
-                setTimeout(() => setHasError(true), 2000);
-              }}
-            >
-              <source src={videoUrl} type="video/mp4" />
-            </video>
+            <>
+              {/* Video Player for R2/storage videos */}
+              <video
+                ref={videoRef}
+                className="w-full h-full"
+                controls
+                playsInline
+                autoPlay
+                muted
+                preload="auto"
+                onError={(e) => {
+                  console.error('Video error:', e);
+                  setTimeout(() => setHasError(true), 2000);
+                }}
+              >
+                <source src={videoUrl} type="video/mp4" />
+              </video>
+              
+              {/* Ton aktivieren Button */}
+              {isMuted && (
+                <button
+                  onClick={handleUnmute}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"
+                >
+                  <Volume2 className="w-5 h-5" />
+                  Ton aktivieren
+                </button>
+              )}
+            </>
           )}
         </>
       )}

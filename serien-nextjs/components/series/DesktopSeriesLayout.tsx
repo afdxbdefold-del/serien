@@ -1,6 +1,3 @@
-'use client';
-
-import { useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Tv } from 'lucide-react';
@@ -13,6 +10,7 @@ import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
+import R2VideoPlayer from '@/components/R2VideoPlayer';
 
 interface DesktopSeriesLayoutProps {
   series: any;
@@ -43,16 +41,6 @@ export default function DesktopSeriesLayout({
 }: DesktopSeriesLayoutProps) {
   // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Autoplay video when component mounts
-  useEffect(() => {
-    if (localTrailerUrl && videoRef.current) {
-      videoRef.current.play().catch(err => {
-        console.log('Autoplay blocked:', err);
-      });
-    }
-  }, [localTrailerUrl]);
   
   return (
     <section className="hidden lg:block" aria-labelledby="series-desktop">
@@ -61,19 +49,10 @@ export default function DesktopSeriesLayout({
       {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
       <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
         {localTrailerUrl ? (
-          // R2-hosted video (self-hosted, optimized for streaming)
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
-            controls
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
+          <R2VideoPlayer
+            src={localTrailerUrl}
             poster={series.backdropPath ? `https://image.tmdb.org/t/p/w780${series.backdropPath}` : undefined}
-          >
-            <source src={localTrailerUrl} type="video/mp4" />
-          </video>
+          />
         ) : trailerKey ? (
           <iframe
             src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&autoplay=0`}
