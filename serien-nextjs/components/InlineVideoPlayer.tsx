@@ -6,8 +6,9 @@ import { Play } from 'lucide-react';
 
 interface InlineVideoPlayerProps {
   heroImageUrl: string;
-  trailerUrl: string | null;
+  trailerUrl?: string | null;
   title: string;
+  fullWidth?: boolean;
 }
 
 // Extract YouTube video ID from various URL formats
@@ -24,7 +25,7 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: InlineVideoPlayerProps) {
+export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth }: InlineVideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -101,26 +102,24 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title }: I
               allowFullScreen
             />
           ) : (
-            /* Video Player for local/storage videos */
+            /* Video Player for R2/storage videos - optimized for streaming */
             <video
               className="w-full h-full"
               controls
               playsInline
-              muted
-              autoPlay
               preload="auto"
-              src={videoUrl}
+              autoPlay
               onError={(e) => {
                 console.error('❌ Video error:', e);
                 const video = e.currentTarget;
                 console.error('Error code:', video.error?.code);
                 console.error('Error message:', video.error?.message);
                 console.error('Video URL:', videoUrl);
-                // Wait a bit before showing error to allow retries
                 setTimeout(() => setHasError(true), 2000);
               }}
               onLoadedData={() => console.log('✅ Video loaded')}
             >
+              <source src={videoUrl} type="video/mp4" />
               Dein Browser unterstützt HTML5 Video nicht.
             </video>
           )}

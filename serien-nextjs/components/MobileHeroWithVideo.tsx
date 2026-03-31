@@ -9,6 +9,7 @@ interface MobileHeroWithVideoProps {
   posterPath: string | null;
   seriesName: string;
   trailerKey: string | null;
+  localTrailerUrl?: string | null;
 }
 
 export default function MobileHeroWithVideo({
@@ -16,8 +17,28 @@ export default function MobileHeroWithVideo({
   posterPath,
   seriesName,
   trailerKey,
+  localTrailerUrl,
 }: MobileHeroWithVideoProps) {
-  // Wenn Trailer vorhanden, direkt anzeigen (nicht erst nach Klick)
+  // Prioritize R2-hosted local trailer over YouTube embed
+  if (localTrailerUrl) {
+    return (
+      <div className="relative w-full aspect-video bg-gray-900">
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          controls
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          poster={backdropPath ? `https://image.tmdb.org/t/p/w1280${backdropPath}` : undefined}
+        >
+          <source src={localTrailerUrl} type="video/mp4" />
+        </video>
+      </div>
+    );
+  }
+
+  // Fallback: YouTube embed if no local trailer
   if (trailerKey) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
