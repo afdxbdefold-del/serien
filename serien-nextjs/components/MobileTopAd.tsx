@@ -20,12 +20,11 @@ interface AdConfig {
 
 /**
  * Mobile Top Banner Ad - Lädt Konfiguration aus DB
- * Hidden when no ad is displayed or not configured
+ * Google CMP handles consent automatically
  */
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isProduction, setIsProduction] = useState(false);
-  const [hasConsent, setHasConsent] = useState(false);
   const [hideAd, setHideAd] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -34,21 +33,6 @@ export default function MobileTopAd() {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     setIsProduction(isProd);
-
-    // Check consent
-    const consent = localStorage.getItem('ads-consent');
-    if (consent === 'true') {
-      setHasConsent(true);
-    }
-
-    // Listen for consent changes
-    const interval = setInterval(() => {
-      const newConsent = localStorage.getItem('ads-consent');
-      if (newConsent === 'true') {
-        setHasConsent(true);
-        clearInterval(interval);
-      }
-    }, 1000);
 
     // Fetch ad config
     const loadConfig = async () => {
@@ -67,27 +51,22 @@ export default function MobileTopAd() {
     };
     
     loadConfig();
-
-    return () => clearInterval(interval);
   }, []);
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !isProduction || !hasConsent) return;
+    if (!config || !isProduction) return;
     
-    // Reset hide state on navigation
     setHideAd(false);
     
-    // Small delay to ensure DOM is ready after navigation
     const timer = setTimeout(() => {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
       } catch (e) {
-        // Silently ignore - ad might already be pushed
+        // Silently ignore
       }
     }, 100);
     
-    // Check if ad was filled after 4 seconds
     const checkTimer = setTimeout(() => {
       if (containerRef.current) {
         const ins = containerRef.current.querySelector('ins.adsbygoogle');
@@ -104,9 +83,9 @@ export default function MobileTopAd() {
       clearTimeout(timer);
       clearTimeout(checkTimer);
     };
-  }, [config, isProduction, hasConsent, pathname]);
+  }, [config, isProduction, pathname]);
 
-  if (!hasConsent || !isProduction || hideAd || !config) {
+  if (!isProduction || hideAd || !config) {
     return null;
   }
 

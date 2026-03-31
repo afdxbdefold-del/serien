@@ -67,24 +67,9 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
   const adRef = useRef<HTMLModElement>(null);
   const [config, setConfig] = useState<AdConfig | null>(null);
   const [isVisible, setIsVisible] = useState(true);
-  const [hasConsent, setHasConsent] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    // Check consent
-    const consent = localStorage.getItem('ads-consent');
-    if (consent === 'true') {
-      setHasConsent(true);
-    }
-
-    const interval = setInterval(() => {
-      const newConsent = localStorage.getItem('ads-consent');
-      if (newConsent === 'true') {
-        setHasConsent(true);
-        clearInterval(interval);
-      }
-    }, 1000);
-
     const loadConfig = async () => {
       const slots = await getAdSlots();
       const slotConfig = slots[position];
@@ -109,19 +94,16 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
     };
     
     loadConfig();
-
-    return () => clearInterval(interval);
   }, [position]);
 
   // Re-initialize ad on route change
   useEffect(() => {
-    if (!config || !adRef.current || !hasConsent) return;
+    if (!config || !adRef.current) return;
     
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
     
     if (isProd) {
-      // Small delay for DOM to be ready
       const timer = setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -132,9 +114,9 @@ export default function DynamicAd({ position, className = '' }: DynamicAdProps) 
       
       return () => clearTimeout(timer);
     }
-  }, [config, hasConsent, pathname]);
+  }, [config, pathname]);
 
-  if (!hasConsent || !isVisible || !config) {
+  if (!isVisible || !config) {
     return null;
   }
 

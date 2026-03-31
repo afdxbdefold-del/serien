@@ -90,13 +90,6 @@ export async function AdSlot({ position, className = '' }: AdSlotProps) {
               var ad = document.getElementById('${adId}');
               if (!ad) return;
               
-              // Check consent first
-              var consent = localStorage.getItem('ads-consent');
-              if (consent !== 'true') {
-                ad.parentElement.style.display = 'none';
-                return;
-              }
-              
               // Check device restrictions
               var isMobile = window.innerWidth < 1024;
               var container = ad.parentElement;
@@ -110,7 +103,7 @@ export async function AdSlot({ position, className = '' }: AdSlotProps) {
                 return;
               }
               
-              // Push ad immediately
+              // Push ad immediately - Google CMP handles consent
               try {
                 (window.adsbygoogle = window.adsbygoogle || []).push({});
               } catch(e) {

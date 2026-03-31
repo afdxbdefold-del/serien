@@ -1,41 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 /**
  * Sticky Bottom Ad
- * Fixed at the bottom of the viewport
+ * Google CMP handles consent automatically
  */
 export default function StickyBottomAd() {
   const pathname = usePathname();
-  const [hasConsent, setHasConsent] = useState(false);
-  const [isProduction, setIsProduction] = useState(false);
 
   useEffect(() => {
     const isProd = window.location.hostname !== 'localhost' && 
                    !window.location.hostname.includes('preview');
-    setIsProduction(isProd);
-
-    // Check consent
-    const consent = localStorage.getItem('ads-consent');
-    if (consent === 'true') {
-      setHasConsent(true);
-    }
-
-    const interval = setInterval(() => {
-      const newConsent = localStorage.getItem('ads-consent');
-      if (newConsent === 'true') {
-        setHasConsent(true);
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (isProduction && hasConsent) {
+    
+    if (isProd) {
       const timer = setTimeout(() => {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -46,11 +25,7 @@ export default function StickyBottomAd() {
       
       return () => clearTimeout(timer);
     }
-  }, [pathname, isProduction, hasConsent]);
-
-  if (!hasConsent || !isProduction) {
-    return null;
-  }
+  }, [pathname]);
 
   return (
     <div 
