@@ -1420,6 +1420,11 @@ export async function downloadVideoTrailer(
     const videoBuffer = await fs.readFile(tempFilePath);
     console.log(`📦 File size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
+    // Reject files smaller than 500KB — these are incomplete downloads
+    if (videoBuffer.length < 500_000) {
+      throw new Error(`Downloaded file too small (${(videoBuffer.length / 1024).toFixed(0)}KB) — likely incomplete download`);
+    }
+
     // Upload to Cloudflare R2
     const r2Key = `trailers/${safeFilename}-${videoId.replace(/[^a-z0-9]/g, '-')}.mp4`;
     console.log(`☁️  Uploading to R2: ${r2Key}`);
