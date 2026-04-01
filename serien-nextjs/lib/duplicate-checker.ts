@@ -102,44 +102,14 @@ export async function checkForDuplicate(
     .map((a, i) => `${i + 1}. "${a.title}"${a.excerpt ? `\n   Zusammenfassung: ${a.excerpt.substring(0, 150)}...` : ''}`)
     .join('\n');
 
-  const prompt = `Du bist ein Serien-News-Editor. Prüfe ob ein neuer Artikel ein DUPLIKAT eines existierenden ist.
+  const prompt = `Prüfe ob ein neuer Artikel ein Duplikat ist. Verschiedene Themen zur gleichen Serie = KEIN Duplikat. Nur identisches Kern-Ereignis = Duplikat.
 
-WICHTIG: 
-- Verschiedene THEMEN zur GLEICHEN SERIE sind KEIN Duplikat!
-- Nur wenn das KERN-EREIGNIS identisch ist, ist es ein Duplikat.
-- Follow-up Stories (z.B. "Reaktionen auf X" nach "X passiert") sind KEINE Duplikate.
+Serie: ${seriesName}
+Neuer Artikel: "${newTitle}" – ${newSummary.substring(0, 300)}
+Existierende (letzte 7 Tage): ${existingList}
 
-THEMEN-KATEGORIEN:
-- CASTING: Neue Schauspieler, Absagen, Rollen-Bestätigungen
-- TRAILER: Trailer-Veröffentlichung, Trailer-Reaktionen, Trailer-Rekorde
-- STAFFEL: Staffel-Ankündigung, Verlängerung, Absetzung, Episodenzahl
-- EPISODE: Episode-Recap, Episode-Analyse, Episode-Bewertung
-- PRODUKTION: Drehstart, Behind-Scenes, Verzögerungen, Regisseur-News
-- STORY: Plot-Details, Theorien, Ending-Erklärungen
-- KRITIK: Reviews, Ratings, Kritiker-Meinungen
-- STREAMING: Plattform-Verfügbarkeit, Release-Termine
-- AWARD: Nominierungen, Preise
-- INTERVIEW: Schauspieler/Creator Interviews
-- SONSTIGES: Alles andere
-
-SERIE: ${seriesName}
-
-NEUER ARTIKEL:
-Titel: "${newTitle}"
-Zusammenfassung: ${newSummary.substring(0, 300)}
-
-EXISTIERENDE ARTIKEL (letzte 7 Tage):
-${existingList}
-
-Analysiere und antworte NUR mit diesem JSON (keine Erklärung davor/danach):
-{
-  "is_duplicate": true/false,
-  "topic_category": "CASTING|TRAILER|STAFFEL|EPISODE|PRODUKTION|STORY|KRITIK|STREAMING|AWARD|INTERVIEW|SONSTIGES",
-  "core_event": "Kurze Beschreibung des Kern-Ereignisses (max 10 Wörter)",
-  "duplicate_of_index": null oder Nummer des Duplikats (1-${existingArticles.length}),
-  "reason": "Begründung in einem Satz",
-  "confidence": 0.0-1.0
-}`;
+JSON (keine Erklärung):
+{"is_duplicate": true/false, "topic_category": "CASTING|TRAILER|STAFFEL|EPISODE|PRODUKTION|STORY|KRITIK|STREAMING|AWARD|INTERVIEW|SONSTIGES", "core_event": "max 10 Wörter", "duplicate_of_index": null|Nummer, "reason": "1 Satz", "confidence": 0.0-1.0}`;
 
   try {
     const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
@@ -148,7 +118,7 @@ Analysiere und antworte NUR mit diesem JSON (keine Erklärung davor/danach):
     const response = await openai.chat.completions.create({
       model: LLM_CONFIG.model,
       messages: [
-        { role: 'system', content: 'Du bist ein präziser JSON-Generator. Antworte NUR mit validem JSON.' },
+        { role: 'system', content: 'Duplikat-Checker. Nur valides JSON antworten.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.1, // Niedrig für konsistente Ergebnisse

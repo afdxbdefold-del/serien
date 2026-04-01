@@ -34,36 +34,13 @@ interface HeadlineOptimizationResult {
 }
 
 export async function optimizeHeadline(input: HeadlineOptimizationInput): Promise<HeadlineOptimizationResult> {
-  const systemPrompt = `Du bist ein professioneller Redakteur für deutsche Serien-News.
+  const systemPrompt = `Erstelle 5 optimierte Überschriften-Varianten für einen deutschen Serien-News-Artikel.
 
-AUFGABE: Erstelle 5 optimierte Überschriften-Varianten für einen Serien-Artikel.
+Regeln: Max 90 Zeichen, journalistisch, kein Clickbait. Plattform (${input.platform || 'Streaming-Dienst'}) max 1x erwähnen.
 
-REGELN:
-- Plattform (${input.platform || 'Streaming-Dienst'}) MAX 1x erwähnen
-- Keine doppelten Wörter oder Phrasen
-- Kein Werbe-Ton oder Pressemitteilungs-Stil
-- MAX 90 Zeichen
-- Kein Clickbait
-- Keine Füllwörter oder übertriebene Adjektive
-- Natürlich und journalistisch
-- Deutsch (de-DE)
+Bewerte jede Variante (0-10): naturalness, clarity, discoverSuitability (Google Discover).
 
-BEWERTUNG (0-10 Punkte):
-- Naturalness: Wie natürlich klingt die Überschrift?
-- Clarity: Wie klar ist die Aussage?
-- Discover Suitability: Wie gut für Google Discover?
-
-FORMAT:
-Antworte NUR mit einem JSON-Array:
-[
-  {
-    "headline": "Überschrift hier",
-    "naturalness": 8,
-    "clarity": 9,
-    "discoverSuitability": 7
-  },
-  ...
-]`;
+Antwort als JSON-Array: [{"headline": "...", "naturalness": 8, "clarity": 9, "discoverSuitability": 7}, ...]`;
 
   const userPrompt = `ORIGINAL ÜBERSCHRIFT:
 ${input.originalHeadline}

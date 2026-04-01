@@ -262,20 +262,9 @@ function checkRepetitions(paragraphs: string[], seriesName: string, failReasons:
 }
 
 async function checkAiDetection(text: string, headline: string): Promise<{ verdict: 'KI' | 'Redakteur' | 'Unklar'; score: number }> {
-  const systemPrompt = `Du bist ein Experte für KI-generierte Texte.
+  const systemPrompt = `Bewerte ob dieser deutsche TV-News-Artikel von einer KI oder einem Redakteur geschrieben wirkt. KI-Merkmale: generisch, zu glatt, repetitiv, Füllphrasen. Redakteur-Merkmale: variabel, direkt, natürlich, konkret.
 
-AUFGABE: Bewerte, ob dieser deutsche TV-News-Artikel von einer KI oder einem menschlichen Redakteur geschrieben wurde.
-
-KRITERIEN:
-- KI: Generisch, zu perfekt, repetitiv, emotionslos, Füllwörter
-- Redakteur: Natürlich, variabel, direkt, menschlich
-
-Antworte NUR mit JSON:
-{
-  "verdict": "KI" | "Redakteur" | "Unklar",
-  "confidence": 0.0-1.0,
-  "reason": "Kurze Begründung"
-}`;
+Antwort als JSON: {"verdict": "KI" | "Redakteur" | "Unklar", "confidence": 0.0-1.0, "reason": "Kurze Begründung"}`;
 
   const userPrompt = `HEADLINE: ${headline || ''}
 

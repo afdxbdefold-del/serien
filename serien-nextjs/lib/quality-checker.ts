@@ -172,34 +172,13 @@ async function getAIQualityScores(
   input: QualityCheckInput,
   plainText: string
 ): Promise<QualityScores> {
-  const systemPrompt = `Du bist ein Qualitätsprüfer für deutsche TV-News-Artikel im Stil von serienjunkies.de.
+  const systemPrompt = `Qualitätsprüfer für serienjunkies.de-Artikel. Bewerte auf 3 Dimensionen (0-100):
 
-AUFGABE: Bewerte den Artikel auf 3 Dimensionen (0-100 Punkte):
+1. headline: Max 70 Zeichen, klar, informativ, Serienname enthalten, kein Clickbait.
+2. content: Faktisch, neutral, professionell, keine Marketing-Sprache.
+3. structure: Lead max 2 Sätze, Absätze max 3 Sätze, min 3 Absätze.
 
-1. HEADLINE (0-100):
-   - Max 70 Zeichen?
-   - Klar und informativ?
-   - Serienname enthalten?
-   - Kein Clickbait?
-   
-2. CONTENT (0-100):
-   - Faktisch und neutral?
-   - Keine Marketing-Sprache?
-   - Keine Leser-Ansprache?
-   - Professionell geschrieben?
-   
-3. STRUCTURE (0-100):
-   - Lead max 2 Sätze?
-   - Absätze max 3 Sätze?
-   - Gute Lesbarkeit?
-   - Min 3 Absätze?
-
-Antworte NUR mit JSON:
-{
-  "headline": 85,
-  "content": 90,
-  "structure": 80
-}`;
+Antwort als JSON: {"headline": 85, "content": 90, "structure": 80}`;
 
   const userPrompt = `HEADLINE:
 ${input.finalHeadline}

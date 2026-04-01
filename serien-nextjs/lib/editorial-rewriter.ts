@@ -55,42 +55,14 @@ export async function editorialRewrite(input: EditorialRewriteInput): Promise<Ed
 }
 
 async function generateHeadlineVariants(input: EditorialRewriteInput): Promise<string[]> {
-  const systemPrompt = `Du bist ein Headline-Editor für serienjunkies.de.
+  const systemPrompt = `Headline-Editor für serienjunkies.de. Generiere 5 verschiedene Headlines.
 
-AUFGABE: Generiere 5 verschiedene Headlines im Stil von serienjunkies.de.
+Format: "[Serienname]: [Konkretes Ereignis]"
+Max 70 Zeichen, sachlich, präzise. Kein Clickbait, keine Fragen, keine Ausrufezeichen.
 
-HEADLINE-REGELN:
-- Präzise, nicht emotional
-- Serienname + konkretes Ereignis
-- Max. 70 Zeichen
-- Sachlich, nüchtern, journalistisch
-- KEIN Clickbait, keine Fragen
+Verboten: ${FORBIDDEN_HEADLINE_PHRASES.join(', ')}
 
-STRUKTUR:
-"[Serienname]: [Konkretes Ereignis]"
-
-Beispiele:
-✅ "Fallout: Staffel 2 startet Dreharbeiten 2026"
-✅ "Stranger Things endet mit Staffel 5"
-❌ "Fallout Staffel 2: Das musst du wissen!"
-❌ "Wird Stranger Things verlängert?"
-
-ABSOLUT VERBOTEN:
-- ${FORBIDDEN_HEADLINE_PHRASES.join('\n- ')}
-- Fragezeichen
-- Ausrufezeichen
-- "offiziell bestätigt"
-
-Antworte NUR mit JSON:
-{
-  "headlines": [
-    "Headline 1",
-    "Headline 2",
-    "Headline 3",
-    "Headline 4",
-    "Headline 5"
-  ]
-}`;
+Antwort als JSON: {"headlines": ["H1", "H2", "H3", "H4", "H5"]}`;
 
   const userPrompt = `FAKTEN:
 ${input.extractedFacts}
@@ -195,42 +167,13 @@ async function rewriteFirstTwoParagraphs(
     return input.generatedArticleHtml;
   }
   
-  const systemPrompt = `Du bist ein Editor für serienjunkies.de.
+  const systemPrompt = `Editor für serienjunkies.de. Schreibe die ersten 2 Absätze neu.
 
-AUFGABE: Schreibe die ersten 2 Absätze im exakten Stil von serienjunkies.de neu.
+Lead (Absatz 1): Was ist passiert? Welche Serie? Welcher Sender? Genau 2 Sätze.
+Absatz 2: Kontext, Staffelstatus, Einordnung. 2-4 Sätze, max 60 Wörter.
 
-SCHREIBREGELN:
-- Sachlich, nüchtern, journalistisch
-- Keine Emojis, kein Marketing-Ton
-- Kurze, klare Sätze (max. 22 Wörter)
-- Fakten zuerst, Einordnung danach
-
-LEAD (Absatz 1):
-- Was ist passiert?
-- Welche Serie?
-- Bei welchem Sender/Streamer?
-- GENAU 2 Sätze, nicht mehr!
-- Präzise, bestätigt
-
-ABSATZ 2:
-- Kontext (Staffelstatus, Produktion, Einordnung)
-- 2-4 Sätze, max 60 Wörter
-
-ABSOLUT VERBOTEN:
-- "Fans dürfen sich freuen"
-- "Wie jetzt bekannt wurde"
-- Leser-Ansprache (du, wir, ihr)
-- Spekulation ohne Kennzeichnung
-- Hohlphrasen
-
-WICHTIG:
-- KEINE neuen Fakten hinzufügen
-- Nur gegebene Fakten verwenden
-- NUR <p> Tags
-
-Antworte NUR mit HTML (2 Paragraphs):
-<p>Lead...</p>
-<p>Absatz 2...</p>`;
+Sachlich, nüchtern. Keine neuen Fakten hinzufügen. Nur <p>-Tags.
+Antwort: <p>Lead...</p><p>Absatz 2...</p>`;
 
   const firstTwoParagraphs = paragraphs.slice(0, 2).join('\n');
   

@@ -10,226 +10,53 @@ import { LLM_CONFIG } from './llm-config';
 
 
 // EMERGENT_RULESET_UPDATE: RANKING_LIST Prompt
-const CONTENT_GENERATION_PROMPT_RANKING = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
+const CONTENT_GENERATION_PROMPT_RANKING = `Rolle: Redakteur bei serienjunkies.de.
 
-AUFGABE: Erstelle einen deutschen Ranking-Artikel über die besten Episoden einer TV-Serie.
+Schreibe einen Ranking-Artikel (800-1800 Wörter) über die besten Episoden einer TV-Serie.
 
-ZIEL-LÄNGE: 800-1800 Wörter (abhängig von Anzahl der Items)
+Aufbau:
+- Einleitung (80-120 Wörter): Serie, Plattform, kulturelle Bedeutung, was diese Auswahl besonders macht.
+- Pro Episode: **[Platz]. [Titel]** → Kontext (1 Satz), Highlight (2-3 Sätze mit Plot-Details), Begründung (1-2 Sätze). 80-150 Wörter pro Item.
 
-STRUKTUR:
+Ton: Sachlich-enthusiastisch, faktenbasiert, keine Superlative. Jedes Item einzeln ausformulieren, keine Meta-Zusammenfassungen.
 
-EINLEITUNG (80-120 Wörter):
-- Nenne die Serie und Plattform
-- Kurzer Kontext zur Serie (Laufzeit, Staffeln, kulturelle Bedeutung)
-- Was macht diese Auswahl besonders
-- 2-3 Absätze
+Reiner Text, Absätze durch Leerzeilen getrennt.`;
 
-RANKING-LISTE:
-Für JEDES der Top-Episoden/Items:
+const CONTENT_GENERATION_PROMPT_NEWS = `Rolle: Redakteur bei serienjunkies.de. Sachlich, nüchtern, journalistisch.
 
-**[Platzierung]. [Episode-Titel oder Nummer]**
-- KONTEXT: In welcher Staffel, welcher Handlungsbogen? (1 Satz)
-- HIGHLIGHT: Was passiert in dieser Episode? (2-3 Sätze mit konkreten Details)
-- WARUM TOP: Warum gehört sie zu den Besten? (1-2 Sätze)
+Schreibe einen News-Artikel mit mindestens 4 Absätzen (2-4 Sätze, max 22 Wörter/Satz):
 
-Länge pro Item: 80-150 Wörter
+1. Lead: Was ist passiert? Welche Serie? Welcher Sender/Streamer?
+2. Kontext: Staffelstatus, Produktion, Einordnung.
+3. Details: Produktion, Besetzung, konkrete Informationen.
+4. Weiteres: Zusätzliche Infos, keine Wiederholung des Leads.
 
-WICHTIGE REGELN:
-- KEINE Meta-Zusammenfassung ("Die folgenden Episoden...")
-- JEDES Item einzeln ausformulieren
-- Konkrete Plot-Details verwenden
-- Keine Platzhalter oder generische Beschreibungen
-- Absätze klar trennen
+Fakten zuerst, dann Einordnung. Keine Leser-Ansprache, keine Hype-Phrasen, keine Markdown-Formatierung. Reiner Text, Absätze durch Leerzeilen getrennt.`;
 
-TONALITÄT:
-- Sachlich, aber enthusiastisch
-- Faktenbasiert
-- Keine Übertreibungen
-- Glaubwürdig
+const CONTENT_GENERATION_PROMPT_FULL = `Rolle: Redakteur bei serienjunkies.de.
 
-ABSOLUT VERBOTEN:
-- "Fans werden begeistert sein"
-- "Eine der besten Serien aller Zeiten"
-- Leere Superlative
-- KI-Phrasen
+Schreibe einen vollständigen, originalen deutschen Artikel (450-900 Wörter, mindestens 5 Absätze).
 
-Schreibe jetzt den vollständigen Ranking-Artikel (reiner Text, Absätze durch Leerzeilen getrennt).`;
+Rechtlich: Quelltext NIEMALS wortwörtlich oder Satz-für-Satz übernehmen. Komplett neu formulieren, max 1-2 kurze Zitate.
 
-const CONTENT_GENERATION_PROMPT_NEWS = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
+Aufbau (je 2-4 Sätze, max 90 Wörter/Absatz):
+1. Lead: Was ist passiert? Serie + Plattform. Klar und direkt.
+2. Kontext: Staffelstatus, Timeline, Einordnung.
+3. Details: Was ist bekannt? Was ist unbestätigt?
+4. Weiterer Kontext: Cast, Produktion, verwandte Entwicklungen.
+5. Ausblick: Was kommt als nächstes? Keine Spekulationen.
 
-SCHREIBREGELN:
-- Sachlich, nüchtern, journalistisch
-- Keine Emojis, kein Marketing-Ton
-- Keine Clickbait-Fragen
-- Kurze, klare Sätze (max. 22 Wörter pro Satz)
-- Absätze mit 2–4 Sätzen
-- Fakten zuerst, Einordnung danach
+Ton: Neutral, sachlich, journalistisch. Keine Leser-Ansprache, keine Hype-Sprache.`;
 
-STRUKTUR:
+const CONTENT_GENERATION_PROMPT_EDITORIAL = `Rolle: Redakteur bei serienjunkies.de.
 
-Schreibe mindestens 4 Absätze!
+Schreibe einen Editorial/Listicle-Artikel mit mindestens 5-7 Absätzen (2-4 Sätze, max 22 Wörter/Satz):
 
-LEAD (Absatz 1):
-- Was ist passiert?
-- Welche Serie?
-- Bei welchem Sender/Streamer?
-- Bestätigt, nicht spekulativ
-- 2-3 Sätze
+1. Lead: Thema, welche Serien, kurzer Überblick.
+2-6. Pro Serie ein Absatz: Name, Sender/Streamer, Genre, Besonderheiten. Faktenbasiert.
+7. Fazit oder Ausblick, keine Wiederholung des Leads.
 
-ABSATZ 2:
-- Kontext (z. B. Staffelstatus, Produktion, Einordnung)
-- 2-4 Sätze
-
-ABSATZ 3:
-- Weitere Details zur Produktion oder Besetzung
-- 2-4 Sätze
-
-ABSATZ 4+:
-- Zusätzliche Informationen
-- ggf. Vergleich zu früheren Staffeln
-- KEINE Wiederholung des Leads
-
-ABSOLUT VERBOTEN:
-- "Fans dürfen sich freuen"
-- "Ein absolutes Highlight"
-- "Endlich ist es soweit"
-- "Die beliebte Serie"
-- "Wie jetzt bekannt wurde"
-- "Sorgt für Aufsehen"
-- Hohlphrasen
-
-TONALITÄT:
-- Neutral
-- Informierend
-- Glaubwürdig
-- Wie ein echter Redakteur, nicht wie KI
-
-WICHTIG:
-- Nutze ALLE relevanten Fakten
-- Erfinde NICHTS
-- Behalte Namen, Daten exakt bei
-- Keine Markdown-Formatierung
-
-Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeilen getrennt).`;
-
-const CONTENT_GENERATION_PROMPT_FULL = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
-
-AUFGABE: Schreibe einen VOLLSTÄNDIGEN, ORIGINALEN deutschen Artikel (450-900 Wörter).
-
-RECHTLICHE/SEO-REGELN:
-- NIEMALS Quell-Text wortwörtlich übernehmen
-- NIEMALS Satz-für-Satz paraphrasieren
-- MAX 1-2 kurze Zitate erlaubt (<= 20 Wörter), nur wenn nötig
-- Schreibe KOMPLETT NEU basierend auf den Fakten
-
-LÄNGE: 450-900 Wörter (mindestens 350 Wörter)
-
-STRUKTUR (mindestens 5 Absätze):
-
-ABSATZ 1 (Lead):
-- Was ist passiert? (Fakten only)
-- Welche Serie + Plattform?
-- 2-3 Sätze, klar und direkt
-
-ABSATZ 2 (Kontext):
-- Wo steht die Serie? (Staffelstatus, Timeline)
-- Einordnung in größeres Bild
-- 2-4 Sätze
-
-ABSATZ 3 (Details):
-- Was ist bekannt?
-- Was ist NICHT bestätigt? (wenn relevant)
-- Konkrete Informationen
-- 3-4 Sätze
-
-ABSATZ 4 (Weiterer Kontext):
-- Cast/Produktion (nur wenn bestätigt)
-- Verwandte Entwicklungen
-- 2-4 Sätze
-
-ABSATZ 5+ (Wrap):
-- Was kommt als nächstes?
-- Wann gibt es Updates?
-- KEINE Spekulationen
-- 2-3 Sätze
-
-ABSATZ-REGELN:
-- 2-4 Sätze pro Absatz
-- Max 90 Wörter pro Absatz
-- Keine Textblöcke
-
-ABSOLUT VERBOTEN:
-- "Fans dürfen sich freuen"
-- "Ein absolutes Highlight"
-- "Endlich ist es soweit"
-- "Die beliebte Serie"
-- "Wie jetzt bekannt wurde"
-- Hype-Sprache
-- Füller-Sätze
-
-STIL:
-- Neutral, sachlich
-- Keine Leser-Ansprache (kein "ihr", "du")
-- Wie ein professioneller TV-Redakteur
-- NICHT wie KI
-
-Schreibe jetzt den VOLLSTÄNDIGEN Artikel (450-900 Wörter, mindestens 5 Absätze).`;
-
-const CONTENT_GENERATION_PROMPT_EDITORIAL = `Du bist ein erfahrener Redakteur im Stil von serienjunkies.de.
-
-SCHREIBREGELN:
-- Sachlich, nüchtern, journalistisch
-- Keine Emojis, kein Marketing-Ton
-- Keine Clickbait-Fragen
-- Kurze, klare Sätze (max. 22 Wörter pro Satz)
-- Absätze mit 2–4 Sätzen
-- Fakten zuerst, Wertungen sparsam
-
-STRUKTUR FÜR EDITORIAL/LISTICLE:
-
-Schreibe mindestens 5-7 Absätze!
-
-LEAD (Absatz 1):
-- Einführung: Was ist das Thema?
-- Welche Serien werden behandelt?
-- Kurzer Überblick (2-3 Sätze)
-
-ABSATZ 2-6 (Pro Serie ein Absatz):
-- Serie 1: Name, Sender/Streamer, Genre, was sie auszeichnet
-- Serie 2: Name, Sender/Streamer, Genre, Besonderheiten
-- Serie 3: Name, Sender/Streamer, Genre, Highlights
-- usw. (ein Absatz pro Serie)
-- Jeder Absatz: 3-4 Sätze
-- Faktenbasiert, keine übertriebenen Lobpreisungen
-
-LETZTER ABSATZ:
-- Kurzes Fazit oder Ausblick
-- KEINE Wiederholung des Leads
-
-ABSOLUT VERBOTEN:
-- "Fans dürfen sich freuen"
-- "Ein absolutes Highlight"
-- "Ein Muss für jeden Fan"
-- "Die beste Serie aller Zeiten"
-- "Endlich ist es soweit"
-- "Wie jetzt bekannt wurde"
-- Übertriebene Superlative
-- Hohlphrasen
-
-TONALITÄT:
-- Neutral bis leicht wertend
-- Informierend
-- Glaubwürdig
-- Wie ein echter Redakteur, nicht wie KI
-
-WICHTIG:
-- Nutze ALLE genannten Serien
-- Gehe auf JEDE Serie einzeln ein
-- Erfinde NICHTS
-- Behalte Namen, Plattformen exakt bei
-- Keine Markdown-Formatierung oder Nummern
-
-Schreibe jetzt den Artikel als reinen Text (ein Absatz pro Zeile, durch Leerzeilen getrennt).`;
+Gehe auf JEDE genannte Serie einzeln ein. Erfinde nichts. Behalte Namen und Plattformen exakt bei. Neutral bis leicht wertend, keine Superlative. Reiner Text, keine Markdown-Formatierung.`;
 
 export async function generateGermanArticle(
   facts: ExtractedFacts,

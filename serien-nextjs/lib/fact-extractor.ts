@@ -17,35 +17,19 @@ export interface ExtractedFacts {
   networks_platforms: string[];
 }
 
-const FACT_EXTRACTION_PROMPT = `You are a precise fact extraction system for TV series news articles.
+const FACT_EXTRACTION_PROMPT = `Extrahiere strukturierte Fakten aus TV-Serien-Artikeln. Bewahre Originalsprache und Schreibweise exakt. Nicht übersetzen, nicht umformulieren.
 
-Your ONLY task is to extract structured facts WITHOUT translating or rewriting.
+Extrahiere: Seriennamen, Staffelnummern, Episodennummern, Personennamen (Schauspieler, Regisseure, Showrunner), zentrale Fakten-Aussagen (Zitate, Ankündigungen), Veröffentlichungstermine, Sender/Plattformen.
 
-RULES:
-1. Extract exactly as written in the source (preserve original language and spelling)
-2. DO NOT translate German to English or vice versa
-3. DO NOT rephrase or rewrite
-4. Extract ALL mentioned:
-   - Series names (exactly as written)
-   - Season numbers (e.g. "Staffel 3", "Season 5")
-   - Episode numbers
-   - People names (actors, directors, showrunners)
-   - Key factual statements (quotes, announcements)
-   - Release dates or timeframes
-   - Networks/platforms mentioned
-
-Return ONLY valid JSON (no markdown):
+Antwort als JSON (kein Markdown):
 {
-  "series_names": ["exact series name 1", "exact series name 2"],
-  "season_numbers": [3, 5],
-  "episode_numbers": [1, 8],
-  "people_names": ["Name 1", "Name 2"],
-  "key_statements": [
-    "exact quote or fact 1",
-    "exact quote or fact 2"
-  ],
-  "release_dates": ["2026", "Frühjahr 2026"],
-  "networks_platforms": ["Netflix", "Disney+"]
+  "series_names": [],
+  "season_numbers": [],
+  "episode_numbers": [],
+  "people_names": [],
+  "key_statements": [],
+  "release_dates": [],
+  "networks_platforms": []
 }`;
 
 export async function extractFacts(

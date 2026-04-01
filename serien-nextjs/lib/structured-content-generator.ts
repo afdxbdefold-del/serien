@@ -102,67 +102,20 @@ function buildPrompt(input: StructuredContentInput): string {
   const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
   const targetSections = Math.max(3, Math.min(sectionsNeeded, 5)); // 3-5 sections
   
-  const basePrompt = `Du bist ein professioneller TV-Serien-Journalist für serien.de.
+  const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
 
-AUFGABE: Schreibe einen strukturierten deutschen Artikel über "${originalHeadline}".
+Serie: ${seriesName}
+Fakten: ${factsText}
+${characterNames ? `Charaktere (MÜSSEN verwendet werden): ${characterNames}` : ''}
 
-SERIE: ${seriesName}
+Struktur:
+1. headline: Max 70 Zeichen, klar, informativ
+2. metaDescription: Max 155 Zeichen, Serie + Hauptfakt
+3. lead: 2-3 Sätze, eigenständig (nicht den ersten Absatz wiederholen)
+4. content: ${targetSections} Sections mit H2 (max 6 Wörter) + je 2-3 Absätze (2-4 Sätze)
+5. qa: 3-5 häufige Fragen mit kurzen Antworten
 
-FAKTEN AUS QUELLE:
-${factsText}
-
-${characterNames ? `\n🎭 CHARAKTERE, DIE DU VERWENDEN MUSST:\n${characterNames}\n` : ''}
-
-STRUKTUR-ANFORDERUNGEN:
-
-1. HEADLINE (max 70 Zeichen)
-   - Klar, informativ, SEO-optimiert
-   - Keine Clickbait
-
-2. META DESCRIPTION (max 155 Zeichen)
-   - Zusammenfassung mit Hook
-   - Enthält Serie + Hauptfakt
-
-3. LEAD (2-3 Sätze, ~50 Wörter)
-   - Beantwortet: Was ist neu? Warum wichtig?
-   - NICHT den ersten Absatz wiederholen
-   - Eigenständig und unique
-
-4. CONTENT (${targetSections} Sections mit H2-Überschriften)
-   
-   Jede Section:
-   - H2-ÜBERSCHRIFT: Max 6 Wörter, prägnant, informativ
-   - 2-3 ABSÄTZE: Je 2-4 Sätze
-   - Fließender Übergang zur nächsten Section
-   
-   🚨 KRITISCH - NAMEN VERWENDEN:
-   ${characterNames ? `- Du MUSST diese Namen verwenden: ${characterNames}` : '- Verwende verfügbare Charakternamen'}
-   - Nenne Namen beim ersten Vorkommen im Text (nicht in Überschriften)
-   - Verwende z.B. "Robby untersucht den Fall" statt "Ein Arzt untersucht"
-   - Vermeide: "das Team", "die Ärzte", "das Personal" → Nutze konkrete Namen!
-   - Nach der ersten Erwähnung: Pronomen OK
-   
-   H2-Beispiele:
-   ✅ "Verlängerung für Staffel 3 bestätigt"
-   ✅ "Dreharbeiten starten im Sommer"
-   ✅ "Neue Charaktere vorgestellt"
-   ❌ "Was bedeutet das für die Fans?" (Frage)
-   ❌ "Die spannende Entwicklung der Serie" (zu lang)
-
-5. Q&A (3-5 Fragen)
-   - Häufige User-Fragen
-   - Kurze, klare Antworten (2-3 Sätze)
-
-STIL:
-- Professionell wie Serienjunkies
-- Faktisch, nicht spekulativ
-- Keine AI-Phrasen ("tauchen ein", "spannende Entwicklung")
-- Deutsche Anführungszeichen: „..." nicht "..."
-- 🎯 KONKRETE NAMEN VERWENDEN, NICHT GENERISCH SCHREIBEN
-
-KRITISCHE REGEL:
-${characterNames ? `Du MUSST mindestens 3 der folgenden Namen im Content verwenden: ${characterNames}` : 'Verwende alle verfügbaren Namen aus den Fakten'}
-Nutze Namen statt "ein Arzt", "das Team", "die Crew"!`;
+Stil: Sachlich, journalistisch. Konkrete Namen statt generische Bezeichnungen ("Robby untersucht" statt "Ein Arzt untersucht"). Deutsche Anführungszeichen: „..."`;
 
   return basePrompt;
 }
@@ -183,7 +136,7 @@ async function callLLMStructured(prompt: string, retries = 2): Promise<any> {
         messages: [
           {
             role: 'system',
-            content: 'Du bist ein Experte für strukturierte, professionelle TV-Serien-Artikel. Du folgst IMMER der vorgegebenen Struktur.',
+            content: 'Strukturierter TV-Artikel-Generator. Folge der vorgegebenen Struktur exakt. Antwort als JSON.',
           },
           {
             role: 'user',

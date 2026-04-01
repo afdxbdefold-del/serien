@@ -10,49 +10,20 @@
 
 import { createLLMClient, LLM_CONFIG } from './llm-config';
 
-const TRANSLATE_ONLY_PROMPT = `Du bist ein präziser Übersetzer für journalistische Headlines.
+const TRANSLATE_ONLY_PROMPT = `Übersetze die englische Headline treu ins Deutsche. Behalte Struktur, Intent und Tonalität exakt bei.
 
-AUFGABE: Übersetze die englische Headline TREU ins Deutsche.
+Regeln:
+- Nur übersetzen, nicht umschreiben oder interpretieren
+- Keine Wörter hinzufügen die nicht im Original stehen (kein "offiziell", "bestätigt", "endlich", "Hit-Serie")
+- Unsicherheit bewahren: "might" → "könnte", nicht "wird"
+- Keine Ausrufezeichen hinzufügen
+- Wortstellung und Artikel für deutsche Grammatik anpassen ist erlaubt
 
-STRIKTE REGELN:
-1. TRANSLATE ONLY - kein Umschreiben
-2. Behalte die EXAKTE Struktur bei
-3. Behalte den EXAKTEN Intent bei
-4. Behalte die EXAKTE Tonalität bei
-5. KEINE Marketing-Sprache hinzufügen
-6. KEINE Plattformen hinzufügen (Netflix, HBO, etc.) wenn nicht im Original
-7. KEINE Zeitform ändern
-8. KEINE Gewissheit ändern (z.B. "might" → "könnte", NICHT "wird")
+Beispiele:
+"Stranger Things Season 5: Everything We Know" → "Stranger Things Staffel 5: Alles was wir wissen"
+"The Witcher Might Get Cancelled" → "The Witcher könnte abgesetzt werden"
 
-VERBOTEN:
-- "offiziell"
-- "bestätigt" (außer im Original)
-- "endlich"
-- "Hit-Serie"
-- "Mega"
-- Ausrufezeichen hinzufügen
-- Hype-Sprache
-
-ERLAUBT:
-- Wortstellung für deutsche Grammatik anpassen
-- Artikel hinzufügen (der/die/das)
-- Natürliche deutsche Formulierung OHNE Bedeutungsänderung
-
-BEISPIELE:
-
-Original: "Stranger Things Season 5: Everything We Know"
-✅ Gut: "Stranger Things Staffel 5: Alles was wir wissen"
-❌ Falsch: "Stranger Things Staffel 5: Netflix bestätigt alle Details"
-
-Original: "The Witcher Might Get Cancelled"
-✅ Gut: "The Witcher könnte abgesetzt werden"
-❌ Falsch: "The Witcher wird abgesetzt"
-
-Original: "House of the Dragon Episode 5 Recap"
-✅ Gut: "House of the Dragon Episode 5 Recap"
-❌ Falsch: "House of the Dragon: HBO zeigt spektakuläre Episode 5"
-
-Übersetze NUR. Kein Kommentar, keine Erklärung.`;
+Antworte NUR mit der übersetzten Headline.`;
 
 export async function translateHeadlineOnly(
   originalEnglishHeadline: string,

@@ -76,36 +76,12 @@ function isEligible(input: WasBedeutetDasInput): boolean {
 }
 
 async function generateViaLLM(input: WasBedeutetDasInput): Promise<string | null> {
-  const systemPrompt = `Du bist ein nüchterner Fakten-Erklärer.
+  const systemPrompt = `Erkläre in 1-2 sachlichen Sätzen die praktische Bedeutung dieser TV-Serien-News.
 
-AUFGABE: Erkläre in 1-2 sachlichen Sätzen, welche praktische Bedeutung diese TV-Serien-News hat.
+Max 35 Wörter, max 2 Sätze. Nüchtern, keine Emotion/Meinung/Spekulation.
+Satz 1: Was ändert sich konkret? Satz 2 (optional): Einschränkung oder Kontext.
 
-REGELN:
-- Max. 2 Sätze
-- Max. 35 Wörter gesamt
-- Sachlich, nüchtern, journalistisch
-- Keine Emotion, kein Hype
-- Keine Meinung, kein Serienlob
-- Keine Zukunftsspekulation
-
-STRUKTUR:
-Satz 1: Konkrete Auswirkung (Was ändert sich?)
-Satz 2 (optional): Einschränkung oder Kontext
-
-BEISPIELE (GUT):
-✔ "Die Serie wird fortgesetzt, ein Starttermin für die neue Staffel steht aber noch nicht fest."
-✔ "Damit ist die Geschichte abgeschlossen. Weitere Folgen sind nicht geplant."
-✔ "Die Produktion geht weiter, konkrete Details zur Handlung gibt es bislang nicht."
-
-VERBOTEN:
-✘ "Fans dürfen sich freuen"
-✘ "Ein großer Erfolg"
-✘ "Das sind tolle Neuigkeiten"
-✘ Ausrufezeichen
-✘ Fragezeichen
-✘ Superlative
-
-Antworte NUR mit dem Text (kein JSON, keine Anführungszeichen).`;
+Nur den Text, kein JSON.`;
 
   const userPrompt = `HEADLINE:
 ${input.headline}

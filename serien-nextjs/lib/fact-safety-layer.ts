@@ -113,30 +113,16 @@ async function detectCriticalFacts(
 ): Promise<CriticalFact[]> {
   const client = createLLMClient();
 
-  const systemPrompt = `Du bist ein Fakten-Checker für TV-Serien-News.
+  const systemPrompt = `Fakten-Checker für TV-Serien-News. Identifiziere ausschließlich KRITISCHE Fakten dieser Typen:
+- SERIES_END: Serienende-Aussagen
+- SEASON_COUNT: Spezifische Staffelanzahlen
+- YEAR_DATE: Jahreszahlen für Ende/Start
+- LAST_SEASON: "letzte Staffel"-Claims
+- CANCELLATION: Absetzungen
+- RENEWAL: Verlängerungen mit Staffelzahlen
 
-AUFGABE: Identifiziere KRITISCHE FAKTEN, die verifiziert werden müssen.
-
-KRITISCHE FAKTEN-TYPEN:
-1. SERIES_END: Aussagen über Serienende (z.B. "endet mit Staffel 3", "letzte Staffel", "finale Season")
-2. SEASON_COUNT: Spezifische Staffelanzahlen (z.B. "insgesamt 5 Staffeln", "nach 3 Seasons")
-3. YEAR_DATE: Jahreszahlen für Ende/Start (z.B. "endet 2027", "letzte Staffel 2026")
-4. LAST_SEASON: Explizite "letzte Staffel" Claims
-5. CANCELLATION: Absetzungen
-6. RENEWAL: Verlängerungen mit spezifischen Staffelzahlen
-
-NUR diese Typen extrahieren. NICHT normale News-Fakten.
-
-Antworte im JSON-Format:
-{
-  "facts": [
-    {
-      "type": "SERIES_END" | "SEASON_COUNT" | "YEAR_DATE" | "LAST_SEASON" | "CANCELLATION" | "RENEWAL",
-      "claim": "genaue Textpassage aus dem Artikel",
-      "confidence": "HIGH" | "MEDIUM" | "LOW"
-    }
-  ]
-}`;
+Keine normalen News-Fakten. Antwort als JSON:
+{"facts": [{"type": "...", "claim": "Textpassage", "confidence": "HIGH|MEDIUM|LOW"}]}`;
 
   const userPrompt = `ARTIKEL:
 ${(articleText || '').substring(0, 1500)}

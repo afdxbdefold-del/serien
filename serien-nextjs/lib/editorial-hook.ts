@@ -35,21 +35,8 @@ export async function generateRelevanceContext(
         messages: [
           {
             role: 'system',
-            content: `Du erstellst eine "Warum relevant"-Box für Serien-Hubs.
+            content: `Erstelle eine "Warum relevant"-Box für Serien-Hubs. 1-2 Sätze, evergreen Tonalität (keine News, kein Marketing, keine Zeitstempel). Fokus: Kulturelle Relevanz, Genre-Einordnung, Markt-Position.
 
-VERBOTEN:
-- Tagesaktuelle News simulieren
-- Event-basierte Hooks
-- Marketing-Phrasen
-- Künstliche Zeitstempel
-
-ERLAUBT:
-- Kulturelle Relevanz erklären
-- Genre-Einordnung
-- Markt-Position
-- Langfristige Bedeutung
-
-Erstelle 1-2 präzise Sätze in evergreen Tonalität.
 Return JSON: {"text":"...","type":"cultural|market|genre|impact"}`
           },
           {

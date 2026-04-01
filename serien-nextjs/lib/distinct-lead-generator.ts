@@ -20,38 +20,21 @@ export async function generateDistinctLead(input: LeadGeneratorInput): Promise<s
   // Extract first paragraph to avoid using it
   const firstParagraph = articleHtml.match(/<p[^>]*>(.*?)<\/p>/)?.[1] || '';
   
-  const prompt = `Du bist ein professioneller Texter für eine TV-Serien-News-Website.
+  const prompt = `Schreibe einen eigenständigen Lead-Absatz (2-3 Sätze) für diesen TV-News-Artikel.
 
-AUFGABE: Schreibe einen EIGENSTÄNDIGEN, UNIQUE Lead-Absatz (2-3 Sätze) für diesen Artikel.
+Headline: "${headline}"
+Serie: ${seriesName || ''}
 
-ARTIKEL-HEADLINE: "${headline}"
-SERIE: ${seriesName || ''}
-
-WICHTIGE FAKTEN:
+Fakten:
 ${(facts || []).slice(0, 5).join('\n')}
 
-ARTIKEL-BEGINN (NICHT VERWENDEN):
+Artikel-Beginn (NICHT wiederholen oder paraphrasieren):
 ${(firstParagraph || '').substring(0, 300)}
 
-KRITISCHE ANFORDERUNGEN:
-1. Der Lead muss KOMPLETT ANDERS sein als der Artikel-Beginn
-2. Beantworte: Was ist NEU? Warum ist es JETZT wichtig? Für wen ist es relevant?
-3. Verwende KEINE generischen Phrasen wie:
-   ❌ "Aktuelle Entwicklungen zu..."
-   ❌ "Neue Informationen zu..."
-   ❌ "offiziell bekannt und verständlich zusammengefasst"
-   ❌ "Aktuelle Entwicklungen zu die Serie"
-4. Jeder Lead muss semantisch UND lexikalisch unterschiedlich sein
-5. Professioneller, journalistischer Ton - wie ein echter Redakteur
-6. NUR der Lead-Text, keine zusätzlichen Erklärungen
+Der Lead muss komplett anders sein als der Artikel-Beginn. Beantworte: Was ist neu? Warum jetzt wichtig?
+Journalistischer Ton, keine generischen Phrasen wie "Aktuelle Entwicklungen zu..." oder "Neue Informationen zu...".
 
-GUTE BEISPIELE (für verschiedene Serien):
-✅ "Netflix bestätigt das Ende einer Ära: Die beliebte Fantasy-Serie erhält keine weitere Staffel. Nach drei erfolgreichen Jahren verkündet der Streaming-Dienst die Einstellung der Produktion."
-✅ "HBO veröffentlicht erste Details zur kommenden Staffel. Die Produktion startet im Frühjahr mit neuen Gesichtern im Cast."
-✅ "Der Streaming-Dienst überrascht Fans mit einer unerwarteten Ankündigung: Die bereits abgesetzte Serie kehrt für ein finales Special zurück."
-
-Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
-
+Nur den Lead-Text, nichts anderes.`;
   try {
     const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
     const openai = createLLMClient();
@@ -61,7 +44,7 @@ Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein Experte für prägnante, eigenständige Lead-Absätze. Du schreibst IMMER anders als der Haupttext.',
+          content: 'Lead-Texter. Eigenständig, prägnant, nie den Haupttext paraphrasieren.',
         },
         {
           role: 'user',

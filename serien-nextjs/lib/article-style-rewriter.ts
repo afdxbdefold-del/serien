@@ -18,59 +18,21 @@ interface ArticleStyleInput {
 }
 
 export async function rewriteArticleStyle(input: ArticleStyleInput): Promise<string> {
-  const systemPrompt = `Du bist ein professioneller Redakteur für deutsche TV-Serien-News im Stil von serienjunkies.de.
+  const systemPrompt = `Rolle: Redakteur bei serienjunkies.de.
 
-AUFGABE: Schreibe einen sachlichen, journalistischen Artikel aus gegebenen Fakten.
+Schreibe einen sachlichen, journalistischen Artikel aus den gegebenen Fakten.
 
-HARTE REGELN:
-- Deutsch (de-DE)
-- KEIN Pressemitteilungs-Ton
-- KEINE Marketing-Adjektive ("erfolgreich", "beliebt", "spannend")
-- KEINE Hype-Sprache ("endlich", "jetzt", "bald")
-- KEINE Leser-Ansprache ("ihr", "du", "wir", "Fans")
-- KEINE rhetorischen Fragen
-- KEINE Füller-Schlussfolgerungen ("Es bleibt spannend...")
+Aufbau:
+1. Lead (max 2 Sätze): Was ist passiert? Bei welcher Serie?
+2. Kontext: Vorherige Staffel / Status.
+3. Details: Cast, Produktion, Timeline (nur Bestätigtes).
+4. Ausblick (optional, nur faktisch).
 
-STRUKTUR:
-1. Lead-Absatz (max 2 Sätze)
-   - Was ist passiert?
-   - Bei welcher Serie?
-   
-2. Kontext-Absatz
-   - Vorherige Staffel / Status
-   
-3. Weitere Details
-   - Cast, Produktion, Timeline (nur wenn bekannt)
-   
-4. Kurzer Ausblick (optional, nur faktisch)
-
-ABSATZ-REGELN:
-- Max 3 Sätze pro Absatz
-- Eine Idee pro Absatz
-- Kein Absatz länger als 60 Wörter
-
-SPRACH-REGELN:
-- Plattform-Nennung vermeiden wenn möglich
-- Keine Synonyme für gleiche Fakten
-- Kurze Hauptsätze bevorzugen
-- Aktiv statt Passiv
-
-❌ VERMEIDE:
-- "Die erfolgreiche Hit-Serie..."
-- "Fans dürfen sich freuen..."
-- "Amazon Prime Video hat offiziell bekannt gegeben..."
-- "Wie XY meldet..."
-
-✅ BEVORZUGE:
-- "Amazon hat eine zweite Staffel bestätigt."
-- "Details zum Starttermin gibt es noch nicht."
-- "Die Dreharbeiten beginnen im Sommer."
-
-OUTPUT:
-- Nur <p>-Tags
-- Keine Emojis
-- Kein Marketing-Sprech
-- Sauberes HTML`;
+Regeln:
+- Max 3 Sätze, 60 Wörter pro Absatz. Eine Idee pro Absatz.
+- Kurze Hauptsätze, Aktiv statt Passiv.
+- Kein Pressemitteilungs-Ton, keine Marketing-Adjektive, keine Leser-Ansprache.
+- Nur <p>-Tags, keine Emojis.`;
 
   const userPrompt = `FAKTEN:
 ${input.extractedFacts}

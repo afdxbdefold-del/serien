@@ -103,22 +103,11 @@ async function generateHeadingForParagraph(
     return null; // Too short
   }
   
-  const prompt = `Du bist ein professioneller Redakteur. Erstelle eine prägnante H2-Überschrift für folgenden Absatz.
+  const prompt = `H2-Überschrift für diesen Absatz (max 6 Wörter, klar, kein Clickbait). Artikel: "${articleTitle || ''}", Serie: ${seriesName || ''}.
 
-ARTIKEL: ${articleTitle || ''}
-SERIE: ${seriesName || ''}
+Absatz: ${(plainText || '').substring(0, 300)}
 
-ABSATZ:
-${(plainText || '').substring(0, 300)}
-
-ANFORDERUNGEN:
-- Max 6 Wörter
-- Klar und informativ
-- Fasse den Absatz zusammen
-- Keine Frage
-- Keine Clickbait
-
-NUR die Überschrift (ohne Anführungszeichen):`;
+Nur die Überschrift:`;
 
   try {
     const { createLLMClient, LLM_CONFIG } = await import('./llm-config');

@@ -30,73 +30,21 @@ interface RankingPipelineInput {
   primarySeriesName?: string;
 }
 
-const RANKING_INTRO_PROMPT = `Du bist ein erfahrener Redakteur für Serien-Rankings.
+const RANKING_INTRO_PROMPT = `Schreibe eine Einleitung (2-3 Absätze, 120-180 Wörter) für ein Serien-Ranking.
 
-Schreibe eine EINLEITUNG (2-3 Absätze, 120-180 Wörter) für ein Ranking-Artikel.
+Absatz 1: Serie, Plattform, kurzer Kontext. Absatz 2: Was wird gerankt, nach welchen Kriterien? Absatz 3 (optional): Warum jetzt relevant?
 
-KRITISCHE ANFORDERUNGEN:
-1. KEINE generischen Phrasen wie:
-   ❌ "Aktuelle Entwicklungen zu..."
-   ❌ "Neue Informationen zu..."
-   ❌ "offiziell bekannt und verständlich zusammengefasst"
-2. Jede Einleitung muss UNIQUE sein (semantisch + lexikalisch unterschiedlich)
-3. Beantworte: Was genau wird gerankt? Warum ist es relevant? Für wen?
+Sachlich-enthusiastisch, faktenbasiert. Jede Einleitung muss unique und spezifisch für diesen Artikel sein. Reiner Text.`;
 
-STRUKTUR:
-Absatz 1: Serie nennen, Plattform, kurzer Kontext (was macht sie besonders?)
-Absatz 2: Was wird konkret gerankt? Nach welchen Kriterien?
-Absatz 3 (optional): Warum ist dieses Ranking jetzt relevant?
+const RANKING_BATCH_PROMPT = `Schreibe Beschreibungen für Ranking-Items. Exakte HTML-Struktur pro Item:
 
-TONALITÄT:
-- Sachlich, aber enthusiastisch
-- Faktenbasiert, keine Übertreibungen
-- Glaubwürdig wie echter Redakteur
-- Spezifisch für DIESEN Artikel
+<h2>{Platz}. {Titel}</h2>
+<p><strong>Staffel/Episode:</strong> [Info oder "Unbekannt"]</p>
+<p><strong>Kontext:</strong> [2-4 Sätze: Handlungsbogen, Situation]</p>
+<p><strong>Highlight:</strong> [3-4 Sätze: Konkrete Szenen/Momente]</p>
+<p><strong>Warum Top:</strong> [2-3 Sätze: Begründung]</p>
 
-ABSOLUT VERBOTEN:
-- "Fans werden begeistert sein"
-- "Die beste Serie aller Zeiten"
-- Wiederholende Formulierungen über Artikel hinweg
-- Template-Sprache oder KI-Phrasen
-
-GUTE BEISPIELE (für verschiedene Serien):
-✅ "Game of Thrones hat das Serienfernsehen geprägt wie kaum eine andere Show. Über acht Staffeln hinweg lieferte die HBO-Produktion spektakuläre Schlachten, politische Intrigen und emotionale Wendepunkte. Wir haben die sechs besten Episoden ausgewählt..."
-✅ "Breaking Bad gilt als eine der am besten geschriebenen Serien aller Zeiten. Von Walter Whites erster Kochaktion bis zum finalen Showdown – wir ranken die zehn Episoden, die die Serie zur Legende machten..."
-
-Schreibe NUR die Einleitung (2-3 Absätze, reiner Text).`;
-
-const RANKING_BATCH_PROMPT = `Du bist ein erfahrener Redakteur für Serien-Rankings.
-
-Schreibe detaillierte Beschreibungen für eine BATCH von Ranking-Items.
-
-WICHTIG: Die Ausgabe MUSS diese exakte HTML-Struktur pro Item haben:
-
-<h2>{Platzierung}. {Episode/Item-Titel}</h2>
-<p><strong>Staffel/Episode:</strong> [Falls bekannt: "Staffel X, Episode Y" ODER "Unbekannt"]</p>
-<p><strong>Kontext:</strong> [2-4 Sätze: In welchem Handlungsbogen? Was ist die Situation?]</p>
-<p><strong>Highlight:</strong> [3-4 Sätze: Was passiert konkret? Welche Szenen/Momente?]</p>
-<p><strong>Warum Top:</strong> [2-3 Sätze: Warum gehört es zum Ranking? Regie? Twist? Emotion?]</p>
-
-BEISPIEL:
-<h2>1. The Rains of Castamere</h2>
-<p><strong>Staffel/Episode:</strong> Staffel 3, Episode 9</p>
-<p><strong>Kontext:</strong> Robb Stark reist zur Hochzeit der Freys. Die Starks hoffen auf eine neue Allianz im Krieg gegen die Lannisters.</p>
-<p><strong>Highlight:</strong> Die Red Wedding schockierte Millionen Zuschauer. In einer brutalen Wendung werden Robb, Catelyn und fast die gesamte Stark-Armee während der Hochzeitsfeier massakriert. Die Szene ist bekannt für ihre emotionale Intensität.</p>
-<p><strong>Warum Top:</strong> Diese Episode bewies, dass kein Charakter sicher ist. Sie zeigte Game of Thrones' Bereitschaft, etablierte Regeln zu brechen und Erwartungen zu zerstören.</p>
-
-Länge pro Item: 120-180 Wörter (für N<=10) ODER 80-140 Wörter (für N>10)
-
-TONALITÄT:
-- Konkret, mit Plot-Details
-- Sachlich, aber wertschätzend
-- Keine Marketing-Phrasen
-
-ABSOLUT VERBOTEN:
-- Inline-Labels wie "KONTEXT: HIGHLIGHT: WARUM TOP:" in einem Absatz
-- ALL CAPS außer in <strong> Tags
-- Run-on Paragraphen ohne Struktur
-
-Schreibe jetzt die Items mit exakter HTML-Struktur.`;
+120-180 Wörter pro Item (N<=10), 80-140 (N>10). Konkret mit Plot-Details, sachlich. Keine Inline-Labels außerhalb von <strong>-Tags.`;
 
 
 /**

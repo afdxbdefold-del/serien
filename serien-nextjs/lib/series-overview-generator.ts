@@ -71,47 +71,21 @@ export async function generateSeriesExtendedOverview(
     informationSources += `\n- Wikipedia-Zusammenfassung: "${wikipediaData.summary.substring(0, 800)}${wikipediaData.summary.length > 800 ? '...' : ''}"`;
   }
 
-  const prompt = `Du bist ein professioneller TV-Serien-Redakteur für eine deutsche Entertainment-Website.
+  const prompt = `Schreibe eine Serien-Beschreibung für "${seriesName}" (300-400 Wörter, 3-4 Absätze, spoilerfrei).
 
-Schreibe eine erweiterte, SEO-optimierte Serien-Beschreibung für "${seriesName}".
-
-**Vorgaben:**
-- Länge: 300-400 Wörter
-- Ton: Informativ, engagierend, professionell
-- Zielgruppe: Deutsche TV-Serien-Fans
-- KEINE Spoiler
-- KEINE Markdown-Formatierung (kein **, keine #, keine _)
-- Nur reiner Text mit natürlichen Absätzen
-- Natürliche Integration von Keywords: "${seriesName}", "${genreText}", "Serie", "Staffel"
-- Struktur in 3-4 Absätze
-
-**Verfügbare Informationen:**
+Infos:
 ${informationSources}
-- Genre: ${genreText}
-- Jahr: ${yearText}
-- Staffeln: ${seasonsText}
-- Status: ${status || 'unbekannt'}
-- Hauptdarsteller: ${mainCast || 'diverse'}
-- Schöpfer: ${creatorText}
-- Sender/Plattform: ${networkText}
+Genre: ${genreText} | Jahr: ${yearText} | Staffeln: ${seasonsText} | Status: ${status || 'unbekannt'}
+Cast: ${mainCast || 'diverse'} | Schöpfer: ${creatorText} | Sender: ${networkText}
+Datenquellen: ${sources}
 
-**Datenquellen: ${sources}**
+Aufbau:
+1. Hook & Prämisse
+2. Handlung & Setting (spoilerfrei)
+3. Charaktere & Dynamiken
+4. Stil & Zielgruppe (optional)
 
-**Struktur:**
-1. Paragraph: Hook & Prämisse (Was macht die Serie besonders?)
-2. Paragraph: Handlung & Setting (spoilerfrei, atmosphärisch)
-3. Paragraph: Charaktere & Dynamiken (Hauptfiguren, ohne Details)
-4. Paragraph (optional): Stil, Ton & Zielgruppe (Warum sollte man einschalten?)
-
-**Wichtig:**
-- Keine Spoiler über Staffel 1 hinaus
-- Keine erfundenen Details - nur basierend auf gegebenen Infos
-- Nutze Wikipedia-Infos wenn vorhanden, aber bleibe spoilerfrei
-- Natürlicher, fließender Schreibstil
-- SEO-freundlich aber nicht künstlich
-- KEIN Markdown - nur reiner Text mit Absätzen
-
-Schreibe jetzt die erweiterte Beschreibung:`;
+Reiner Text, keine Markdown-Formatierung, keine erfundenen Details. Natürlich, informativ, Keywords ("${seriesName}", "${genreText}") organisch einbauen.`;
 
   try {
     const { url: llmUrl, headers: llmHeaders, model: llmModel } = (await import('./llm-config')).getLLMFetchConfig();
@@ -123,7 +97,7 @@ Schreibe jetzt die erweiterte Beschreibung:`;
         messages: [
           {
             role: 'system',
-            content: 'Du bist ein professioneller TV-Redakteur, der informative und engagierende Serien-Beschreibungen schreibt.',
+            content: 'Serien-Redakteur für eine deutsche Entertainment-Website. Schreibe informative, spoilerfreie Beschreibungen in natürlichem Deutsch.',
           },
           {
             role: 'user',
