@@ -114,13 +114,12 @@ ${informationSources}
 Schreibe jetzt die erweiterte Beschreibung:`;
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const { url: llmUrl, headers: llmHeaders, model: llmModel } = (await import('./llm-config')).getLLMFetchConfig();
+    const response = await fetch(llmUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: llmHeaders,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: llmModel,
         messages: [
           {
             role: 'system',

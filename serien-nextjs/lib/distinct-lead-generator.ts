@@ -53,14 +53,11 @@ GUTE BEISPIELE (für verschiedene Serien):
 Schreibe jetzt den EIGENSTÄNDIGEN, UNIQUE Lead für "${headline}":`;
 
   try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY,
-      baseURL: 'https://api.openai.com/v1',
-    });
+    const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
+    const openai = createLLMClient();
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',  // Upgraded to GPT-5.2
+      model: LLM_CONFIG.model,
       messages: [
         {
           role: 'system',

@@ -171,20 +171,11 @@ async function detectAndTranslate(
  */
 async function translateHeadline(text: string): Promise<string> {
   try {
-    const { default: OpenAI } = await import('openai');
-    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-    
-    if (!apiKey) {
-      throw new Error('EMERGENT_LLM_KEY not set');
-    }
-    
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: 'https://api.openai.com/v1',
-    });
+    const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
+    const openai = createLLMClient();
 
     const response = await openai.chat.completions.create({
-      model: 'openai/gpt-4o-mini',
+      model: LLM_CONFIG.model,
       messages: [
         {
           role: 'system',

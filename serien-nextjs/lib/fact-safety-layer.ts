@@ -6,9 +6,7 @@ import { parseJsonResponse } from './json-utils';
  * insbesondere bei Enddaten, Staffeln, Zeitangaben.
  */
 
-import OpenAI from 'openai';
-
-const LLM_PROXY_URL = 'https://api.openai.com/v1';
+import { createLLMClient, LLM_CONFIG } from './llm-config';
 
 interface CriticalFact {
   type: 'SERIES_END' | 'SEASON_COUNT' | 'YEAR_DATE' | 'LAST_SEASON' | 'CANCELLATION' | 'RENEWAL';
@@ -113,15 +111,7 @@ async function detectCriticalFacts(
   headline: string,
   extractedFacts: string
 ): Promise<CriticalFact[]> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  if (!apiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found');
-  }
-
-  const client = new OpenAI({
-    apiKey,
-    baseURL: LLM_PROXY_URL,
-  });
+  const client = createLLMClient();
 
   const systemPrompt = `Du bist ein Fakten-Checker für TV-Serien-News.
 
@@ -161,7 +151,7 @@ Finde alle KRITISCHEN FAKTEN.`;
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

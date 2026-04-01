@@ -8,7 +8,7 @@
  * - Behält Struktur, Intent und Tonalität bei
  */
 
-import OpenAI from 'openai';
+import { createLLMClient, LLM_CONFIG } from './llm-config';
 
 const TRANSLATE_ONLY_PROMPT = `Du bist ein präziser Übersetzer für journalistische Headlines.
 
@@ -58,20 +58,11 @@ export async function translateHeadlineOnly(
   originalEnglishHeadline: string,
   seriesName: string
 ): Promise<string> {
-  const apiKey = process.env.EMERGENT_LLM_KEY;
-  
-  if (!apiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found');
-  }
-  
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
-  });
+  const client = createLLMClient();
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: TRANSLATE_ONLY_PROMPT },
         { 

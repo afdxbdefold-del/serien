@@ -6,6 +6,7 @@
 import OpenAI from 'openai';
 import { ExtractedFacts } from './fact-extractor';
 import { generateNaturalArticleHTML, validateArticleHTML } from './article-formatter';
+import { LLM_CONFIG } from './llm-config';
 
 
 // EMERGENT_RULESET_UPDATE: RANKING_LIST Prompt
@@ -239,15 +240,9 @@ export async function generateGermanArticle(
   targetWordCount?: number, // NEW: Dynamic word count target based on source
   rankingItemCount?: number // NEW: For RANKING_LIST mode
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  
-  if (!apiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found in environment');
-  }
-  
   const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
+    apiKey: LLM_CONFIG.apiKey,
+    baseURL: LLM_CONFIG.baseURL,
   });
 
   // Choose prompt based on content type
@@ -368,7 +363,7 @@ Schreibe jetzt den deutschen Artikel (nur Text, Absätze durch Leerzeilen trenne
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',  // Upgraded to GPT-5.2
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: factsPrompt }

@@ -29,11 +29,7 @@ export interface ArticleQAInput {
 
 export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-    if (!apiKey) {
-      console.log('   ⚠️  No API key, skipping Q&A');
-      return [];
-    }
+    const { url: llmUrl, headers: llmHeaders, model: llmModel } = (await import('./llm-config')).getLLMFetchConfig();
 
     // Extract plain text
     const plainText = (input.contentHtml || '')
@@ -44,15 +40,12 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
 
     console.log('   🤔 Generating Q&A...');
 
-    // Use local LLM proxy (same as content-generator.ts)
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use centralized LLM config
+    const response = await fetch(llmUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: llmHeaders,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: llmModel,
         messages: [
           {
             role: 'system',
@@ -115,23 +108,16 @@ export async function generateArticleQA(input: ArticleQAInput): Promise<QAItem[]
  */
 export async function generateSeriesQA(input: SeriesQAInput): Promise<QAItem[]> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-    if (!apiKey) {
-      console.log('   ⚠️  No API key for Series Q&A, returning fallback questions');
-      return generateFallbackSeriesQA(input);
-    }
+    const { url: llmUrl, headers: llmHeaders, model: llmModel } = (await import('./llm-config')).getLLMFetchConfig();
 
     console.log(`   🤔 Generating interpretative Series Q&A for ${input.seriesName}...`);
 
-    // Use local LLM proxy
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use centralized LLM config
+    const response = await fetch(llmUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: llmHeaders,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: llmModel,
         messages: [
           {
             role: 'system',

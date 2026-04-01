@@ -2,24 +2,24 @@
  * LLM Configuration
  * 
  * Centralized config for all LLM calls.
- * Uses OpenAI API directly for production (Vercel).
+ * Uses Emergent proxy for Claude Sonnet 4.6 (OpenAI-compatible format).
  */
 
+import OpenAI from 'openai';
+
 export function getLLMConfig() {
-  // Production: Use OpenAI directly
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
-    throw new Error('No LLM API key found. Set OPENAI_API_KEY or EMERGENT_LLM_KEY');
+    throw new Error('No LLM API key found. Set EMERGENT_LLM_KEY or OPENAI_API_KEY');
   }
   
-  // Check if we're in Emergent local environment (proxy available)
-  const isLocalProxy = process.env.USE_LOCAL_LLM_PROXY === 'true';
+  const isEmergentKey = apiKey.startsWith('sk-emergent-');
   
   return {
     apiKey,
-    baseURL: isLocalProxy ? 'http://localhost:8002/v1' : 'https://api.openai.com/v1',
-    model: 'gpt-4o', // Using gpt-4o for production (stable, fast, cost-effective)
+    baseURL: isEmergentKey ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
+    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-4o',
   };
 }
 
@@ -28,3 +28,22 @@ export const LLM_CONFIG = {
   get baseURL() { return getLLMConfig().baseURL; },
   get model() { return getLLMConfig().model; },
 };
+
+/** Shared OpenAI-compatible client (works with Emergent proxy for Claude) */
+export function createLLMClient(): OpenAI {
+  const config = getLLMConfig();
+  return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+}
+
+/** Config for fetch-based LLM calls */
+export function getLLMFetchConfig() {
+  const config = getLLMConfig();
+  return {
+    url: `${config.baseURL}/chat/completions`,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+    },
+    model: config.model,
+  };
+}

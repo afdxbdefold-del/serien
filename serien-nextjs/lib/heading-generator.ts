@@ -5,6 +5,8 @@
  * Generates contextual headings for each section
  */
 
+import { LLM_CONFIG } from './llm-config';
+
 interface HeadingGeneratorConfig {
   contentHtml: string;
   articleTitle: string;
@@ -87,7 +89,7 @@ async function generateHeadingForParagraph(
   seriesName: string,
   articleTitle: string
 ): Promise<string | null> {
-  const emergentApiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
+  const emergentApiKey = LLM_CONFIG.apiKey;
   
   if (!emergentApiKey) {
     console.log('   ⚠️  No EMERGENT_LLM_KEY');
@@ -119,14 +121,11 @@ ANFORDERUNGEN:
 NUR die Überschrift (ohne Anführungszeichen):`;
 
   try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: emergentApiKey,
-      baseURL: 'https://api.openai.com/v1',
-    });
+    const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
+    const openai = createLLMClient();
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: LLM_CONFIG.model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_completion_tokens: 50,

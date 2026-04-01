@@ -142,15 +142,11 @@ Analysiere und antworte NUR mit diesem JSON (keine Erklärung davor/danach):
 }`;
 
   try {
-    // Use OpenAI directly (same pattern as other lib files)
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      baseURL: 'https://api.openai.com/v1',
-    });
+    const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
+    const openai = createLLMClient();
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Kostengünstig für diesen Check
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: 'Du bist ein präziser JSON-Generator. Antworte NUR mit validem JSON.' },
         { role: 'user', content: prompt }

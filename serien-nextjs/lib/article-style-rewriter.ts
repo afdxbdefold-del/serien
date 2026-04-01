@@ -6,7 +6,9 @@
  * - Neutral, faktisch, nicht-werblich
  */
 
-const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
+import { getLLMFetchConfig } from './llm-config';
+
+const { url: LLM_PROXY_URL, headers: LLM_HEADERS, model: LLM_MODEL } = getLLMFetchConfig();
 
 interface ArticleStyleInput {
   extractedFacts: string;
@@ -84,9 +86,9 @@ Schreibe jetzt einen sachlichen Artikel im deutschen TV-News-Stil.`;
   try {
     const response = await fetch(LLM_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: LLM_HEADERS,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: LLM_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

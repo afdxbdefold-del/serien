@@ -25,19 +25,13 @@ export async function generateRelevanceContext(
   numberOfSeasons: number
 ): Promise<RelevanceContext | null> {
   try {
-    const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-    if (!apiKey) {
-      return generateFallbackRelevance(seriesName, overview, status, voteAverage);
-    }
+    const { url: llmUrl, headers: llmHeaders, model: llmModel } = (await import('./llm-config')).getLLMFetchConfig();
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(llmUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: llmHeaders,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: llmModel,
         messages: [
           {
             role: 'system',

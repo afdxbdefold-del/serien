@@ -7,7 +7,9 @@
  * - Rest: Unverändert vom Generate übernehmen
  */
 
-const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
+import { getLLMFetchConfig } from './llm-config';
+
+const { url: LLM_PROXY_URL, headers: LLM_HEADERS, model: LLM_MODEL } = getLLMFetchConfig();
 
 interface EditorialRewriteInput {
   generatedArticleHtml: string;
@@ -104,9 +106,9 @@ Generiere 5 Varianten (max 70 Zeichen).`;
   try {
     const response = await fetch(LLM_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: LLM_HEADERS,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: LLM_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -246,9 +248,9 @@ Schreibe neu (serienjunkies.de Stil).`;
   try {
     const response = await fetch(LLM_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: LLM_HEADERS,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: LLM_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

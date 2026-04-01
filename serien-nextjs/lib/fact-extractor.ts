@@ -5,7 +5,7 @@ import { parseJsonResponse } from './json-utils';
  * NO translation, NO rewriting, PRESERVE entities
  */
 
-import OpenAI from 'openai';
+import { createLLMClient, LLM_CONFIG } from './llm-config';
 
 export interface ExtractedFacts {
   series_names: string[];
@@ -52,16 +52,7 @@ export async function extractFacts(
   sourceTitle: string,
   sourceText: string
 ): Promise<ExtractedFacts> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  
-  if (!apiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found in environment');
-  }
-  
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
-  });
+  const client = createLLMClient();
 
   const userPrompt = `
 SOURCE ARTICLE:
@@ -75,7 +66,7 @@ Extract all facts now (preserve exact wording, no translation).
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: FACT_EXTRACTION_PROMPT },
         { role: 'user', content: userPrompt }

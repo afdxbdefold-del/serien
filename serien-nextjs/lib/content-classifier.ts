@@ -4,7 +4,7 @@ import { parseJsonResponse } from './json-utils';
  * Classifies articles into SINGLE_SERIES_NEWS, MULTI_SERIES_EDITORIAL, FEATURE_ESSAY, or SKIP
  */
 
-import OpenAI from 'openai';
+import { createLLMClient, LLM_CONFIG } from './llm-config';
 
 export type ContentType = 
   | 'SINGLE_SERIES_NEWS' 
@@ -94,16 +94,7 @@ export async function classifyContent(
   url: string,
   textHead: string
 ): Promise<ClassificationResult> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  
-  if (!apiKey) {
-    throw new Error('EMERGENT_LLM_KEY not found in environment');
-  }
-  
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
-  });
+  const client = createLLMClient();
 
   const userPrompt = `
 INPUT:
@@ -117,7 +108,7 @@ Classify this content now.
 
   try {
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: LLM_CONFIG.model,
       messages: [
         { role: 'system', content: CLASSIFIER_PROMPT },
         { role: 'user', content: userPrompt }

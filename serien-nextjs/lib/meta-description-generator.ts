@@ -3,7 +3,7 @@
  * Uses distinct-lead-generator for unique, non-generic descriptions
  */
 
-import OpenAI from 'openai';
+import { LLM_CONFIG } from './llm-config';
 
 interface MetaDescriptionInput {
   title: string;

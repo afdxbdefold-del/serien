@@ -11,7 +11,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import OpenAI from 'openai';
+import { createLLMClient, LLM_CONFIG } from './llm-config';
 import { classifyContent } from './content-classifier';
 import { resolveSingleSeries } from './tmdb-resolver';
 import { extractFacts } from './fact-extractor';
@@ -108,13 +108,7 @@ async function generateRankingIntro(
   itemCount: number,
   facts: string[]
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  if (!apiKey) throw new Error('EMERGENT_LLM_KEY not found');
-  
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
-  });
+  const client = createLLMClient();
   
   const userPrompt = `
 Serie: ${seriesName}
@@ -128,7 +122,7 @@ Schreibe jetzt die Einleitung (120-180 Wörter).
 `.trim();
   
   const response = await client.chat.completions.create({
-    model: 'gpt-4o',
+    model: LLM_CONFIG.model,
     messages: [
       { role: 'system', content: RANKING_INTRO_PROMPT },
       { role: 'user', content: userPrompt },
@@ -168,13 +162,7 @@ async function generateRankingBatch(
   batchItems: Array<{ rank: number; title: string; context: string }>,
   facts: string[]
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  if (!apiKey) throw new Error('EMERGENT_LLM_KEY not found');
-  
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
-  });
+  const client = createLLMClient();
   
   const itemsDescription = batchItems.map(item => 
     `Platz ${item.rank}: ${item.title} - ${item.context}`
@@ -192,7 +180,7 @@ Schreibe jetzt die Beschreibungen für alle ${batchItems.length} Items (je 80-14
 `.trim();
   
   const response = await client.chat.completions.create({
-    model: 'gpt-4o',
+    model: LLM_CONFIG.model,
     messages: [
       { role: 'system', content: RANKING_BATCH_PROMPT },
       { role: 'user', content: userPrompt },

@@ -10,7 +10,9 @@
  * PASS: ≥ 65 Punkte → publishMode = "DISCOVER"
  */
 
-const LLM_PROXY_URL = 'https://api.openai.com/v1/chat/completions';
+import { getLLMFetchConfig } from './llm-config';
+
+const { url: LLM_PROXY_URL, headers: LLM_HEADERS, model: LLM_MODEL } = getLLMFetchConfig();
 
 interface DiscoverGateInput {
   final_headline: string;
