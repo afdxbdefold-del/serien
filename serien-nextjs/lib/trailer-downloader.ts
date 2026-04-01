@@ -16,36 +16,36 @@ import { uploadToR2, isR2Configured } from './r2-uploader';
 
 const execAsync = promisify(exec);
 
-// ========== RAPIDAPI CONFIGURATION (März 2026) ==========
-const RAPIDAPI_KEY = 'b6255de6f7msh78f86fdf06a91bep1a75ddjsn679d13cc1ea1';
+// ========== RAPIDAPI CONFIGURATION ==========
+function getRapidApiKey(): string {
+  const key = process.env.RAPIDAPI_KEY;
+  if (!key) throw new Error('RAPIDAPI_KEY not set in environment');
+  return key;
+}
 
 // PRIMARY: youtube-convert-download-api-mp3-mp4 (schnellste, kein Geoblock)
 const API_PRIMARY = {
   host: 'youtube-convert-download-api-mp3-mp4.p.rapidapi.com',
-  key: RAPIDAPI_KEY,
+  get key() { return getRapidApiKey(); },
 };
 
 // FALLBACK 1: youtube-info-download-api (async, kein Geoblock)
 const API_FALLBACK_1 = {
   host: 'youtube-info-download-api.p.rapidapi.com',
-  key: RAPIDAPI_KEY,
+  get key() { return getRapidApiKey(); },
 };
 
 // FALLBACK 2: yt-api.p.rapidapi.com (Geoblock möglich)
 const API_FALLBACK_2 = {
   host: 'yt-api.p.rapidapi.com',
-  key: RAPIDAPI_KEY,
+  get key() { return getRapidApiKey(); },
 };
 
 // FALLBACK 3: any-video-downloader2 (Geoblock möglich)
 const API_FALLBACK_3 = {
   host: 'any-video-downloader2.p.rapidapi.com',
-  key: RAPIDAPI_KEY,
+  get key() { return getRapidApiKey(); },
 };
-
-function getRapidApiKey(): string {
-  return process.env.RAPIDAPI_KEY || RAPIDAPI_KEY;
-}
 
 interface TrailerDownloadResult {
   success: boolean;
