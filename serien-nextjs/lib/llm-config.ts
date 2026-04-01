@@ -29,7 +29,31 @@ export const LLM_CONFIG = {
   get model() { return getLLMConfig().model; },
 };
 
-/** Shared OpenAI-compatible client (works with Emergent proxy for Claude) */
+/** Robust JSON parser that handles Claude's German text with quotes */
+export function parseLLMJson(raw: string): any {
+  let content = raw.trim();
+  
+  // Strip markdown code blocks
+  if (content.startsWith('```json')) content = content.slice(7);
+  else if (content.startsWith('```')) content = content.slice(3);
+  if (content.endsWith('```')) content = content.slice(0, -3);
+  content = content.trim();
+  
+  // Extract JSON object/array from surrounding text
+  const jsonMatch = content.match(/[\[{][\s\S]*[\]}]/);
+  if (jsonMatch) content = jsonMatch[0];
+  
+  try {
+    return JSON.parse(content);
+  } catch {
+    // Fix German quotes and unescaped inner quotes
+    const fixed = content
+      .replace(/„/g, "'").replace(/"/g, "'")  // German quotes → single quotes
+      .replace(/\t/g, ' ')
+      .replace(/[\x00-\x1f]/g, (ch) => ch === '\n' || ch === '\r' ? ch : '');  // Remove control chars
+    return JSON.parse(fixed);
+  }
+}
 export function createLLMClient(): OpenAI {
   const config = getLLMConfig();
   return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });

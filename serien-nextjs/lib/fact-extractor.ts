@@ -55,15 +55,20 @@ Extract all facts now (preserve exact wording, no translation).
         { role: 'system', content: FACT_EXTRACTION_PROMPT },
         { role: 'user', content: userPrompt }
       ],
-      response_format: { type: 'json_object' },
       temperature: 0,
-      max_completion_tokens: 1500,
+      max_completion_tokens: 3000,
     });
 
     const content = response.choices[0]?.message?.content;
+    const finishReason = response.choices[0]?.finish_reason;
     
     if (!content) {
       throw new Error('No response from fact extractor');
+    }
+    
+    // If truncated, try to repair the JSON
+    if (finishReason === 'length') {
+      console.log('   ⚠️ Fact extraction truncated, attempting repair...');
     }
 
     const facts = parseJsonResponse(content) as ExtractedFacts;

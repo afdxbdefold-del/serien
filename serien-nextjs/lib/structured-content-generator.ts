@@ -136,7 +136,7 @@ async function callLLMStructured(prompt: string, retries = 2): Promise<any> {
         messages: [
           {
             role: 'system',
-            content: 'Strukturierter TV-Artikel-Generator. Folge der vorgegebenen Struktur exakt. Antwort als JSON.',
+            content: 'Strukturierter TV-Artikel-Generator. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Umlaute als ae/oe/ue schreiben ist NICHT nötig - verwende echte Umlaute (ä, ö, ü). Verwende KEINE deutschen Anführungszeichen wie „ oder " - nutze einfache Anführungszeichen oder schreibe ohne.',
           },
           {
             role: 'user',
@@ -165,25 +165,17 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
-      response_format: { type: 'json_object' },
+      max_tokens: 4096,
     });
 
     let content = response.choices[0]?.message?.content || '{}';
     
-    // Clean markdown code blocks if present
-    content = content.trim();
-    if (content.startsWith('```json')) {
-      content = content.slice(7);
-    } else if (content.startsWith('```')) {
-      content = content.slice(3);
-    }
-    if (content.endsWith('```')) {
-      content = content.slice(0, -3);
-    }
-    content = content.trim();
+    // Debug: log first 300 chars of response
+    console.log(`   📋 Raw LLM response (first 300): ${content.substring(0, 300)}`);
     
-      return JSON.parse(content);
+    // Use robust JSON parser
+    const { parseJsonResponse } = await import('./json-utils');
+    return parseJsonResponse(content);
     } catch (error: any) {
       lastError = error;
       const errorType = error.code || error.name || 'Unknown';

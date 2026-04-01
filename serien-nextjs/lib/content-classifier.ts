@@ -113,7 +113,6 @@ Classify this content now.
         { role: 'system', content: CLASSIFIER_PROMPT },
         { role: 'user', content: userPrompt }
       ],
-      response_format: { type: 'json_object' },
       temperature: 0.1,
       max_completion_tokens: 500,
     });

@@ -52,7 +52,6 @@ Erstelle evergreen "Warum relevant"-Erklärung (kulturelle/Markt-Relevanz, KEIN 
         ],
         temperature: 0.7,
         max_completion_tokens: 300,
-        response_format: { type: 'json_object' }
       }),
     });
 

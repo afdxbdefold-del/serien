@@ -144,7 +144,6 @@ Finde alle KRITISCHEN FAKTEN.`;
       ],
       temperature: 0.1,
       max_completion_tokens: 800,
-      response_format: { type: 'json_object' }
     });
 
     const result = JSON.parse(response.choices[0]?.message?.content || '{"facts":[]}');
