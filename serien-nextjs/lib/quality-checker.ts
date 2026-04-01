@@ -212,7 +212,8 @@ Bewerte die Qualität (0-100 Punkte pro Kategorie).`;
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-    const parsed = JSON.parse(content);
+    const { parseJsonResponse } = await import('./json-utils');
+    const parsed = parseJsonResponse(content);
 
     return {
       headline: parsed.headline,

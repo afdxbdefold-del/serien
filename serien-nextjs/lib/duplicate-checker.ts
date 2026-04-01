@@ -127,14 +127,9 @@ JSON (keine Erklärung):
 
     const content = response.choices[0]?.message?.content?.trim() || '';
     
-    // Parse JSON (handle potential markdown code blocks)
-    let jsonStr = content;
-    if (content.includes('```')) {
-      const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      jsonStr = match ? match[1].trim() : content;
-    }
-
-    const result = JSON.parse(jsonStr);
+    // Parse JSON (handle potential markdown code blocks and Claude quirks)
+    const { parseJsonResponse } = await import('./json-utils');
+    const result = parseJsonResponse(content);
 
     // Map result to our interface
     const duplicateSlug = result.duplicate_of_index 

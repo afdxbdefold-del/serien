@@ -146,7 +146,8 @@ Finde alle KRITISCHEN FAKTEN.`;
       max_completion_tokens: 800,
     });
 
-    const result = JSON.parse(response.choices[0]?.message?.content || '{"facts":[]}');
+    const { parseJsonResponse } = await import('./json-utils');
+    const result = parseJsonResponse(response.choices[0]?.message?.content || '{"facts":[]}');
     
     return (result.facts || []).map((f: any) => ({
       type: f.type,
