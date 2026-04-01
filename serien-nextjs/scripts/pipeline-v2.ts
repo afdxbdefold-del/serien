@@ -771,17 +771,21 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // articleId already generated in Step 7.5
     
     // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
+    // Nutzt die gesamte TMDB Gallery (nicht nur Top 10) und verteilt gleichmäßig für maximale Vielfalt
     let selectedBackdrop = dbSeries.backdropPath;
     try {
       const articleCount = await prisma.articles.count({
         where: { primarySeriesId: dbSeries.tmdbId }
       });
-      const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 10);
+      const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 50);
       if (topBackdrops.length > 0) {
-        const rotatedBackdrop = selectBackdropForArticle(topBackdrops, articleCount);
+        // Distribute evenly across entire gallery for visual diversity
+        const step = Math.max(1, Math.floor(topBackdrops.length / Math.max(articleCount + 1, 2)));
+        const index = (articleCount * step) % topBackdrops.length;
+        const rotatedBackdrop = topBackdrops[index]?.path;
         if (rotatedBackdrop) {
           selectedBackdrop = rotatedBackdrop;
-          console.log(`🖼️  Backdrop rotiert: #${articleCount % topBackdrops.length + 1} von ${topBackdrops.length}`);
+          console.log(`🖼️  Backdrop rotiert: Index ${index} von ${topBackdrops.length} (Step: ${step})`);
         }
       }
     } catch (e) {

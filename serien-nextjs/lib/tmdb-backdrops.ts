@@ -58,7 +58,6 @@ export async function fetchTopBackdrops(
 
     // Sort by vote_average (highest first), then by vote_count as tiebreaker
     const sortedBackdrops = backdrops
-      .filter((b: TMDBBackdrop) => b.vote_average > 0) // Only rated backdrops
       .sort((a: TMDBBackdrop, b: TMDBBackdrop) => {
         // Primary sort: vote_average
         if (b.vote_average !== a.vote_average) {
