@@ -31,6 +31,14 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // React has a known bug where the `muted` JSX prop doesn't apply to the DOM.
+  // We must set it imperatively via ref to guarantee autoplay works.
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+    }
+  }, []);
+
   // If no trailer, just show the image
   if (!trailerUrl) {
     return (
@@ -87,14 +95,12 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
           autoPlay
-          loop
-          muted
           playsInline
           controls
           preload="auto"
           poster={heroImageUrl}
           onError={(e) => {
-            console.error('❌ Video error:', e);
+            console.error('Video error:', e);
             setHasError(true);
           }}
         >
