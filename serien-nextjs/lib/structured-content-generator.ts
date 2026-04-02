@@ -122,7 +122,7 @@ Struktur:
 
 Stil: Sachlich, journalistisch. Konkrete Namen statt generische Bezeichnungen ("Robby untersucht" statt "Ein Arzt untersucht"). Deutsche Anführungszeichen: „..."
 Der gesamte Artikel MUSS auf Deutsch sein. Übersetze ALLE englischen Wörter aus den Fakten ins Deutsche (z.B. "approximately" → "etwa", "officially" → "offiziell", "wrapped filming" → "Dreharbeiten abgeschlossen"). Kein einziges englisches Wort im Fließtext.
-Zielgruppe sind DEUTSCHE Leser. Nenne KEINE US-Fernsehsender (ABC, NBC, CBS, Fox, The CW, Hulu) als Empfang oder Verfügbarkeit. Beziehe dich stattdessen auf die in Deutschland relevanten Streaming-Plattformen (Netflix, Disney+, Amazon Prime Video, Sky/WOW, etc.) oder schreibe allgemein "beim jeweiligen Streaming-Anbieter". US-Sender dürfen nur als Produktionshintergrund erwähnt werden, nicht als Empfangshinweis.`;
+Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, NBC, CBS, Fox, The CW) als Empfangshinweis. Beziehe dich stattdessen auf Streaming-Plattformen (Netflix, Disney+, Amazon Prime Video, Sky/WOW, Hulu, Paramount+, Apple TV+ etc.) oder schreibe allgemein "beim jeweiligen Streaming-Anbieter". US-Sender dürfen nur als Produktionshintergrund erwähnt werden, nicht als Empfangsempfehlung.`;
 
   return basePrompt;
 }
