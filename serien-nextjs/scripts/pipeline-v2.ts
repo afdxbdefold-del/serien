@@ -30,6 +30,7 @@ import { discoverGate } from '../lib/discover-gate';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { uploadSeriesImages } from '../lib/blob-uploader';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
+import { getStreamerFallbackImage } from '../lib/streamer-fallback-images';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
@@ -806,7 +807,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         metaDescription: structuredContent.metaDescription,
         heroImageUrl: selectedBackdrop 
           ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
-          : null,
+          : getStreamerFallbackImage(dbSeries.networks || classificationResult.networks_platforms || []),
         tmdbId: dbSeries.tmdbId,
         primarySeriesId: dbSeries.tmdbId,
         tmdbType: 'tv',
