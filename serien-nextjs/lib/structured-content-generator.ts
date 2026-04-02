@@ -120,7 +120,8 @@ Struktur:
 4. content: ${targetSections} Sections mit H2 (max 6 Wörter) + je 2-3 Absätze (2-4 Sätze)
 5. qa: 3-5 häufige Fragen mit kurzen Antworten
 
-Stil: Sachlich, journalistisch. Konkrete Namen statt generische Bezeichnungen ("Robby untersucht" statt "Ein Arzt untersucht"). Deutsche Anführungszeichen: „..."`;
+Stil: Sachlich, journalistisch. Konkrete Namen statt generische Bezeichnungen ("Robby untersucht" statt "Ein Arzt untersucht"). Deutsche Anführungszeichen: „..."
+Der gesamte Artikel MUSS auf Deutsch sein. Übersetze ALLE englischen Wörter aus den Fakten ins Deutsche (z.B. "approximately" → "etwa", "officially" → "offiziell", "wrapped filming" → "Dreharbeiten abgeschlossen"). Kein einziges englisches Wort im Fließtext.`;
 
   return basePrompt;
 }
