@@ -19,6 +19,8 @@ export interface ExtractedFacts {
 
 const FACT_EXTRACTION_PROMPT = `Extrahiere strukturierte Fakten aus TV-Serien-Artikeln. Bewahre Originalsprache und Schreibweise exakt. Nicht übersetzen, nicht umformulieren.
 
+Heutiges Datum: ${new Date().toISOString().split('T')[0]}
+
 Extrahiere: Seriennamen, Staffelnummern, Episodennummern, Personennamen (Schauspieler, Regisseure, Showrunner), zentrale Fakten-Aussagen (Zitate, Ankündigungen), Veröffentlichungstermine, Sender/Plattformen.
 
 Antwort als JSON (kein Markdown):

@@ -102,11 +102,16 @@ function buildPrompt(input: StructuredContentInput): string {
   const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
   const targetSections = Math.max(3, Math.min(sectionsNeeded, 5)); // 3-5 sections
   
+  const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+  
   const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
 
+Heutiges Datum: ${today}
 Serie: ${seriesName}
 Fakten: ${factsText}
 ${characterNames ? `Charaktere (MÜSSEN verwendet werden): ${characterNames}` : ''}
+
+WICHTIG: Alle Datumsangaben müssen korrekt sein. Heute ist ${today}. Schreibe KEINE vergangenen Jahre als Zukunft. Wenn keine konkreten Termine bekannt sind, schreibe "ein Startdatum steht noch aus" statt ein Jahr zu raten.
 
 Struktur:
 1. headline: Max 70 Zeichen, klar, informativ
