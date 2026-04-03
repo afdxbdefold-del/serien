@@ -666,6 +666,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     await importSeriesCharacters(dbSeries.tmdbId);
     console.timeEnd('⏱️  STEP 6a: Import Characters');
     
+    // Import cast BEFORE linking (must exist in DB for linkCastInMarkdown)
+    console.time('⏱️  STEP 6a2: Import Cast');
+    await importSeriesCast(dbSeries.tmdbId, dbSeries.tmdbId);
+    console.timeEnd('⏱️  STEP 6a2: Import Cast');
+    
     // Link characters in markdown
     const characterLinkResult = await linkCharactersInMarkdown(
       structuredContent.markdown,
@@ -835,6 +840,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 8: Publish');
 
+    // Invalidate cache for the new article so it's immediately visible with links
+    try {
+      const { revalidatePath, revalidateTag } = await import('next/cache');
+      revalidatePath(`/${slug}`);
+      revalidateTag(`article-${slug}`);
+      revalidateTag('article');
+      console.log('🔄 Cache invalidated for:', slug);
+    } catch {
+      // revalidatePath only works in Next.js server context, not in standalone scripts
+      console.log('ℹ️  Cache revalidation skipped (not in server context)');
+    }
+
     // ========== STEP 9: POST-PROCESSING (PARALLEL!) ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 9: POST-PROCESSING (Parallel) ⚡');
@@ -875,10 +892,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
       })(),
       
-      // Import cast
+      // Cast already imported in Step 6a2
       (async () => {
-        await importSeriesCast(dbSeries.tmdbId, dbSeries.tmdbId);
-        console.log(`   ✅ Cast imported`);
+        console.log(`   ✅ Cast already imported in Step 6`);
       })(),
       
       // Download trailer via RapidAPI - NUTZE SERIES TRAILER wenn vorhanden
