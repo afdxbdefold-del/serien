@@ -60,7 +60,7 @@ export default function Footer() {
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Navigation</h4>
+              <p className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Navigation</p>
               <ul className="space-y-2">
                 {[
                   { href: '/', label: 'News' },
@@ -84,7 +84,7 @@ export default function Footer() {
 
             {/* Streaming */}
             <div>
-              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Streaming</h4>
+              <p className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Streaming</p>
               <div className="flex flex-wrap gap-2">
                 {['Netflix', 'Prime', 'Disney+', 'Apple TV+', 'Max'].map((provider) => (
                   <span 
@@ -99,7 +99,7 @@ export default function Footer() {
 
             {/* Contact & Social */}
             <div>
-              <h4 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Folge uns</h4>
+              <p className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wider">Folge uns</p>
               <div className="flex flex-wrap gap-2 mb-4">
                 {socialLinks.map((social) => (
                   <a 
@@ -115,7 +115,7 @@ export default function Footer() {
                 ))}
               </div>
               
-              <h4 className="text-gray-900 dark:text-white font-semibold mb-3 text-sm uppercase tracking-wider">Podcast</h4>
+              <p className="text-gray-900 dark:text-white font-semibold mb-3 text-sm uppercase tracking-wider">Podcast</p>
               <div className="flex flex-wrap gap-2 mb-4">
                 {podcastLinks.map((podcast) => (
                   <a 

@@ -148,6 +148,12 @@ const getArticleMetadata = (slug: string) => unstable_cache(
         ogImageUrl: true,
         tmdbId: true,
         tmdbType: true,
+        publishedAt: true,
+        updatedAt: true,
+        contentType: true,
+        users: {
+          select: { name: true },
+        },
       },
     });
   },
@@ -201,6 +207,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url: `${baseUrl}/${slug}`,
       siteName: 'serien.de',
       locale: 'de_DE',
+      publishedTime: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
+      modifiedTime: article.updatedAt ? new Date(article.updatedAt).toISOString() : undefined,
+      authors: article.users?.name ? [article.users.name] : undefined,
+      section: article.contentType || 'Serien News',
       images: ogImage ? [
         {
           url: ogImage,
