@@ -6,12 +6,11 @@
  * 
  * Voraussetzungen:
  * - Google Cloud Projekt mit aktivierter Indexing API
- * - Service Account JSON Key
+ * - Service Account JSON Key (als GOOGLE_SERVICE_ACCOUNT_JSON env var, Base64-kodiert)
  * - Service Account als Inhaber in Google Search Console verifiziert
  */
 
 import { GoogleAuth } from 'google-auth-library';
-import * as path from 'path';
 
 const INDEXING_API_URL = 'https://indexing.googleapis.com/v3/urlNotifications:publish';
 
@@ -20,12 +19,16 @@ let authClient: any = null;
 async function getAuthClient() {
   if (authClient) return authClient;
 
-  const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH
-    ? path.resolve(process.cwd(), process.env.GOOGLE_SERVICE_ACCOUNT_PATH)
-    : path.resolve(process.cwd(), 'google-service-account.json');
+  const jsonBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  
+  if (!jsonBase64) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var nicht gesetzt');
+  }
+
+  const credentials = JSON.parse(Buffer.from(jsonBase64, 'base64').toString('utf-8'));
 
   const auth = new GoogleAuth({
-    keyFile: keyPath,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/indexing'],
   });
 
