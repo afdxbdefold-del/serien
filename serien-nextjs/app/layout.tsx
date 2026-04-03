@@ -101,6 +101,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors`}>
         <AnalyticsTracker />
         <LayoutWrapper>{children}</LayoutWrapper>
+        {/* Server-rendered footer nav for Google crawler (visible in first HTML pass) */}
+        <nav aria-label="Rechtliche Informationen" className="sr-only">
+          <a href="/impressum">Impressum</a>
+          <a href="/datenschutz">Datenschutz</a>
+          <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>
+          <a href="/autoren">Autoren</a>
+        </nav>
       </body>
     </html>
   );
