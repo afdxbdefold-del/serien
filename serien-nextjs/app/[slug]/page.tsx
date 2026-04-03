@@ -418,7 +418,7 @@ export default async function ArticlePage({ params }: PageProps) {
               {article.users && (
                 <>
                   {article.users.image ? (
-                    <Link href={getAuthorUrl(article.users.name || '')} className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                       <Image
                         src={article.users.image}
                         alt={article.users.name || 'Author'}
@@ -427,13 +427,14 @@ export default async function ArticlePage({ params }: PageProps) {
                       />
                     </Link>
                   ) : (
-                    <Link href={getAuthorUrl(article.users.name || '')} className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                       {(article.users.name || 'A').charAt(0).toUpperCase()}
                     </Link>
                   )}
                   <div className="text-sm">
                     <Link 
                       href={getAuthorUrl(article.users.name || '')}
+                      rel="author"
                       className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
                     >
                       {article.users.name || 'Redaktion'}
