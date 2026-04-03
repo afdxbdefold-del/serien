@@ -28,13 +28,21 @@ interface RealtimeData {
     uniqueVisitors: number;
     yesterdayPageViews: number;
   };
+  yesterday: {
+    pageViews: number;
+    uniqueVisitors: number;
+  };
   topPages: {
     now: Array<{ path: string; views: number }>;
     today: Array<{ path: string; views: number }>;
+    yesterday: Array<{ path: string; views: number }>;
   };
   trafficSources: Array<{ source: string; count: number }>;
+  trafficSourcesYesterday: Array<{ source: string; count: number }>;
   devices: Array<{ device: string; count: number }>;
+  devicesYesterday: Array<{ device: string; count: number }>;
   countries: Array<{ country: string; count: number }>;
+  countriesYesterday: Array<{ country: string; count: number }>;
   hourlyViews: Array<{ hour: string; views: number }>;
   timestamp: string;
 }
@@ -80,6 +88,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [dayTab, setDayTab] = useState<'today' | 'yesterday'>('today');
 
   const fetchData = async () => {
     try {
@@ -225,6 +234,31 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
+        {/* Yesterday Summary Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600">
+            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Gestern</div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{data?.yesterday?.pageViews || 0}</span>
+              <span className="text-sm text-gray-400">Page Views</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600">
+            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Gestern</div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{data?.yesterday?.uniqueVisitors || 0}</span>
+              <span className="text-sm text-gray-400">Unique Visitors</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600">
+            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Gestern</div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{data?.topPages.yesterday?.length || 0}</span>
+              <span className="text-sm text-gray-400">Aktive Seiten</span>
+            </div>
+          </div>
+        </div>
+
         {/* Active Sessions Table */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -290,95 +324,126 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Two Column Layout */}
+        {/* Day Toggle + Content */}
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={() => setDayTab('today')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              dayTab === 'today' 
+                ? 'bg-cyan-500 text-white' 
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Heute
+          </button>
+          <button
+            onClick={() => setDayTab('yesterday')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              dayTab === 'yesterday' 
+                ? 'bg-gray-600 text-white' 
+                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Gestern
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Pages Now */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+          {/* Top Pages Now - only show on "Heute" */}
+          {dayTab === 'today' && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-white">
+                  Top Seiten (Jetzt)
+                </h2>
+              </div>
+              <div className="p-4 space-y-3">
+                {data?.topPages.now.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Keine Daten</p>
+                ) : (
+                  data?.topPages.now.map((page, i) => (
+                    <div key={page.path} className="flex items-center gap-3">
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
+                        {formatPath(page.path)}
+                      </span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
+                        {page.views}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Top Pages - Heute or Gestern */}
+          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm ${dayTab === 'yesterday' ? 'lg:col-span-2' : ''}`}>
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold text-gray-900 dark:text-white">
-                Top Seiten (Jetzt)
+                Top Seiten ({dayTab === 'today' ? 'Heute' : 'Gestern'})
               </h2>
             </div>
             <div className="p-4 space-y-3">
-              {data?.topPages.now.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Keine Daten</p>
-              ) : (
-                data?.topPages.now.map((page, i) => (
-                  <div key={page.path} className="flex items-center gap-3">
-                    <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                      {formatPath(page.path)}
-                    </span>
-                    <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                      {page.views}
-                    </span>
-                  </div>
-                ))
-              )}
+              {(() => {
+                const pages = dayTab === 'today' ? data?.topPages.today : data?.topPages.yesterday;
+                return !pages || pages.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Keine Daten</p>
+                ) : (
+                  pages.map((page, i) => (
+                    <div key={page.path} className="flex items-center gap-3">
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
+                        {formatPath(page.path)}
+                      </span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
+                        {page.views}
+                      </span>
+                    </div>
+                  ))
+                );
+              })()}
             </div>
           </div>
 
-          {/* Top Pages Today */}
+          {/* Traffic Sources - Heute or Gestern */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold text-gray-900 dark:text-white">
-                Top Seiten (Heute)
+                Traffic-Quellen ({dayTab === 'today' ? 'Heute' : 'Gestern'})
               </h2>
             </div>
             <div className="p-4 space-y-3">
-              {data?.topPages.today.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Keine Daten</p>
-              ) : (
-                data?.topPages.today.map((page, i) => (
-                  <div key={page.path} className="flex items-center gap-3">
-                    <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                      {formatPath(page.path)}
-                    </span>
-                    <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                      {page.views}
-                    </span>
-                  </div>
-                ))
-              )}
+              {(() => {
+                const sources = dayTab === 'today' ? data?.trafficSources : data?.trafficSourcesYesterday;
+                return !sources || sources.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Keine Daten</p>
+                ) : (
+                  sources.map((source) => (
+                    <div key={source.source} className="flex items-center gap-3">
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
+                        {parseReferrer(source.source)}
+                      </span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
+                        {source.count}
+                      </span>
+                    </div>
+                  ))
+                );
+              })()}
             </div>
           </div>
 
-          {/* Traffic Sources */}
+          {/* Devices & Countries - Heute or Gestern */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold text-gray-900 dark:text-white">
-                Traffic-Quellen (Heute)
-              </h2>
-            </div>
-            <div className="p-4 space-y-3">
-              {data?.trafficSources.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Keine Daten</p>
-              ) : (
-                data?.trafficSources.map((source) => (
-                  <div key={source.source} className="flex items-center gap-3">
-                    <ExternalLink className="w-4 h-4 text-gray-400" />
-                    <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                      {parseReferrer(source.source)}
-                    </span>
-                    <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                      {source.count}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Devices & Countries */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white">
-                Geräte & Länder (Heute)
+                Geräte & Länder ({dayTab === 'today' ? 'Heute' : 'Gestern'})
               </h2>
             </div>
             <div className="p-4">
@@ -387,9 +452,10 @@ export default function AnalyticsPage() {
                 <div>
                   <h3 className="text-xs uppercase text-gray-500 mb-3">Geräte</h3>
                   <div className="space-y-2">
-                    {data?.devices.map((d) => {
+                    {(dayTab === 'today' ? data?.devices : data?.devicesYesterday)?.map((d) => {
                       const DeviceIcon = DEVICE_ICONS[d.device] || Monitor;
-                      const total = data.devices.reduce((sum, x) => sum + x.count, 0);
+                      const deviceList = dayTab === 'today' ? data?.devices : data?.devicesYesterday;
+                      const total = deviceList?.reduce((sum, x) => sum + x.count, 0) || 1;
                       const percent = total > 0 ? Math.round((d.count / total) * 100) : 0;
                       return (
                         <div key={d.device} className="flex items-center gap-2">
@@ -416,7 +482,7 @@ export default function AnalyticsPage() {
                 <div>
                   <h3 className="text-xs uppercase text-gray-500 mb-3">Länder</h3>
                   <div className="space-y-2">
-                    {data?.countries.slice(0, 5).map((c) => (
+                    {(dayTab === 'today' ? data?.countries : data?.countriesYesterday)?.slice(0, 5).map((c) => (
                       <div key={c.country} className="flex items-center gap-2">
                         <span className="text-lg">{COUNTRY_FLAGS[c.country] || '🌍'}</span>
                         <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">

@@ -151,6 +151,65 @@ export async function GET() {
       ORDER BY hour ASC
     ` as { hour: Date; views: bigint }[];
 
+    // ========== YESTERDAY DATA ==========
+    
+    // Unique visitors yesterday
+    const uniqueVisitorsYesterday = await prisma.analytics_events.groupBy({
+      by: ['visitorId'],
+      where: {
+        event: 'page_view',
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+      },
+    });
+
+    // Top pages yesterday
+    const topPagesYesterday = await prisma.analytics_events.groupBy({
+      by: ['path'],
+      where: {
+        event: 'page_view',
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+      },
+      _count: { path: true },
+      orderBy: { _count: { path: 'desc' } },
+      take: 10,
+    });
+
+    // Traffic sources yesterday
+    const trafficSourcesYesterday = await prisma.analytics_events.groupBy({
+      by: ['referrer'],
+      where: {
+        event: 'page_view',
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+        referrer: { not: null },
+      },
+      _count: { referrer: true },
+      orderBy: { _count: { referrer: 'desc' } },
+      take: 10,
+    });
+
+    // Devices yesterday
+    const devicesYesterday = await prisma.analytics_events.groupBy({
+      by: ['device'],
+      where: {
+        event: 'page_view',
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+      },
+      _count: { device: true },
+    });
+
+    // Countries yesterday
+    const countriesYesterday = await prisma.analytics_events.groupBy({
+      by: ['country'],
+      where: {
+        event: 'page_view',
+        createdAt: { gte: yesterdayStart, lt: todayStart },
+        country: { not: null },
+      },
+      _count: { country: true },
+      orderBy: { _count: { country: 'desc' } },
+      take: 10,
+    });
+
     return NextResponse.json({
       realtime: {
         activeUsers,
@@ -162,11 +221,20 @@ export async function GET() {
         uniqueVisitors: uniqueVisitorsToday.length,
         yesterdayPageViews: pageViewsYesterday,
       },
+      yesterday: {
+        pageViews: pageViewsYesterday,
+        uniqueVisitors: uniqueVisitorsYesterday.length,
+      },
       topPages: {
         now: topPagesNow.map(p => ({ path: p.path, views: p._count.path })),
         today: topPagesToday.map(p => ({ path: p.path, views: p._count.path })),
+        yesterday: topPagesYesterday.map(p => ({ path: p.path, views: p._count.path })),
       },
       trafficSources: trafficSources.map(s => ({
+        source: s.referrer || 'Direct',
+        count: s._count.referrer,
+      })),
+      trafficSourcesYesterday: trafficSourcesYesterday.map(s => ({
         source: s.referrer || 'Direct',
         count: s._count.referrer,
       })),
@@ -174,7 +242,15 @@ export async function GET() {
         device: d.device || 'Unknown',
         count: d._count.device,
       })),
+      devicesYesterday: devicesYesterday.map(d => ({
+        device: d.device || 'Unknown',
+        count: d._count.device,
+      })),
       countries: countries.map(c => ({
+        country: c.country || 'Unknown',
+        count: c._count.country,
+      })),
+      countriesYesterday: countriesYesterday.map(c => ({
         country: c.country || 'Unknown',
         count: c._count.country,
       })),
