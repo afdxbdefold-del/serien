@@ -43,6 +43,7 @@ const STREAMER_HUBS: Record<string, string> = {
   'Magenta TV': '/magenta-tv-serien',
   'Telekom': '/magenta-tv-serien',
   'Discovery+': '/discovery-plus-serien',
+  'Hulu': '/hulu-serien',
   'Discovery': '/discovery-plus-serien',
   'TLC': '/discovery-plus-serien',
   'DMAX': '/discovery-plus-serien',
@@ -86,12 +87,21 @@ export function linkStreamersInMarkdown(markdown: string): StreamerLinkResult {
   let linkedMarkdown = markdown;
   const streamersLinked: string[] = [];
 
-  for (const [streamerName, hubUrl] of Object.entries(STREAMER_HUBS)) {
+  // Sort by name length descending — longest first to avoid partial matches
+  // e.g. "RTL+" before "RTL", "Apple TV+" before "Apple TV"
+  const sortedEntries = Object.entries(STREAMER_HUBS)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [streamerName, hubUrl] of sortedEntries) {
+    // Skip if this hub URL was already linked by a longer variant
+    if (streamersLinked.some(s => STREAMER_HUBS[s] === hubUrl)) continue;
+
     const escapedName = streamerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
     // Match streamer name not already in a link, not in heading
+    // Use lookahead/lookbehind instead of \b for names with special chars like +
     const regex = new RegExp(
-      `(?<!\\[)(?<!\\()\\b${escapedName}\\b(?!\\])(?!\\))(?![^\\[]*\\])`,
+      `(?<![\\[\\(\\w])${escapedName}(?![\\]\\)\\w])`,
       'gi'
     );
 
