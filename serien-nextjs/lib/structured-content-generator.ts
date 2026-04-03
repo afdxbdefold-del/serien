@@ -18,6 +18,7 @@ interface StructuredContentInput {
   sourceText: string;
   contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING';
   wordCountTarget?: number;
+  temperature?: number;
 }
 
 interface ContentSection {
@@ -42,18 +43,19 @@ interface StructuredContentOutput {
 export async function generateStructuredContent(
   input: StructuredContentInput
 ): Promise<StructuredContentOutput> {
-  const { facts, seriesName, originalHeadline, contentType, wordCountTarget = 400 } = input;
+  const { facts, seriesName, originalHeadline, contentType, wordCountTarget = 400, temperature } = input;
   
   console.log('📝 Generating structured content...');
   console.log(`   Series: ${seriesName}`);
   console.log(`   Type: ${contentType}`);
   console.log(`   Target: ${wordCountTarget} words`);
+  if (temperature !== undefined) console.log(`   Temperature: ${temperature}`);
   
   // Build prompt based on content type
   const prompt = buildPrompt(input);
   
   // Call LLM with structured output
-  const response = await callLLMStructured(prompt);
+  const response = await callLLMStructured(prompt, 2, temperature);
   
   // Validate and assemble
   const output = assembleMarkdown(response);
@@ -130,7 +132,7 @@ Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, N
 /**
  * Call LLM with structured output format
  */
-async function callLLMStructured(prompt: string, retries = 2): Promise<any> {
+async function callLLMStructured(prompt: string, retries = 2, temperature?: number): Promise<any> {
   let lastError: Error | null = null;
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -171,7 +173,7 @@ OUTPUT FORMAT (JSON):
 Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
         },
       ],
-      temperature: 0.7,
+      temperature: temperature ?? 0.7,
       max_tokens: 8192,
     });
 

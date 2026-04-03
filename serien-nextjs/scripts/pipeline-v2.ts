@@ -6,6 +6,8 @@
  * 2. Character linking BEFORE HTML conversion
  * 3. Parallelized post-processing
  * 4. Faster, cleaner, more reliable
+ * 5. URL Dedup: Prevents re-processing same source URL within 24h (saves LLM costs)
+ * 6. Auto-Retry: Re-generates content with lower temperature if Discover Score < 60
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -176,6 +178,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
   };
 
   try {
+    // ========== STEP 0: URL DEDUP (vor allen LLM-Calls!) ==========
+    const trigger = source.trigger || 'manual';
+    
+    if (trigger !== 'manual') {
+      // Prüfe ob diese URL in den letzten 24h bereits verarbeitet wurde
+      const recentRun = await prisma.pipeline_runs.findFirst({
+        where: {
+          inputSource: source.url,
+          startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          id: { not: logger.getRunId() || '' },
+        },
+        select: { id: true, status: true, startedAt: true },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (recentRun) {
+        console.log(`⏭️  URL bereits verarbeitet (${recentRun.status}, ${new Date(recentRun.startedAt).toLocaleTimeString('de-DE')})`);
+        console.log(`   → Überspringe. Manuelle Trigger umgehen diesen Check.`);
+        await logger.fail('URL bereits verarbeitet (Dedup)', 'url-dedup');
+        return null;
+      }
+    }
+
     // ========== STEP 1: FULL TEXT FETCH ==========
     logStep('1_full_text_fetch');
     console.log('━'.repeat(70));
@@ -206,7 +231,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
     // Pipeline-V2 verarbeitet einzelne News-Artikel - das Artikel-Datum IST das Thema-Datum
-    const trigger = source.trigger || 'manual';
     const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
     
     // Versuche das Veröffentlichungsdatum aus dem Artikel zu extrahieren
@@ -653,6 +677,76 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`⚠️  Time-axis check skipped: ${error.message}`);
     }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
+
+    // ========== STEP 5.2: AUTO-RETRY BEI NIEDRIGER QUALITÄT ==========
+    logStep('5.2_auto_retry');
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.2: AUTO-RETRY CHECK');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 5.2: Auto-Retry');
+
+    try {
+      // Quick Discover-Score auf dem Markdown berechnen
+      const tempHtml = markdownToHtml(structuredContent.markdown || '');
+      const preScore = await discoverGate({
+        final_headline: structuredContent.headline || '',
+        article_html: tempHtml,
+        hero_image_metadata: { url: '', width: 1920, height: 1080, source: 'TMDB_BACKDROP' as const },
+        publishedAt: new Date(),
+        primary_series: dbSeries.name || dbSeries.title || '',
+      });
+
+      const firstScore = preScore.scores.total;
+      console.log(`   📊 Erster Discover Score: ${firstScore}/100`);
+
+      if (firstScore < 60) {
+        console.log(`   ⚠️ Score unter 60 → Retry mit Temperature 0.5`);
+        logger.log(`Auto-Retry: Score ${firstScore}/100 < 60`);
+
+        const retryContent = await generateStructuredContent({
+          facts,
+          seriesName: dbSeries.name || dbSeries.title,
+          originalHeadline: source.title,
+          sourceText: fullSourceText,
+          contentType,
+          wordCountTarget: contentType === 'RANKING'
+            ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500))
+            : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
+          temperature: 0.5,
+        });
+
+        const retryHtml = markdownToHtml(retryContent.markdown || '');
+        const retryScore = await discoverGate({
+          final_headline: retryContent.headline || '',
+          article_html: retryHtml,
+          hero_image_metadata: { url: '', width: 1920, height: 1080, source: 'TMDB_BACKDROP' as const },
+          publishedAt: new Date(),
+          primary_series: dbSeries.name || dbSeries.title || '',
+        });
+
+        const secondScore = retryScore.scores.total;
+        console.log(`   📊 Retry Discover Score: ${secondScore}/100`);
+
+        if (secondScore > firstScore) {
+          console.log(`   ✅ Retry besser (${secondScore} > ${firstScore}) → übernommen`);
+          structuredContent.headline = retryContent.headline;
+          structuredContent.metaDescription = retryContent.metaDescription;
+          structuredContent.lead = retryContent.lead;
+          structuredContent.sections = retryContent.sections;
+          structuredContent.qa = retryContent.qa;
+          structuredContent.markdown = retryContent.markdown;
+          logger.log(`Auto-Retry erfolgreich: ${firstScore} → ${secondScore}`);
+        } else {
+          console.log(`   ℹ️ Original besser (${firstScore} >= ${secondScore}) → beibehalten`);
+          logger.log(`Auto-Retry: Original behalten (${firstScore} >= ${secondScore})`);
+        }
+      } else {
+        console.log(`   ✅ Score OK (${firstScore}/100) → kein Retry nötig`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Auto-Retry Check übersprungen: ${error.message}`);
+    }
+    console.timeEnd('⏱️  STEP 5.2: Auto-Retry');
 
     logStep('6_character_linking');
     // ========== STEP 6: CHARACTER IMPORT // ========== STEP 6: CHARACTER IMPORT & LINKING (ON MARKDOWN!) ========== LINKING (ON MARKDOWN!) ==========
