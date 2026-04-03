@@ -75,9 +75,10 @@ export async function notifyGoogleIndexing(
 /**
  * Benachrichtigt Google über einen neuen Artikel
  * Wird nach der Veröffentlichung in der Pipeline aufgerufen
+ * Nutzt immer die Production-Domain (nicht Preview/Vercel URLs)
  */
 export async function indexNewArticle(slug: string): Promise<void> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.wiki';
+  const baseUrl = process.env.GOOGLE_INDEXING_BASE_URL || 'https://serien.de';
   const articleUrl = `${baseUrl}/${slug}`;
   
   const result = await notifyGoogleIndexing(articleUrl, 'URL_UPDATED');
