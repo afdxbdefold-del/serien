@@ -74,6 +74,8 @@ export function generateArticleSchema(data: {
   dateModified: string;
   slug: string;
   author?: string;
+  authorSlug?: string;
+  category?: string;
   publisher?: {
     name: string;
     logo?: string;
@@ -81,13 +83,18 @@ export function generateArticleSchema(data: {
 }) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   
+  // Ensure image URL is absolute
+  const absoluteImageUrl = data.imageUrl.startsWith('http') 
+    ? data.imageUrl 
+    : `${baseUrl}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+  
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
     headline: data.title,
     description: data.description,
     image: generateImageObject(
-      data.imageUrl,
+      absoluteImageUrl,
       data.title,
       data.imageDimensions,
       {
@@ -98,13 +105,17 @@ export function generateArticleSchema(data: {
     ),
     datePublished: data.datePublished,
     dateModified: data.dateModified,
+    inLanguage: 'de-DE',
+    isAccessibleForFree: true,
     author: {
       '@type': 'Person',
       name: data.author || 'serien.de Redaktion',
+      ...(data.authorSlug && { url: `${baseUrl}/autor/${data.authorSlug}` }),
     },
     publisher: {
       '@type': 'Organization',
       name: data.publisher?.name || 'serien.de',
+      url: baseUrl,
       logo: data.publisher?.logo ? generateImageObject(
         data.publisher.logo,
         `${data.publisher.name} Logo`,
@@ -120,6 +131,7 @@ export function generateArticleSchema(data: {
       '@type': 'WebPage',
       '@id': `${baseUrl}/${data.slug}`,
     },
+    ...(data.category && { articleSection: data.category }),
   };
 
   return schema;
@@ -321,8 +333,10 @@ export function generateOrganizationSchema() {
   
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'NewsMediaOrganization',
     name: 'serien.de',
+    alternateName: 'Serien.de - Streaming News & Reviews',
+    description: 'serien.de ist ein deutschsprachiges Online-Magazin für Serien-News, Trailer, Reviews und Streaming-Updates.',
     url: baseUrl,
     logo: {
       '@type': 'ImageObject',
@@ -336,6 +350,7 @@ export function generateOrganizationSchema() {
       contactType: 'customer service',
       email: 'kontakt@serien.de',
     },
+    publishingPrinciples: `${baseUrl}/impressum`,
   };
 }
 

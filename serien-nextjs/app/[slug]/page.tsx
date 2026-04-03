@@ -12,7 +12,7 @@ import { SeriesInfobox } from '@/components/SeriesInfobox';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
-import { generateArticleSchema, getImageDimensions } from '@/lib/schema-generator';
+import { generateArticleSchema, getImageDimensions, generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
@@ -263,6 +263,14 @@ export default async function ArticlePage({ params }: PageProps) {
     '/og-image.png';
   
   // Generate structured data with ImageObject
+  const authorSlug = article.users?.name ? 
+    article.users.name.toLowerCase()
+      .replace(/[äöü]/g, (c: string) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue' }[c] || c))
+      .replace(/ß/g, 'ss')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') 
+    : undefined;
+
   const articleSchema = generateArticleSchema({
     title: article.title,
     description: article.excerpt || '',
@@ -272,7 +280,19 @@ export default async function ArticlePage({ params }: PageProps) {
     dateModified: toDate(article.updatedAt).toISOString(),
     slug,
     author: article.users?.name,
+    authorSlug,
+    category: article.category || undefined,
   });
+
+  // Generate BreadcrumbList schema
+  const seriesName = article.series?.name || article.series?.title;
+  const seriesSlug = article.series?.slug;
+  const breadcrumbItems = [
+    { name: 'Startseite', url: '/' },
+    ...(seriesName && seriesSlug ? [{ name: seriesName, url: `/serie/${seriesSlug}` }] : []),
+    { name: article.title, url: `/${slug}` },
+  ];
+  const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbItems);
 
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
@@ -289,6 +309,14 @@ export default async function ArticlePage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(articleSchema),
+        }}
+      />
+      
+      {/* BreadcrumbList Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbSchema),
         }}
       />
 
