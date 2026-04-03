@@ -75,17 +75,17 @@ const SKIP_KEYWORDS = [
 ];
 
 /**
- * Check if article is less than 6 hours old based on timeAgo string
+ * Check if article is less than 2 hours old based on timeAgo string
  */
 function isWithin6Hours(timeAgo: string): boolean {
   if (!timeAgo) return false;
   
   const timeLower = timeAgo.toLowerCase().trim();
   
-  // "X hours ago" - include if less than 6
+  // "X hours ago" - include if less than 2
   const hoursMatch = timeLower.match(/(\d+)\s*(?:hour|hr|h)/);
   if (hoursMatch) {
-    return parseInt(hoursMatch[1]) <= 6;
+    return parseInt(hoursMatch[1]) <= 2;
   }
   
   // "X minutes ago" - always include
