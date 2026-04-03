@@ -256,11 +256,22 @@ async function scrapeScreenrantNews(): Promise<NewsArticle[]> {
 }
 
 async function checkIfArticleExists(url: string): Promise<boolean> {
+  // Check 1: Published article exists
   const existing = await prisma.articles.findFirst({
     where: { sourceUrl: url },
     select: { id: true }
   });
-  return !!existing;
+  if (existing) return true;
+  
+  // Check 2: URL was already processed (success, duplicate, or any other result) in last 24h
+  const recentRun = await prisma.pipeline_runs.findFirst({
+    where: {
+      inputSource: url,
+      startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    },
+    select: { id: true }
+  });
+  return !!recentRun;
 }
 
 export async function processScreenrantNews(options: { 

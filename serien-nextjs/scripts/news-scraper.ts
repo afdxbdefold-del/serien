@@ -450,12 +450,22 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
       const newArticles: NewsArticle[] = [];
       
       for (const article of allArticles) {
+        // Check 1: Published article exists
         const exists = await prisma.articles.findFirst({
           where: { sourceUrl: article.url },
           select: { id: true }
         });
         
-        if (!exists) {
+        // Check 2: URL was already processed in last 24h
+        const recentRun = !exists ? await prisma.pipeline_runs.findFirst({
+          where: {
+            inputSource: article.url,
+            startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          },
+          select: { id: true }
+        }) : null;
+        
+        if (!exists && !recentRun) {
           newArticles.push(article);
         } else {
           console.log(`⏭️  SKIP (exists): ${article.title.substring(0, 50)}...`);
