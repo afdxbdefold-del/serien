@@ -398,7 +398,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Title */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-5 leading-tight">
+          <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-5 leading-tight">
             {article.title}
           </h1>
 
@@ -448,7 +448,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
-            <p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
+            <p data-speakable="summary" className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
               {article.excerpt}
             </p>
           )}

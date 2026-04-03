@@ -156,6 +156,9 @@ export default function Footer() {
               <Link href="/datenschutz" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Datenschutz
               </Link>
+              <Link href="/redaktionelle-richtlinien" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
+                Redaktionelle Richtlinien
+              </Link>
               <Link href="/autoren" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Autoren
               </Link>

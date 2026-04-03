@@ -131,6 +131,10 @@ export function generateArticleSchema(data: {
       '@type': 'WebPage',
       '@id': `${baseUrl}/${data.slug}`,
     },
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['[data-speakable="headline"]', '[data-speakable="summary"]'],
+    },
     ...(data.category && { articleSection: data.category }),
   };
 
@@ -350,7 +354,7 @@ export function generateOrganizationSchema() {
       contactType: 'customer service',
       email: 'kontakt@serien.de',
     },
-    publishingPrinciples: `${baseUrl}/impressum`,
+    publishingPrinciples: `${baseUrl}/redaktionelle-richtlinien`,
   };
 }
 
