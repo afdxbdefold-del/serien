@@ -281,7 +281,7 @@ export default async function ArticlePage({ params }: PageProps) {
     slug,
     author: article.users?.name,
     authorSlug,
-    category: article.category || undefined,
+    category: article.category || article.contentType || 'Serien News',
   });
 
   // Generate BreadcrumbList schema
