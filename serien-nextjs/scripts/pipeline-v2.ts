@@ -38,6 +38,7 @@ import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadli
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { checkForDuplicate, quickTitleSimilarityCheck } from '../lib/duplicate-checker';
+import { indexNewArticle } from '../lib/google-indexing';
 
 const prisma = new PrismaClient();
 
@@ -1123,6 +1124,17 @@ export async function runPipelineV2(source: PipelineV2Source) {
           console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/100 → ${publishMode}`);
         } catch (error: any) {
           console.log(`   ⚠️  Discover Gate failed: ${error.message}`);
+        }
+      })(),
+      
+      // Google Indexing API - Sofortige Indexierung bei Google
+      (async () => {
+        if (!saveAsDraft) {
+          try {
+            await indexNewArticle(slug);
+          } catch (error: any) {
+            console.log(`   ⚠️  Google Indexing failed: ${error.message}`);
+          }
         }
       })(),
     ]);
