@@ -69,11 +69,11 @@ export async function GET(request: NextRequest) {
           status: 'success',
           startedAt: new Date(startTime),
           completedAt: new Date(),
-          metadata: {
+          metadata: JSON.stringify({
             message: 'Keine neuen News gefunden',
             skipped: result.skipped || 0,
             duration,
-          }
+          })
         }
       });
     } else {
@@ -88,13 +88,13 @@ export async function GET(request: NextRequest) {
           status: result.failed > 0 ? 'partial' : 'success',
           startedAt: new Date(startTime),
           completedAt: new Date(),
-          metadata: {
+          metadata: JSON.stringify({
             processed: result.processed,
             failed: result.failed,
             skipped: result.skipped || 0,
             bySource: result.bySource,
             duration,
-          }
+          })
         }
       });
     }
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         startedAt: new Date(startTime),
         completedAt: new Date(),
         errorMessage: error.message,
-        metadata: { duration }
+        metadata: JSON.stringify({ duration })
       }
     });
     

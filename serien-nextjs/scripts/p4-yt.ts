@@ -307,6 +307,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
         // New video! Save to database
         await prisma.youtube_videos.create({
           data: {
+            id: video.videoId,
             videoId: video.videoId,
             channelId: video.channelId,
             title: video.title,
@@ -314,6 +315,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
             thumbnailUrl: video.thumbnailUrl,
             publishedAt: video.publishedAt,
             processed: false,
+            updatedAt: new Date(),
           }
         });
         
