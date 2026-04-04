@@ -304,6 +304,32 @@ export default async function ArticlePage({ params }: PageProps) {
   ];
   const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbItems);
 
+  // Generate VideoObject schema if article has a video/trailer
+  const videoUrl = article.heroVideoUrl || article.trailerLocalUrl || 
+    (article.series?.localTrailerPath && 
+     article.series.localTrailerPath !== 'unavailable' && 
+     article.series.localTrailerPath !== 'SKIP' && 
+     article.series.localTrailerPath.startsWith('http') 
+      ? article.series.localTrailerPath 
+      : null);
+
+  const videoSchema = videoUrl ? {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: `${article.title} - Trailer`,
+    description: article.excerpt || `Trailer zu ${article.title}`,
+    thumbnailUrl: imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl}`,
+    uploadDate: toDate(article.publishedAt || article.createdAt).toISOString(),
+    contentUrl: videoUrl,
+    embedUrl: videoUrl,
+    inLanguage: 'de',
+    publisher: {
+      '@type': 'Organization',
+      name: 'serien.de',
+      url: baseUrl,
+    },
+  } : null;
+
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
       {/* Google AdSense Script - Only on article pages */}
@@ -329,6 +355,16 @@ export default async function ArticlePage({ params }: PageProps) {
           __html: JSON.stringify(breadcrumbSchema),
         }}
       />
+
+      {/* VideoObject Schema */}
+      {videoSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(videoSchema),
+          }}
+        />
+      )}
 
       {/* HERO SECTION - Full Width Video/Image */}
       <div className="relative w-full bg-black">
