@@ -18,6 +18,7 @@ import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
 import ClientAdSlot from '@/components/ClientAdSlot';
+import { WasBedeutetDas } from '@/components/WasBedeutetDas';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
@@ -59,6 +60,7 @@ const getArticle = (slug: string) => unstable_cache(
         primarySeriesId: true,
         status: true,
         contentType: true,
+        wasBedeutetDasText: true,
         users: {
           select: { id: true, name: true, image: true, bio: true, expertise: true }
         },
@@ -528,6 +530,11 @@ export default async function ArticlePage({ params }: PageProps) {
               <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
             </span>
           </div>
+
+          {/* Was bedeutet das? - Einordnung */}
+          {article.wasBedeutetDasText && (
+            <WasBedeutetDas text={article.wasBedeutetDasText} />
+          )}
 
           {/* Q&A Section - Directly after article content */}
           {article.article_qa && article.article_qa.questions && (
