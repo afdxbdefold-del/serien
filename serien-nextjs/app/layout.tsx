@@ -106,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/about">Über uns</a>
           <a href="/impressum">Impressum</a>
           <a href="/datenschutz">Datenschutz</a>
+          <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
           <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>
           <a href="/autoren">Autoren</a>
         </nav>
