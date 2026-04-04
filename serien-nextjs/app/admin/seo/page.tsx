@@ -6,7 +6,8 @@ import Link from 'next/link';
 import {
   AlertTriangle, CheckCircle, Info, RefreshCw, Search, ChevronDown, ChevronUp,
   ArrowLeft, Loader2, Shield, Sparkles, ExternalLink, Filter, BarChart3,
-  AlertCircle, XCircle, Clock, Globe, Zap, FileSearch, Map
+  AlertCircle, XCircle, Clock, Globe, Zap, FileSearch, Map, Download,
+  TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 
 // ──── Types ────
@@ -64,6 +65,13 @@ interface HistoryItem {
   infoCount: number;
   startedAt: string;
   trigger: string;
+}
+
+interface RunComparison {
+  previousRun: { id: string; healthScore: number; startedAt: string } | null;
+  scoreDelta: number;
+  newIssues: { type: string; count: number }[];
+  fixedIssues: { type: string; count: number }[];
 }
 
 // ──── Helpers ────
@@ -209,6 +217,8 @@ export default function SeoAuditPage() {
   const [filterPageType, setFilterPageType] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRunId, setSelectedRunId] = useState('');
+  const [comparison, setComparison] = useState<RunComparison | null>(null);
+  const [httpSampleSize, setHttpSampleSize] = useState(50);
 
   const fetchData = useCallback(async (page = 1, runId?: string) => {
     try {
@@ -229,6 +239,7 @@ export default function SeoAuditPage() {
       setHistory(data.history || []);
       setIssueLabels(data.issueLabels || {});
       setCurrentPage(page);
+      setComparison(data.comparison || null);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -257,12 +268,31 @@ export default function SeoAuditPage() {
     try {
       const res = await fetch('/api/admin/seo', {
         method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ action: 'http_audit', runId: crawlRun.id, sampleSize: 50 }),
+        body: JSON.stringify({ action: 'http_audit', runId: crawlRun.id, sampleSize: httpSampleSize }),
       });
       if (res.ok) { await fetchData(1, crawlRun.id); }
       else { const d = await res.json(); alert(d.detail || 'Fehler'); }
     } catch (err) { console.error(err); }
     finally { setHttpCrawling(false); }
+  };
+
+  const exportCsv = async () => {
+    if (!crawlRun) return;
+    try {
+      const res = await fetch('/api/admin/seo', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ action: 'export_csv', runId: crawlRun.id }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `seo-audit-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) { console.error(err); }
   };
 
   const generateSummary = async () => {
@@ -299,7 +329,7 @@ export default function SeoAuditPage() {
     !['http_error','wrong_canonical','missing_canonical_tag','missing_robots_meta','noindex_detected','missing_h1','multiple_h1','missing_jsonld','invalid_jsonld_type','missing_og_tags','slow_response','sitemap_missing_url','sitemap_orphan','sitemap_unreachable'].includes(type)
   );
   const httpIssues = sortedIssues.filter(([type]) =>
-    ['http_error','wrong_canonical','missing_canonical_tag','missing_robots_meta','noindex_detected','missing_h1','multiple_h1','missing_jsonld','invalid_jsonld_type','missing_og_tags','slow_response'].includes(type)
+    ['http_error','wrong_canonical','missing_canonical_tag','missing_robots_meta','noindex_detected','missing_h1','multiple_h1','missing_jsonld','invalid_jsonld_type','missing_og_tags','slow_response','news_missing_date','news_missing_author','news_missing_source','news_missing_tmdb','feed_indexable'].includes(type)
   );
   const sitemapIssues = sortedIssues.filter(([type]) =>
     ['sitemap_missing_url','sitemap_orphan','sitemap_unreachable'].includes(type)
@@ -332,15 +362,32 @@ export default function SeoAuditPage() {
               {crawling ? 'DB-Audit...' : 'DB-Audit'}
             </button>
             {crawlRun && (
-              <button
-                onClick={startHttpAudit}
-                disabled={crawling || httpCrawling}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition text-sm font-medium"
-                data-testid="start-http-audit-btn"
-              >
-                {httpCrawling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-                {httpCrawling ? 'HTTP-Crawl...' : 'HTTP-Crawl'}
-              </button>
+              <>
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1">
+                  <select value={httpSampleSize} onChange={e => setHttpSampleSize(Number(e.target.value))}
+                    className="text-xs bg-transparent border-0 focus:ring-0 pr-1" data-testid="sample-size-select">
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                  </select>
+                  <span className="text-xs text-gray-500">Seiten</span>
+                </div>
+                <button
+                  onClick={startHttpAudit}
+                  disabled={crawling || httpCrawling}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition text-sm font-medium"
+                  data-testid="start-http-audit-btn"
+                >
+                  {httpCrawling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                  {httpCrawling ? 'HTTP-Crawl...' : 'HTTP-Crawl'}
+                </button>
+                <button onClick={exportCsv}
+                  className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition text-sm text-gray-600 dark:text-gray-400"
+                  data-testid="export-csv-btn">
+                  <Download className="w-4 h-4" /> CSV
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -383,6 +430,61 @@ export default function SeoAuditPage() {
               <StatCard label="Kritisch" value={crawlRun.criticalCount} icon={<XCircle className="w-4 h-4 text-red-400" />} color="text-red-600" />
               <StatCard label="Warnungen" value={crawlRun.warningCount} icon={<AlertTriangle className="w-4 h-4 text-amber-400" />} color="text-amber-600" />
             </div>
+
+            {/* Run Comparison Delta */}
+            {comparison && comparison.previousRun && (
+              <div className="bg-white dark:bg-gray-900 border rounded-xl p-5" data-testid="run-comparison">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-500" /> Vergleich zum letzten Audit
+                  <span className="text-xs text-gray-400 font-normal ml-1">
+                    ({new Date(comparison.previousRun.startedAt).toLocaleDateString('de-DE')})
+                  </span>
+                </h3>
+                <div className="flex flex-wrap gap-4">
+                  {/* Score delta */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Score:</span>
+                    {comparison.scoreDelta > 0 ? (
+                      <span className="flex items-center gap-1 text-emerald-600 text-sm font-medium">
+                        <TrendingUp className="w-4 h-4" /> +{comparison.scoreDelta}
+                      </span>
+                    ) : comparison.scoreDelta < 0 ? (
+                      <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
+                        <TrendingDown className="w-4 h-4" /> {comparison.scoreDelta}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-gray-500 text-sm">
+                        <Minus className="w-4 h-4" /> Gleich
+                      </span>
+                    )}
+                  </div>
+                  {/* Fixed issues */}
+                  {comparison.fixedIssues.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <span className="text-sm text-emerald-600">
+                        {comparison.fixedIssues.reduce((s, i) => s + i.count, 0)} behoben
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        ({comparison.fixedIssues.map(i => issueLabels[i.type] || i.type).slice(0, 3).join(', ')})
+                      </span>
+                    </div>
+                  )}
+                  {/* New issues */}
+                  {comparison.newIssues.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                      <span className="text-sm text-red-600">
+                        +{comparison.newIssues.reduce((s, i) => s + i.count, 0)} neu
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        ({comparison.newIssues.map(i => issueLabels[i.type] || i.type).slice(0, 3).join(', ')})
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* AI Summary */}
             <div className="bg-white dark:bg-gray-900 border rounded-xl p-5" data-testid="ai-summary-section">

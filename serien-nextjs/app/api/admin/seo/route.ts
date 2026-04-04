@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { jwtVerify } from 'jose';
-import { runFullAudit, runHttpAudit, generateAiSummary, ISSUE_LABELS } from '@/lib/seo-auditor';
+import { runFullAudit, runHttpAudit, generateAiSummary, compareRuns, generateCsvExport, ISSUE_LABELS } from '@/lib/seo-auditor';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -98,9 +98,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Comparison with previous run
+    let comparison = null;
+    try {
+      comparison = await compareRuns(crawlRun.id);
+    } catch { /* no previous run */ }
+
     return NextResponse.json({
       crawlRun, pages: paginatedPages, total, page, limit,
-      issueBreakdown, history, issueLabels: ISSUE_LABELS,
+      issueBreakdown, history, issueLabels: ISSUE_LABELS, comparison,
     });
   } catch (error: any) {
     console.error('SEO API error:', error);
@@ -155,6 +161,18 @@ export async function POST(request: NextRequest) {
       if (!runId) return NextResponse.json({ detail: 'runId required' }, { status: 400 });
       const summary = await generateAiSummary(runId);
       return NextResponse.json({ success: true, summary });
+    }
+
+    if (action === 'export_csv') {
+      const { runId } = body;
+      if (!runId) return NextResponse.json({ detail: 'runId required' }, { status: 400 });
+      const csv = await generateCsvExport(runId);
+      return new NextResponse(csv, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="seo-audit-${new Date().toISOString().split('T')[0]}.csv"`,
+        },
+      });
     }
 
     return NextResponse.json({ detail: 'Unknown action' }, { status: 400 });

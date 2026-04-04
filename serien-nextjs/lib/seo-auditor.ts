@@ -50,6 +50,13 @@ export const ISSUE_LABELS: Record<string, string> = {
   sitemap_missing_url: 'URL fehlt in Sitemap',
   sitemap_orphan: 'Sitemap-URL ohne DB-Eintrag',
   sitemap_unreachable: 'Sitemap nicht erreichbar',
+  // News-specific (HTTP)
+  news_missing_date: 'Kein sichtbares Datum',
+  news_missing_author: 'Kein sichtbarer Autor',
+  news_missing_source: 'Kein Quellenblock',
+  news_missing_tmdb: 'Keine TMDB-Bildquelle',
+  // Feed/Listing
+  feed_indexable: 'Feed/Listing-Seite indexierbar',
 };
 
 // ──────────── Helpers ────────────
@@ -89,6 +96,11 @@ async function fetchPageSeoData(url: string): Promise<{
   ogDescription: string | null;
   ogImage: string | null;
   responseTimeMs: number;
+  // News-specific signals
+  hasVisibleDate: boolean;
+  hasVisibleAuthor: boolean;
+  hasSourceBlock: boolean;
+  hasTmdbAttribution: boolean;
 } | null> {
   const start = Date.now();
   try {
@@ -135,30 +147,42 @@ async function fetchPageSeoData(url: string): Promise<{
     const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
     const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
 
+    // News-specific: visible date (look for <time> element or common date patterns)
+    const hasVisibleDate = /<time[^>]*datetime/i.test(html)
+      || /\d{1,2}\.\s?\w+\s?\d{4}/i.test(html)
+      || /article:published_time/i.test(html);
+
+    // News-specific: visible author (look for author markup or "Von ..." pattern)
+    const hasVisibleAuthor = /rel=["']author["']/i.test(html)
+      || /class=["'][^"']*author[^"']*["']/i.test(html)
+      || /Von\s+[A-ZÄÖÜ][a-zäöüß]+/i.test(html);
+
+    // News-specific: source/Quelle block
+    const hasSourceBlock = /Quelle/i.test(html)
+      || /class=["'][^"']*source[^"']*["']/i.test(html)
+      || /rel=["']nofollow["'][^>]*>.*?(Quelle|Source)/i.test(html);
+
+    // News-specific: TMDB attribution under images
+    const hasTmdbAttribution = /TMDB/i.test(html)
+      || /themoviedb/i.test(html)
+      || /Bildquelle.*?TMDB/i.test(html);
+
     return {
       statusCode: res.status,
-      canonical,
-      robotsMeta,
-      h1,
-      h1Count: h1Matches.length,
-      jsonLd,
+      canonical, robotsMeta, h1, h1Count: h1Matches.length, jsonLd,
       ogTitle: ogTitleMatch?.[1] || null,
       ogDescription: ogDescMatch?.[1] || null,
       ogImage: ogImageMatch?.[1] || null,
       responseTimeMs,
+      hasVisibleDate, hasVisibleAuthor, hasSourceBlock, hasTmdbAttribution,
     };
   } catch (error: any) {
     return {
-      statusCode: 0,
-      canonical: null,
-      robotsMeta: null,
-      h1: null,
-      h1Count: 0,
-      jsonLd: null,
-      ogTitle: null,
-      ogDescription: null,
-      ogImage: null,
+      statusCode: 0, canonical: null, robotsMeta: null, h1: null, h1Count: 0,
+      jsonLd: null, ogTitle: null, ogDescription: null, ogImage: null,
       responseTimeMs: Date.now() - start,
+      hasVisibleDate: false, hasVisibleAuthor: false,
+      hasSourceBlock: false, hasTmdbAttribution: false,
     };
   }
 }
@@ -668,6 +692,39 @@ export async function runHttpAudit(runId: string, sampleSize: number = 50): Prom
           details: 'Über 3 Sekunden (Ziel: < 2s)' });
       }
 
+      // News-specific checks (only for articles)
+      if (isArticle) {
+        if (!data.hasVisibleDate) {
+          issues.push({ type: 'news_missing_date', severity: 'warning',
+            message: 'Kein sichtbares Veröffentlichungsdatum im HTML',
+            details: 'Google News & Discover erfordern sichtbares Datum' });
+        }
+        if (!data.hasVisibleAuthor) {
+          issues.push({ type: 'news_missing_author', severity: 'warning',
+            message: 'Kein sichtbarer Autor im HTML',
+            details: 'E-E-A-T: Autorschaft muss erkennbar sein' });
+        }
+        if (!data.hasSourceBlock) {
+          issues.push({ type: 'news_missing_source', severity: 'info',
+            message: 'Kein Quellenblock erkannt',
+            details: 'Quellenangaben stärken die Glaubwürdigkeit' });
+        }
+        if (!data.hasTmdbAttribution) {
+          issues.push({ type: 'news_missing_tmdb', severity: 'info',
+            message: 'Keine TMDB-Bildquelle erkannt',
+            details: 'Bildquellenangabe empfohlen bei TMDB-Bildern' });
+        }
+      }
+
+      // Feed/Listing page check: these should typically not be indexable
+      const feedPaths = ['/trending', '/netflix-serien', '/disney-plus-serien', '/prime-video-serien',
+        '/apple-tv-serien', '/paramount-plus-serien', '/wow-serien', '/neue-serien'];
+      const isFeedPage = feedPaths.some(fp => url.endsWith(fp));
+      if (isFeedPage && data.robotsMeta && !data.robotsMeta.includes('noindex')) {
+        // Feed pages being indexable is actually fine for these category pages
+        // Only flag if they have thin content or duplicate canonical issues
+      }
+
       for (const issue of issues) {
         if (issue.severity === 'critical') httpCritical++;
         else if (issue.severity === 'warning') httpWarning++;
@@ -852,4 +909,117 @@ Erstelle eine handlungsorientierte Zusammenfassung (4-6 Sätze) auf Deutsch mit 
     console.error('AI Summary generation failed:', error);
     return 'AI-Zusammenfassung konnte nicht generiert werden.';
   }
+}
+
+
+// ──────────── Run Comparison ────────────
+
+export interface RunComparison {
+  previousRun: { id: string; healthScore: number; startedAt: string; criticalCount: number; warningCount: number; infoCount: number } | null;
+  scoreDelta: number;
+  newIssues: { type: string; count: number }[];
+  fixedIssues: { type: string; count: number }[];
+  unchangedIssues: { type: string; count: number }[];
+}
+
+export async function compareRuns(currentRunId: string): Promise<RunComparison> {
+  const currentRun = await prisma.seo_crawl_runs.findUnique({ where: { id: currentRunId } });
+  if (!currentRun) throw new Error('Run not found');
+
+  // Find previous completed run
+  const previousRun = await prisma.seo_crawl_runs.findFirst({
+    where: { status: 'completed', startedAt: { lt: currentRun.startedAt } },
+    orderBy: { startedAt: 'desc' },
+    select: { id: true, healthScore: true, startedAt: true, criticalCount: true, warningCount: true, infoCount: true },
+  });
+
+  if (!previousRun) {
+    return { previousRun: null, scoreDelta: 0, newIssues: [], fixedIssues: [], unchangedIssues: [] };
+  }
+
+  // Get issue breakdown for both runs
+  const [currentPages, prevPages] = await Promise.all([
+    prisma.seo_page_results.findMany({ where: { crawlRunId: currentRunId } }),
+    prisma.seo_page_results.findMany({ where: { crawlRunId: previousRun.id } }),
+  ]);
+
+  const currentIssues = new Map<string, number>();
+  const prevIssues = new Map<string, number>();
+
+  for (const p of currentPages) {
+    for (const i of (p.issues as SeoIssue[])) {
+      currentIssues.set(i.type, (currentIssues.get(i.type) || 0) + 1);
+    }
+  }
+  for (const p of prevPages) {
+    for (const i of (p.issues as SeoIssue[])) {
+      prevIssues.set(i.type, (prevIssues.get(i.type) || 0) + 1);
+    }
+  }
+
+  const allTypes = new Set([...currentIssues.keys(), ...prevIssues.keys()]);
+  const newIssues: { type: string; count: number }[] = [];
+  const fixedIssues: { type: string; count: number }[] = [];
+  const unchangedIssues: { type: string; count: number }[] = [];
+
+  for (const type of allTypes) {
+    const curr = currentIssues.get(type) || 0;
+    const prev = prevIssues.get(type) || 0;
+    if (curr > prev) newIssues.push({ type, count: curr - prev });
+    else if (curr < prev) fixedIssues.push({ type, count: prev - curr });
+    else if (curr > 0) unchangedIssues.push({ type, count: curr });
+  }
+
+  return {
+    previousRun: { ...previousRun, startedAt: previousRun.startedAt.toISOString() },
+    scoreDelta: currentRun.healthScore - previousRun.healthScore,
+    newIssues: newIssues.sort((a, b) => b.count - a.count),
+    fixedIssues: fixedIssues.sort((a, b) => b.count - a.count),
+    unchangedIssues,
+  };
+}
+
+// ──────────── CSV Export ────────────
+
+export async function generateCsvExport(runId: string): Promise<string> {
+  const pages = await prisma.seo_page_results.findMany({
+    where: { crawlRunId: runId },
+    orderBy: { url: 'asc' },
+  });
+
+  const headers = ['URL', 'Typ', 'Status', 'Titel', 'H1', 'Canonical', 'Robots', 'Ladezeit (ms)', 'JSON-LD', 'Interne Links', 'Issues (Kritisch)', 'Issues (Warnung)', 'Issues (Hinweis)', 'Issue-Details'];
+
+  const rows = pages.map(p => {
+    const issues = p.issues as SeoIssue[];
+    const critical = issues.filter(i => i.severity === 'critical');
+    const warnings = issues.filter(i => i.severity === 'warning');
+    const infos = issues.filter(i => i.severity === 'info');
+    const details = issues.map(i => `[${i.severity}] ${ISSUE_LABELS[i.type] || i.type}: ${i.message}`).join(' | ');
+
+    return [
+      p.url,
+      p.pageType,
+      p.statusCode || '',
+      csvEscape(p.title || ''),
+      csvEscape(p.h1 || ''),
+      p.canonical || '',
+      p.robotsMeta || '',
+      p.responseTimeMs || '',
+      p.hasJsonLd ? 'Ja' : 'Nein',
+      p.internalLinks,
+      critical.length,
+      warnings.length,
+      infos.length,
+      csvEscape(details),
+    ].join(',');
+  });
+
+  return [headers.join(','), ...rows].join('\n');
+}
+
+function csvEscape(val: string): string {
+  if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
 }
