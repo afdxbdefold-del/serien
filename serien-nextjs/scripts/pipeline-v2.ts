@@ -29,7 +29,7 @@ import { generateInternalLinks, validateInternalLinks } from '../lib/internal-li
 import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
-import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
+import { generateWasBedeutetDas, generateDarumRelevant, generateBisherigerStand } from '../lib/was-bedeutet-das';
 import { uploadSeriesImages } from '../lib/blob-uploader';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 import { getStreamerFallbackImage } from '../lib/streamer-fallback-images';
@@ -1079,6 +1079,52 @@ export async function runPipelineV2(source: PipelineV2Source) {
           }
         } catch (error: any) {
           console.log(`   ⚠️  "Was bedeutet das" generation failed: ${error.message}`);
+        }
+      })(),
+
+      // Generate "Darum ist das relevant" section
+      (async () => {
+        try {
+          const darumRelevantText = await generateDarumRelevant({
+            articleHtml: finalContentHtml,
+            headline: structuredContent.headline || '',
+            seriesName: dbSeries.name || dbSeries.title || '',
+            extractedFacts: JSON.stringify(facts).substring(0, 500),
+          });
+          
+          if (darumRelevantText) {
+            await prisma.articles.update({
+              where: { id: articleId },
+              data: { darumRelevantText }
+            });
+            console.log(`   ✅ "Darum ist das relevant" generated`);
+          }
+        } catch (error: any) {
+          console.log(`   ⚠️  "Darum relevant" generation failed: ${error.message}`);
+        }
+      })(),
+
+      // Generate "Bisheriger Stand zur Serie" section
+      (async () => {
+        try {
+          const bisherigerStandText = await generateBisherigerStand({
+            seriesName: dbSeries.name || dbSeries.title || '',
+            seriesOverview: dbSeries.overview || null,
+            seriesStatus: dbSeries.status || null,
+            seriesSeasons: dbSeries.seasons || null,
+            headline: structuredContent.headline || '',
+            extractedFacts: JSON.stringify(facts).substring(0, 500),
+          });
+          
+          if (bisherigerStandText) {
+            await prisma.articles.update({
+              where: { id: articleId },
+              data: { bisherigerStandText }
+            });
+            console.log(`   ✅ "Bisheriger Stand" generated`);
+          }
+        } catch (error: any) {
+          console.log(`   ⚠️  "Bisheriger Stand" generation failed: ${error.message}`);
         }
       })(),
       

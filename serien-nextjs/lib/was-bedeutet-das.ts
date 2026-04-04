@@ -170,3 +170,127 @@ function isValid(text: string): boolean {
 
   return true;
 }
+
+
+// ============================================================
+// DARUM IST DAS RELEVANT
+// ============================================================
+
+interface DarumRelevantInput {
+  articleHtml: string;
+  headline: string;
+  seriesName: string;
+  extractedFacts: string;
+}
+
+export async function generateDarumRelevant(
+  input: DarumRelevantInput
+): Promise<string | null> {
+  try {
+    const systemPrompt = `Erkläre in 1-2 sachlichen Sätzen, warum diese Serien-Nachricht für Zuschauer relevant ist.
+
+Max 40 Wörter, max 2 Sätze. Nüchtern, faktisch. Keine Emotion, kein "Fans", kein Ausrufezeichen.
+Erkläre den Kontext: Warum betrifft das den Zuschauer? (z.B. Wartezeit, Streaming-Verfügbarkeit, beliebte Besetzung)
+
+Nur den Text, kein JSON, keine Anführungszeichen.`;
+
+    const userPrompt = `HEADLINE: ${input.headline}
+SERIE: ${input.seriesName}
+FAKTEN: ${input.extractedFacts}
+
+Warum ist das relevant? (max 2 Sätze, max 40 Wörter)`;
+
+    const response = await fetch(LLM_PROXY_URL, {
+      method: 'POST',
+      headers: LLM_HEADERS,
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2,
+        max_completion_tokens: 120,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`LLM API error: ${response.status}`);
+
+    const data = await response.json();
+    const text = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
+
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount > 45 || text.includes('!')) return null;
+
+    return text;
+  } catch (error) {
+    console.error('DarumRelevant generation failed:', error);
+    return null;
+  }
+}
+
+// ============================================================
+// BISHERIGER STAND ZUR SERIE
+// ============================================================
+
+interface BisherigerStandInput {
+  seriesName: string;
+  seriesOverview: string | null;
+  seriesStatus: string | null;
+  seriesSeasons: any;
+  headline: string;
+  extractedFacts: string;
+}
+
+export async function generateBisherigerStand(
+  input: BisherigerStandInput
+): Promise<string | null> {
+  try {
+    const seasonInfo = input.seriesSeasons 
+      ? (Array.isArray(input.seriesSeasons) ? `${input.seriesSeasons.length} Staffeln` : '')
+      : '';
+
+    const systemPrompt = `Fasse in 2-3 sachlichen Sätzen den bisherigen Stand einer TV-Serie zusammen.
+
+Max 50 Wörter. Nüchtern, faktisch. Keine Meinung, kein "Fans", kein Ausrufezeichen.
+Nenne: Wie viele Staffeln gibt es? Wo läuft die Serie? Was war der letzte Stand?
+
+Nur den Text, kein JSON, keine Anführungszeichen.`;
+
+    const userPrompt = `SERIE: ${input.seriesName}
+STATUS: ${input.seriesStatus || 'unbekannt'}
+STAFFELN: ${seasonInfo}
+ÜBERBLICK: ${(input.seriesOverview || '').substring(0, 300)}
+AKTUELLE NEWS: ${input.headline}
+FAKTEN: ${input.extractedFacts}
+
+Bisheriger Stand zur Serie (max 3 Sätze, max 50 Wörter)`;
+
+    const response = await fetch(LLM_PROXY_URL, {
+      method: 'POST',
+      headers: LLM_HEADERS,
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2,
+        max_completion_tokens: 150,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`LLM API error: ${response.status}`);
+
+    const data = await response.json();
+    const text = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
+
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount > 60 || text.includes('!')) return null;
+
+    return text;
+  } catch (error) {
+    console.error('BisherigerStand generation failed:', error);
+    return null;
+  }
+}

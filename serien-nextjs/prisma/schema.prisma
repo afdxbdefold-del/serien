@@ -137,6 +137,8 @@ model articles {
   primarySeriesId           Int?
   publishMode               String                      @default("DISCOVER")
   wasBedeutetDasText        String?
+  darumRelevantText         String?
+  bisherigerStandText       String?
   trailerLocalUrl           String?
   cardImagePath             String?
   heroImagePath             String?

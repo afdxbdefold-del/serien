@@ -18,7 +18,7 @@ import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
 import ClientAdSlot from '@/components/ClientAdSlot';
-import { WasBedeutetDas } from '@/components/WasBedeutetDas';
+import { WasBedeutetDas, DarumRelevant, BisherigerStand } from '@/components/WasBedeutetDas';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
@@ -61,6 +61,8 @@ const getArticle = (slug: string) => unstable_cache(
         status: true,
         contentType: true,
         wasBedeutetDasText: true,
+        darumRelevantText: true,
+        bisherigerStandText: true,
         users: {
           select: { id: true, name: true, image: true, bio: true, expertise: true }
         },
@@ -531,9 +533,19 @@ export default async function ArticlePage({ params }: PageProps) {
             </span>
           </div>
 
-          {/* Was bedeutet das? - Einordnung */}
-          {article.wasBedeutetDasText && (
-            <WasBedeutetDas text={article.wasBedeutetDasText} />
+          {/* Kontext-Kästen */}
+          {(article.wasBedeutetDasText || article.darumRelevantText || article.bisherigerStandText) && (
+            <div className="my-8 space-y-4">
+              {article.bisherigerStandText && (
+                <BisherigerStand text={article.bisherigerStandText} />
+              )}
+              {article.darumRelevantText && (
+                <DarumRelevant text={article.darumRelevantText} />
+              )}
+              {article.wasBedeutetDasText && (
+                <WasBedeutetDas text={article.wasBedeutetDasText} />
+              )}
+            </div>
           )}
 
           {/* Q&A Section - Directly after article content */}
