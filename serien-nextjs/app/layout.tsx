@@ -103,6 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LayoutWrapper>{children}</LayoutWrapper>
         {/* Server-rendered footer nav for Google crawler (visible in first HTML pass) */}
         <nav aria-label="Rechtliche Informationen" className="sr-only">
+          <a href="/about">Über uns</a>
           <a href="/impressum">Impressum</a>
           <a href="/datenschutz">Datenschutz</a>
           <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>

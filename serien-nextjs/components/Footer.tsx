@@ -150,6 +150,9 @@ export default function Footer() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-6 text-sm">
+              <Link href="/about" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
+                Über uns
+              </Link>
               <Link href="/impressum" className="text-gray-500 dark:text-gray-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
                 Impressum
               </Link>
