@@ -25,6 +25,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   });
 
+  // Build set of series slugs to filter out duplicate article URLs
+  const seriesSlugs = new Set(series.map(s => s.slug));
+
   // Static pages
   const staticPages = [
     {
@@ -52,6 +55,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.5,
     },
     {
+      url: `${baseUrl}/redaktionelle-richtlinien`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly' as const,
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/nutzungsbedingungen`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    },
+    {
       url: `${baseUrl}/impressum`,
       lastModified: new Date(),
       changeFrequency: 'yearly' as const,
@@ -65,13 +80,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Article pages - using /<slug> instead of /artikel/<slug>
-  const articlePages = articles.map((article) => ({
-    url: `${baseUrl}/${article.slug}`,
-    lastModified: article.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }));
+  // Article pages - exclude slugs that collide with series (those redirect to /serie/slug)
+  const articlePages = articles
+    .filter((article) => !seriesSlugs.has(article.slug))
+    .map((article) => ({
+      url: `${baseUrl}/${article.slug}`,
+      lastModified: article.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
 
   // Series pages
   const seriesPages = series.map((show) => ({

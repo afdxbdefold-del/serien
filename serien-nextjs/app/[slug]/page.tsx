@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Script from 'next/script';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import ShareButton from '@/components/ShareButton';
 import { SeriesInfobox } from '@/components/SeriesInfobox';
@@ -238,6 +238,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   
+  // 301 Redirect: If slug matches a series, redirect to /serie/slug
+  const matchingSeries = await prisma.series.findFirst({
+    where: { slug },
+    select: { slug: true },
+  });
+  if (matchingSeries) {
+    permanentRedirect(`/serie/${slug}`);
+  }
+
   // Fetch article with cached query
   const article = await getArticle(slug);
 
