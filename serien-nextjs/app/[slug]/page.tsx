@@ -285,6 +285,8 @@ export default async function ArticlePage({ params }: PageProps) {
     (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || 
     '/og-image.png';
   
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+
   // Generate structured data with ImageObject
   const authorSlug = article.users?.name ? 
     article.users.name.toLowerCase()
