@@ -7,8 +7,12 @@ const prisma = new PrismaClient();
 async function main() {
   const series = await prisma.series.findMany({
     where: {
-      localTrailerPath: null,
-      trailers: { not: null }
+      OR: [
+        { localTrailerPath: { equals: null as any } },
+        { localTrailerPath: '' },
+        { localTrailerPath: 'unavailable' },
+      ],
+      trailers: { not: { equals: null as any } }
     },
     select: { tmdbId: true, title: true, name: true, slug: true, trailers: true },
     orderBy: { tmdbId: 'asc' }
@@ -59,7 +63,7 @@ async function main() {
       failed++;
     }
     
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 2000));
   }
   
   console.log(`\n=== FERTIG ===`);
