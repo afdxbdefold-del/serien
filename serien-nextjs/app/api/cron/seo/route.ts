@@ -1,17 +1,26 @@
 import { NextResponse } from 'next/server';
-import { runFullAudit, generateAiSummary } from '@/lib/seo-auditor';
+import { runFullAudit, runHttpAudit, generateAiSummary } from '@/lib/seo-auditor';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-// GET /api/cron/seo - Daily SEO audit cron
+// GET /api/cron/seo - Daily SEO audit: DB + HTTP + AI
 export async function GET() {
   try {
-    console.log('[SEO Cron] Starting daily audit...');
+    console.log('[SEO Cron] Starting daily DB audit...');
     const runId = await runFullAudit('cron');
-    console.log(`[SEO Cron] Audit completed: ${runId}`);
+    console.log(`[SEO Cron] DB audit completed: ${runId}`);
 
-    // Generate AI summary
+    // HTTP crawl (sample of 30 pages for cron)
+    try {
+      console.log('[SEO Cron] Starting HTTP crawl...');
+      await runHttpAudit(runId, 30);
+      console.log('[SEO Cron] HTTP crawl completed');
+    } catch (e) {
+      console.error('[SEO Cron] HTTP crawl failed:', e);
+    }
+
+    // AI summary
     try {
       await generateAiSummary(runId);
       console.log('[SEO Cron] AI summary generated');

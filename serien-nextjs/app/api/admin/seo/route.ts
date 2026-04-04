@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { jwtVerify } from 'jose';
-import { runFullAudit, generateAiSummary, ISSUE_LABELS } from '@/lib/seo-auditor';
+import { runFullAudit, runHttpAudit, generateAiSummary, ISSUE_LABELS } from '@/lib/seo-auditor';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -18,7 +18,7 @@ async function verifyAdmin(request: NextRequest) {
   }
 }
 
-// GET /api/admin/seo - Retrieve latest audit results
+// GET /api/admin/seo
 export async function GET(request: NextRequest) {
   if (!(await verifyAdmin(request))) {
     return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '50');
 
   try {
-    // Get specific run or latest
     let crawlRun;
     if (runId) {
       crawlRun = await prisma.seo_crawl_runs.findUnique({ where: { id: runId } });
@@ -46,28 +45,25 @@ export async function GET(request: NextRequest) {
 
     if (!crawlRun) {
       return NextResponse.json({
-        crawlRun: null,
-        pages: [],
-        issueBreakdown: {},
-        history: [],
-        issueLabels: ISSUE_LABELS,
+        crawlRun: null, pages: [], issueBreakdown: {},
+        history: [], issueLabels: ISSUE_LABELS,
       });
     }
 
-    // Build page filter
     const where: any = { crawlRunId: crawlRun.id };
     if (pageType) where.pageType = pageType;
 
-    // Get pages with issues
     let allPages = await prisma.seo_page_results.findMany({
-      where,
-      orderBy: { url: 'asc' },
+      where, orderBy: { url: 'asc' },
     });
 
-    // Filter by severity or issue type in-memory (JSON field)
+    // Filter by severity or issue type
     if (severity || issueType) {
       allPages = allPages.filter(p => {
         const issues = p.issues as any[];
+        if (severity && issueType) {
+          return issues.some(i => i.severity === severity && i.type === issueType);
+        }
         if (severity) return issues.some(i => i.severity === severity);
         if (issueType) return issues.some(i => i.type === issueType);
         return true;
@@ -77,9 +73,10 @@ export async function GET(request: NextRequest) {
     const total = allPages.length;
     const paginatedPages = allPages.slice((page - 1) * limit, page * limit);
 
-    // Build issue breakdown
+    // Issue breakdown
     const issueBreakdown: Record<string, { count: number; severity: string }> = {};
-    for (const p of await prisma.seo_page_results.findMany({ where: { crawlRunId: crawlRun.id } })) {
+    const allPagesForBreakdown = await prisma.seo_page_results.findMany({ where: { crawlRunId: crawlRun.id } });
+    for (const p of allPagesForBreakdown) {
       const issues = p.issues as any[];
       for (const issue of issues) {
         if (!issueBreakdown[issue.type]) {
@@ -89,7 +86,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get crawl history (last 10)
+    // History (last 10)
     const history = await prisma.seo_crawl_runs.findMany({
       where: { status: 'completed' },
       orderBy: { startedAt: 'desc' },
@@ -97,19 +94,13 @@ export async function GET(request: NextRequest) {
       select: {
         id: true, healthScore: true, totalPages: true,
         issuesFound: true, criticalCount: true, warningCount: true,
-        startedAt: true, trigger: true,
+        infoCount: true, startedAt: true, trigger: true,
       },
     });
 
     return NextResponse.json({
-      crawlRun,
-      pages: paginatedPages,
-      total,
-      page,
-      limit,
-      issueBreakdown,
-      history,
-      issueLabels: ISSUE_LABELS,
+      crawlRun, pages: paginatedPages, total, page, limit,
+      issueBreakdown, history, issueLabels: ISSUE_LABELS,
     });
   } catch (error: any) {
     console.error('SEO API error:', error);
@@ -117,7 +108,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/seo - Trigger new audit or generate AI summary
+// POST /api/admin/seo
 export async function POST(request: NextRequest) {
   if (!(await verifyAdmin(request))) {
     return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
@@ -128,7 +119,6 @@ export async function POST(request: NextRequest) {
     const action = body.action || 'crawl';
 
     if (action === 'crawl') {
-      // Check if a crawl is already running
       const running = await prisma.seo_crawl_runs.findFirst({
         where: { status: 'running' },
       });
@@ -139,18 +129,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Run audit (blocking for now since it's DB-driven and fast)
+      // Run DB audit
       const runId = await runFullAudit('manual');
       const result = await prisma.seo_crawl_runs.findUnique({ where: { id: runId } });
+      return NextResponse.json({ success: true, crawlRun: result });
+    }
 
+    if (action === 'http_audit') {
+      const { runId, sampleSize } = body;
+
+      // Either use existing run or create fresh one with DB audit first
+      let targetRunId = runId;
+      if (!targetRunId) {
+        targetRunId = await runFullAudit('manual');
+      }
+
+      // Run HTTP audit (this adds to the existing run)
+      await runHttpAudit(targetRunId, sampleSize || 50);
+      const result = await prisma.seo_crawl_runs.findUnique({ where: { id: targetRunId } });
       return NextResponse.json({ success: true, crawlRun: result });
     }
 
     if (action === 'ai_summary') {
       const { runId } = body;
-      if (!runId) {
-        return NextResponse.json({ detail: 'runId required' }, { status: 400 });
-      }
+      if (!runId) return NextResponse.json({ detail: 'runId required' }, { status: 400 });
       const summary = await generateAiSummary(runId);
       return NextResponse.json({ success: true, summary });
     }

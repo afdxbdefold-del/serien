@@ -598,11 +598,16 @@ model seo_page_results {
   crawlRunId      String
   url             String
   pageType        String
+  statusCode      Int?
   title           String?
   metaDescription String?
+  h1              String?
   canonical       String?
+  robotsMeta      String?
   contentHash     String?
   internalLinks   Int            @default(0)
+  responseTimeMs  Int?
+  hasJsonLd       Boolean?
   issues          Json           @default("[]")
   crawlRun        seo_crawl_runs @relation(fields: [crawlRunId], references: [id], onDelete: Cascade)
 
