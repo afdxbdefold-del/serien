@@ -96,6 +96,7 @@ export default function AdminDashboardPage() {
               { id: 'series', label: '📺 Serien', href: '/admin/series' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
+              { id: 'seo', label: '🔍 SEO Audit', href: '/admin/seo' },
               { id: 'users', label: '👥 Users', href: null },
             ].map(({ id, label, href }) => (
               href ? (

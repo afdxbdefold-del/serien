@@ -572,3 +572,40 @@ model youtube_videos {
   @@index([processed])
   @@index([publishedAt])
 }
+
+
+model seo_crawl_runs {
+  id            String             @id
+  status        String             @default("running")
+  totalPages    Int                @default(0)
+  issuesFound   Int                @default(0)
+  criticalCount Int                @default(0)
+  warningCount  Int                @default(0)
+  infoCount     Int                @default(0)
+  healthScore   Int                @default(100)
+  aiSummary     String?
+  startedAt     DateTime           @default(now())
+  completedAt   DateTime?
+  trigger       String             @default("manual")
+  pages         seo_page_results[]
+
+  @@index([startedAt])
+  @@index([status])
+}
+
+model seo_page_results {
+  id              String         @id
+  crawlRunId      String
+  url             String
+  pageType        String
+  title           String?
+  metaDescription String?
+  canonical       String?
+  contentHash     String?
+  internalLinks   Int            @default(0)
+  issues          Json           @default("[]")
+  crawlRun        seo_crawl_runs @relation(fields: [crawlRunId], references: [id], onDelete: Cascade)
+
+  @@index([crawlRunId])
+  @@index([pageType])
+}
