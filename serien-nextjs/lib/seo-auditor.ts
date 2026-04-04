@@ -148,14 +148,19 @@ async function fetchPageSeoData(url: string): Promise<{
     const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
 
     // News-specific: visible date (look for <time> element or common date patterns)
+    // Also check RSC payload for streamed content (Next.js App Router streaming SSR)
     const hasVisibleDate = /<time[^>]*datetime/i.test(html)
       || /\d{1,2}\.\s?\w+\s?\d{4}/i.test(html)
-      || /article:published_time/i.test(html);
+      || /article:published_time/i.test(html)
+      || /datePublished/i.test(html);
 
     // News-specific: visible author (look for author markup or "Von ..." pattern)
+    // Also check OG meta tags and RSC payload for streamed content
     const hasVisibleAuthor = /rel=["']author["']/i.test(html)
       || /class=["'][^"']*author[^"']*["']/i.test(html)
-      || /Von\s+[A-ZÄÖÜ][a-zäöüß]+/i.test(html);
+      || /Von\s+[A-ZÄÖÜ][a-zäöüß]+/i.test(html)
+      || /article:author/i.test(html)
+      || /rel=\\"author\\"/i.test(html);
 
     // News-specific: source/Quelle block
     const hasSourceBlock = /Quelle/i.test(html)
