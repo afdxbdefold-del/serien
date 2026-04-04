@@ -82,10 +82,10 @@ function isWithin6Hours(timeAgo: string): boolean {
   
   const timeLower = timeAgo.toLowerCase().trim();
   
-  // "X hours ago" - include if less than 2
+  // "X hours ago" - include if ≤ 12 hours (allows catch-up after outages/US nighttime)
   const hoursMatch = timeLower.match(/(\d+)\s*(?:hour|hr|h)/);
   if (hoursMatch) {
-    return parseInt(hoursMatch[1]) <= 2;
+    return parseInt(hoursMatch[1]) <= 12;
   }
   
   // "X minutes ago" - always include
@@ -269,6 +269,11 @@ async function scrapeValnetNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   );
   
   console.log(`   Found ${cleanArticles.length} articles from ${source.name}`);
+  
+  // Log time values for debugging
+  if (cleanArticles.length > 0) {
+    cleanArticles.slice(0, 3).forEach(a => console.log(`     → "${a.title.substring(0, 40)}..." timeAgo="${a.timeAgo}"`));
+  }
   
   // Filter for relevance
   const relevantArticles = cleanArticles.filter(isRelevantArticle);
