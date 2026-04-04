@@ -1064,11 +1064,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Generate "Was bedeutet das" section
       (async () => {
         try {
-          const wasBedeutetDasText = await generateWasBedeutetDas(
-            structuredContent.headline,
-            finalContentHtml,
-            dbSeries.name || dbSeries.title || ''
-          );
+          const wasBedeutetDasText = await generateWasBedeutetDas({
+            headline: structuredContent.headline || '',
+            articleHtml: finalContentHtml,
+            seriesName: dbSeries.name || dbSeries.title || '',
+            contentType: contentType || 'SINGLE_SERIES_NEWS',
+            extractedFacts: JSON.stringify(facts).substring(0, 500),
+          });
           
           if (wasBedeutetDasText) {
             await prisma.articles.update({
