@@ -19,14 +19,26 @@ interface AdConfig {
 }
 
 function MobileAdInner({ config }: { config: AdConfig }) {
-  const adRef = useRef<HTMLModElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!adRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const isProd = window.location.hostname !== 'localhost' &&
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
+
+    // Create fresh <ins> via raw DOM
+    container.innerHTML = '';
+    const ins = document.createElement('ins');
+    ins.className = 'adsbygoogle';
+    ins.style.display = 'inline-block';
+    ins.style.width = `${config.width}px`;
+    ins.style.height = `${config.height}px`;
+    ins.setAttribute('data-ad-client', config.adClient);
+    ins.setAttribute('data-ad-slot', config.adSlot);
+    container.appendChild(ins);
 
     const timer = setTimeout(() => {
       try {
@@ -34,20 +46,15 @@ function MobileAdInner({ config }: { config: AdConfig }) {
       } catch (e) {
         // ignore
       }
-    }, 150);
+    }, 250);
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      container.innerHTML = '';
+    };
+  }, [config]);
 
-  return (
-    <ins
-      ref={adRef}
-      className="adsbygoogle"
-      style={{ display: 'inline-block', width: `${config.width}px`, height: `${config.height}px` }}
-      data-ad-client={config.adClient}
-      data-ad-slot={config.adSlot}
-    />
-  );
+  return <div ref={containerRef} />;
 }
 
 export default function MobileTopAd() {

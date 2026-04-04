@@ -69,6 +69,7 @@ export default function ContentWithAds({
     let paragraphCount = 0;
     let adsInserted = 0;
     const maxAds = 4;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     paragraphs.forEach((el) => {
       paragraphCount++;
@@ -78,23 +79,37 @@ export default function ContentWithAds({
         adContainer.className = 'content-ad-unit my-6 not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
         adContainer.style.cssText = 'display:flex;justify-content:center;';
-        adContainer.innerHTML = `
-          <ins class="adsbygoogle"
-               style="display:inline-block;width:${adConfig.width}px;height:${adConfig.height}px"
-               data-ad-client="${adConfig.adClient}"
-               data-ad-slot="${adConfig.adSlot}"></ins>
-        `;
+
+        // Create fresh <ins> via raw DOM
+        const ins = document.createElement('ins');
+        ins.className = 'adsbygoogle';
+        ins.style.display = 'inline-block';
+        ins.style.width = `${adConfig.width}px`;
+        ins.style.height = `${adConfig.height}px`;
+        ins.setAttribute('data-ad-client', adConfig.adClient);
+        ins.setAttribute('data-ad-slot', adConfig.adSlot);
+        adContainer.appendChild(ins);
 
         el.after(adContainer);
-        adsInserted++;
 
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          // AdSense push error
-        }
+        // Stagger push calls to avoid overwhelming AdSense
+        const delay = 300 + (adsInserted * 150);
+        const timer = setTimeout(() => {
+          try {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+          } catch (e) {
+            // AdSense push error
+          }
+        }, delay);
+        timers.push(timer);
+
+        adsInserted++;
       }
     });
+
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+    };
   }, [html, adConfig, pathname]);
 
   return (

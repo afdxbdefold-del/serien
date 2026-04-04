@@ -47,22 +47,38 @@ interface ClientAdSlotProps {
 }
 
 /**
- * AdSlotInner: Mounts fresh <ins> and pushes ad on every mount.
+ * AdSlotInner: Creates fresh <ins> via raw DOM on every mount.
  * Because the parent uses key={pathname}, this fully remounts on SPA navigation.
+ * Raw DOM ensures AdSense sees a truly new element without React attributes.
  */
 function AdSlotInner({ config }: { config: AdConfig }) {
-  const adRef = useRef<HTMLModElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!adRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const isProd = window.location.hostname !== 'localhost' &&
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
 
-    // Retry mechanism: wait for adsbygoogle to be available (script might still be loading)
+    // Clear any previous content
+    container.innerHTML = '';
+
+    // Create fresh <ins> via raw DOM (not React JSX)
+    const ins = document.createElement('ins');
+    ins.className = 'adsbygoogle';
+    ins.style.display = 'inline-block';
+    ins.style.width = `${config.width}px`;
+    ins.style.height = `${config.height}px`;
+    ins.setAttribute('data-ad-client', config.adClient);
+    ins.setAttribute('data-ad-slot', config.adSlot);
+    container.appendChild(ins);
+
+    // Retry mechanism: wait for adsbygoogle to be available
     let attempts = 0;
     const maxAttempts = 20;
+    let retryTimer: ReturnType<typeof setTimeout>;
     const tryPush = () => {
       attempts++;
       if (typeof window.adsbygoogle !== 'undefined') {
@@ -72,27 +88,20 @@ function AdSlotInner({ config }: { config: AdConfig }) {
           // AdSense errors are expected in some cases
         }
       } else if (attempts < maxAttempts) {
-        // Script not loaded yet, retry after delay
         retryTimer = setTimeout(tryPush, 200);
       }
     };
 
-    let retryTimer: ReturnType<typeof setTimeout>;
-    // Initial delay to ensure DOM is settled
-    retryTimer = setTimeout(tryPush, 150);
+    // Wait for DOM to settle before pushing
+    retryTimer = setTimeout(tryPush, 250);
 
-    return () => clearTimeout(retryTimer);
-  }, []);
+    return () => {
+      clearTimeout(retryTimer);
+      container.innerHTML = '';
+    };
+  }, [config]);
 
-  return (
-    <ins
-      ref={adRef}
-      className="adsbygoogle"
-      style={{ display: 'inline-block', width: config.width, height: config.height }}
-      data-ad-client={config.adClient}
-      data-ad-slot={config.adSlot}
-    />
-  );
+  return <div ref={containerRef} />;
 }
 
 /**

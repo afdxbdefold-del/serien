@@ -18,14 +18,26 @@ declare global {
 }
 
 function AdUnitInner({ slot, width, height }: { slot: string; width: number; height: number }) {
-  const adRef = useRef<HTMLModElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!adRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const isProd = window.location.hostname !== 'localhost' &&
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
+
+    // Create fresh <ins> via raw DOM (not React JSX)
+    container.innerHTML = '';
+    const ins = document.createElement('ins');
+    ins.className = 'adsbygoogle';
+    ins.style.display = 'inline-block';
+    ins.style.width = `${width}px`;
+    ins.style.height = `${height}px`;
+    ins.setAttribute('data-ad-client', 'ca-pub-8583619451045805');
+    ins.setAttribute('data-ad-slot', slot);
+    container.appendChild(ins);
 
     const timer = setTimeout(() => {
       try {
@@ -33,20 +45,15 @@ function AdUnitInner({ slot, width, height }: { slot: string; width: number; hei
       } catch (e) {
         // ignore
       }
-    }, 150);
+    }, 250);
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      container.innerHTML = '';
+    };
+  }, [slot, width, height]);
 
-  return (
-    <ins
-      ref={adRef}
-      className="adsbygoogle"
-      style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
-      data-ad-client="ca-pub-8583619451045805"
-      data-ad-slot={slot}
-    />
-  );
+  return <div ref={containerRef} />;
 }
 
 export default function AdUnit({ slot, width = 728, height = 90, className = '' }: AdUnitProps) {
