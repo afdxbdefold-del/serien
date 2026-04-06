@@ -149,9 +149,57 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
   }
   
   const seriesName = character.series.name || character.series.title;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+
+  // JSON-LD Structured Data
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: character.metaTitle || `${character.name} (${seriesName})`,
+    description: character.metaDescription || character.shortDescription || '',
+    url: `${baseUrl}/figur/${character.slug}`,
+    author: { '@type': 'Organization', name: 'serien.de' },
+    publisher: { '@type': 'Organization', name: 'serien.de', url: baseUrl },
+    about: {
+      '@type': 'FictionalCharacter',
+      name: character.name,
+      description: character.shortDescription || '',
+      ...(character.persons && {
+        actor: {
+          '@type': 'Person',
+          name: character.persons.name,
+          url: `${baseUrl}/person/${character.persons.slug}`,
+        },
+      }),
+    },
+    ...(qa && qa.length > 0 && {
+      mainEntity: qa.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    }),
+  };
+
+  // FAQPage schema for Q&A
+  const faqJsonLd = qa && qa.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: qa.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
+  } : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* JSON-LD */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {faqJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      )}
+
       {/* Hero Section */}
       <div className="bg-gradient-to-b from-blue-50 to-white py-12">
         <div className="container mx-auto px-4 max-w-4xl">
