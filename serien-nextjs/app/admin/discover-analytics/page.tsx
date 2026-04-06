@@ -46,7 +46,7 @@ export default function DiscoverAnalyticsPage() {
         }
 
         const data = await response.json();
-        setMetrics(data.data || []);
+        setMetrics(data.data?.dashboards || data.data || []);
       } catch (err) {
         console.error('Error fetching discover metrics:', err);
       } finally {
