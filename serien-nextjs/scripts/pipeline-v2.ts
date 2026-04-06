@@ -39,6 +39,7 @@ import { generateSeriesSlug } from '../lib/slug-utils';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { checkForDuplicate, quickTitleSimilarityCheck } from '../lib/duplicate-checker';
 import { indexNewArticle } from '../lib/google-indexing';
+import { indexNowArticle } from '../lib/indexnow';
 
 const prisma = new PrismaClient();
 
@@ -1182,6 +1183,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
             await indexNewArticle(slug);
           } catch (error: any) {
             console.log(`   ⚠️  Google Indexing failed: ${error.message}`);
+          }
+        }
+      })(),
+      // IndexNow - Sofortige Benachrichtigung an Bing, Yandex etc.
+      (async () => {
+        if (!saveAsDraft) {
+          try {
+            await indexNowArticle(slug);
+          } catch (error: any) {
+            console.log(`   ⚠️  IndexNow failed: ${error.message}`);
           }
         }
       })(),
