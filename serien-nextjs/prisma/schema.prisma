@@ -312,11 +312,16 @@ model persons {
   slug             String            @unique
   name             String
   biography        String?
+  biographyEn      String?
   profilePath      String?
   knownFor         String?
   birthDate        DateTime?
+  deathDate        DateTime?
   birthPlace       String?
   popularity       Float?
+  socialLinks      Json?
+  tvCreditsJson    Json?
+  enrichedAt       DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime
   localProfilePath String?
