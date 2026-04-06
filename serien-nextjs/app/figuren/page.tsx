@@ -34,82 +34,38 @@ interface PageProps {
   }>;
 }
 
-const SERIES_PER_PAGE = 20;
+const PER_PAGE = 48;
 
 export default async function FigurenPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const searchQuery = params.q?.toLowerCase() || '';
-  const currentPage = parseInt(params.page || '1', 10);
+  const searchQuery = params.q?.trim() || '';
+  const currentPage = Math.max(1, parseInt(params.page || '1', 10));
 
-  // Fetch all published characters with their series and actor
-  const allCharacters = await prisma.characters.findMany({
-    where: {
-      publishStatus: 'published',
-      series: { tmdbId: { not: undefined } }, // Ensure series exists
-    },
-    include: {
-      series: {
-        select: {
-          tmdbId: true,
-          name: true,
-          title: true,
-          posterPath: true,
-        },
-      },
-      actor: {
-        select: {
-          name: true,
-          profilePath: true,
-        },
-      },
-    },
-    orderBy: [
-      { seriesTmdbId: 'asc' },
-      { name: 'asc' },
-    ],
-  });
-
-  // Filter out characters without valid series data and group by series
-  const validCharacters = allCharacters.filter(char => char.series && (char.series.name || char.series.title));
-  
-  // Group characters by series
-  const charactersBySeries = validCharacters.reduce((acc, char) => {
-    const seriesName = char.series.name || char.series.title || 'Unbekannte Serie';
-    if (!acc[seriesName]) {
-      acc[seriesName] = {
-        series: char.series,
-        characters: [],
-      };
-    }
-    acc[seriesName].characters.push(char);
-    return acc;
-  }, {} as Record<string, { series: typeof allCharacters[0]['series']; characters: typeof validCharacters }>);
-
-  let seriesGroups = Object.values(charactersBySeries);
-
-  // Filter by search query
+  const where: any = { publishStatus: 'published' };
   if (searchQuery) {
-    seriesGroups = seriesGroups.filter((group) => {
-      const seriesName = (group.series.name || group.series.title).toLowerCase();
-      const hasSeriesMatch = seriesName.includes(searchQuery);
-      
-      const hasCharacterMatch = group.characters.some((char) => 
-        char.name.toLowerCase().includes(searchQuery) ||
-        (char.actor?.name?.toLowerCase()?.includes(searchQuery) ?? false)
-      );
-
-      return hasSeriesMatch || hasCharacterMatch;
-    });
+    where.OR = [
+      { name: { contains: searchQuery, mode: 'insensitive' } },
+      { series: { title: { contains: searchQuery, mode: 'insensitive' } } },
+      { series: { name: { contains: searchQuery, mode: 'insensitive' } } },
+    ];
   }
 
-  // Pagination
-  const totalSeries = seriesGroups.length;
-  const totalPages = Math.ceil(totalSeries / SERIES_PER_PAGE);
-  const startIndex = (currentPage - 1) * SERIES_PER_PAGE;
-  const endIndex = startIndex + SERIES_PER_PAGE;
-  const paginatedGroups = seriesGroups.slice(startIndex, endIndex);
+  const [characters, totalCharacters] = await Promise.all([
+    prisma.characters.findMany({
+      where,
+      include: {
+        series: { select: { tmdbId: true, name: true, title: true, posterPath: true, slug: true } },
+        actor: { select: { name: true, profilePath: true } },
+      },
+      orderBy: [{ series: { popularity: 'desc' } }, { name: 'asc' }],
+      skip: (currentPage - 1) * PER_PAGE,
+      take: PER_PAGE,
+    }),
+    prisma.characters.count({ where }),
+  ]);
 
-  const totalCharacters = validCharacters.length;
+  const totalPages = Math.ceil(totalCharacters / PER_PAGE);
+  const totalSeries = totalCharacters; // simplified for display
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -153,176 +109,106 @@ export default async function FigurenPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-6xl py-12">
-        {paginatedGroups.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">
-              {searchQuery ? `Keine Figuren gefunden für "${searchQuery}"` : 'Noch keine Figuren vorhanden.'}
-            </p>
+      <div className="container mx-auto px-4 max-w-6xl py-10">
+        {characters.length === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            <p className="text-lg">{searchQuery ? `Keine Figuren gefunden für "${searchQuery}"` : 'Noch keine Figuren vorhanden.'}</p>
             {searchQuery && (
-              <Link
-                href="/figuren"
-                className="mt-4 inline-block text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Alle Figuren anzeigen
-              </Link>
+              <Link href="/figuren" className="mt-3 inline-block text-blue-600 hover:underline">Alle anzeigen</Link>
             )}
           </div>
         ) : (
           <>
-            <div className="space-y-12">
-              {paginatedGroups.map((group) => {
-                const seriesName = group.series.name || group.series.title;
-                
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="figuren-grid">
+              {characters.map((character) => {
+                const seriesName = character.series?.name || character.series?.title || '';
                 return (
-                  <section key={seriesName} className="space-y-6">
-                    {/* Series Header */}
-                    <div className="flex items-center gap-4">
-                      {group.series.posterPath && (
-                        <Link href={`/serie/${group.series.slug}`}>
-                          <Image
-                            src={`https://image.tmdb.org/t/p/w185${group.series.posterPath}`}
-                            alt={seriesName}
-                            width={60}
-                            height={90}
-                            className="rounded-lg shadow-md hover:shadow-lg transition-shadow"
-                          />
-                        </Link>
+                  <Link
+                    key={character.id}
+                    href={`/figur/${character.slug}`}
+                    className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow group"
+                    data-testid={`figur-card-${character.slug}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {character.actor?.profilePath && (
+                        <Image
+                          src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
+                          alt={character.name}
+                          width={50}
+                          height={75}
+                          className="rounded-lg shadow-sm flex-shrink-0"
+                          loading="lazy"
+                        />
                       )}
-                      <div>
-                        <Link
-                          href={`/serie/${group.series.slug}`}
-                          className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
-                        >
-                          {seriesName}
-                        </Link>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {group.characters.length} {group.characters.length === 1 ? 'Figur' : 'Figuren'}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm line-clamp-2">
+                          {character.name}
+                        </h3>
+                        {character.actor && (
+                          <p className="text-xs text-gray-500 mt-0.5">{character.actor.name}</p>
+                        )}
+                        {seriesName && (
+                          <p className="text-xs text-blue-600 mt-1 line-clamp-1">{seriesName}</p>
+                        )}
+                        {character.shortDescription && (
+                          <p className="text-xs text-gray-600 line-clamp-2 mt-1">{character.shortDescription}</p>
+                        )}
                       </div>
                     </div>
-
-                    {/* Characters Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {group.characters.map((character) => (
-                        <Link
-                          key={character.id}
-                          href={`/figur/${character.slug}`}
-                          className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-lg transition-shadow group"
-                        >
-                          <div className="flex items-start gap-4">
-                            {character.actor?.profilePath && (
-                              <Image
-                                src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
-                                alt={character.name}
-                                width={60}
-                                height={90}
-                                className="rounded-lg shadow-sm"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1 line-clamp-2">
-                                {character.name}
-                              </h3>
-                              {character.actor && (
-                                <p className="text-sm text-gray-500 mb-2">
-                                  {character.actor.name}
-                                </p>
-                              )}
-                              {character.shortDescription && (
-                                <p className="text-xs text-gray-600 line-clamp-3">
-                                  {character.shortDescription}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </section>
+                  </Link>
                 );
               })}
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-12 flex items-center justify-center gap-2">
-                {/* Previous Button */}
+              <nav className="mt-10 flex items-center justify-center gap-2" data-testid="figuren-pagination">
                 {currentPage > 1 && (
                   <Link
                     href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${currentPage - 1}`}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
                   >
-                    ← Zurück
+                    Zurück
                   </Link>
                 )}
-
-                {/* Page Numbers */}
-                <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                    // Show first page, last page, current page, and pages around current
-                    const showPage =
-                      pageNum === 1 ||
-                      pageNum === totalPages ||
-                      (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
-
-                    if (!showPage) {
-                      // Show ellipsis
-                      if (pageNum === 2 || pageNum === totalPages - 1) {
-                        return (
-                          <span key={pageNum} className="px-2 text-gray-400">
-                            ...
-                          </span>
-                        );
-                      }
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                    const show = p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2);
+                    if (!show) {
+                      if (p === 2 || p === totalPages - 1) return <span key={p} className="px-1 text-gray-400 text-sm">...</span>;
                       return null;
                     }
-
                     return (
                       <Link
-                        key={pageNum}
-                        href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${pageNum}`}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          pageNum === currentPage
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        key={p}
+                        href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${p}`}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                          p === currentPage ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
-                        {pageNum}
+                        {p}
                       </Link>
                     );
                   })}
                 </div>
-
-                {/* Next Button */}
                 {currentPage < totalPages && (
                   <Link
                     href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${currentPage + 1}`}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
                   >
-                    Weiter →
+                    Weiter
                   </Link>
                 )}
-              </div>
+              </nav>
             )}
           </>
         )}
 
-        {/* Stats Footer */}
+        {/* Stats */}
         {!searchQuery && (
-          <div className="mt-16 pt-8 border-t border-gray-200">
-            <div className="text-center">
-              <p className="text-gray-600">
-                Insgesamt <span className="font-semibold text-gray-900">{totalCharacters}</span> Figuren 
-                aus <span className="font-semibold text-gray-900">{totalSeries}</span> {totalSeries === 1 ? 'Serie' : 'Serien'}
-              </p>
-              {totalPages > 1 && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Seite {currentPage} von {totalPages}
-                </p>
-              )}
-            </div>
-          </div>
+          <p className="text-center text-sm text-gray-500 mt-6">
+            {totalCharacters} Figuren · Seite {currentPage} von {totalPages}
+          </p>
         )}
       </div>
     </div>
