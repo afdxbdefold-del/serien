@@ -34,8 +34,8 @@ export const metadata = {
     images: [
       {
         url: '/og-image.png?v=2',
-        width: 1536,
-        height: 1024,
+        width: 1280,
+        height: 896,
         alt: 'serien.de - Serien-News, Trailer & Updates',
       },
     ],

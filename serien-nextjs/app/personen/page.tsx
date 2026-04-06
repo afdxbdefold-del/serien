@@ -15,12 +15,24 @@ export const dynamic = 'force-dynamic';
 const PER_PAGE = 60;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-export const metadata: Metadata = {
-  title: 'Schauspieler & Stars - Alle Serien-Darsteller | serien.de',
-  description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',
-  robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
-  alternates: { canonical: 'https://serien.de/personen' },
-};
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const page = parseInt(params.page || '1', 10);
+  const letter = params.letter?.toUpperCase() || '';
+  const base = 'https://serien.de/personen';
+  const paramParts: string[] = [];
+  if (page > 1) paramParts.push(`page=${page}`);
+  if (letter) paramParts.push(`letter=${letter}`);
+  const canonical = paramParts.length > 0 ? `${base}?${paramParts.join('&')}` : base;
+  const suffix = page > 1 ? ` – Seite ${page}` : '';
+
+  return {
+    title: `Schauspieler & Stars - Alle Serien-Darsteller${suffix} | serien.de`,
+    description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',
+    robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
+    alternates: { canonical },
+  };
+}
 
 interface PageProps {
   searchParams: Promise<{ q?: string; page?: string; letter?: string }>;

@@ -29,6 +29,10 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
       metaDescription: true,
       name: true,
       slug: true,
+      shortDescription: true,
+      series: {
+        select: { tmdbId: true, tmdbType: true, name: true, title: true },
+      },
     },
   });
 
@@ -40,18 +44,42 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const seriesName = character.series?.name || character.series?.title || '';
+  const title = character.metaTitle || `${character.name} (${seriesName}) - Serienfigur | serien.de`;
+  const description = character.metaDescription || character.shortDescription || `Alles zur Serienfigur ${character.name} aus ${seriesName}.`;
   
+  // Use series backdrop as OG image (best available large image)
+  const ogImage = character.series?.tmdbId && character.series?.tmdbType
+    ? `${baseUrl}/img/og/${character.series.tmdbType}/${character.series.tmdbId}`
+    : `${baseUrl}/og-image.png`;
+
   return {
-    title: character.metaTitle || `${character.name} - Serienfigur`,
-    description: character.metaDescription || undefined,
+    title,
+    description,
     robots: {
       index: true,
       follow: true,
       'max-image-preview': 'large',
       'max-snippet': -1,
+      'max-video-preview': -1,
     },
     alternates: {
       canonical: `${baseUrl}/figur/${character.slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `${baseUrl}/figur/${character.slug}`,
+      siteName: 'serien.de',
+      locale: 'de_DE',
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${character.name} - ${seriesName}` }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImage],
     },
   };
 }

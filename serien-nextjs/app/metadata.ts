@@ -50,11 +50,7 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    google: 'your-google-verification-code',
-    // yandex: 'your-yandex-verification-code',
-    // bing: 'your-bing-verification-code',
-  },
+  // verification codes are set via Vercel environment variables
 };
 
 export default function RootLayoutMetadata() {

@@ -76,12 +76,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Use canonical slug for URLs
   const canonicalSlug = series.slug || slug;
 
+  // noindex for broken slugs (non-Latin titles that generated invalid slugs like "-2661")
+  const shouldIndex = canonicalSlug && !canonicalSlug.startsWith('-');
+
   return {
     title: `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`,
     description: `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`,
     metadataBase: new URL(baseUrl),
     robots: {
-      index: true,
+      index: shouldIndex,
       follow: true,
       'max-image-preview': 'large',
       'max-snippet': -1,

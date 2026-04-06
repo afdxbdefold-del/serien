@@ -57,13 +57,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-  // Series pages
-  const seriesPages: MetadataRoute.Sitemap = series.map(s => ({
-    url: `${baseUrl}/serie/${s.slug}`,
-    lastModified: s.updatedAt,
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  }));
+  // Series pages (exclude broken slugs like "-2661" from non-Latin titles)
+  const seriesPages: MetadataRoute.Sitemap = series
+    .filter(s => s.slug && !s.slug.startsWith('-'))
+    .map(s => ({
+      url: `${baseUrl}/serie/${s.slug}`,
+      lastModified: s.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
 
   // Person pages (only indexable ones with bio > 100 chars)
   const personPages: MetadataRoute.Sitemap = indexablePersons.map(p => ({

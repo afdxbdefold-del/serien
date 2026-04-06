@@ -14,12 +14,24 @@ export const dynamic = 'force-dynamic';
 const PER_PAGE = 48;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-export const metadata: Metadata = {
-  title: 'Serienfiguren - Charaktere & Rollen | serien.de',
-  description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',
-  robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
-  alternates: { canonical: 'https://serien.de/figuren' },
-};
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const page = parseInt(params.page || '1', 10);
+  const letter = params.letter?.toUpperCase() || '';
+  const base = 'https://serien.de/figuren';
+  const paramParts: string[] = [];
+  if (page > 1) paramParts.push(`page=${page}`);
+  if (letter) paramParts.push(`letter=${letter}`);
+  const canonical = paramParts.length > 0 ? `${base}?${paramParts.join('&')}` : base;
+  const suffix = page > 1 ? ` – Seite ${page}` : '';
+
+  return {
+    title: `Serienfiguren - Charaktere & Rollen${suffix} | serien.de`,
+    description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',
+    robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
+    alternates: { canonical },
+  };
+}
 
 interface PageProps {
   searchParams: Promise<{ q?: string; page?: string; letter?: string }>;
