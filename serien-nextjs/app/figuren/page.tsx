@@ -1,6 +1,6 @@
 /**
  * Figuren Overview Page
- * Lists all published fictional characters with search and pagination
+ * Lists all published fictional characters with search, A-Z filter and pagination
  */
 
 import { Metadata } from 'next';
@@ -9,113 +9,141 @@ import Image from 'next/image';
 import prisma from '@/lib/prisma';
 import { Search } from 'lucide-react';
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
+const PER_PAGE = 48;
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export const metadata: Metadata = {
   title: 'Serienfiguren - Charaktere & Rollen | serien.de',
   description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',
-  robots: {
-    index: true,
-    follow: true,
-    'max-image-preview': 'large',
-    'max-snippet': -1,
-  },
-  alternates: {
-    canonical: 'https://serien.de/figuren',
-  },
+  robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
+  alternates: { canonical: 'https://serien.de/figuren' },
 };
 
 interface PageProps {
-  searchParams: Promise<{
-    q?: string;
-    page?: string;
-  }>;
+  searchParams: Promise<{ q?: string; page?: string; letter?: string }>;
 }
-
-const PER_PAGE = 48;
 
 export default async function FigurenPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const searchQuery = params.q?.trim() || '';
+  const activeLetter = params.letter?.toUpperCase() || '';
   const currentPage = Math.max(1, parseInt(params.page || '1', 10));
 
   const where: any = { publishStatus: 'published' };
+  const conditions: any[] = [{ publishStatus: 'published' }];
+
   if (searchQuery) {
-    where.OR = [
-      { name: { contains: searchQuery, mode: 'insensitive' } },
-      { series: { title: { contains: searchQuery, mode: 'insensitive' } } },
-      { series: { name: { contains: searchQuery, mode: 'insensitive' } } },
-    ];
+    conditions.push({
+      OR: [
+        { name: { contains: searchQuery, mode: 'insensitive' } },
+        { series: { title: { contains: searchQuery, mode: 'insensitive' } } },
+        { series: { name: { contains: searchQuery, mode: 'insensitive' } } },
+      ],
+    });
   }
+  if (activeLetter && LETTERS.includes(activeLetter)) {
+    conditions.push({ name: { startsWith: activeLetter, mode: 'insensitive' } });
+  }
+
+  const finalWhere = conditions.length > 1 ? { AND: conditions } : conditions[0];
+  const orderBy = activeLetter
+    ? [{ name: 'asc' as const }]
+    : [{ series: { popularity: 'desc' as const } }, { name: 'asc' as const }];
 
   const [characters, totalCharacters] = await Promise.all([
     prisma.characters.findMany({
-      where,
+      where: finalWhere,
       include: {
         series: { select: { tmdbId: true, name: true, title: true, posterPath: true, slug: true } },
         actor: { select: { name: true, profilePath: true } },
       },
-      orderBy: [{ series: { popularity: 'desc' } }, { name: 'asc' }],
+      orderBy,
       skip: (currentPage - 1) * PER_PAGE,
       take: PER_PAGE,
     }),
-    prisma.characters.count({ where }),
+    prisma.characters.count({ where: finalWhere }),
   ]);
 
   const totalPages = Math.ceil(totalCharacters / PER_PAGE);
-  const totalSeries = totalCharacters; // simplified for display
+
+  function buildUrl(opts: { page?: number; letter?: string; q?: string }) {
+    const p = new URLSearchParams();
+    const q = opts.q ?? searchQuery;
+    const l = opts.letter ?? activeLetter;
+    if (q) p.set('q', q);
+    if (l) p.set('letter', l);
+    if (opts.page && opts.page > 1) p.set('page', String(opts.page));
+    const qs = p.toString();
+    return `/figuren${qs ? `?${qs}` : ''}`;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-b from-blue-50 to-white py-12 border-b border-gray-200">
+    <div className="min-h-screen bg-gray-50" data-testid="figuren-page">
+      {/* Hero */}
+      <div className="bg-gradient-to-b from-slate-900 to-slate-800 text-white py-10">
         <div className="container mx-auto px-4 max-w-6xl">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            🎭 Serienfiguren
-          </h1>
-          <p className="text-lg text-gray-600 max-w-3xl">
-            Entdecke die wichtigsten Charaktere deiner Lieblingsserien: Rolle, Bedeutung, 
-            Hintergrund und aktuelle News zu den fiktiven Figuren.
+          <h1 className="text-4xl sm:text-5xl font-bold mb-2">Serienfiguren</h1>
+          <p className="text-base text-slate-300 mb-5">
+            {totalCharacters.toLocaleString('de-DE')} Figuren{activeLetter ? ` mit "${activeLetter}"` : ''} aus deinen Lieblingsserien
           </p>
-
-          {/* Search Bar */}
-          <form method="GET" className="mt-6">
-            <div className="relative max-w-2xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <form method="GET" action="/figuren">
+            {activeLetter && <input type="hidden" name="letter" value={activeLetter} />}
+            <div className="relative max-w-xl">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
               <input
-                type="text"
-                name="q"
-                defaultValue={searchQuery}
+                type="text" name="q" defaultValue={searchQuery}
                 placeholder="Figur, Schauspieler oder Serie suchen..."
-                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="figuren-search"
+                className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white/15"
               />
             </div>
           </form>
-
-          {/* Search Results Info */}
           {searchQuery && (
-            <p className="mt-4 text-sm text-gray-600">
-              {totalSeries === 0 ? (
-                <>Keine Ergebnisse für "{searchQuery}"</>
-              ) : (
-                <>
-                  {totalSeries} {totalSeries === 1 ? 'Serie gefunden' : 'Serien gefunden'} für "{searchQuery}"
-                </>
-              )}
+            <p className="mt-2 text-sm text-slate-400">
+              {totalCharacters === 0 ? `Keine Ergebnisse für "${searchQuery}"` : `${totalCharacters} Treffer für "${searchQuery}"`}
+              {' · '}<Link href={activeLetter ? `/figuren?letter=${activeLetter}` : '/figuren'} className="text-blue-400 hover:underline">Suche zurücksetzen</Link>
             </p>
           )}
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-6xl py-10">
+      {/* A-Z Filter */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10" data-testid="figuren-letter-filter">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="flex items-center gap-0.5 py-2 overflow-x-auto scrollbar-hide">
+            <Link
+              href={searchQuery ? `/figuren?q=${encodeURIComponent(searchQuery)}` : '/figuren'}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition ${
+                !activeLetter ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              data-testid="figuren-filter-all"
+            >
+              Alle
+            </Link>
+            {LETTERS.map((letter) => (
+              <Link
+                key={letter}
+                href={buildUrl({ letter, page: 1, q: searchQuery })}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition ${
+                  activeLetter === letter ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                data-testid={`figuren-filter-${letter}`}
+              >
+                {letter}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         {characters.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
-            <p className="text-lg">{searchQuery ? `Keine Figuren gefunden für "${searchQuery}"` : 'Noch keine Figuren vorhanden.'}</p>
-            {searchQuery && (
-              <Link href="/figuren" className="mt-3 inline-block text-blue-600 hover:underline">Alle anzeigen</Link>
-            )}
+            <p className="text-lg">{searchQuery ? `Keine Figuren für "${searchQuery}"` : activeLetter ? `Keine Figuren mit "${activeLetter}"` : 'Noch keine Figuren vorhanden.'}</p>
+            <Link href="/figuren" className="mt-3 inline-block text-blue-600 hover:underline">Alle anzeigen</Link>
           </div>
         ) : (
           <>
@@ -133,11 +161,8 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                       {character.actor?.profilePath && (
                         <Image
                           src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
-                          alt={character.name}
-                          width={50}
-                          height={75}
-                          className="rounded-lg shadow-sm flex-shrink-0"
-                          loading="lazy"
+                          alt={character.name} width={50} height={75}
+                          className="rounded-lg shadow-sm flex-shrink-0" loading="lazy"
                         />
                       )}
                       <div className="flex-1 min-w-0">
@@ -164,10 +189,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
             {totalPages > 1 && (
               <nav className="mt-10 flex items-center justify-center gap-2" data-testid="figuren-pagination">
                 {currentPage > 1 && (
-                  <Link
-                    href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${currentPage - 1}`}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-                  >
+                  <Link href={buildUrl({ page: currentPage - 1 })} className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Zurück
                   </Link>
                 )}
@@ -179,23 +201,16 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                       return null;
                     }
                     return (
-                      <Link
-                        key={p}
-                        href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${p}`}
+                      <Link key={p} href={buildUrl({ page: p })}
                         className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                          p === currentPage ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          p === currentPage ? 'bg-slate-900 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                         }`}
-                      >
-                        {p}
-                      </Link>
+                      >{p}</Link>
                     );
                   })}
                 </div>
                 {currentPage < totalPages && (
-                  <Link
-                    href={`/figuren?${searchQuery ? `q=${encodeURIComponent(searchQuery)}&` : ''}page=${currentPage + 1}`}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
-                  >
+                  <Link href={buildUrl({ page: currentPage + 1 })} className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Weiter
                   </Link>
                 )}
@@ -204,10 +219,9 @@ export default async function FigurenPage({ searchParams }: PageProps) {
           </>
         )}
 
-        {/* Stats */}
-        {!searchQuery && (
-          <p className="text-center text-sm text-gray-500 mt-6">
-            {totalCharacters} Figuren · Seite {currentPage} von {totalPages}
+        {totalPages > 1 && (
+          <p className="text-center text-sm text-gray-500 mt-4">
+            Seite {currentPage} von {totalPages} · {totalCharacters.toLocaleString('de-DE')} Figuren
           </p>
         )}
       </div>
