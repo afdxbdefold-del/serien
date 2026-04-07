@@ -10,6 +10,7 @@ import SeasonsStatus from '@/components/SeasonsStatus';
 import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
+import Breadcrumb from '@/components/Breadcrumb';
 
 interface MobileSeriesLayoutProps {
   series: any;
@@ -40,6 +41,7 @@ export default function MobileSeriesLayout({
 }: MobileSeriesLayoutProps) {
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
+      <Breadcrumb items={[{ label: 'Serien', href: '/trending' }, { label: series.name || series.title }]} className="mb-4" />
       <h1 id="series-hero" className="sr-only">{series.name}</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden mb-6">
         <MobileHeroWithVideo

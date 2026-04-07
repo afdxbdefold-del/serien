@@ -11,6 +11,7 @@ import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import R2VideoPlayer from '@/components/R2VideoPlayer';
+import Breadcrumb from '@/components/Breadcrumb';
 
 interface DesktopSeriesLayoutProps {
   series: any;
@@ -136,6 +137,7 @@ export default function DesktopSeriesLayout({
       
       {/* CONTENT SECTION - Grid darunter */}
       <div className="container mx-auto px-6 py-8">
+        <Breadcrumb items={[{ label: 'Serien', href: '/trending' }, { label: series.name || series.title }]} className="mb-6" />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             
