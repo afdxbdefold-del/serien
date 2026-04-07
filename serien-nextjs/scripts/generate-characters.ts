@@ -218,6 +218,26 @@ async function main() {
         continue;
       }
 
+      // Ensure actor exists in persons table (FK constraint)
+      let validActorTmdbId = actorTmdbId;
+      if (actorTmdbId) {
+        const personExists = await prisma.persons.findUnique({ where: { tmdbId: actorTmdbId } });
+        if (!personExists) {
+          // Create person stub
+          const pid = `${actorTmdbId}-${actorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+          try {
+            await prisma.persons.create({
+              data: {
+                id: pid, tmdbId: actorTmdbId, name: actorName, slug: pid,
+                profilePath: castMember.profile_path || null, updatedAt: new Date(),
+              },
+            });
+          } catch {
+            validActorTmdbId = null; // Skip FK if creation fails
+          }
+        }
+      }
+
       try {
         await prisma.characters.create({
           data: {
@@ -225,7 +245,7 @@ async function main() {
             slug,
             name: charName,
             seriesTmdbId: series.tmdbId,
-            actorTmdbId: actorTmdbId,
+            actorTmdbId: validActorTmdbId,
             shortDescription: content.shortDescription || '',
             whoIsContent: content.whoIsContent || '',
             roleInSeriesContent: content.roleInSeriesContent || '',
