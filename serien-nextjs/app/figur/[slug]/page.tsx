@@ -10,20 +10,22 @@ import Image from 'next/image';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
+import Breadcrumb from '@/components/Breadcrumb';
 
 // ISR - Revalidate every 5 minutes
 export const revalidate = 300;
 
 
 interface CharacterPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: CharacterPageProps): Promise<Metadata> {
+  const { slug } = await params;
   const character = await prisma.characters.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     select: {
       metaTitle: true,
       metaDescription: true,
@@ -231,6 +233,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
       {/* Hero Section */}
       <div className="bg-gradient-to-b from-blue-50 to-white py-12">
         <div className="container mx-auto px-4 max-w-4xl">
+          <Breadcrumb items={[{ label: 'Figuren', href: '/figuren' }, { label: seriesName, href: `/serie/${character.seriesTmdbId}` }, { label: character.name }]} className="mb-6" />
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
             {character.name}
           </h1>

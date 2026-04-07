@@ -3,7 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import Script from 'next/script';
-import { ArrowLeft, Clock } from 'lucide-react';
+import Breadcrumb from '@/components/Breadcrumb';
+import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
@@ -439,23 +440,11 @@ export default async function ArticlePage({ params }: PageProps) {
       <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
         <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl">
           
-          {/* Breadcrumb - Back to Series */}
+          {/* Breadcrumb */}
           {article.series ? (
-            <Link 
-              href={`/serie/${article.series.slug}`}
-              className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Zu {article.series.title || article.series.name}
-            </Link>
+            <Breadcrumb items={[{ label: article.series.title || article.series.name, href: `/serie/${article.series.slug}` }, { label: article.title }]} className="mb-4" />
           ) : (
-            <Link 
-              href="/"
-              className="inline-flex items-center gap-1 text-cyan-500 hover:text-cyan-400 text-sm font-medium mb-4 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Zur Startseite
-            </Link>
+            <Breadcrumb items={[{ label: article.title }]} className="mb-4" />
           )}
 
           {/* Title */}

@@ -12,6 +12,7 @@ import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person'
 import { getPersonImageUrl } from '@/lib/image-utils';
 import Image from 'next/image';
 import Link from 'next/link';
+import Breadcrumb from '@/components/Breadcrumb';
 
 export const revalidate = 300;
 
@@ -159,6 +160,7 @@ export default async function PersonPage({ params }: PageProps) {
       {/* HERO */}
       <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white py-8 md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
+          <Breadcrumb items={[{ label: 'Schauspieler', href: '/personen' }, { label: dbPerson.name }]} className="mb-6 text-gray-400 [&_a]:text-gray-400 [&_a:hover]:text-white [&_svg]:text-gray-500" />
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
             <div className="flex-shrink-0">
               <Image src={personImageUrl} alt={dbPerson.name} width={150} height={225}

@@ -6,6 +6,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { generateAuthorSlug, matchAuthorBySlug } from '@/lib/author-utils';
 import { generateAuthorSchema } from '@/lib/schema-generator';
+import Breadcrumb from '@/components/Breadcrumb';
 
 export const dynamic = 'force-dynamic';
 
@@ -161,14 +162,7 @@ export default async function AuthorPage({ params }: PageProps) {
       />
       
       <div className="container mx-auto px-6 md:px-12 py-8 max-w-6xl">
-        {/* Back Button */}
-        <Link 
-          href="/autoren"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-8"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Alle Autoren</span>
-        </Link>
+        <Breadcrumb items={[{ label: 'Autoren', href: '/autoren' }, { label: authorFull?.name || '' }]} className="mb-8" />
 
         {/* Author Header */}
         <div className="bg-white rounded-2xl shadow-sm p-8 mb-8">
