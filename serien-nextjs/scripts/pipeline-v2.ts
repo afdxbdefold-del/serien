@@ -843,7 +843,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       contentHtml,
       primarySeriesId: dbSeries.tmdbId, // Now passing as number
       primarySeriesName: dbSeries.name || dbSeries.title || '',
-      primarySeriesSlug: dbSeries.slug || '',
+      primarySeriesSlug: dbSeries.slug || dbSeries.tmdbId?.toString() || '',
       publishedAt: null,
     });
     
