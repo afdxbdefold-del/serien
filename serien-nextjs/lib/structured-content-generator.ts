@@ -116,8 +116,18 @@ ${characterNames ? `Charaktere (MÜSSEN verwendet werden): ${characterNames}` : 
 WICHTIG: Alle Datumsangaben müssen korrekt sein. Heute ist ${today}. Schreibe KEINE vergangenen Jahre als Zukunft. Wenn keine konkreten Termine bekannt sind, schreibe "ein Startdatum steht noch aus" statt ein Jahr zu raten.
 
 Struktur:
-1. headline: Max 70 Zeichen, klar, informativ
-2. metaDescription: Max 155 Zeichen, Serie + Hauptfakt
+1. headline: Max 70 Zeichen. Google-Discover-optimiert nach folgenden Regeln:
+   - Erzeuge NEUGIER mit SUBSTANZ: Der Leser will mehr erfahren, aber die Headline verspricht nichts, was der Artikel nicht hält.
+   - NICHT immer mit dem Seriennamen beginnen. Variiere die Struktur:
+     SCHLECHT: "Breaking Bad: Neues Spin-off angekündigt"
+     GUT: "Überraschendes Spin-off bringt Breaking Bad zurück"
+     GUT: "Warum das neue Breaking-Bad-Spin-off alles verändert"
+     GUT: "Drei Jahre Pause vorbei: Breaking Bad kehrt zurück"
+   - Nutze starke, konkrete Wörter: "überraschend", "erstmals", "endlich", "enthüllt", "verrät", "so", "darum"
+   - Verwende Zahlen und Superlative wenn vorhanden (z.B. "100% bei Rotten Tomatoes", "nach 5 Jahren")
+   - KEIN Clickbait: Keine leeren Versprechen ("Du glaubst nicht..."), keine Fragezeichen-Inflation, keine übertriebenen Emotionen
+   - Der Serienname MUSS in der Headline vorkommen, aber nicht zwingend am Anfang
+2. metaDescription: Max 155 Zeichen, fasst den Kern des Artikels zusammen. Enthält den Seriennamen und den wichtigsten Fakt.
 3. lead: 2-3 Sätze, eigenständig (nicht den ersten Absatz wiederholen)
 4. content: ${targetSections} Sections mit H2 (max 6 Wörter) + je 2-3 Absätze (2-4 Sätze)
 5. qa: 3-5 häufige Fragen mit kurzen Antworten
