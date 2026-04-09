@@ -3,8 +3,15 @@
 import { useState, useEffect } from 'react';
 import { 
   Users, Eye, Clock, Globe, Monitor, Smartphone, Tablet,
-  TrendingUp, TrendingDown, RefreshCw, ExternalLink, ArrowRight
+  TrendingUp, TrendingDown, RefreshCw, ExternalLink, ArrowUpRight,
+  MousePointerClick, Timer, BarChart3, Activity
 } from 'lucide-react';
+
+interface SourceCategory {
+  category: string;
+  name: string;
+  count: number;
+}
 
 interface RealtimeData {
   realtime: {
@@ -44,6 +51,28 @@ interface RealtimeData {
   countries: Array<{ country: string; count: number }>;
   countriesYesterday: Array<{ country: string; count: number }>;
   hourlyViews: Array<{ hour: string; views: number }>;
+  sourceCategories: {
+    today: SourceCategory[];
+    yesterday: SourceCategory[];
+  };
+  bounceRate: {
+    today: number;
+    yesterday: number;
+    todaySessions: number;
+    yesterdaySessions: number;
+  };
+  engagement: {
+    today: Array<{ score: string; count: number }>;
+    yesterday: Array<{ score: string; count: number }>;
+  };
+  avgDuration: {
+    today: number;
+    yesterday: number;
+  };
+  internalClicks: {
+    today: Array<{ linkType: string; count: number }>;
+    yesterday: Array<{ linkType: string; count: number }>;
+  };
   timestamp: string;
 }
 
@@ -59,6 +88,44 @@ const DEVICE_ICONS: Record<string, any> = {
   'tablet': Tablet,
 };
 
+const CATEGORY_COLORS: Record<string, string> = {
+  'discover': 'bg-orange-500',
+  'google_news': 'bg-blue-600',
+  'organic_search': 'bg-green-500',
+  'social': 'bg-pink-500',
+  'messaging': 'bg-emerald-500',
+  'aggregator': 'bg-purple-500',
+  'direct': 'bg-gray-500',
+  'referral': 'bg-yellow-500',
+  'internal': 'bg-cyan-500',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'discover': 'Google Discover',
+  'google_news': 'Google News',
+  'organic_search': 'Organische Suche',
+  'social': 'Social Media',
+  'messaging': 'Messenger',
+  'aggregator': 'Aggregatoren',
+  'direct': 'Direkt',
+  'referral': 'Referral',
+  'internal': 'Intern',
+};
+
+const LINK_TYPE_LABELS: Record<string, string> = {
+  'breadcrumb': 'Breadcrumb',
+  'series_card': 'Serien-Karte',
+  'inline_link': 'Inline-Link',
+  'navigation': 'Navigation',
+  'other': 'Sonstige',
+};
+
+const ENGAGEMENT_COLORS: Record<string, string> = {
+  'high': 'bg-green-500',
+  'medium': 'bg-yellow-500',
+  'low': 'bg-red-400',
+};
+
 function formatTimeAgo(dateString: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
   if (seconds < 60) return `${seconds}s`;
@@ -70,6 +137,13 @@ function formatPath(path: string): string {
   if (path === '/') return 'Startseite';
   if (path.length > 40) return path.substring(0, 40) + '...';
   return path;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
 }
 
 function parseReferrer(referrer: string | null): string {
@@ -98,7 +172,7 @@ export default function AnalyticsPage() {
       setData(json);
       setLastUpdate(new Date());
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Fehler beim Laden der Daten');
     } finally {
       setLoading(false);
@@ -107,9 +181,8 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchData();
-    
     if (autoRefresh) {
-      const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
+      const interval = setInterval(fetchData, 5000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
@@ -126,13 +199,50 @@ export default function AnalyticsPage() {
     ? Math.round(((data.today.pageViews - data.today.yesterdayPageViews) / data.today.yesterdayPageViews) * 100)
     : 0;
 
+  // Aggregate source categories by category for display
+  const aggregateByCategory = (sources: SourceCategory[]) => {
+    const map = new Map<string, { category: string; label: string; count: number; sources: string[] }>();
+    for (const s of sources) {
+      const existing = map.get(s.category);
+      if (existing) {
+        existing.count += s.count;
+        if (!existing.sources.includes(s.name)) existing.sources.push(s.name);
+      } else {
+        map.set(s.category, {
+          category: s.category,
+          label: CATEGORY_LABELS[s.category] || s.category,
+          count: s.count,
+          sources: [s.name],
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  };
+
+  const sourceCats = dayTab === 'today' 
+    ? aggregateByCategory(data?.sourceCategories?.today || [])
+    : aggregateByCategory(data?.sourceCategories?.yesterday || []);
+
+  const sourceCatsTotal = sourceCats.reduce((sum, s) => sum + s.count, 0);
+
+  const engagementData = dayTab === 'today' ? data?.engagement?.today : data?.engagement?.yesterday;
+  const engagementTotal = engagementData?.reduce((sum, e) => sum + e.count, 0) || 0;
+
+  const clicksData = dayTab === 'today' ? data?.internalClicks?.today : data?.internalClicks?.yesterday;
+  const clicksTotal = clicksData?.reduce((sum, c) => sum + c.count, 0) || 0;
+
+  const bounceRate = dayTab === 'today' ? data?.bounceRate?.today : data?.bounceRate?.yesterday;
+  const bounceRateOther = dayTab === 'today' ? data?.bounceRate?.yesterday : data?.bounceRate?.today;
+  const avgDuration = dayTab === 'today' ? data?.avgDuration?.today : data?.avgDuration?.yesterday;
+  const avgDurationOther = dayTab === 'today' ? data?.avgDuration?.yesterday : data?.avgDuration?.today;
+
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 md:p-8" data-testid="analytics-dashboard">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white" data-testid="analytics-title">
               Live Analytics
             </h1>
             <p className="text-gray-500 dark:text-gray-400">
@@ -146,18 +256,20 @@ export default function AnalyticsPage() {
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
                 className="w-4 h-4 rounded text-cyan-500"
+                data-testid="auto-refresh-toggle"
               />
               <span className="text-sm text-gray-600 dark:text-gray-300">Auto-Refresh</span>
             </label>
             <button
               onClick={fetchData}
               className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+              data-testid="refresh-btn"
             >
               <RefreshCw className="w-4 h-4" />
               Aktualisieren
             </button>
             {lastUpdate && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500" data-testid="last-update">
                 {lastUpdate.toLocaleTimeString()}
               </span>
             )}
@@ -165,54 +277,47 @@ export default function AnalyticsPage() {
         </div>
 
         {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-4 rounded-lg">
+          <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-4 rounded-lg" data-testid="error-banner">
             {error}
           </div>
         )}
 
-        {/* Real-Time Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Active Users - Big Card */}
-          <div className="md:col-span-1 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl p-6 text-white">
+        {/* Real-Time Stats Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4" data-testid="stats-row">
+          {/* Active Users */}
+          <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl p-6 text-white" data-testid="active-users-card">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
               <span className="text-cyan-100 text-sm font-medium">LIVE</span>
             </div>
-            <div className="text-5xl font-bold mb-1">
-              {data?.realtime.activeUsers || 0}
-            </div>
-            <div className="text-cyan-100">
-              Aktive Benutzer
-            </div>
+            <div className="text-5xl font-bold mb-1">{data?.realtime.activeUsers || 0}</div>
+            <div className="text-cyan-100">Aktive Benutzer</div>
           </div>
 
-          {/* Other Stats */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+          {/* Page Views Last Hour */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm" data-testid="views-last-hour">
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
               <Eye className="w-4 h-4" />
-              <span className="text-sm">Letzte Stunde</span>
+              <span className="text-xs">Letzte Stunde</span>
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {data?.realtime.pageViewsLastHour || 0}
-            </div>
-            <div className="text-sm text-gray-500">Page Views</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{data?.realtime.pageViewsLastHour || 0}</div>
+            <div className="text-xs text-gray-500">Page Views</div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+          {/* Page Views Today */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm" data-testid="views-today">
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
               <TrendingUp className="w-4 h-4" />
-              <span className="text-sm">Heute</span>
+              <span className="text-xs">Heute</span>
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {data?.today.pageViews || 0}
-            </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{data?.today.pageViews || 0}</div>
+            <div className="flex items-center gap-1 text-xs mt-1">
               {changePercent > 0 ? (
-                <span className="text-green-500 flex items-center gap-1">
+                <span className="text-green-500 flex items-center gap-0.5">
                   <TrendingUp className="w-3 h-3" /> +{changePercent}%
                 </span>
               ) : changePercent < 0 ? (
-                <span className="text-red-500 flex items-center gap-1">
+                <span className="text-red-500 flex items-center gap-0.5">
                   <TrendingDown className="w-3 h-3" /> {changePercent}%
                 </span>
               ) : (
@@ -222,20 +327,31 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+          {/* Unique Visitors Today */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm" data-testid="visitors-today">
             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
               <Users className="w-4 h-4" />
-              <span className="text-sm">Heute</span>
+              <span className="text-xs">Heute</span>
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {data?.today.uniqueVisitors || 0}
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{data?.today.uniqueVisitors || 0}</div>
+            <div className="text-xs text-gray-500">Unique Visitors</div>
+          </div>
+
+          {/* Bounce Rate */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm" data-testid="bounce-rate-card">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
+              <ArrowUpRight className="w-4 h-4" />
+              <span className="text-xs">Bounce Rate</span>
             </div>
-            <div className="text-sm text-gray-500">Unique Visitors</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{data?.bounceRate?.today ?? 0}%</div>
+            <div className="flex items-center gap-1 text-xs mt-1">
+              <span className="text-gray-400">Gestern: {data?.bounceRate?.yesterday ?? 0}%</span>
+            </div>
           </div>
         </div>
 
-        {/* Yesterday Summary Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Yesterday summary + Avg Duration Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600">
             <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Gestern</div>
             <div className="flex items-baseline gap-3">
@@ -250,17 +366,26 @@ export default function AnalyticsPage() {
               <span className="text-sm text-gray-400">Unique Visitors</span>
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600">
-            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Gestern</div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-cyan-400 dark:border-cyan-600" data-testid="avg-duration-today">
+            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1 flex items-center gap-1">
+              <Timer className="w-3 h-3" /> Verweildauer Heute
+            </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{data?.topPages.yesterday?.length || 0}</span>
-              <span className="text-sm text-gray-400">Aktive Seiten</span>
+              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{formatDuration(data?.avgDuration?.today || 0)}</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-l-4 border-gray-300 dark:border-gray-600" data-testid="avg-duration-yesterday">
+            <div className="text-xs uppercase tracking-wide text-gray-400 mb-1 flex items-center gap-1">
+              <Timer className="w-3 h-3" /> Verweildauer Gestern
+            </div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-gray-700 dark:text-gray-200">{formatDuration(data?.avgDuration?.yesterday || 0)}</span>
             </div>
           </div>
         </div>
 
         {/* Active Sessions Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden" data-testid="active-sessions-table">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -275,7 +400,7 @@ export default function AnalyticsPage() {
                   <th className="px-4 py-3 text-left">Quelle</th>
                   <th className="px-4 py-3 text-center">Seiten</th>
                   <th className="px-4 py-3 text-center">Land</th>
-                  <th className="px-4 py-3 text-center">Gerät</th>
+                  <th className="px-4 py-3 text-center">Ger&auml;t</th>
                   <th className="px-4 py-3 text-right">Aktiv</th>
                 </tr>
               </thead>
@@ -292,11 +417,9 @@ export default function AnalyticsPage() {
                     return (
                       <tr key={session.sessionId} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">
-                              {formatPath(session.exitPage || session.entryPage)}
-                            </span>
-                          </div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs block">
+                            {formatPath(session.exitPage || session.entryPage)}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                           {parseReferrer(session.referrer)}
@@ -324,8 +447,8 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Day Toggle + Content */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* Day Toggle */}
+        <div className="flex items-center gap-2" data-testid="day-toggle">
           <button
             onClick={() => setDayTab('today')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -333,6 +456,7 @@ export default function AnalyticsPage() {
                 ? 'bg-cyan-500 text-white' 
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
+            data-testid="tab-today"
           >
             Heute
           </button>
@@ -343,19 +467,156 @@ export default function AnalyticsPage() {
                 ? 'bg-gray-600 text-white' 
                 : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
+            data-testid="tab-yesterday"
           >
             Gestern
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Pages Now - only show on "Heute" */}
-          {dayTab === 'today' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+        {/* NEW: Traffic Sources by Category + Engagement Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Traffic Sources by Category */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="source-categories">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-cyan-500" />
+                Traffic-Quellen nach Kategorie ({dayTab === 'today' ? 'Heute' : 'Gestern'})
+              </h2>
+            </div>
+            <div className="p-4">
+              {sourceCats.length === 0 ? (
+                <p className="text-gray-500 text-center py-6 text-sm">
+                  Noch keine kategorisierten Sessions. Neue Besucher werden automatisch erfasst.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {sourceCats.map((cat) => {
+                    const pct = sourceCatsTotal > 0 ? Math.round((cat.count / sourceCatsTotal) * 100) : 0;
+                    const color = CATEGORY_COLORS[cat.category] || 'bg-gray-400';
+                    return (
+                      <div key={cat.category} data-testid={`source-cat-${cat.category}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${color}`} />
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{cat.label}</span>
+                            {cat.sources.length > 1 && (
+                              <span className="text-xs text-gray-400">({cat.sources.join(', ')})</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">{cat.count}</span>
+                            <span className="text-xs text-gray-400 w-10 text-right">{pct}%</span>
+                          </div>
+                        </div>
+                        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                          <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Engagement + Bounce + Duration */}
+          <div className="space-y-4">
+            {/* Engagement Score */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="engagement-scores">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="font-semibold text-gray-900 dark:text-white">
-                  Top Seiten (Jetzt)
+                <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-cyan-500" />
+                  Engagement
                 </h2>
+              </div>
+              <div className="p-4">
+                {engagementTotal === 0 ? (
+                  <p className="text-gray-500 text-center py-4 text-sm">Noch keine Daten</p>
+                ) : (
+                  <div className="space-y-3">
+                    {['high', 'medium', 'low'].map(level => {
+                      const item = engagementData?.find(e => e.score === level);
+                      const count = item?.count || 0;
+                      const pct = engagementTotal > 0 ? Math.round((count / engagementTotal) * 100) : 0;
+                      return (
+                        <div key={level} data-testid={`engagement-${level}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm capitalize text-gray-700 dark:text-gray-300">
+                              {level === 'high' ? 'Hoch' : level === 'medium' ? 'Mittel' : 'Niedrig'}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{count} ({pct}%)</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                            <div className={`h-full rounded-full ${ENGAGEMENT_COLORS[level]} transition-all`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bounce + Duration compact */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm" data-testid="bounce-rate-detail">
+                <div className="text-xs uppercase text-gray-400 mb-1">Bounce</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{bounceRate ?? 0}%</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {dayTab === 'today' ? 'Gestern' : 'Heute'}: {bounceRateOther ?? 0}%
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm" data-testid="avg-duration-detail">
+                <div className="text-xs uppercase text-gray-400 mb-1">Verweildauer</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatDuration(avgDuration || 0)}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {dayTab === 'today' ? 'Gestern' : 'Heute'}: {formatDuration(avgDurationOther || 0)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Internal Link Clicks + Top Pages Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Internal Link Clicks */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="internal-clicks">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <MousePointerClick className="w-4 h-4 text-cyan-500" />
+                Interne Klicks ({dayTab === 'today' ? 'Heute' : 'Gestern'})
+                {clicksTotal > 0 && <span className="text-sm font-normal text-gray-400">({clicksTotal} gesamt)</span>}
+              </h2>
+            </div>
+            <div className="p-4">
+              {clicksTotal === 0 ? (
+                <p className="text-gray-500 text-center py-6 text-sm">Noch keine Klick-Daten</p>
+              ) : (
+                <div className="space-y-3">
+                  {clicksData?.map(click => {
+                    const pct = clicksTotal > 0 ? Math.round((click.count / clicksTotal) * 100) : 0;
+                    return (
+                      <div key={click.linkType} className="flex items-center gap-3" data-testid={`click-${click.linkType}`}>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 w-28">
+                          {LINK_TYPE_LABELS[click.linkType] || click.linkType}
+                        </span>
+                        <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                          <div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white w-16 text-right">{click.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Top Pages Now - only on Today */}
+          {dayTab === 'today' ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="top-pages-now">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-white">Top Seiten (Jetzt)</h2>
               </div>
               <div className="p-4 space-y-3">
                 {data?.topPages.now.length === 0 ? (
@@ -363,24 +624,39 @@ export default function AnalyticsPage() {
                 ) : (
                   data?.topPages.now.map((page, i) => (
                     <div key={page.path} className="flex items-center gap-3">
-                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
-                        {i + 1}
-                      </span>
-                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                        {formatPath(page.path)}
-                      </span>
-                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                        {page.views}
-                      </span>
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">{i + 1}</span>
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{formatPath(page.path)}</span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{page.views}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="top-pages-yesterday">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-white">Top Seiten (Gestern)</h2>
+              </div>
+              <div className="p-4 space-y-3">
+                {!data?.topPages.yesterday || data.topPages.yesterday.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Keine Daten</p>
+                ) : (
+                  data.topPages.yesterday.map((page, i) => (
+                    <div key={page.path} className="flex items-center gap-3">
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">{i + 1}</span>
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{formatPath(page.path)}</span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{page.views}</span>
                     </div>
                   ))
                 )}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Top Pages - Heute or Gestern */}
-          <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm ${dayTab === 'yesterday' ? 'lg:col-span-2' : ''}`}>
+        {/* Top Pages Today/Yesterday + Traffic Sources */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="top-pages-day">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold text-gray-900 dark:text-white">
                 Top Seiten ({dayTab === 'today' ? 'Heute' : 'Gestern'})
@@ -394,15 +670,9 @@ export default function AnalyticsPage() {
                 ) : (
                   pages.map((page, i) => (
                     <div key={page.path} className="flex items-center gap-3">
-                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">
-                        {i + 1}
-                      </span>
-                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                        {formatPath(page.path)}
-                      </span>
-                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                        {page.views}
-                      </span>
+                      <span className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-600 dark:text-gray-300">{i + 1}</span>
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{formatPath(page.path)}</span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{page.views}</span>
                     </div>
                   ))
                 );
@@ -410,11 +680,11 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Traffic Sources - Heute or Gestern */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+          {/* Raw Traffic Sources */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="traffic-sources-raw">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="font-semibold text-gray-900 dark:text-white">
-                Traffic-Quellen ({dayTab === 'today' ? 'Heute' : 'Gestern'})
+                Traffic-Quellen Referrer ({dayTab === 'today' ? 'Heute' : 'Gestern'})
               </h2>
             </div>
             <div className="p-4 space-y-3">
@@ -425,75 +695,61 @@ export default function AnalyticsPage() {
                 ) : (
                   sources.map((source) => (
                     <div key={source.source} className="flex items-center gap-3">
-                      <ExternalLink className="w-4 h-4 text-gray-400" />
-                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">
-                        {parseReferrer(source.source)}
-                      </span>
-                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
-                        {source.count}
-                      </span>
+                      <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{parseReferrer(source.source)}</span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{source.count}</span>
                     </div>
                   ))
                 );
               })()}
             </div>
           </div>
+        </div>
 
-          {/* Devices & Countries - Heute or Gestern */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white">
-                Geräte & Länder ({dayTab === 'today' ? 'Heute' : 'Gestern'})
-              </h2>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-6">
-                {/* Devices */}
-                <div>
-                  <h3 className="text-xs uppercase text-gray-500 mb-3">Geräte</h3>
-                  <div className="space-y-2">
-                    {(dayTab === 'today' ? data?.devices : data?.devicesYesterday)?.map((d) => {
-                      const DeviceIcon = DEVICE_ICONS[d.device] || Monitor;
-                      const deviceList = dayTab === 'today' ? data?.devices : data?.devicesYesterday;
-                      const total = deviceList?.reduce((sum, x) => sum + x.count, 0) || 1;
-                      const percent = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                      return (
-                        <div key={d.device} className="flex items-center gap-2">
-                          <DeviceIcon className="w-4 h-4 text-gray-500" />
-                          <div className="flex-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="capitalize text-gray-700 dark:text-gray-300">{d.device}</span>
-                              <span className="text-gray-500">{percent}%</span>
-                            </div>
-                            <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
-                              <div 
-                                className="h-full bg-cyan-500 rounded-full" 
-                                style={{ width: `${percent}%` }} 
-                              />
-                            </div>
+        {/* Devices & Countries */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="devices-countries">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="font-semibold text-gray-900 dark:text-white">
+              Ger&auml;te & L&auml;nder ({dayTab === 'today' ? 'Heute' : 'Gestern'})
+            </h2>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-xs uppercase text-gray-500 mb-3">Ger&auml;te</h3>
+                <div className="space-y-2">
+                  {(dayTab === 'today' ? data?.devices : data?.devicesYesterday)?.map((d) => {
+                    const DeviceIcon = DEVICE_ICONS[d.device] || Monitor;
+                    const deviceList = dayTab === 'today' ? data?.devices : data?.devicesYesterday;
+                    const total = deviceList?.reduce((sum, x) => sum + x.count, 0) || 1;
+                    const percent = total > 0 ? Math.round((d.count / total) * 100) : 0;
+                    return (
+                      <div key={d.device} className="flex items-center gap-2">
+                        <DeviceIcon className="w-4 h-4 text-gray-500" />
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="capitalize text-gray-700 dark:text-gray-300">{d.device}</span>
+                            <span className="text-gray-500">{percent}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
+                            <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${percent}%` }} />
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Countries */}
-                <div>
-                  <h3 className="text-xs uppercase text-gray-500 mb-3">Länder</h3>
-                  <div className="space-y-2">
-                    {(dayTab === 'today' ? data?.countries : data?.countriesYesterday)?.slice(0, 5).map((c) => (
-                      <div key={c.country} className="flex items-center gap-2">
-                        <span className="text-lg">{COUNTRY_FLAGS[c.country] || '🌍'}</span>
-                        <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-                          {c.country}
-                        </span>
-                        <span className="text-sm font-medium text-gray-500">
-                          {c.count}
-                        </span>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xs uppercase text-gray-500 mb-3">L&auml;nder</h3>
+                <div className="space-y-2">
+                  {(dayTab === 'today' ? data?.countries : data?.countriesYesterday)?.slice(0, 5).map((c) => (
+                    <div key={c.country} className="flex items-center gap-2">
+                      <span className="text-lg">{COUNTRY_FLAGS[c.country] || '🌍'}</span>
+                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">{c.country}</span>
+                      <span className="text-sm font-medium text-gray-500">{c.count}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

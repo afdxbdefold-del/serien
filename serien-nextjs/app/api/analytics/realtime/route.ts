@@ -151,6 +151,100 @@ export async function GET() {
       ORDER BY hour ASC
     ` as { hour: Date; views: bigint }[];
 
+    // ========== NEW METRICS ==========
+
+    // Traffic sources by CATEGORY (from sessions)
+    const sourceCategoriesToday = await prisma.analytics_sessions.groupBy({
+      by: ['sourceCategory', 'sourceName'],
+      where: {
+        startedAt: { gte: todayStart },
+        sourceCategory: { not: null },
+      },
+      _count: { sessionId: true },
+      orderBy: { _count: { sessionId: 'desc' } },
+    });
+
+    const sourceCategoriesYesterday = await prisma.analytics_sessions.groupBy({
+      by: ['sourceCategory', 'sourceName'],
+      where: {
+        startedAt: { gte: yesterdayStart, lt: todayStart },
+        sourceCategory: { not: null },
+      },
+      _count: { sessionId: true },
+      orderBy: { _count: { sessionId: 'desc' } },
+    });
+
+    // Bounce rate today
+    const totalSessionsToday = await prisma.analytics_sessions.count({
+      where: { startedAt: { gte: todayStart } },
+    });
+    const bouncedSessionsToday = await prisma.analytics_sessions.count({
+      where: { startedAt: { gte: todayStart }, isBounce: true },
+    });
+
+    // Bounce rate yesterday
+    const totalSessionsYesterday = await prisma.analytics_sessions.count({
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart } },
+    });
+    const bouncedSessionsYesterday = await prisma.analytics_sessions.count({
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, isBounce: true },
+    });
+
+    // Engagement score distribution today
+    const engagementToday = await prisma.analytics_sessions.groupBy({
+      by: ['engagementScore'],
+      where: {
+        startedAt: { gte: todayStart },
+        engagementScore: { not: null },
+      },
+      _count: { sessionId: true },
+    });
+
+    const engagementYesterday = await prisma.analytics_sessions.groupBy({
+      by: ['engagementScore'],
+      where: {
+        startedAt: { gte: yesterdayStart, lt: todayStart },
+        engagementScore: { not: null },
+      },
+      _count: { sessionId: true },
+    });
+
+    // Average session duration today
+    const avgDurationToday = await prisma.analytics_sessions.aggregate({
+      where: { startedAt: { gte: todayStart }, totalDuration: { not: null } },
+      _avg: { totalDuration: true },
+    });
+    const avgDurationYesterday = await prisma.analytics_sessions.aggregate({
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, totalDuration: { not: null } },
+      _avg: { totalDuration: true },
+    });
+
+    // Internal link clicks today
+    const internalClicksToday = await prisma.$queryRaw`
+      SELECT 
+        metadata->>'linkType' as "linkType",
+        COUNT(*) as count
+      FROM analytics_events
+      WHERE event = 'internal_click'
+        AND "createdAt" >= ${todayStart}
+        AND metadata->>'linkType' IS NOT NULL
+      GROUP BY metadata->>'linkType'
+      ORDER BY count DESC
+    ` as { linkType: string; count: bigint }[];
+
+    const internalClicksYesterday = await prisma.$queryRaw`
+      SELECT 
+        metadata->>'linkType' as "linkType",
+        COUNT(*) as count
+      FROM analytics_events
+      WHERE event = 'internal_click'
+        AND "createdAt" >= ${yesterdayStart}
+        AND "createdAt" < ${todayStart}
+        AND metadata->>'linkType' IS NOT NULL
+      GROUP BY metadata->>'linkType'
+      ORDER BY count DESC
+    ` as { linkType: string; count: bigint }[];
+
     // ========== YESTERDAY DATA ==========
     
     // Unique visitors yesterday
@@ -258,6 +352,49 @@ export async function GET() {
         hour: h.hour,
         views: Number(h.views),
       })),
+      // New metrics
+      sourceCategories: {
+        today: sourceCategoriesToday.map(s => ({
+          category: s.sourceCategory || 'unknown',
+          name: s.sourceName || 'Unbekannt',
+          count: s._count.sessionId,
+        })),
+        yesterday: sourceCategoriesYesterday.map(s => ({
+          category: s.sourceCategory || 'unknown',
+          name: s.sourceName || 'Unbekannt',
+          count: s._count.sessionId,
+        })),
+      },
+      bounceRate: {
+        today: totalSessionsToday > 0 ? Math.round((bouncedSessionsToday / totalSessionsToday) * 100) : 0,
+        yesterday: totalSessionsYesterday > 0 ? Math.round((bouncedSessionsYesterday / totalSessionsYesterday) * 100) : 0,
+        todaySessions: totalSessionsToday,
+        yesterdaySessions: totalSessionsYesterday,
+      },
+      engagement: {
+        today: engagementToday.map(e => ({
+          score: e.engagementScore || 'unknown',
+          count: e._count.sessionId,
+        })),
+        yesterday: engagementYesterday.map(e => ({
+          score: e.engagementScore || 'unknown',
+          count: e._count.sessionId,
+        })),
+      },
+      avgDuration: {
+        today: Math.round(avgDurationToday._avg.totalDuration || 0),
+        yesterday: Math.round(avgDurationYesterday._avg.totalDuration || 0),
+      },
+      internalClicks: {
+        today: internalClicksToday.map(c => ({
+          linkType: c.linkType,
+          count: Number(c.count),
+        })),
+        yesterday: internalClicksYesterday.map(c => ({
+          linkType: c.linkType,
+          count: Number(c.count),
+        })),
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
