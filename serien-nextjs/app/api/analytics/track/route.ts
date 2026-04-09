@@ -3,17 +3,15 @@ import prisma from '@/lib/prisma';
 import { headers } from 'next/headers';
 import { UAParser } from 'ua-parser-js';
 
-// POST - Track event
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, visitorId, event, path, referrer, duration, scrollDepth, articleId, seriesId, metadata } = body;
+    const { sessionId, visitorId, event, path, referrer, duration, scrollDepth, articleId, seriesId, sourceCategory, sourceName, metadata } = body;
 
     if (!sessionId || !visitorId || !event || !path) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Parse user agent
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || '';
     const parser = new UAParser(userAgent);
@@ -21,12 +19,10 @@ export async function POST(request: NextRequest) {
     const os = parser.getOS();
     const device = parser.getDevice();
 
-    // Determine device type
     let deviceType = 'desktop';
     if (device.type === 'mobile') deviceType = 'mobile';
     else if (device.type === 'tablet') deviceType = 'tablet';
 
-    // Get country from header (Vercel provides this)
     const country = headersList.get('x-vercel-ip-country') || headersList.get('cf-ipcountry') || null;
     const city = headersList.get('x-vercel-ip-city') || null;
 
@@ -53,7 +49,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Update or create session
+    // Update session
     if (event === 'page_view') {
       await prisma.analytics_sessions.upsert({
         where: { sessionId },
@@ -62,6 +58,9 @@ export async function POST(request: NextRequest) {
           pageViews: { increment: 1 },
           exitPage: path,
           isActive: true,
+          isBounce: false, // 2+ page views = not a bounce
+          sourceCategory: sourceCategory || undefined,
+          sourceName: sourceName || undefined,
         },
         create: {
           id: crypto.randomUUID(),
@@ -75,8 +74,28 @@ export async function POST(request: NextRequest) {
           device: deviceType,
           browser: browser.name || null,
           isActive: true,
+          isBounce: true, // First page view = assume bounce until proven otherwise
+          sourceCategory: sourceCategory || 'direct',
+          sourceName: sourceName || 'Direkt',
         },
       });
+    }
+
+    // On page_exit, update engagement data
+    if (event === 'page_exit' && duration !== undefined) {
+      const engagement = metadata?.engagement || 'low';
+      // If user stayed > 10s and scrolled > 25%, not a bounce even with 1 pageview
+      const notBounce = duration >= 10 && (scrollDepth || 0) >= 25;
+
+      await prisma.analytics_sessions.update({
+        where: { sessionId },
+        data: {
+          totalDuration: duration,
+          avgScrollDepth: scrollDepth || 0,
+          engagementScore: engagement,
+          ...(notBounce ? { isBounce: false } : {}),
+        },
+      }).catch(() => {}); // Session might not exist yet
     }
 
     return NextResponse.json({ success: true });
@@ -86,19 +105,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Mark inactive sessions (called periodically)
+// Mark inactive sessions
 export async function PUT() {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
     await prisma.analytics_sessions.updateMany({
-      where: {
-        lastSeenAt: { lt: fiveMinutesAgo },
-        isActive: true,
-      },
+      where: { lastSeenAt: { lt: fiveMinutesAgo }, isActive: true },
       data: { isActive: false },
     });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Update failed' }, { status: 500 });

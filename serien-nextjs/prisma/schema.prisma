@@ -52,24 +52,31 @@ model analytics_events {
 }
 
 model analytics_sessions {
-  id         String   @id
-  sessionId  String   @unique
-  visitorId  String
-  startedAt  DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  pageViews  Int      @default(1)
-  entryPage  String
-  exitPage   String?
-  referrer   String?
-  userAgent  String?
-  country    String?
-  device     String?
-  browser    String?
-  isActive   Boolean  @default(true)
+  id              String   @id
+  sessionId       String   @unique
+  visitorId       String
+  startedAt       DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  pageViews       Int      @default(1)
+  entryPage       String
+  exitPage        String?
+  referrer        String?
+  userAgent       String?
+  country         String?
+  device          String?
+  browser         String?
+  isActive        Boolean  @default(true)
+  isBounce        Boolean  @default(true)
+  sourceCategory  String?
+  sourceName      String?
+  avgScrollDepth  Int?
+  totalDuration   Int?
+  engagementScore String?
 
   @@index([isActive])
   @@index([lastSeenAt])
   @@index([visitorId])
+  @@index([sourceCategory])
 }
 
 model article_persons {
