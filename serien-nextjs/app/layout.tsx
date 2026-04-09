@@ -53,15 +53,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" suppressHydrationWarning>
       <head>
-        {/* Cookiebot CMP — must load BEFORE any ad/tracking scripts */}
-        <script
-          id="Cookiebot"
-          src="https://consent.cookiebot.com/uc.js"
-          data-cbid="1cf05b19-2f39-44f3-9a62-a900c8aab1e0"
-          data-blockingmode="auto"
-          type="text/javascript"
-        />
-        
         {/* Prevent flash of wrong theme */}
         <script
           dangerouslySetInnerHTML={{
