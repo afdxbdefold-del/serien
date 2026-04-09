@@ -102,13 +102,24 @@ function injectLinksIntoContent(
   }
 
   // === 0. INLINE-LINK: First mention of series name in text → hub link ===
+  // Only match inside <p> tags, never inside headings
   const escapedSeriesName = seriesName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Match series name not already wrapped in an <a> tag
-  const inlineRegex = new RegExp(
-    `(?<!<a[^>]*>)(?<!")(${escapedSeriesName})(?!</a>)(?!">)`,
-    'i'
+  let inlineLinkApplied = false;
+  const htmlWithInlineLink = html.replace(
+    /(<p[^>]*>)([\s\S]*?)(<\/p>)/g,
+    (match, open, inner, close) => {
+      if (inlineLinkApplied) return match;
+      const inlineRegex = new RegExp(
+        `(?<!<a[^>]*>)(?<!")(${escapedSeriesName})(?!</a>)(?!">)`,
+        'i'
+      );
+      if (inlineRegex.test(inner)) {
+        inlineLinkApplied = true;
+        return open + inner.replace(inlineRegex, `<a href="${hubLink}">${seriesName}</a>`) + close;
+      }
+      return match;
+    }
   );
-  const htmlWithInlineLink = html.replace(inlineRegex, `<a href="${hubLink}">${seriesName}</a>`);
 
   // === 1. INJECT HUB LINK AFTER LEAD (after first or second paragraph) ===
   const hubLinkHtml = `\n\n<p class="internal-link-box"><a href="${hubLink}" rel="follow">Weitere News zu ${seriesName} auf serien.de</a></p>`;
