@@ -114,7 +114,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
       return new Response(imageBuffer, {
         headers: {
           'Content-Type': 'image/webp',
-          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
         },
       });
     }
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
     return new Response(imageBuffer, {
       headers: {
         'Content-Type': 'image/webp',
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
       },
     });
 
