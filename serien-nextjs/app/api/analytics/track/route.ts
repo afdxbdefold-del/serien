@@ -14,6 +14,23 @@ export async function POST(request: NextRequest) {
 
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || '';
+
+    // Bot filter — ignore crawlers, bots, and automated tools
+    const ua = userAgent.toLowerCase();
+    if (
+      ua.includes('bot') || ua.includes('crawl') || ua.includes('spider') ||
+      ua.includes('cookiebot') || ua.includes('mediapartners') ||
+      ua.includes('slurp') || ua.includes('semrush') || ua.includes('ahrefs') ||
+      ua.includes('mj12bot') || ua.includes('dotbot') || ua.includes('petalbot') ||
+      ua.includes('bytespider') || ua.includes('gptbot') || ua.includes('chatgpt') ||
+      ua.includes('headlesschrome') || ua.includes('phantomjs') || ua.includes('puppeteer') ||
+      ua.includes('lighthouse') || ua.includes('pagespeed') || ua.includes('go-http-client') ||
+      ua.includes('python-requests') || ua.includes('axios/') || ua.includes('node-fetch') ||
+      !ua || ua.length < 20
+    ) {
+      return NextResponse.json({ ok: true, filtered: true });
+    }
+
     const parser = new UAParser(userAgent);
     const browser = parser.getBrowser();
     const os = parser.getOS();
