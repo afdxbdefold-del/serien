@@ -174,6 +174,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!article) {
     return {
       title: 'Artikel nicht gefunden | serien.de',
+      robots: { index: false, follow: false },
     };
   }
 

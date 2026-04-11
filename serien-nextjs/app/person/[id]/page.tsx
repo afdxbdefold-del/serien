@@ -13,6 +13,7 @@ import { getPersonImageUrl } from '@/lib/image-utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import Breadcrumb from '@/components/Breadcrumb';
+import { unstable_cache } from 'next/cache';
 
 export const revalidate = 300;
 
@@ -41,15 +42,27 @@ function calculateAge(birthDate: Date | string | null, deathDate?: Date | string
   return age;
 }
 
+// Cached DB query for person data (shared between metadata + page)
+const getPersonFromDB = (tmdbId: number) => unstable_cache(
+  async () => prisma.persons.findUnique({
+    where: { tmdbId },
+    select: {
+      tmdbId: true, name: true, slug: true, biography: true, biographyEn: true,
+      birthDate: true, deathDate: true, birthPlace: true, knownFor: true,
+      popularity: true, socialLinks: true, tvCreditsJson: true,
+      profilePath: true, localProfilePath: true, enrichedAt: true,
+    }
+  }),
+  [`person-${tmdbId}`],
+  { revalidate: 300, tags: ['person'] }
+)();
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const tmdbId = parsePersonId(id);
   if (!tmdbId) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: false } };
 
-  const dbPerson = await prisma.persons.findUnique({
-    where: { tmdbId },
-    select: { name: true, biography: true, enrichedAt: true, profilePath: true }
-  });
+  const dbPerson = await getPersonFromDB(tmdbId);
 
   if (!dbPerson) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: false } };
 
@@ -59,6 +72,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `${dbPerson.biography.slice(0, 150)}...`
     : `Alle Serien und Filme mit ${dbPerson.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const blobBase = process.env.NEXT_PUBLIC_BLOB_URL || process.env.BLOB_PUBLIC_URL || 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
+
+  // Use Vercel Blob URL (self-hosted) instead of TMDB direct URL
+  const ogImage = tmdbId
+    ? `${blobBase}/persons/${tmdbId}.jpg`
+    : dbPerson.profilePath
+      ? `${baseUrl}/img/person/${tmdbId || 0}`
+      : undefined;
 
   return {
     title,
@@ -70,7 +91,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     openGraph: {
       title, description, type: 'profile',
-      images: dbPerson.profilePath ? [`https://image.tmdb.org/t/p/w500${dbPerson.profilePath}`] : undefined,
+      url: `${baseUrl}/person/${id}`,
+      siteName: 'serien.de',
+      locale: 'de_DE',
+      images: ogImage ? [{ url: ogImage, alt: dbPerson.name }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
     },
     alternates: { canonical: `${baseUrl}/person/${id}` },
   };
@@ -81,17 +111,9 @@ export default async function PersonPage({ params }: PageProps) {
   const tmdbId = parsePersonId(id);
   if (!tmdbId) notFound();
 
-  // Fetch from DB (enriched data) + TMDB API (for poster images of credits)
+  // Fetch from DB (cached) + TMDB API (for poster images of credits)
   const [dbPerson, tmdbPerson] = await Promise.all([
-    prisma.persons.findUnique({
-      where: { tmdbId },
-      select: {
-        tmdbId: true, name: true, slug: true, biography: true, biographyEn: true,
-        birthDate: true, deathDate: true, birthPlace: true, knownFor: true,
-        popularity: true, socialLinks: true, tvCreditsJson: true,
-        profilePath: true, localProfilePath: true,
-      }
-    }),
+    getPersonFromDB(tmdbId),
     getTMDBPersonDetails(tmdbId, true),
   ]);
 

@@ -6,63 +6,43 @@ import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial
 import { getSeriesQA } from '@/lib/series-qa-action';
 import MobileSeriesLayout from '@/components/series/MobileSeriesLayout';
 import DesktopSeriesLayout from '@/components/series/DesktopSeriesLayout';
+import { unstable_cache } from 'next/cache';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+export const revalidate = 300;
+
+
+// Cache helper: resolve slug to series metadata
+const getSeriesMeta = (slug: string) => unstable_cache(
+  async () => {
+    const possibleTmdbId = parseInt(slug.split('-')[0]);
+    if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
+      return prisma.series.findUnique({
+        where: { tmdbId: possibleTmdbId },
+        select: { name: true, title: true, overview: true, backdropPath: true, tmdbType: true, networks: true, tmdbId: true, slug: true },
+      });
+    }
+    return prisma.series.findFirst({
+      where: { slug },
+      select: { name: true, title: true, overview: true, backdropPath: true, tmdbType: true, networks: true, tmdbId: true, slug: true },
+    });
+  },
+  [`series-meta-${slug}`],
+  { revalidate: 300, tags: ['series'] }
+)();
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  
-  // Try to parse as TMDB ID first (legacy URLs like "259819-serienname")
-  const possibleTmdbId = parseInt(slug.split('-')[0]);
-  
-  let series;
-  let tmdbId: number;
-  
-  if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
-    // Looks like a TMDB ID
-    tmdbId = possibleTmdbId;
-    series = await prisma.series.findUnique({
-      where: { tmdbId },
-      select: {
-        name: true,
-        title: true,
-        overview: true,
-        backdropPath: true,
-        tmdbType: true,
-        networks: true,
-        tmdbId: true,
-        slug: true,
-      },
-    });
-  } else {
-    // Search by slug
-    series = await prisma.series.findFirst({
-      where: { slug },
-      select: {
-        name: true,
-        title: true,
-        overview: true,
-        backdropPath: true,
-        tmdbType: true,
-        networks: true,
-        tmdbId: true,
-        slug: true,
-      },
-    });
-    if (series) {
-      tmdbId = series.tmdbId;
-    }
-  }
+  const series = await getSeriesMeta(slug);
   
   if (!series) {
-    return {
-      title: 'Serie nicht gefunden | serien.de',
-    };
+    notFound();
   }
   
-  tmdbId = series.tmdbId;
+  const tmdbId = series.tmdbId;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   const seriesName = series.name || series.title;

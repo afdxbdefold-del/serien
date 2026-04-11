@@ -1,8 +1,7 @@
-import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   
   // Get articles from last 48 hours only
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
@@ -18,23 +17,38 @@ export async function GET() {
       slug: true,
       title: true,
       publishedAt: true,
+      tmdbId: true,
+      tmdbType: true,
+      ogImageUrl: true,
+      heroLocalUrl: true,
     },
     orderBy: {
       publishedAt: 'desc'
     }
   });
 
-  // Generate Google News Sitemap XML
-  const newsItems = recentArticles.map(article => ({
-    url: `${baseUrl}/${article.slug}`,
-    title: article.title,
-    publication_date: (article.publishedAt || new Date()).toISOString(),
-  }));
+  const newsItems = recentArticles.map(article => {
+    // Build image URL with same logic as article page
+    const ogImagePath = article.ogImageUrl || 
+      (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
+    const imageUrl = ogImagePath?.startsWith('http') 
+      ? ogImagePath 
+      : ogImagePath 
+        ? `${baseUrl}${ogImagePath.startsWith('/') ? '' : '/'}${ogImagePath}`
+        : null;
 
-  // Return raw XML for Google News
+    return {
+      url: `${baseUrl}/${article.slug}`,
+      title: article.title,
+      publication_date: (article.publishedAt || new Date()).toISOString(),
+      imageUrl,
+    };
+  });
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${newsItems.map(item => `  <url>
     <loc>${item.url}</loc>
     <news:news>
@@ -44,13 +58,18 @@ ${newsItems.map(item => `  <url>
       </news:publication>
       <news:publication_date>${item.publication_date}</news:publication_date>
       <news:title>${escapeXml(item.title)}</news:title>
-    </news:news>
+    </news:news>${item.imageUrl ? `
+    <image:image>
+      <image:loc>${escapeXml(item.imageUrl)}</image:loc>
+      <image:title>${escapeXml(item.title)}</image:title>
+    </image:image>` : ''}
   </url>`).join('\n')}
 </urlset>`;
 
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/xml',
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
     },
   });
 }
