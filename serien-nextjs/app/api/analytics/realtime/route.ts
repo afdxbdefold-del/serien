@@ -10,6 +10,24 @@ export async function GET() {
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
 
+    // Bot filter for all session queries
+    const notBot = {
+      NOT: {
+        OR: [
+          { userAgent: { contains: 'bot', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'crawl', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'spider', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'Cookiebot', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'Mediapartners', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'Lighthouse', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'HeadlessChrome', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'Puppeteer', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'Go-http-client', mode: 'insensitive' as const } },
+          { userAgent: { contains: 'python-requests', mode: 'insensitive' as const } },
+        ],
+      },
+    };
+
     // Mark old sessions as inactive
     await prisma.analytics_sessions.updateMany({
       where: {
@@ -19,14 +37,14 @@ export async function GET() {
       data: { isActive: false },
     });
 
-    // Active users right now (last 5 minutes)
+    // Active users right now (last 5 minutes) — exclude bots
     const activeUsers = await prisma.analytics_sessions.count({
-      where: { isActive: true },
+      where: { isActive: true, ...notBot },
     });
 
-    // Get active sessions with details
+    // Get active sessions with details — exclude bots
     const activeSessions = await prisma.analytics_sessions.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...notBot },
       orderBy: { lastSeenAt: 'desc' },
       take: 50,
       select: {
@@ -51,114 +69,139 @@ export async function GET() {
       },
     });
 
-    // Page views today
-    const pageViewsToday = await prisma.analytics_events.count({
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-      },
-    });
+    // Page views today (exclude bot sessions via JOIN)
+    const [pvToday] = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%'
+        AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%'
+        AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%'
+        AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+    ` as { count: bigint }[];
+    const pageViewsToday = Number(pvToday?.count || 0);
 
-    // Unique visitors today
-    const uniqueVisitorsToday = await prisma.analytics_events.groupBy({
-      by: ['visitorId'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-      },
-    });
+    // Unique visitors today (exclude bots)
+    const uvToday = await prisma.$queryRaw`
+      SELECT COUNT(DISTINCT e."visitorId") as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%'
+        AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%'
+        AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%'
+        AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+    ` as { count: bigint }[];
+    const uniqueVisitorsTodayCount = Number(uvToday[0]?.count || 0);
 
-    // Page views yesterday (for comparison)
-    const pageViewsYesterday = await prisma.analytics_events.count({
-      where: {
-        event: 'page_view',
-        createdAt: {
-          gte: yesterdayStart,
-          lt: todayStart,
-        },
-      },
-    });
+    // Page views yesterday (exclude bots)
+    const [pvYesterday] = await prisma.$queryRaw`
+      SELECT COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%'
+        AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%'
+        AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%'
+        AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+    ` as { count: bigint }[];
+    const pageViewsYesterday = Number(pvYesterday?.count || 0);
 
-    // Top pages right now
-    const topPagesNow = await prisma.analytics_events.groupBy({
-      by: ['path'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: fiveMinutesAgo },
-      },
-      _count: { path: true },
-      orderBy: { _count: { path: 'desc' } },
-      take: 10,
-    });
+    // Bot filter SQL clause (reusable)
+    const BOT_FILTER = `
+        AND s."userAgent" NOT ILIKE '%bot%'
+        AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%'
+        AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%'
+        AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'`;
 
-    // Top pages today
-    const topPagesToday = await prisma.analytics_events.groupBy({
-      by: ['path'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-      },
-      _count: { path: true },
-      orderBy: { _count: { path: 'desc' } },
-      take: 10,
-    });
+    // Top pages right now (exclude bots)
+    const topPagesNow = await prisma.$queryRaw`
+      SELECT e.path, COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${fiveMinutesAgo}
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY e.path ORDER BY count DESC LIMIT 10
+    ` as { path: string; count: bigint }[];
 
-    // Traffic sources
-    const trafficSources = await prisma.analytics_events.groupBy({
-      by: ['referrer'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-        referrer: { not: null },
-      },
-      _count: { referrer: true },
-      orderBy: { _count: { referrer: 'desc' } },
-      take: 10,
-    });
+    // Top pages today (exclude bots)
+    const topPagesToday = await prisma.$queryRaw`
+      SELECT e.path, COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY e.path ORDER BY count DESC LIMIT 10
+    ` as { path: string; count: bigint }[];
 
-    // Device breakdown
-    const devices = await prisma.analytics_events.groupBy({
+    // Traffic sources (exclude bots)
+    const trafficSources = await prisma.$queryRaw`
+      SELECT e.referrer as source, COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart} AND e.referrer IS NOT NULL
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY e.referrer ORDER BY count DESC LIMIT 10
+    ` as { source: string; count: bigint }[];
+
+    // Device breakdown (from sessions, not events — more accurate)
+    const devices = await prisma.analytics_sessions.groupBy({
       by: ['device'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-      },
-      _count: { device: true },
+      where: { startedAt: { gte: todayStart }, ...notBot },
+      _count: { sessionId: true },
     });
 
-    // Countries
-    const countries = await prisma.analytics_events.groupBy({
+    // Countries (from sessions)
+    const countries = await prisma.analytics_sessions.groupBy({
       by: ['country'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: todayStart },
-        country: { not: null },
-      },
-      _count: { country: true },
-      orderBy: { _count: { country: 'desc' } },
+      where: { startedAt: { gte: todayStart }, country: { not: null }, ...notBot },
+      _count: { sessionId: true },
+      orderBy: { _count: { sessionId: 'desc' } },
       take: 10,
     });
 
-    // Page views per hour (last 24h)
+    // Page views per hour (last 24h, exclude bots)
     const hourlyData = await prisma.$queryRaw`
       SELECT 
-        DATE_TRUNC('hour', "createdAt") as hour,
+        DATE_TRUNC('hour', e."createdAt") as hour,
         COUNT(*) as views
-      FROM analytics_events
-      WHERE event = 'page_view' 
-        AND "createdAt" >= NOW() - INTERVAL '24 hours'
-      GROUP BY DATE_TRUNC('hour', "createdAt")
+      FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' 
+        AND e."createdAt" >= NOW() - INTERVAL '24 hours'
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY DATE_TRUNC('hour', e."createdAt")
       ORDER BY hour ASC
     ` as { hour: Date; views: bigint }[];
 
     // ========== NEW METRICS ==========
 
-    // Traffic sources by CATEGORY (from sessions)
+    // Traffic sources by CATEGORY (from sessions — exclude bots)
     const sourceCategoriesToday = await prisma.analytics_sessions.groupBy({
       by: ['sourceCategory', 'sourceName'],
       where: {
         startedAt: { gte: todayStart },
         sourceCategory: { not: null },
+        ...notBot,
       },
       _count: { sessionId: true },
       orderBy: { _count: { sessionId: 'desc' } },
@@ -169,33 +212,35 @@ export async function GET() {
       where: {
         startedAt: { gte: yesterdayStart, lt: todayStart },
         sourceCategory: { not: null },
+        ...notBot,
       },
       _count: { sessionId: true },
       orderBy: { _count: { sessionId: 'desc' } },
     });
 
-    // Bounce rate today
+    // Bounce rate today (exclude bots)
     const totalSessionsToday = await prisma.analytics_sessions.count({
-      where: { startedAt: { gte: todayStart } },
+      where: { startedAt: { gte: todayStart }, ...notBot },
     });
     const bouncedSessionsToday = await prisma.analytics_sessions.count({
-      where: { startedAt: { gte: todayStart }, isBounce: true },
+      where: { startedAt: { gte: todayStart }, isBounce: true, ...notBot },
     });
 
-    // Bounce rate yesterday
+    // Bounce rate yesterday (exclude bots)
     const totalSessionsYesterday = await prisma.analytics_sessions.count({
-      where: { startedAt: { gte: yesterdayStart, lt: todayStart } },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, ...notBot },
     });
     const bouncedSessionsYesterday = await prisma.analytics_sessions.count({
-      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, isBounce: true },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, isBounce: true, ...notBot },
     });
 
-    // Engagement score distribution today
+    // Engagement score distribution today (exclude bots)
     const engagementToday = await prisma.analytics_sessions.groupBy({
       by: ['engagementScore'],
       where: {
         startedAt: { gte: todayStart },
         engagementScore: { not: null },
+        ...notBot,
       },
       _count: { sessionId: true },
     });
@@ -205,17 +250,18 @@ export async function GET() {
       where: {
         startedAt: { gte: yesterdayStart, lt: todayStart },
         engagementScore: { not: null },
+        ...notBot,
       },
       _count: { sessionId: true },
     });
 
-    // Average session duration today
+    // Average session duration today (exclude bots)
     const avgDurationToday = await prisma.analytics_sessions.aggregate({
-      where: { startedAt: { gte: todayStart }, totalDuration: { not: null } },
+      where: { startedAt: { gte: todayStart }, totalDuration: { not: null }, ...notBot },
       _avg: { totalDuration: true },
     });
     const avgDurationYesterday = await prisma.analytics_sessions.aggregate({
-      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, totalDuration: { not: null } },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, totalDuration: { not: null }, ...notBot },
       _avg: { totalDuration: true },
     });
 
@@ -247,60 +293,56 @@ export async function GET() {
 
     // ========== YESTERDAY DATA ==========
     
-    // Unique visitors yesterday
-    const uniqueVisitorsYesterday = await prisma.analytics_events.groupBy({
-      by: ['visitorId'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: yesterdayStart, lt: todayStart },
-      },
-    });
+    // Unique visitors yesterday (exclude bots)
+    const uvYesterday = await prisma.$queryRaw`
+      SELECT COUNT(DISTINCT e."visitorId") as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+    ` as { count: bigint }[];
+    const uniqueVisitorsYesterdayCount = Number(uvYesterday[0]?.count || 0);
 
-    // Top pages yesterday
-    const topPagesYesterday = await prisma.analytics_events.groupBy({
-      by: ['path'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: yesterdayStart, lt: todayStart },
-      },
-      _count: { path: true },
-      orderBy: { _count: { path: 'desc' } },
-      take: 10,
-    });
+    // Top pages yesterday (exclude bots)
+    const topPagesYesterday = await prisma.$queryRaw`
+      SELECT e.path, COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY e.path ORDER BY count DESC LIMIT 10
+    ` as { path: string; count: bigint }[];
 
-    // Traffic sources yesterday
-    const trafficSourcesYesterday = await prisma.analytics_events.groupBy({
-      by: ['referrer'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: yesterdayStart, lt: todayStart },
-        referrer: { not: null },
-      },
-      _count: { referrer: true },
-      orderBy: { _count: { referrer: 'desc' } },
-      take: 10,
-    });
+    // Traffic sources yesterday (exclude bots)
+    const trafficSourcesYesterday = await prisma.$queryRaw`
+      SELECT e.referrer as source, COUNT(*) as count FROM analytics_events e
+      JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
+      WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
+        AND e.referrer IS NOT NULL
+        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
+        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
+        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
+        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+      GROUP BY e.referrer ORDER BY count DESC LIMIT 10
+    ` as { source: string; count: bigint }[];
 
-    // Devices yesterday
-    const devicesYesterday = await prisma.analytics_events.groupBy({
+    // Devices yesterday (from sessions — exclude bots)
+    const devicesYesterday = await prisma.analytics_sessions.groupBy({
       by: ['device'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: yesterdayStart, lt: todayStart },
-      },
-      _count: { device: true },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, ...notBot },
+      _count: { sessionId: true },
     });
 
-    // Countries yesterday
-    const countriesYesterday = await prisma.analytics_events.groupBy({
+    // Countries yesterday (from sessions — exclude bots)
+    const countriesYesterday = await prisma.analytics_sessions.groupBy({
       by: ['country'],
-      where: {
-        event: 'page_view',
-        createdAt: { gte: yesterdayStart, lt: todayStart },
-        country: { not: null },
-      },
-      _count: { country: true },
-      orderBy: { _count: { country: 'desc' } },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, country: { not: null }, ...notBot },
+      _count: { sessionId: true },
+      orderBy: { _count: { sessionId: 'desc' } },
       take: 10,
     });
 
@@ -312,41 +354,41 @@ export async function GET() {
       },
       today: {
         pageViews: pageViewsToday,
-        uniqueVisitors: uniqueVisitorsToday.length,
+        uniqueVisitors: uniqueVisitorsTodayCount,
         yesterdayPageViews: pageViewsYesterday,
       },
       yesterday: {
         pageViews: pageViewsYesterday,
-        uniqueVisitors: uniqueVisitorsYesterday.length,
+        uniqueVisitors: uniqueVisitorsYesterdayCount,
       },
       topPages: {
-        now: topPagesNow.map(p => ({ path: p.path, views: p._count.path })),
-        today: topPagesToday.map(p => ({ path: p.path, views: p._count.path })),
-        yesterday: topPagesYesterday.map(p => ({ path: p.path, views: p._count.path })),
+        now: topPagesNow.map(p => ({ path: p.path, views: Number(p.count) })),
+        today: topPagesToday.map(p => ({ path: p.path, views: Number(p.count) })),
+        yesterday: topPagesYesterday.map(p => ({ path: p.path, views: Number(p.count) })),
       },
       trafficSources: trafficSources.map(s => ({
-        source: s.referrer || 'Direct',
-        count: s._count.referrer,
+        source: s.source || 'Direct',
+        count: Number(s.count),
       })),
       trafficSourcesYesterday: trafficSourcesYesterday.map(s => ({
-        source: s.referrer || 'Direct',
-        count: s._count.referrer,
+        source: s.source || 'Direct',
+        count: Number(s.count),
       })),
       devices: devices.map(d => ({
         device: d.device || 'Unknown',
-        count: d._count.device,
+        count: d._count.sessionId,
       })),
       devicesYesterday: devicesYesterday.map(d => ({
         device: d.device || 'Unknown',
-        count: d._count.device,
+        count: d._count.sessionId,
       })),
       countries: countries.map(c => ({
         country: c.country || 'Unknown',
-        count: c._count.country,
+        count: c._count.sessionId,
       })),
       countriesYesterday: countriesYesterday.map(c => ({
         country: c.country || 'Unknown',
-        count: c._count.country,
+        count: c._count.sessionId,
       })),
       hourlyViews: hourlyData.map(h => ({
         hour: h.hour,
