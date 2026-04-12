@@ -10,22 +10,43 @@ export async function GET() {
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
 
-    // Bot filter for all session queries
+    // Bot filter for all session queries (UA-based + behavior-based)
     const notBot = {
-      NOT: {
-        OR: [
-          { userAgent: { contains: 'bot', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'crawl', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'spider', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'Cookiebot', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'Mediapartners', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'Lighthouse', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'HeadlessChrome', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'Puppeteer', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'Go-http-client', mode: 'insensitive' as const } },
-          { userAgent: { contains: 'python-requests', mode: 'insensitive' as const } },
-        ],
-      },
+      AND: [
+        {
+          NOT: {
+            OR: [
+              { userAgent: { contains: 'bot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'crawl', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'spider', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Cookiebot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Mediapartners', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Lighthouse', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'HeadlessChrome', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Puppeteer', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Go-http-client', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'python-requests', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'axios/', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'node-fetch', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Applebot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Bytespider', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'PetalBot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Amazonbot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'facebookexternalhit', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Twitterbot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'WhatsApp', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'Discordbot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'TelegramBot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'DataForSeoBot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'ClaudeBot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'GPTBot', mode: 'insensitive' as const } },
+              { userAgent: { contains: 'CCBot', mode: 'insensitive' as const } },
+              { userAgent: null },
+              { userAgent: '' },
+            ],
+          },
+        },
+      ],
     };
 
     // Mark old sessions as inactive
@@ -37,14 +58,29 @@ export async function GET() {
       data: { isActive: false },
     });
 
-    // Active users right now (last 5 minutes) — exclude bots
+    // Active users right now (last 5 minutes) — exclude bots + suspicious behavior
     const activeUsers = await prisma.analytics_sessions.count({
-      where: { isActive: true, ...notBot },
+      where: { 
+        isActive: true, 
+        ...notBot,
+        // Exclude sessions with no heartbeat (bots don't send heartbeats)
+        OR: [
+          { totalDuration: { gt: 0 } },
+          { startedAt: { gte: new Date(now.getTime() - 10 * 1000) } }, // Allow brand new sessions
+        ],
+      },
     });
 
-    // Get active sessions with details — exclude bots
+    // Get active sessions with details — exclude bots + suspicious
     const activeSessions = await prisma.analytics_sessions.findMany({
-      where: { isActive: true, ...notBot },
+      where: { 
+        isActive: true, 
+        ...notBot,
+        OR: [
+          { totalDuration: { gt: 0 } },
+          { startedAt: { gte: new Date(now.getTime() - 10 * 1000) } },
+        ],
+      },
       orderBy: { lastSeenAt: 'desc' },
       take: 50,
       select: {

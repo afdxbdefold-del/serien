@@ -211,7 +211,19 @@ interface TrackEventData {
   metadata?: Record<string, any>;
 }
 
-async function trackEvent(data: TrackEventData) {
+/** Generate a proof-of-human token — bots can't fake this easily */
+function generateHumanToken(): string {
+  const ts = Date.now();
+  // Simple hash: timestamp XOR with screen dimensions and timezone
+  const screen = typeof window !== 'undefined' 
+    ? window.screen.width * window.screen.height 
+    : 0;
+  const tz = new Date().getTimezoneOffset();
+  const token = ((ts % 100000) ^ screen ^ (tz * 137)).toString(36);
+  return `h_${token}_${screen}_${tz}`;
+}
+
+async function trackEvent(data: TrackEventData & { _ht?: string }) {
   try {
     const visitorId = getVisitorId();
     const sessionId = getSessionId();
@@ -220,7 +232,11 @@ async function trackEvent(data: TrackEventData) {
     await fetch('/api/analytics/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitorId, sessionId, ...data }),
+      body: JSON.stringify({ 
+        visitorId, sessionId, 
+        _ht: data._ht || generateHumanToken(),
+        ...data,
+      }),
       keepalive: true,
     });
   } catch {

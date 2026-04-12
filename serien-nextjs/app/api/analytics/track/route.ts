@@ -26,9 +26,27 @@ export async function POST(request: NextRequest) {
       ua.includes('headlesschrome') || ua.includes('phantomjs') || ua.includes('puppeteer') ||
       ua.includes('lighthouse') || ua.includes('pagespeed') || ua.includes('go-http-client') ||
       ua.includes('python-requests') || ua.includes('axios/') || ua.includes('node-fetch') ||
+      ua.includes('facebookexternalhit') || ua.includes('twitterbot') || ua.includes('whatsapp') ||
+      ua.includes('discordbot') || ua.includes('telegrambot') || ua.includes('applebot') ||
+      ua.includes('claudebot') || ua.includes('ccbot') || ua.includes('amazonbot') ||
       !ua || ua.length < 20
     ) {
       return NextResponse.json({ ok: true, filtered: true });
+    }
+
+    // Proof-of-human token check — headless bots typically don't send this
+    const humanToken = body._ht;
+    if (!humanToken || typeof humanToken !== 'string' || !humanToken.startsWith('h_')) {
+      return NextResponse.json({ ok: true, filtered: true });
+    }
+    // Validate token has screen dimensions (bots often have 0x0 or fake values)
+    const tokenParts = humanToken.split('_');
+    if (tokenParts.length >= 3) {
+      const screenSize = parseInt(tokenParts[2]);
+      // Screen size 0 = no real screen (headless), or impossibly large
+      if (!screenSize || screenSize === 0 || screenSize > 100000000) {
+        return NextResponse.json({ ok: true, filtered: true });
+      }
     }
 
     const parser = new UAParser(userAgent);
