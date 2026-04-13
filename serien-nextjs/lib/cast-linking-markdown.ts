@@ -121,8 +121,8 @@ export async function linkCastInMarkdown(
         const lastNewline = beforeMatch.lastIndexOf('\n');
         const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
         
-        // Skip if in heading
-        if (/^#+\s/.test(lineStart.trim())) {
+        // Skip if in heading (## Heading text)
+        if (/^\s*#{1,6}\s/.test(lineStart)) {
           continue;
         }
         
