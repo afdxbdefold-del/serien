@@ -51,6 +51,7 @@ export async function GET() {
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${newsItems.map(item => `  <url>
     <loc>${item.url}</loc>
+    <lastmod>${item.publication_date}</lastmod>
     <news:news>
       <news:publication>
         <news:name>serien.de</news:name>
