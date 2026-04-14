@@ -534,8 +534,8 @@ export default async function ArticlePage({ params }: PageProps) {
             </span>
           </div>
 
-          {/* Kontext-Kästen */}
-          {(article.wasBedeutetDasText || article.darumRelevantText || article.bisherigerStandText) && (
+          {/* Kontext-Kästen: Bisheriger Stand + Darum Relevant (nach Artikel-Content) */}
+          {(article.bisherigerStandText || article.darumRelevantText) && (
             <div className="my-8 space-y-4">
               {article.bisherigerStandText && (
                 <BisherigerStand text={article.bisherigerStandText} />
@@ -543,13 +543,10 @@ export default async function ArticlePage({ params }: PageProps) {
               {article.darumRelevantText && (
                 <DarumRelevant text={article.darumRelevantText} />
               )}
-              {article.wasBedeutetDasText && (
-                <WasBedeutetDas text={article.wasBedeutetDasText} />
-              )}
             </div>
           )}
 
-          {/* Q&A Section - Directly after article content */}
+          {/* Q&A Section */}
           {article.article_qa && article.article_qa.questions && (
             <ArticleQA 
               questions={article.article_qa.questions as any[]}
@@ -558,46 +555,8 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          {/* Author Box */}
-          {article.users && (
-            <AuthorBox 
-              author={{
-                id: article.users.id,
-                name: article.users.name,
-                image: article.users.image,
-                bio: (article.users as any).bio || null,
-                expertise: (article.users as any).expertise || [],
-              }}
-            />
-          )}
-
-          {/* Ad Unit - Below Author */}
+          {/* Ad Unit - Below Q&A */}
           <ClientAdSlot position="below_author" className="my-8" />
-
-          {/* Series Infobox */}
-          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <SeriesInfobox
-              seriesId={article.primarySeriesId}
-              seriesName={article.series.title || article.series.name || ''}
-              seriesSlug={article.series.slug || ''}
-            />
-          )}
-
-          {/* Ad Unit - Below Series Info */}
-          <ClientAdSlot position="below_series_info" className="my-8" />
-
-          {/* Where to Stream Box */}
-          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <WhereToStreamBox
-              seriesId={article.primarySeriesId}
-              seriesName={article.series.title || article.series.name || ''}
-              networks={article.series.networks}
-              slug={article.series.slug}
-            />
-          )}
-
-          {/* Ad Unit - Above Similar News */}
-          <ClientAdSlot position="above_similar_news" className="my-8" />
 
           {/* Related News */}
           {relatedNews.length > 0 && (
@@ -621,6 +580,42 @@ export default async function ArticlePage({ params }: PageProps) {
                 ))}
               </div>
             </section>
+          )}
+
+          {/* Ad Unit - Below Related */}
+          <ClientAdSlot position="above_similar_news" className="my-8" />
+
+          {/* Series Infobox + Streaming (ganz unten) */}
+          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+            <SeriesInfobox
+              seriesId={article.primarySeriesId}
+              seriesName={article.series.title || article.series.name || ''}
+              seriesSlug={article.series.slug || ''}
+            />
+          )}
+
+          <ClientAdSlot position="below_series_info" className="my-8" />
+
+          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+            <WhereToStreamBox
+              seriesId={article.primarySeriesId}
+              seriesName={article.series.title || article.series.name || ''}
+              networks={article.series.networks}
+              slug={article.series.slug}
+            />
+          )}
+
+          {/* Autor Box (ganz unten) */}
+          {article.users && (
+            <AuthorBox 
+              author={{
+                id: article.users.id,
+                name: article.users.name,
+                image: article.users.image,
+                bio: (article.users as any).bio || null,
+                expertise: (article.users as any).expertise || [],
+              }}
+            />
           )}
 
           {/* Ad Unit - Above Footer */}
