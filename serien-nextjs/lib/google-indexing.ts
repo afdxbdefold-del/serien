@@ -90,8 +90,35 @@ export async function indexNewArticle(slug: string): Promise<void> {
     console.log(`   Google Indexing: Fehler bei "${slug}" - ${result.error}`);
   }
   
-  // 2. Google PubSubHubbub Sitemap-Ping (News-Sitemap hat sich geaendert)
+  // 2. Google Sitemap Ping (direkter GET-Ping)
+  await pingGoogleSitemap();
+  
+  // 3. Google PubSubHubbub Sitemap-Ping
   await pingSitemapToGoogle();
+}
+
+/**
+ * Pingt Google direkt via /ping?sitemap= Endpoint.
+ * https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap#addsitemap
+ */
+export async function pingGoogleSitemap(): Promise<{ success: boolean; error?: string }> {
+  const sitemapUrl = 'https://serien.de/news-sitemap.xml';
+  const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+  
+  try {
+    const response = await fetch(pingUrl);
+    
+    if (response.ok) {
+      console.log(`   Google Ping: OK (${response.status})`);
+      return { success: true };
+    }
+    
+    console.log(`   Google Ping: ${response.status}`);
+    return { success: false, error: `${response.status}` };
+  } catch (error: any) {
+    console.log(`   Google Ping Fehler: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
