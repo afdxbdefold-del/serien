@@ -505,6 +505,21 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
+          {/* Kontext-Kästen: VOR dem Artikel-Content */}
+          {(article.bisherigerStandText || article.darumRelevantText || article.wasBedeutetDasText) && (
+            <div className="my-8 space-y-4">
+              {article.bisherigerStandText && (
+                <BisherigerStand text={article.bisherigerStandText} />
+              )}
+              {article.darumRelevantText && (
+                <DarumRelevant text={article.darumRelevantText} />
+              )}
+              {article.wasBedeutetDasText && (
+                <WasBedeutetDas text={article.wasBedeutetDasText} />
+              )}
+            </div>
+          )}
+
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
 
@@ -533,18 +548,6 @@ export default async function ArticlePage({ params }: PageProps) {
               <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
             </span>
           </div>
-
-          {/* Kontext-Kästen: Bisheriger Stand + Darum Relevant (nach Artikel-Content) */}
-          {(article.bisherigerStandText || article.darumRelevantText) && (
-            <div className="my-8 space-y-4">
-              {article.bisherigerStandText && (
-                <BisherigerStand text={article.bisherigerStandText} />
-              )}
-              {article.darumRelevantText && (
-                <DarumRelevant text={article.darumRelevantText} />
-              )}
-            </div>
-          )}
 
           {/* Q&A Section */}
           {article.article_qa && article.article_qa.questions && (
