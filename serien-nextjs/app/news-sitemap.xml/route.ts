@@ -54,7 +54,7 @@ ${newsItems.map(item => `  <url>
     <lastmod>${item.publication_date}</lastmod>
     <news:news>
       <news:publication>
-        <news:name>serien.de</news:name>
+        <news:name>Serien.de</news:name>
         <news:language>de</news:language>
       </news:publication>
       <news:publication_date>${item.publication_date}</news:publication_date>
