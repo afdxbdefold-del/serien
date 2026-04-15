@@ -102,9 +102,9 @@ const getHomepageData = unstable_cache(
     const trendingReleases = await prisma.streaming_releases.findMany({
       where: {
         date: { gte: twoDaysAgo },
-        // Exclude anime providers
+        // Exclude anime and foreign-only providers
         NOT: {
-          provider: { in: ['Crunchyroll', 'Anime on Demand', 'Wakanim', 'CHILI'] }
+          provider: { in: ['Crunchyroll', 'Anime on Demand', 'Wakanim', 'CHILI', 'Funimation', 'HIDIVE', 'ADN'] }
         }
       },
       orderBy: [
@@ -137,19 +137,30 @@ const getHomepageData = unstable_cache(
     };
 
     // Map to the expected format and deduplicate by tmdbId
-    // Filter out anime by checking for common anime indicators
+    // Filter out anime and non-German/English titles
     const animeKeywords = [
       'anime', 'dragon ball', 'naruto', 'one piece', 'attack on titan', 
       'demon slayer', 'jujutsu', 'my hero academia', 'bleach', 'hunter x hunter', 
-      'frieren', 'rooster fighter', 'jojo', 'oshi no ko', 'mein*star'
+      'frieren', 'rooster fighter', 'jojo', 'oshi no ko', 'mein*star',
+      'sword art', 'chainsaw man', 'spy x family', 'death note', 'fullmetal',
+      'fairy tail', 'sailor moon', 'cowboy bebop', 'evangelion', 'gundam',
+      'pokemon', 'digimon', 'boruto', 'kakegurui', 'haikyu', 'vinland saga',
+      'mob psycho', 'konosuba', 're:zero', 'overlord', 'tokyo ghoul',
+      'boku no hero', 'shingeki', 'kimetsu', 'solo leveling', 'kaiju',
+      'dandadan', 'sakamoto', 'undead unluck', 'mashle', 'hell\'s paradise',
+      'blue lock', 'eminence in shadow', 'classroom of the elite',
     ];
+    // Non-latin script regex: Japanese, Korean, Chinese, Thai, Arabic
+    const nonLatinRegex = /[\u3000-\u9FFF\uAC00-\uD7AF\u0600-\u06FF\u0E00-\u0E7F\u1100-\u11FF\u3040-\u309F\u30A0-\u30FF]/;
     const seen = new Set<number>();
     const streamingSeries = trendingReleases
       .filter(r => {
         if (seen.has(r.tmdbId)) return false;
-        // Filter out anime by name
         const nameLower = r.name.toLowerCase();
+        // Filter out anime by keyword
         if (animeKeywords.some(kw => nameLower.includes(kw))) return false;
+        // Filter out non-latin titles (Japanese, Korean, Chinese, etc.)
+        if (nonLatinRegex.test(r.name)) return false;
         seen.add(r.tmdbId);
         return true;
       })
