@@ -124,9 +124,13 @@ export function findTrailerYouTubeId(trailersJson: any): string | null {
   }
 
   // Filter out Kinocheck trailers (often have watermarks)
-  const isKinocheck = (t: any) => 
-    t.name?.toLowerCase().includes('kinocheck') ||
-    t.name?.toLowerCase().includes('kino check');
+  const isKinocheck = (t: any) => {
+    const name = (t.name || '').toLowerCase();
+    const channel = (t.channelTitle || t.channelName || '').toLowerCase();
+    return name.includes('kinocheck') || name.includes('kino check') ||
+           channel.includes('kinocheck') || channel.includes('kino check') ||
+           name.includes('kinotrailer');
+  };
   
   const filteredTrailers = trailersJson.filter((t: any) => !isKinocheck(t));
   
@@ -231,8 +235,11 @@ export async function searchYouTubeTrailerViaAPI(seriesName: string, language: '
     // Helper to check if result is from Kinocheck
     const isKinocheck = (item: any) => {
       const title = (item.title || '').toLowerCase();
-      const channel = (item.channelTitle || item.channelName || '').toLowerCase();
-      return title.includes('kinocheck') || channel.includes('kinocheck');
+      const channel = (item.channelTitle || item.channelName || item.channel || '').toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+      return title.includes('kinocheck') || title.includes('kino check') || title.includes('kinotrailer') ||
+             channel.includes('kinocheck') || channel.includes('kino check') ||
+             desc.includes('kinocheck');
     };
 
     // PRIMARY: youtube-convert-download-api-mp3-mp4
@@ -295,7 +302,7 @@ export async function searchYouTubeTrailerViaAPI(seriesName: string, language: '
       console.log(`   ⚠️ FALLBACK 1 search failed: ${e.message}`);
     }
 
-    // FALLBACK: Direct YouTube HTML scraping
+    // FALLBACK: Direct YouTube HTML scraping (also filter Kinocheck)
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
     const response = await fetch(searchUrl, {
       headers: {
@@ -306,11 +313,27 @@ export async function searchYouTubeTrailerViaAPI(seriesName: string, language: '
 
     if (response.ok) {
       const html = await response.text();
-      const videoIdMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
-      if (videoIdMatches && videoIdMatches.length > 0) {
-        const firstMatch = videoIdMatches[0].match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-        if (firstMatch && firstMatch[1]) {
-          console.log(`   ✅ Found via HTML scraping: ${firstMatch[1]}`);
+      // Extract video IDs with their titles to filter Kinocheck
+      const videoMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{"runs":\[\{"text":"([^"]*?)"\}/g);
+      if (videoMatches) {
+        for (const match of videoMatches) {
+          const idMatch = match.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+          const titleMatch = match.match(/"text":"([^"]*?)"/);
+          if (idMatch?.[1]) {
+            const title = (titleMatch?.[1] || '').toLowerCase();
+            if (!title.includes('kinocheck') && !title.includes('kino check') && !title.includes('kinotrailer')) {
+              console.log(`   ✅ Found via HTML scraping: ${idMatch[1]} (skipped Kinocheck)`);
+              return idMatch[1];
+            }
+          }
+        }
+      }
+      // Fallback: just grab first videoId if title parsing failed
+      const simpleMatches = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g);
+      if (simpleMatches && simpleMatches.length > 0) {
+        const firstMatch = simpleMatches[0].match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        if (firstMatch?.[1]) {
+          console.log(`   ✅ Found via HTML scraping (no title filter): ${firstMatch[1]}`);
           return firstMatch[1];
         }
       }
