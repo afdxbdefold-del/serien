@@ -136,14 +136,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         <NewsHighlightCarousel news={highlightNews} />
       )}
 
-      {/* Aktuell im Stream - Hero Section */}
-      {!isAuthenticated && streamingSeries.length > 0 && (
-        <section className="py-8 md:py-10" aria-labelledby="hero-heading">
-          <div className="container mx-auto px-6 md:px-12">
-            <CurrentlyStreaming series={streamingSeries} />
-          </div>
-        </section>
-      )}
+      {/* Aktuell im Stream - Removed */}
 
       {/* Authenticated: Show H1 at top */}
       {isAuthenticated && (
