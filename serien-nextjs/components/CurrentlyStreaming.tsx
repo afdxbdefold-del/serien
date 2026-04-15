@@ -158,29 +158,6 @@ export default function CurrentlyStreaming({ series }: CurrentlyStreamingProps) 
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
-
-      {/* Streaming Providers - Glassmorphism Style */}
-      <div className="mt-8">
-        <h3 className="text-lg font-semibold text-gray-700 dark:text-[hsl(215,20%,75%)] mb-4">
-          Im Stream bei:
-        </h3>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {STREAMING_PROVIDERS.map((provider) => (
-            <Link
-              key={provider.id}
-              href={`/serienfinder?network=${encodeURIComponent(provider.name)}`}
-              className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 dark:hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] dark:border dark:border-white/10 dark:backdrop-blur-sm"
-              style={{ backgroundColor: provider.color }}
-              title={provider.name}
-              data-testid={`provider-${provider.id}`}
-            >
-              <span className="text-white font-bold text-sm text-center px-2">
-                {provider.name}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
