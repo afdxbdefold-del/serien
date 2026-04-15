@@ -16,6 +16,7 @@ export interface FullTextResult {
   headline: string;
   publishDate?: Date;
   rawText?: string;
+  youtubeVideoIds?: string[];
 }
 
 // Site-specific selectors
@@ -82,6 +83,30 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
     // Get site-specific or default selectors
     const selectors = SITE_SELECTORS[domain] || DEFAULT_SELECTORS;
     
+    // Extract YouTube video IDs BEFORE removing iframes
+    const youtubeVideoIds: string[] = [];
+    const ytRegex = /(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+    
+    // From iframes
+    $('iframe[src*="youtube"], iframe[src*="youtu.be"]').each((_, el) => {
+      const src = $(el).attr('src') || '';
+      const match = ytRegex.exec(src);
+      if (match) youtubeVideoIds.push(match[1]);
+      ytRegex.lastIndex = 0;
+    });
+    
+    // From links/anchors
+    $('a[href*="youtube.com/watch"], a[href*="youtu.be/"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const match = ytRegex.exec(href);
+      if (match && !youtubeVideoIds.includes(match[1])) youtubeVideoIds.push(match[1]);
+      ytRegex.lastIndex = 0;
+    });
+    
+    if (youtubeVideoIds.length > 0) {
+      console.log(`   🎬 Found ${youtubeVideoIds.length} YouTube video(s): ${youtubeVideoIds.join(', ')}`);
+    }
+
     // Remove unwanted elements
     const removeSelectors = [...DEFAULT_SELECTORS.remove, ...(selectors.remove || [])];
     $(removeSelectors.join(', ')).remove();
@@ -138,6 +163,7 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
       title,
       headline: title,
       rawText: fullText,
+      youtubeVideoIds,
     };
     
   } catch (error: any) {

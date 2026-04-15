@@ -212,6 +212,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     let fullSourceText = source.text || source.sourceText || '';
     let sourceWordCount = 0;
+    let sourceYoutubeVideoIds: string[] = [];
     
     if (source.useFullTextMode) {
       const fullTextResult = await fetchFullArticleText(source.url);
@@ -219,12 +220,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
       if (fullTextResult.wordCount > 100) {
         fullSourceText = fullTextResult.fullText;
         sourceWordCount = fullTextResult.wordCount;
+        sourceYoutubeVideoIds = fullTextResult.youtubeVideoIds || [];
         
         if (fullTextResult.title && fullTextResult.title.length > 5) {
           source.title = fullTextResult.title;
         }
         
         console.log(`✅ Full text: ${sourceWordCount} words`);
+        if (sourceYoutubeVideoIds.length > 0) {
+          console.log(`🎬 YouTube videos found: ${sourceYoutubeVideoIds.length}`);
+        }
         logger.log(`Volltext: ${sourceWordCount} Wörter`);
         await logger.update({ wordsCollected: sourceWordCount });
       }
@@ -849,13 +854,45 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     const finalContentHtml = internalLinksResult.updatedContentHtml;
     
+    // ========== STEP 7.6: YOUTUBE EMBED ==========
+    // Inject YouTube videos from source article into content
+    let finalContentWithVideo = finalContentHtml;
+    if (sourceYoutubeVideoIds.length > 0) {
+      console.log(`🎬 Embedding ${sourceYoutubeVideoIds.length} YouTube video(s)...`);
+      // Insert after the first H2 section (after first </p> that follows an <h2>)
+      const firstVideoId = sourceYoutubeVideoIds[0];
+      const youtubeEmbed = `<div class="video-embed-wrapper"><iframe src="https://www.youtube-nocookie.com/embed/${firstVideoId}" title="Video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+      
+      // Find position after first H2 section (2nd </p> after first <h2>)
+      const h2Idx = finalContentWithVideo.indexOf('<h2>');
+      if (h2Idx !== -1) {
+        // Find 2nd </p> after the h2
+        let pCount = 0;
+        let insertIdx = h2Idx;
+        while (pCount < 2 && insertIdx < finalContentWithVideo.length) {
+          const nextP = finalContentWithVideo.indexOf('</p>', insertIdx + 1);
+          if (nextP === -1) break;
+          insertIdx = nextP + 4; // after </p>
+          pCount++;
+        }
+        if (pCount >= 1) {
+          finalContentWithVideo = finalContentWithVideo.slice(0, insertIdx) + '\n' + youtubeEmbed + '\n' + finalContentWithVideo.slice(insertIdx);
+          console.log(`   ✅ YouTube embed inserted after first section`);
+        }
+      } else {
+        // No H2, append at end
+        finalContentWithVideo += '\n' + youtubeEmbed;
+        console.log(`   ✅ YouTube embed appended at end`);
+      }
+    }
+    
     console.log(`✅ Internal Links injected:`);
     console.log(`   Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
     console.log(`   Related Articles: ${internalLinksResult.relatedArticles.length}`);
     console.log(`   Total Links: ${internalLinksResult.totalInternalLinks}`);
     
     // Validate links
-    const linkValidation = validateInternalLinks(finalContentHtml, dbSeries.name || dbSeries.title || '');
+    const linkValidation = validateInternalLinks(finalContentWithVideo, dbSeries.name || dbSeries.title || '');
     if (!linkValidation.valid) {
       console.log(`\n⚠️  Link Validation Warnings:`);
       linkValidation.errors.forEach(err => console.log(`   - ${err}`));
@@ -903,7 +940,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         id: articleId,
         title: structuredContent.headline,
         slug,
-        contentHtml: finalContentHtml,
+        contentHtml: finalContentWithVideo,
         excerpt: structuredContent.lead,
         metaDescription: structuredContent.metaDescription,
         heroImageUrl: selectedBackdrop 
@@ -1067,7 +1104,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         try {
           const wasBedeutetDasText = await generateWasBedeutetDas({
             headline: structuredContent.headline || '',
-            articleHtml: finalContentHtml,
+            articleHtml: finalContentWithVideo,
             seriesName: dbSeries.name || dbSeries.title || '',
             contentType: contentType || 'SINGLE_SERIES_NEWS',
             extractedFacts: JSON.stringify(facts).substring(0, 500),
@@ -1089,7 +1126,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       (async () => {
         try {
           const darumRelevantText = await generateDarumRelevant({
-            articleHtml: finalContentHtml,
+            articleHtml: finalContentWithVideo,
             headline: structuredContent.headline || '',
             seriesName: dbSeries.name || dbSeries.title || '',
             extractedFacts: JSON.stringify(facts).substring(0, 500),
@@ -1136,7 +1173,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         try {
           const gateResult = await discoverGate({
             final_headline: structuredContent.headline || '',
-            article_html: finalContentHtml || '',
+            article_html: finalContentWithVideo || '',
             hero_image_metadata: {
               url: selectedBackdrop ? `https://image.tmdb.org/t/p/original${selectedBackdrop}` : '',
               width: 1920,
