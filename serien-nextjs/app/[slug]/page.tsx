@@ -599,32 +599,22 @@ export default async function ArticlePage({ params }: PageProps) {
 
           <ClientAdSlot position="below_series_info" className="my-8" />
 
-          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <WhereToStreamBox
-              seriesId={article.primarySeriesId}
-              seriesName={article.series.title || article.series.name || ''}
-              networks={article.series.networks}
-              slug={article.series.slug}
-            />
-          )}
-
-          {/* Autor Box (ganz unten) */}
-          {article.users && (
-            <AuthorBox 
-              author={{
-                id: article.users.id,
-                name: article.users.name,
-                image: article.users.image,
-                bio: (article.users as any).bio || null,
-                expertise: (article.users as any).expertise || [],
-              }}
-            />
-          )}
-
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />
         </div>
       </article>
+
+      {/* Streaming-Box — außerhalb von <article> */}
+      {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+        <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
+          <WhereToStreamBox
+            seriesId={article.primarySeriesId}
+            seriesName={article.series.title || article.series.name || ''}
+            networks={article.series.networks}
+            slug={article.series.slug}
+          />
+        </div>
+      )}
     </div>
   );
 }
