@@ -19,7 +19,7 @@ import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
 import ClientAdSlot from '@/components/ClientAdSlot';
-import { WasBedeutetDas, DarumRelevant, BisherigerStand } from '@/components/WasBedeutetDas';
+import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 
 // Lazy load heavy client components
 const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
@@ -74,7 +74,11 @@ const getArticle = (slug: string) => unstable_cache(
             name: true, 
             slug: true, 
             networks: true,
-            localTrailerPath: true 
+            localTrailerPath: true,
+            status: true,
+            numberOfSeasons: true,
+            firstAirDate: true,
+            lastAirDate: true,
           }
         },
         article_qa: {
@@ -134,6 +138,24 @@ const getRelatedNews = (articleId: string, category: string | null, primarySerie
 
 // ISR - Revalidate every 5 minutes for near-real-time data with caching
 export const revalidate = 300;
+
+// Cached TMDB season count fetch (for series missing numberOfSeasons in DB)
+const getSeriesSeasonCount = (tmdbId: number) => unstable_cache(
+  async () => {
+    try {
+      const tmdbKey = process.env.TMDB_API_KEY;
+      if (!tmdbKey) return null;
+      const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}?language=de-DE&api_key=${tmdbKey}`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Update DB in background
+      prisma.series.update({ where: { tmdbId }, data: { numberOfSeasons: data.number_of_seasons, lastAirDate: data.last_air_date ? new Date(data.last_air_date) : undefined } }).catch(() => {});
+      return { numberOfSeasons: data.number_of_seasons as number, lastAirDate: data.last_air_date as string | null, networks: (data.networks || []).map((n: any) => n.name) as string[] };
+    } catch { return null; }
+  },
+  [`tmdb-seasons-${tmdbId}`],
+  { revalidate: 86400, tags: [`tmdb-${tmdbId}`] } // 24h cache
+)();
 
 interface PageProps {
   params: Promise<{
@@ -262,6 +284,12 @@ export default async function ArticlePage({ params }: PageProps) {
     article.category, 
     article.primarySeriesId
   );
+
+  // Fetch TMDB season data if missing from DB (cached 24h)
+  let seriesSeasonData: { numberOfSeasons: number; lastAirDate: string | null; networks: string[] } | null = null;
+  if (article.series && !article.series.numberOfSeasons) {
+    seriesSeasonData = await getSeriesSeasonCount(article.series.tmdbId);
+  }
 
   // Format dates - handle both Date objects and ISO strings from cache
   const publishedDate = toDate(article.publishedAt || article.createdAt);
@@ -506,8 +534,15 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Kontext-Sektionen: VOR dem Artikel-Content */}
-          {article.bisherigerStandText && (
-            <BisherigerStand text={article.bisherigerStandText} />
+          {article.series && (
+            <BisherigerStand data={{
+              seriesName: article.series.name || article.series.title || '',
+              status: article.series.status,
+              numberOfSeasons: article.series.numberOfSeasons || seriesSeasonData?.numberOfSeasons || null,
+              firstAirDate: article.series.firstAirDate,
+              lastAirDate: article.series.lastAirDate || seriesSeasonData?.lastAirDate || null,
+              networks: (article.series.networks as string[])?.length > 0 ? article.series.networks as string[] : seriesSeasonData?.networks || null,
+            }} />
           )}
           {article.darumRelevantText && (
             <DarumRelevant text={article.darumRelevantText} />
