@@ -549,33 +549,6 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Ad Unit - Below Q&A */}
           <ClientAdSlot position="below_author" className="my-8" />
 
-          {/* Related News */}
-          {relatedNews.length > 0 && (
-            <section className="mt-12" aria-labelledby="similar-news">
-              <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ähnliche News</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {relatedNews.map((news) => (
-                  <NewsCard
-                    key={news.id}
-                    slug={news.slug}
-                    title={news.title}
-                    excerpt={news.excerpt}
-                    heroLocalUrl={news.heroLocalUrl}
-                    cardImageUrl={news.cardImageUrl}
-                    tmdbId={news.tmdbId}
-                    tmdbType={news.tmdbType}
-                    publishedAt={news.publishedAt}
-                    category={news.category}
-                    networks={news.series?.networks as string[] || []}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Ad Unit - Below Related */}
-          <ClientAdSlot position="above_similar_news" className="my-8" />
-
           {/* Article Meta - Source & Last Updated */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
             {article.series?.networks && (article.series.networks as string[]).length > 0 && (
@@ -605,6 +578,32 @@ export default async function ArticlePage({ params }: PageProps) {
           <ClientAdSlot position="above_footer" className="my-8" />
         </div>
       </article>
+
+      {/* Ähnliche News — außerhalb von <article> */}
+      {relatedNews.length > 0 && (
+        <div className="container mx-auto px-4 md:px-6 max-w-3xl py-8">
+          <section aria-labelledby="similar-news">
+            <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ähnliche News</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {relatedNews.map((news) => (
+                <NewsCard
+                  key={news.id}
+                  slug={news.slug}
+                  title={news.title}
+                  excerpt={news.excerpt}
+                  heroLocalUrl={news.heroLocalUrl}
+                  cardImageUrl={news.cardImageUrl}
+                  tmdbId={news.tmdbId}
+                  tmdbType={news.tmdbType}
+                  publishedAt={news.publishedAt}
+                  category={news.category}
+                  networks={news.series?.networks as string[] || []}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Serien-Infobox + Streaming-Box — außerhalb von <article> */}
       <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
