@@ -576,15 +576,6 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Ad Unit - Below Related */}
           <ClientAdSlot position="above_similar_news" className="my-8" />
 
-          {/* Series Infobox + Streaming (ganz unten) */}
-          {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-            <SeriesInfobox
-              seriesId={article.primarySeriesId}
-              seriesName={article.series.title || article.series.name || ''}
-              seriesSlug={article.series.slug || ''}
-            />
-          )}
-
           {/* Article Meta - Source & Last Updated */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
             {article.series?.networks && (article.series.networks as string[]).length > 0 && (
@@ -615,17 +606,24 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
       </article>
 
-      {/* Streaming-Box — außerhalb von <article> */}
-      {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-        <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
+      {/* Serien-Infobox + Streaming-Box — außerhalb von <article> */}
+      <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
+        {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+          <SeriesInfobox
+            seriesId={article.primarySeriesId}
+            seriesName={article.series.title || article.series.name || ''}
+            seriesSlug={article.series.slug || ''}
+          />
+        )}
+        {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
           <WhereToStreamBox
             seriesId={article.primarySeriesId}
             seriesName={article.series.title || article.series.name || ''}
             networks={article.series.networks}
             slug={article.series.slug}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
