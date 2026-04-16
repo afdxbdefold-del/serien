@@ -537,18 +537,6 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           </section>
 
-          {/* Article Meta - Source & Last Updated */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
-            {article.series?.networks && (article.series.networks as string[]).length > 0 && (
-              <span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">Quelle:</span> {(article.series.networks as string[])[0]}
-              </span>
-            )}
-            <span>
-              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-            </span>
-          </div>
-
           {/* Q&A Section */}
           {article.article_qa && article.article_qa.questions && (
             <ArticleQA 
@@ -597,7 +585,30 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           )}
 
-          <ClientAdSlot position="below_series_info" className="my-8" />
+          {/* Article Meta - Source & Last Updated */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
+            {article.series?.networks && (article.series.networks as string[]).length > 0 && (
+              <span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">Quelle:</span> {(article.series.networks as string[])[0]}
+              </span>
+            )}
+            <span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+            </span>
+          </div>
+
+          {/* Autor Box */}
+          {article.users && (
+            <AuthorBox 
+              author={{
+                id: article.users.id,
+                name: article.users.name,
+                image: article.users.image,
+                bio: (article.users as any).bio || null,
+                expertise: (article.users as any).expertise || [],
+              }}
+            />
+          )}
 
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />
