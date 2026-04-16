@@ -156,6 +156,10 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   
   // STEP 2: Remove artificial headings
   const headingRegex = /<(h[2-4])[^>]*>(.*?)<\/\1>/gi;
+
+  // STEP 1.5: Remove "Weitere News zu..." and "Alle Entwicklungen zur Serie..." link boxes
+  sanitized = sanitized.replace(/<p[^>]*class="internal-link-box"[^>]*>.*?<\/p>/gi, '');
+
   const matches = Array.from(sanitized.matchAll(headingRegex));
   
   for (const match of matches) {

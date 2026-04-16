@@ -121,30 +121,10 @@ function injectLinksIntoContent(
     }
   );
 
-  // === 1. INJECT HUB LINK AFTER LEAD (after first or second paragraph) ===
-  const hubLinkHtml = `\n\n<p class="internal-link-box"><a href="${hubLink}" rel="follow">Weitere News zu ${seriesName} auf serien.de</a></p>`;
-  
-  // Insert after second paragraph (assuming first = lead, second = context)
-  let updatedHtml = '';
-  const paragraphs = htmlWithInlineLink.split('</p>');
-  paragraphs.forEach((para, index) => {
-    updatedHtml += para;
-    if (index < paragraphs.length - 1) {
-      updatedHtml += '</p>';
-    }
-    
-    // Insert hub link after paragraph 2
-    if (index === 1) {
-      updatedHtml += hubLinkHtml;
-    }
-  });
+  // === 1. HUB LINK: Only inline link in text, no standalone box ===
+  let updatedHtml = htmlWithInlineLink;
 
-  // === 2. INJECT HUB LINK AT END ===
-  const endLinkHtml = `\n\n<p class="internal-link-box"><a href="${hubLink}" rel="follow">Alle Entwicklungen zur Serie ${seriesName}</a></p>`;
-  
-  updatedHtml += endLinkHtml;
-
-  // === 3. OPTIONAL: INJECT RELATED ARTICLES (if available) ===
+  // === 2. OPTIONAL: INJECT RELATED ARTICLES (if available) ===
   if (relatedArticles.length > 0) {
     const relatedLinksHtml = generateRelatedArticlesHtml(relatedArticles);
     updatedHtml += `\n\n${relatedLinksHtml}`;
