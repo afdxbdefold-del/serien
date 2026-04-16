@@ -404,3 +404,38 @@
     @apply not-sr-only absolute top-4 left-4 z-[100] px-4 py-2 bg-cyan-500 text-white rounded-lg;
   }
 }
+
+/* Kontext-Sektionen (Bisheriger Stand, Darum relevant, Was bedeutet das) */
+section.context {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  background: hsl(210, 20%, 97%);
+  border-radius: 0.5rem;
+}
+
+.dark section.context {
+  background: hsl(230, 25%, 8%);
+}
+
+section.context h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: hsl(210, 15%, 20%);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.dark section.context h2 {
+  color: hsl(210, 20%, 88%);
+}
+
+section.context p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: hsl(210, 10%, 35%);
+  margin: 0;
+}
+
+.dark section.context p {
+  color: hsl(215, 20%, 65%);
+}

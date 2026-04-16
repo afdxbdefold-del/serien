@@ -505,19 +505,15 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
-          {/* Kontext-Kästen: VOR dem Artikel-Content */}
-          {(article.bisherigerStandText || article.darumRelevantText || article.wasBedeutetDasText) && (
-            <div className="my-8 space-y-4">
-              {article.bisherigerStandText && (
-                <BisherigerStand text={article.bisherigerStandText} />
-              )}
-              {article.darumRelevantText && (
-                <DarumRelevant text={article.darumRelevantText} />
-              )}
-              {article.wasBedeutetDasText && (
-                <WasBedeutetDas text={article.wasBedeutetDasText} />
-              )}
-            </div>
+          {/* Kontext-Sektionen: VOR dem Artikel-Content */}
+          {article.bisherigerStandText && (
+            <BisherigerStand text={article.bisherigerStandText} />
+          )}
+          {article.darumRelevantText && (
+            <DarumRelevant text={article.darumRelevantText} />
+          )}
+          {article.wasBedeutetDasText && (
+            <WasBedeutetDas text={article.wasBedeutetDasText} />
           )}
 
           {/* Ad Unit - Below Intro */}

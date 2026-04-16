@@ -1,44 +1,35 @@
 /**
- * ARTIKEL-KONTEXT-KÄSTEN
+ * ARTIKEL-KONTEXT-SEKTIONEN
  * 
- * Drei kurze, sachliche Einordnungen am Ende jedes Artikels:
- * - Was bedeutet das? (praktische Bedeutung)
- * - Darum ist das relevant (Kontext für den Zuschauer)
+ * Drei kurze, sachliche Einordnungen vor dem Artikel-Content:
  * - Bisheriger Stand zur Serie (Recap)
+ * - Darum ist das relevant (Kontext für den Zuschauer)
+ * - Was bedeutet das? (praktische Bedeutung)
  */
 
-interface ContextBoxProps {
-  label: string;
+interface ContextSectionProps {
+  heading: string;
   text: string;
   testId: string;
-  borderColor?: string;
-  labelColor?: string;
 }
 
-function ContextBox({ label, text, testId, borderColor = 'border-cyan-500', labelColor = 'text-cyan-600 dark:text-cyan-400' }: ContextBoxProps) {
+function ContextSection({ heading, text, testId }: ContextSectionProps) {
   return (
-    <aside 
-      data-testid={testId}
-      className={`border-l-4 ${borderColor} bg-gray-50 dark:bg-gray-900/50 rounded-r-lg p-5`}
-    >
-      <p className={`text-sm font-bold ${labelColor} uppercase tracking-wider mb-2`}>
-        {label}
-      </p>
-      <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
-        {text}
-      </p>
-    </aside>
+    <section className="context" data-testid={testId}>
+      <h2>{heading}</h2>
+      <p>{text}</p>
+    </section>
   );
 }
 
 export function WasBedeutetDas({ text }: { text: string }) {
-  return <ContextBox label="Was bedeutet das?" text={text} testId="was-bedeutet-das" />;
+  return <ContextSection heading="Was bedeutet das?" text={text} testId="was-bedeutet-das" />;
 }
 
 export function DarumRelevant({ text }: { text: string }) {
-  return <ContextBox label="Darum ist das relevant" text={text} testId="darum-relevant" borderColor="border-amber-500" labelColor="text-amber-600 dark:text-amber-400" />;
+  return <ContextSection heading="Darum ist das relevant" text={text} testId="darum-relevant" />;
 }
 
 export function BisherigerStand({ text }: { text: string }) {
-  return <ContextBox label="Bisheriger Stand zur Serie" text={text} testId="bisheriger-stand" borderColor="border-violet-500" labelColor="text-violet-600 dark:text-violet-400" />;
+  return <ContextSection heading="Bisheriger Stand zur Serie" text={text} testId="bisheriger-stand" />;
 }
