@@ -452,14 +452,6 @@ export default async function ArticlePage({ params }: PageProps) {
           </>
         )}
         
-        {/* Video/Series Title Overlay at bottom */}
-        {article.series && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-4 py-3">
-            <span className="text-white/90 text-sm line-clamp-1">
-              {article.series.title}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Article Content Section */}
