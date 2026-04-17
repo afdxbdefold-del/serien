@@ -534,9 +534,6 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Kontext-Sektionen: VOR dem Artikel-Content */}
-          {article.darumRelevantText && (
-            <DarumRelevant text={article.darumRelevantText} />
-          )}
           {article.wasBedeutetDasText && (
             <WasBedeutetDas text={article.wasBedeutetDasText} />
           )}
