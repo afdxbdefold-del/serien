@@ -109,6 +109,17 @@ const BANNED_PHRASES = [
 ];
 
 // ============================================================
+// SEMANTIC CLUSTERS (for Hook/Event deduping)
+// ============================================================
+
+const REVERSAL_CLUSTER = ['doch noch', 'jetzt doch', 'überraschend doch', 'kommt doch noch', 'doch noch bestätigt', 'jetzt doch verlängert'];
+const DELAY_CLUSTER = ['verschoben', 'startet später', 'verspätet sich', 'später als gedacht', 'start verschiebt sich', 'start verzögert sich'];
+const CANCEL_CLUSTER = ['abgesetzt', 'gestrichen', 'eingestellt', 'doch nicht fortgesetzt', 'wird gestrichen', 'verliert grünes licht'];
+const RENEWAL_CLUSTER = ['verlängert', 'bestätigt', 'bekommt staffel', 'kommt zurück'];
+
+const DELAY_HOOKS = ['plötzlich', 'überraschend', 'ausgerechnet jetzt', 'später als gedacht'];
+
+// ============================================================
 // NORMALIZE + SIGNALS
 // ============================================================
 
@@ -179,8 +190,8 @@ function generateEntityFirst(input: NormalizedInput, signals: GeneratorSignals):
   }
 
   if (signals.isDelay) {
-    candidates.push(`${s}: Überraschend verschoben`);
-    candidates.push(`${s}: Start verzögert sich`);
+    candidates.push(`${s}: Start überraschend verschoben`);
+    candidates.push(`${s}: Plötzlich verschoben`);
   }
 
   if (signals.isControversial) {
@@ -210,7 +221,7 @@ function generateHookFirst(input: NormalizedInput, signals: GeneratorSignals): s
       candidates.push(`${hook.charAt(0).toUpperCase() + hook.slice(1)} verlängert: ${s} bekommt neue Staffel`);
     }
     if (signals.isDelay) {
-      candidates.push(`${hook.charAt(0).toUpperCase() + hook.slice(1)} verschoben: ${s} startet später`);
+      candidates.push(`${hook.charAt(0).toUpperCase() + hook.slice(1)} verschoben: ${s}`);
     }
     if (signals.isControversial) {
       candidates.push(`${hook.charAt(0).toUpperCase() + hook.slice(1)} umstritten: ${s} in der Kritik`);
@@ -322,7 +333,10 @@ function generateEventDetailCandidates(input: NormalizedInput, signals: Generato
     candidates.push(`${s}: ${detail}`);
   }
   if (signals.isDelay) {
-    candidates.push(`Überraschend verschoben: ${s} – ${detail}`);
+    const normDetail = normalizeDelayDetail(detail);
+    if (normDetail) {
+      candidates.push(`${s}: ${normDetail} – verschoben`);
+    }
   }
   if (signals.isControversial) {
     candidates.push(`${s} umstritten: ${detail}`);
@@ -331,6 +345,202 @@ function generateEventDetailCandidates(input: NormalizedInput, signals: Generato
   // Generic with detail
   if (input.event && detail) {
     candidates.push(`${s} ${input.event}: ${detail}`);
+  }
+
+  return candidates;
+}
+
+// ============================================================
+// SEMANTIC DEDUPING + CLEANUP
+// ============================================================
+
+/**
+ * Count how many phrases from a cluster appear in text.
+ */
+function clusterHits(text: string, cluster: string[]): number {
+  const lower = text.toLowerCase();
+  return cluster.filter(p => lower.includes(p)).length;
+}
+
+/**
+ * Find where the "tail" starts (after ": Entity" or "Entity:").
+ * Returns [head, tail] split at the structural break.
+ */
+function splitHeadTail(headline: string): [string, string] {
+  // Pattern: "Hook: Entity – Detail" or "Entity: Hook"
+  const colonIdx = headline.indexOf(':');
+  if (colonIdx > 0 && colonIdx < headline.length - 2) {
+    return [headline.substring(0, colonIdx).trim(), headline.substring(colonIdx + 1).trim()];
+  }
+  // Pattern: "Entity – Detail"
+  const dashIdx = headline.indexOf(' – ');
+  if (dashIdx > 0) {
+    return [headline.substring(0, dashIdx).trim(), headline.substring(dashIdx + 3).trim()];
+  }
+  return [headline, ''];
+}
+
+/**
+ * Remove semantic double-expression of the same event/reversal/delay/cancel.
+ * Only shortens when the tail repeats the head's meaning without adding specificity.
+ */
+function dedupeHeadlineSemantics(headline: string): string {
+  const [head, tail] = splitHeadTail(headline);
+  if (!tail) return headline;
+
+  const headLower = head.toLowerCase();
+  const tailLower = tail.toLowerCase();
+
+  // --- Reversal deduping ---
+  // "Doch noch verlängert: Wednesday – Staffel 3 kommt doch noch"
+  // Head has reversal AND tail repeats it without new info
+  const headReversals = REVERSAL_CLUSTER.filter(p => headLower.includes(p));
+  const tailReversals = REVERSAL_CLUSTER.filter(p => tailLower.includes(p));
+  if (headReversals.length > 0 && tailReversals.length > 0) {
+    // Tail repeats reversal — strip the redundant reversal phrase from tail
+    let cleanTail = tail;
+    for (const phrase of tailReversals) {
+      const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      cleanTail = cleanTail.replace(regex, '').trim();
+    }
+    // Clean up artifacts: " – ", trailing punctuation, double spaces
+    cleanTail = cleanTail.replace(/^[\s–—-]+/, '').replace(/[\s–—-]+$/, '').replace(/\s+/g, ' ').trim();
+    if (cleanTail.length > 3) {
+      return `${head}: ${cleanTail}`;
+    }
+    // If tail is now empty/too short, just use head
+    return head;
+  }
+
+  // --- Delay deduping ---
+  // "Plötzlich verschoben: House of the Dragon startet später"
+  const headDelays = DELAY_CLUSTER.filter(p => headLower.includes(p));
+  const tailDelays = DELAY_CLUSTER.filter(p => tailLower.includes(p));
+  if (headDelays.length > 0 && tailDelays.length > 0) {
+    let cleanTail = tail;
+    for (const phrase of tailDelays) {
+      const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      cleanTail = cleanTail.replace(regex, '').trim();
+    }
+    cleanTail = cleanTail.replace(/^[\s–—-]+/, '').replace(/[\s–—-]+$/, '').replace(/\s+/g, ' ').trim();
+    if (cleanTail.length > 3) {
+      return `${head}: ${cleanTail}`;
+    }
+    return head;
+  }
+
+  // --- Cancel deduping ---
+  // "Überraschend gestrichen: The Boys wird gestrichen"
+  const headCancels = CANCEL_CLUSTER.filter(p => headLower.includes(p));
+  const tailCancels = CANCEL_CLUSTER.filter(p => tailLower.includes(p));
+  if (headCancels.length > 0 && tailCancels.length > 0) {
+    // Check if tail adds specificity (e.g. "verliert Staffel 6")
+    const tailHasSpecificity = /staffel\s*\d|staffel\b.*\d|saison|spin-off/i.test(tailLower);
+    if (!tailHasSpecificity) {
+      // Tail just repeats the cancel — strip it
+      let cleanTail = tail;
+      for (const phrase of tailCancels) {
+        const regex = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        cleanTail = cleanTail.replace(regex, '').trim();
+      }
+      cleanTail = cleanTail.replace(/^[\s–—-]+/, '').replace(/[\s–—-]+$/, '').replace(/\s+/g, ' ').trim();
+      if (cleanTail.length > 3) {
+        return `${head}: ${cleanTail}`;
+      }
+      return head;
+    }
+  }
+
+  return headline;
+}
+
+/**
+ * Normalize eventDetail for delay cases to avoid redundancy.
+ * "Staffel 3 startet später" → "Staffel 3"
+ * "Start wurde verschoben" → "Start verschoben"
+ */
+function normalizeDelayDetail(detail?: string | null): string | null {
+  if (!detail) return null;
+  let d = detail.trim();
+
+  // Remove redundant delay tail phrases
+  d = d.replace(/\s+startet\s+später$/i, '');
+  d = d.replace(/\s+wurde\s+verschoben$/i, ' verschoben');
+  d = d.replace(/\s+verschiebt\s+sich\s+nach\s+hinten$/i, '');
+  d = d.replace(/\s+verschiebt\s+sich$/i, '');
+  d = d.replace(/\s+verspätet\s+sich$/i, '');
+  d = d.replace(/\s+startet\s+erst\s+später$/i, '');
+
+  d = d.trim();
+  return d.length >= 3 ? d : null;
+}
+
+/**
+ * Final cleanup: fix double colons, double spaces, trailing artifacts.
+ */
+function cleanupGeneratedHeadline(headline: string): string {
+  let h = headline;
+  // Double colons
+  h = h.replace(/:(\s*:)+/g, ':');
+  // Double dashes
+  h = h.replace(/\s*[–—]\s*[–—]\s*/g, ' – ');
+  // Double spaces
+  h = h.replace(/\s{2,}/g, ' ');
+  // Trailing dash/colon
+  h = h.replace(/[\s:–—-]+$/, '');
+  // Leading dash/colon after cleanup
+  h = h.replace(/^[\s:–—-]+/, '');
+  // Space before colon
+  h = h.replace(/\s+:/g, ':');
+  return h.trim();
+}
+
+// ============================================================
+// DEDICATED DELAY TEMPLATES
+// ============================================================
+
+function generateDelayCandidates(input: NormalizedInput, signals: GeneratorSignals): string[] {
+  const s = input.primarySeries;
+  if (!s || !signals.isDelay) return [];
+  const candidates: string[] = [];
+
+  const normalizedDetail = normalizeDelayDetail(input.eventDetail);
+  const staffelMatch = (normalizedDetail || input.eventDetail || '').match(/staffel\s*\d+/i);
+  const staffelRef = staffelMatch ? staffelMatch[0] : null;
+
+  // TYPE A: Entity First
+  candidates.push(`${s}: Start überraschend verschoben`);
+  if (staffelRef) {
+    candidates.push(`${s}: ${staffelRef} verschoben`);
+    candidates.push(`${s}: ${staffelRef} später als gedacht`);
+  }
+  candidates.push(`${s}: Start plötzlich verschoben`);
+
+  // TYPE B: Hook First (no redundant tail)
+  candidates.push(`Plötzlich verschoben: ${s}`);
+  if (staffelRef) {
+    candidates.push(`Überraschend verschoben: ${s} ${staffelRef}`);
+  }
+  candidates.push(`Ausgerechnet jetzt verschoben: ${s}`);
+
+  // TYPE C: Timing Friction (only if context supports it)
+  if (input.timing) {
+    candidates.push(`Kurz vor dem Start: ${s} verschoben`);
+  }
+  candidates.push(`Ausgerechnet jetzt: ${s} verschoben`);
+  if (staffelRef) {
+    candidates.push(`Später als gedacht: ${s} ${staffelRef}`);
+  }
+
+  // TYPE D: Platform Angle
+  if (input.platform) {
+    candidates.push(`${input.platform} verschiebt ${s}`);
+    candidates.push(`${input.platform} verschiebt ${s} überraschend`);
+  }
+
+  // With normalized detail (only if it adds real specificity)
+  if (normalizedDetail && normalizedDetail !== staffelRef) {
+    candidates.push(`${s}: ${normalizedDetail} – überraschend verschoben`);
   }
 
   return candidates;
@@ -429,10 +639,17 @@ export function generateHeadlineCandidatesV51(input: HeadlineGeneratorInput): Ge
     ...generateContextEventCandidates(normalized, signals),
     ...generatePlatformCandidates(normalized, signals),
     ...generateEventDetailCandidates(normalized, signals),
+    ...generateDelayCandidates(normalized, signals),
   ];
 
-  // --- Dedupe ---
-  const deduped = dedupeHeadlines(raw);
+  // --- Semantic deduping + cleanup (before string dedupe) ---
+  const semanticCleaned = raw
+    .map(h => dedupeHeadlineSemantics(h))
+    .map(h => cleanupGeneratedHeadline(h))
+    .filter(h => h.length >= 15); // drop broken/empty results
+
+  // --- String dedupe ---
+  const deduped = dedupeHeadlines(semanticCleaned);
 
   // --- Filter ---
   const { passed: filteredCandidates, rejected: filteredOut } = filterGeneratedCandidates(
