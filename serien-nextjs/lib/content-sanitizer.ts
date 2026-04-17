@@ -74,6 +74,20 @@ function isArtificialHeading(text: string): boolean {
 }
 
 /**
+ * Calculate word overlap ratio between two texts (0-1).
+ */
+function calculateWordOverlap(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  let overlap = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) overlap++;
+  }
+  return overlap / Math.min(wordsA.size, wordsB.size);
+}
+
+/**
  * Sanitize article HTML by removing artificial headings and duplicate leads
  * 
  * @param html - Raw HTML content from article
@@ -136,6 +150,7 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   );
   
   // STEP 1: Remove duplicate lead if it appears at the start of content
+  // The excerpt/lead is shown separately above the content, so remove it from contentHtml
   if (excerpt) {
     const excerptClean = excerpt.trim();
     // Match first <p> tag
@@ -147,9 +162,34 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
       const firstPPlain = firstPContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const excerptPlain = excerptClean.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       
-      // If first paragraph matches excerpt (exact or starts with), remove it
-      if (firstPPlain === excerptPlain || firstPPlain.startsWith(excerptPlain.substring(0, Math.min(50, excerptPlain.length)))) {
+      // Remove first paragraph if it matches excerpt:
+      // - exact match
+      // - starts with same 50 chars
+      // - shares 60%+ of words (covers Intro Engine rewrites)
+      const shouldRemove = firstPPlain === excerptPlain ||
+        firstPPlain.startsWith(excerptPlain.substring(0, Math.min(50, excerptPlain.length))) ||
+        excerptPlain.startsWith(firstPPlain.substring(0, Math.min(50, firstPPlain.length))) ||
+        calculateWordOverlap(firstPPlain, excerptPlain) >= 0.6;
+        
+      if (shouldRemove) {
         sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
+      }
+    }
+  } else {
+    // No excerpt provided — still check if first paragraph looks like a lead
+    // (3 sentences or fewer, no links, before first H2)
+    const firstH2 = sanitized.indexOf('<h2');
+    if (firstH2 > 0) {
+      const beforeH2 = sanitized.substring(0, firstH2);
+      const firstPMatch = beforeH2.match(/<p[^>]*>(.*?)<\/p>/s);
+      if (firstPMatch) {
+        const text = firstPMatch[1].replace(/<[^>]*>/g, '').trim();
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+        // If it's a short intro paragraph (1-3 sentences) without links, remove it
+        // since it's likely the generated lead duplicated in content
+        if (sentences.length <= 3 && !firstPMatch[1].includes('<a ')) {
+          sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
+        }
       }
     }
   }
