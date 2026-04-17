@@ -411,49 +411,6 @@ export default async function ArticlePage({ params }: PageProps) {
         />
       )}
 
-      {/* HERO SECTION - Full Width Video/Image */}
-      <div className="relative w-full bg-black">
-        {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
-          <>
-            {/* For YouTube Pipeline articles (neue-videos): Play LOCAL video only, NO YouTube embed */}
-            {article.category === 'neue-videos' ? (
-              <div className="relative aspect-video md:aspect-[21/9]">
-                {article.heroVideoUrl && !article.heroVideoUrl.includes('youtube.com') ? (
-                  // Local video player - NO YouTube embed
-                  <video
-                    className="w-full h-full object-cover"
-                    controls
-                    playsInline
-                    preload="metadata"
-                    poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
-                  >
-                    <source src={article.heroVideoUrl} type="video/mp4" />
-                    Dein Browser unterstützt HTML5 Video nicht.
-                  </video>
-                ) : (
-                  // Fallback: Just show image if no local video
-                  <Image
-                    src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                    alt={article.title}
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                )}
-              </div>
-            ) : (
-              <InlineVideoPlayer
-                heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
-                title={article.title}
-                fullWidth={true}
-              />
-            )}
-          </>
-        )}
-        
-      </div>
-
       {/* Article Content Section */}
       <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
         <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl">
@@ -510,6 +467,43 @@ export default async function ArticlePage({ params }: PageProps) {
               </>
             )}
           </div>
+
+          {/* HERO - Video/Image (nach Author) */}
+          {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
+            <div className="relative w-full bg-black rounded-lg overflow-hidden mb-6">
+              {article.category === 'neue-videos' ? (
+                <div className="relative aspect-video">
+                  {article.heroVideoUrl && !article.heroVideoUrl.includes('youtube.com') ? (
+                    <video
+                      className="w-full h-full object-cover"
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
+                    >
+                      <source src={article.heroVideoUrl} type="video/mp4" />
+                      Dein Browser unterstützt HTML5 Video nicht.
+                    </video>
+                  ) : (
+                    <Image
+                      src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                      alt={article.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  )}
+                </div>
+              ) : (
+                <InlineVideoPlayer
+                  heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                  trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
+                  title={article.title}
+                  fullWidth={false}
+                />
+              )}
+            </div>
+          )}
 
           {/* Cyan Accent Line */}
           <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
