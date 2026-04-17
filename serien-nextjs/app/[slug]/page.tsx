@@ -432,43 +432,7 @@ export default async function ArticlePage({ params }: PageProps) {
             {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
           </div>
 
-          {/* Author with E-E-A-T */}
-          <div className="flex items-center gap-3 mb-6">
-            {article.users && (
-              <>
-                {article.users.image ? (
-                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={article.users.image}
-                      alt={article.users.name || 'Author'}
-                      fill
-                      className="object-cover"
-                    />
-                  </Link>
-                ) : (
-                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {(article.users.name || 'A').charAt(0).toUpperCase()}
-                  </Link>
-                )}
-                <div className="text-sm">
-                  <Link 
-                    href={getAuthorUrl(article.users.name || '')}
-                    rel="author"
-                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
-                  >
-                    {article.users.name || 'Redaktion'}
-                  </Link>
-                  {(article.users as any).bio && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                      {(article.users as any).bio}
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* HERO - Video/Image (nach Author) */}
+          {/* HERO - Video/Image */}
           {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
             <div className="relative w-full bg-black rounded-lg overflow-hidden mb-6">
               {article.category === 'neue-videos' ? (
@@ -505,18 +469,54 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Cyan Accent Line */}
-          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
-
-          {/* Ad Unit - Above Intro */}
-          <ClientAdSlot position="above_intro" className="mb-6" />
-
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
             <p data-speakable="summary" className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
               {article.excerpt}
             </p>
           )}
+
+          {/* Author with E-E-A-T */}
+          <div className="flex items-center gap-3 mb-6">
+            {article.users && (
+              <>
+                {article.users.image ? (
+                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                    <Image
+                      src={article.users.image}
+                      alt={article.users.name || 'Author'}
+                      fill
+                      className="object-cover"
+                    />
+                  </Link>
+                ) : (
+                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {(article.users.name || 'A').charAt(0).toUpperCase()}
+                  </Link>
+                )}
+                <div className="text-sm">
+                  <Link 
+                    href={getAuthorUrl(article.users.name || '')}
+                    rel="author"
+                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                  >
+                    {article.users.name || 'Redaktion'}
+                  </Link>
+                  {(article.users as any).bio && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      {(article.users as any).bio}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Cyan Accent Line */}
+          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
+
+          {/* Ad Unit - Above Intro */}
+          <ClientAdSlot position="above_intro" className="mb-6" />
 
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
