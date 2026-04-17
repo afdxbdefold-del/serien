@@ -47,7 +47,7 @@ export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
                   {item.label}
                 </Link>
               ) : (
-                <span className="text-gray-700 dark:text-gray-300 truncate max-w-[200px] sm:max-w-none">{item.label}</span>
+                <span className="text-gray-700 dark:text-gray-300 truncate max-w-[70vw] sm:max-w-none">{item.label}</span>
               )}
             </li>
           ))}
