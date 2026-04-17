@@ -533,11 +533,6 @@ export default async function ArticlePage({ params }: PageProps) {
             </p>
           )}
 
-          {/* Kontext-Sektionen: VOR dem Artikel-Content */}
-          {article.wasBedeutetDasText && (
-            <WasBedeutetDas text={article.wasBedeutetDasText} />
-          )}
-
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
 
