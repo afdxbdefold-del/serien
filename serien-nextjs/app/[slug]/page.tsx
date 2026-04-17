@@ -550,15 +550,6 @@ export default async function ArticlePage({ params }: PageProps) {
             />
           </section>
 
-          {/* Q&A Section */}
-          {article.article_qa && article.article_qa.questions && (
-            <ArticleQA 
-              questions={article.article_qa.questions as any[]}
-              schemaEnabled={article.article_qa.schemaEnabled}
-              headingType={(article.article_qa as any).headingType}
-            />
-          )}
-
           {/* Ad Unit - Below Q&A */}
           <ClientAdSlot position="below_author" className="my-8" />
 
