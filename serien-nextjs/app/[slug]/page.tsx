@@ -511,12 +511,8 @@ export default async function ArticlePage({ params }: PageProps) {
                       {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
                     </span>
                     {(article.users as any).bio && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed line-clamp-2">
-                        {(() => {
-                          const bio = (article.users as any).bio as string;
-                          const sentences = bio.match(/[^.!?]+[.!?]+/g) || [bio];
-                          return sentences.slice(0, 2).join(' ').trim();
-                        })()}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                        {(article.users as any).bio}
                       </p>
                     )}
                   </div>
