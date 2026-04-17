@@ -171,7 +171,24 @@ SPRACHE: ALLES auf DEUTSCH - ohne Ausnahme!
 Struktur:
 1. headline: Erzeuge eine KURZE Arbeits-Headline auf Deutsch (wird später durch Headline Engine ersetzt). Max 70 Zeichen. Auf Deutsch.
 2. metaDescription: Max 155 Zeichen, fasst den Kern des Artikels zusammen. Enthält den Seriennamen und den wichtigsten Fakt. Auf Deutsch.
-3. lead: 2-3 Sätze, eigenständig (nicht den ersten Absatz wiederholen). Auf Deutsch.
+3. lead: EXAKT 3 Sätze. Der Lead MUSS die Headline-Logik fortsetzen — nicht wiederholen, sondern weitertragen.
+
+LEAD-REGELN (STRIKT):
+- Wenn die Headline einen Konflikt enthält → Satz 1 beschreibt die Konsequenz
+- Wenn die Headline eine Überraschung enthält → Satz 1 bestätigt und erweitert sie
+- Wenn die Headline eine Veränderung enthält → Satz 1 erklärt was sich konkret ändert
+
+Satz 1: Konsequenz / Bruch / Auswirkung (WAS passiert jetzt konkret?)
+Satz 2: Fakten (Wer, Wo, Wann — Cast, Produktion, Plattform)
+Satz 3: Warum das für die Story oder das Publikum relevant ist
+
+VERBOTEN im Lead:
+- NICHT mit einer Quelle beginnen ("Paramount hat...", "Netflix gab bekannt...")
+- NICHT mit einer Zeitangabe beginnen ("In Staffel 2...", "Am 15. Mai...")
+- NICHT neutral/generisch beginnen ("Es gibt Neuigkeiten zu...")
+- NICHT die Headline umformulieren
+- Wenn der Lead auf JEDEN beliebigen Artikel passen würde → Lead ist zu generisch
+
 4. content: ${targetSections} Sections mit H2 (max 6 Wörter, auf Deutsch) + je 2-3 Absätze (2-4 Sätze)
 5. qa: 3-5 häufige Fragen mit kurzen Antworten. Auf Deutsch.
 
