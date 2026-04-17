@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { load as cheerioLoad } from 'cheerio';
 
-// Googlebot User-Agent
-const GOOGLEBOT_UA = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.175 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+// Googlebot User-Agents (Mobile + Desktop)
+const GOOGLEBOT_MOBILE_UA = 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.69 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+const GOOGLEBOT_DESKTOP_UA = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/131.0.6778.69 Safari/537.36';
 
 interface SeoCheckResult {
   url: string;
@@ -118,9 +119,10 @@ async function fetchRawHtml(url: string): Promise<{ html: string; status: number
   const start = Date.now();
   const response = await fetch(url, {
     headers: {
-      'User-Agent': GOOGLEBOT_UA,
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'de-DE,de;q=0.9',
+      'User-Agent': GOOGLEBOT_MOBILE_UA,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
     },
     redirect: 'follow',
     signal: AbortSignal.timeout(15000),
@@ -130,42 +132,62 @@ async function fetchRawHtml(url: string): Promise<{ html: string; status: number
   return { html, status: response.status, ttfb };
 }
 
-async function fetchRenderedHtml(url: string): Promise<{ html: string; renderTime: number; screenshotRaw: string | null; screenshotRendered: string | null }> {
+async function fetchRenderedHtml(url: string): Promise<{ html: string; renderTime: number; screenshotRaw: string | null; screenshotRendered: string | null; blockedResources: string[]; loadedResources: number }> {
   try {
     const { chromium } = await import('playwright');
 
     const browser = await chromium.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     });
+
+    // Googlebot Mobile viewport (Nexus 5X)
     const context = await browser.newContext({
-      userAgent: GOOGLEBOT_UA,
-      viewport: { width: 1280, height: 800 },
+      userAgent: GOOGLEBOT_MOBILE_UA,
+      viewport: { width: 412, height: 732 },
+      deviceScaleFactor: 2.625,
+      isMobile: true,
+      hasTouch: true,
       locale: 'de-DE',
+      // WICHTIG: Keine Ressourcen blockieren — Googlebot lädt alles
+      javaScriptEnabled: true,
     });
     const page = await context.newPage();
 
+    // Track loaded resources (Googlebot blocks nichts)
+    const loadedResources: string[] = [];
+    const blockedResources: string[] = [];
+    page.on('response', (response) => {
+      loadedResources.push(response.url());
+    });
+    page.on('requestfailed', (request) => {
+      blockedResources.push(`${request.url()} (${request.failure()?.errorText || 'unknown'})`);
+    });
+
     const start = Date.now();
 
-    // Screenshot immediately after initial load (no JS wait)
+    // Phase 1: Initial HTML load (wie Googlebots erster Crawl-Pass)
     await page.goto(url, { waitUntil: 'commit', timeout: 15000 });
-    const screenshotRawBuf = await page.screenshot({ type: 'jpeg', quality: 40 });
+    const screenshotRawBuf = await page.screenshot({ type: 'jpeg', quality: 40, fullPage: false });
     const screenshotRaw = `data:image/jpeg;base64,${screenshotRawBuf.toString('base64')}`;
 
-    // Wait for full render
+    // Phase 2: Volles Rendering (wie Googlebots Web Rendering Service)
+    // Googlebot wartet auf networkidle + gibt JS 5s zum Ausführen
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    // Extra warten für lazy JS-Frameworks
+    await page.waitForTimeout(1000);
     const renderTime = Date.now() - start;
 
-    const screenshotRenderedBuf = await page.screenshot({ type: 'jpeg', quality: 40 });
+    const screenshotRenderedBuf = await page.screenshot({ type: 'jpeg', quality: 40, fullPage: false });
     const screenshotRendered = `data:image/jpeg;base64,${screenshotRenderedBuf.toString('base64')}`;
 
     const html = await page.content();
 
     await browser.close();
 
-    return { html, renderTime, screenshotRaw, screenshotRendered };
+    return { html, renderTime, screenshotRaw, screenshotRendered, blockedResources, loadedResources: loadedResources.length };
   } catch (error: any) {
     console.error('Playwright rendering failed:', error.message);
-    return { html: '', renderTime: 0, screenshotRaw: null, screenshotRendered: null };
+    return { html: '', renderTime: 0, screenshotRaw: null, screenshotRendered: null, blockedResources: [], loadedResources: 0 };
   }
 }
 
@@ -207,8 +229,8 @@ async function analyzeUrl(url: string): Promise<SeoCheckResult> {
   const { html: rawHtml, status: httpStatus, ttfb } = await fetchRawHtml(url);
   const rawData = extractSeoData(rawHtml);
 
-  // 2. Fetch rendered HTML via Playwright
-  const { html: renderedHtml, renderTime, screenshotRaw, screenshotRendered } = await fetchRenderedHtml(url);
+  // 2. Fetch rendered HTML via Playwright (Googlebot WRS simulation)
+  const { html: renderedHtml, renderTime, screenshotRaw, screenshotRendered, blockedResources, loadedResources } = await fetchRenderedHtml(url);
   const renderedData = renderedHtml ? extractSeoData(renderedHtml) : null;
 
   // 3. SEO checks
@@ -222,6 +244,10 @@ async function analyzeUrl(url: string): Promise<SeoCheckResult> {
   if (!rawData.jsonLdPresent) warnings.push('Keine strukturierten Daten (JSON-LD) gefunden');
   if (renderTime > 3000) errors.push(`Renderzeit zu lang: ${renderTime}ms (max: 3000ms)`);
   if (rawData.lazyLoadedContent) warnings.push('Alle Bilder sind lazy-loaded — erstes Bild sollte eager sein');
+  if (blockedResources.length > 0) warnings.push(`${blockedResources.length} Ressource(n) fehlgeschlagen: ${blockedResources.slice(0, 3).join(', ')}`);
+  if (loadedResources > 0) {
+    // Info only
+  }
 
   // Canonical check
   const canonicalCorrect = rawData.canonical ? rawData.canonical === url || rawData.canonical === url.replace(/\/$/, '') : false;
