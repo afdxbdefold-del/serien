@@ -534,16 +534,6 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Kontext-Sektionen: VOR dem Artikel-Content */}
-          {article.series && (
-            <BisherigerStand data={{
-              seriesName: article.series.name || article.series.title || '',
-              status: article.series.status,
-              numberOfSeasons: article.series.numberOfSeasons || seriesSeasonData?.numberOfSeasons || null,
-              firstAirDate: article.series.firstAirDate,
-              lastAirDate: article.series.lastAirDate || seriesSeasonData?.lastAirDate || null,
-              networks: (article.series.networks as string[])?.length > 0 ? article.series.networks as string[] : seriesSeasonData?.networks || null,
-            }} />
-          )}
           {article.darumRelevantText && (
             <DarumRelevant text={article.darumRelevantText} />
           )}
