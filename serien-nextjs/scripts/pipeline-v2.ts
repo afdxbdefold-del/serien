@@ -1008,7 +1008,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       },
     });
 
-    // Store headline variants with full data for A/B testing + CTR learning
+    // Store headline variants with full v4 data
     if (headlineVariants.length > 0) {
       try {
         await prisma.articles.update({
@@ -1016,9 +1016,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
           data: {
             metadata: {
               headlineEngine: {
-                version: 3,
+                version: 4,
                 explorationMode: true,
                 selectionMethod: 'weighted_random',
+                selectedRank: headlineTop3.findIndex(v => v.selected) + 1 || 1,
               },
               headlineTop3: headlineTop3.map(v => ({
                 text: v.text,
@@ -1026,8 +1027,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
                 score: v.score,
                 riskScore: v.breakdown?.riskScore || 0,
                 outlierBoost: v.breakdown?.outlierBoost || 0,
+                contrastBoost: v.breakdown?.contrastBoost || 0,
+                ctrPrediction: v.breakdown?.ctrPrediction || 0,
                 selected: v.selected || false,
-                // CTR fields prepared for later
+                wasOutlier: v.meta?.wasOutlier || false,
+                hadContrast: v.meta?.hadContrast || false,
+                hadGenericPenalty: v.meta?.hadGenericPenalty || false,
                 impressions: 0,
                 clicks: 0,
                 ctr: 0,
@@ -1038,13 +1043,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
                 score: v.score,
                 riskScore: v.breakdown?.riskScore || 0,
                 outlierBoost: v.breakdown?.outlierBoost || 0,
+                contrastBoost: v.breakdown?.contrastBoost || 0,
+                ctrPrediction: v.breakdown?.ctrPrediction || 0,
                 selected: v.selected || false,
+                wasOutlier: v.meta?.wasOutlier || false,
+                hadContrast: v.meta?.hadContrast || false,
+                hadGenericPenalty: v.meta?.hadGenericPenalty || false,
                 impressions: 0,
                 clicks: 0,
                 ctr: 0,
               })),
-              headlineWinnerType: headlineTop3[0]?.type || 'unknown',
-              headlineWinnerScore: headlineTop3[0]?.score || 0,
             } as any,
           },
         });
