@@ -481,59 +481,57 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Author & Date with E-E-A-T + Share Button */}
-          <div className="flex items-start justify-between gap-3 mb-6">
-            <div className="flex items-start gap-3">
-              {article.users && (
-                <>
-                  {article.users.image ? (
-                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
-                      <Image
-                        src={article.users.image}
-                        alt={article.users.name || 'Author'}
-                        fill
-                        className="object-cover"
-                      />
+          {/* Author & Date with E-E-A-T */}
+          <div className="flex items-start gap-3 mb-6">
+            {article.users && (
+              <>
+                {article.users.image ? (
+                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-14 h-14 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
+                    <Image
+                      src={article.users.image}
+                      alt={article.users.name || 'Author'}
+                      fill
+                      className="object-cover"
+                    />
+                  </Link>
+                ) : (
+                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
+                    {(article.users.name || 'A').charAt(0).toUpperCase()}
+                  </Link>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link 
+                      href={getAuthorUrl(article.users.name || '')}
+                      rel="author"
+                      className="font-bold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                    >
+                      {article.users.name || 'Redaktion'}
                     </Link>
-                  ) : (
-                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
-                      {(article.users.name || 'A').charAt(0).toUpperCase()}
-                    </Link>
-                  )}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link 
-                        href={getAuthorUrl(article.users.name || '')}
-                        rel="author"
-                        className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors text-sm"
-                      >
-                        {article.users.name || 'Redaktion'}
-                      </Link>
-                      {(article.users as any).expertise && (article.users as any).expertise.length > 0 && (
-                        <span className="text-xs text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950 px-2 py-0.5 rounded-full font-medium">
-                          {(article.users as any).expertise[0]}
-                        </span>
-                      )}
-                    </div>
-                    {(article.users as any).bio && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
-                        {(article.users as any).bio}
-                      </p>
+                    {(article.users as any).expertise && (article.users as any).expertise.length > 0 && (
+                      <span className="text-xs text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950 px-2 py-0.5 rounded-full font-medium">
+                        {(article.users as any).expertise[0]}
+                      </span>
                     )}
-                    <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      <time dateTime={publishedDate.toISOString()}>
-                        {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                      </time>
-                      {article.updatedAt && new Date(article.updatedAt).getTime() - publishedDate.getTime() > 3600000 && (
-                        <span className="text-gray-400 dark:text-gray-500">
-                          (aktualisiert {toDate(article.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })})
-                        </span>
-                      )}
-                    </div>
                   </div>
-                </>
-              )}
-            </div>
+                  {(article.users as any).bio && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                      {(article.users as any).bio}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    <time dateTime={publishedDate.toISOString()}>
+                      {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                    </time>
+                    {article.updatedAt && new Date(article.updatedAt).getTime() - publishedDate.getTime() > 3600000 && (
+                      <span className="text-gray-400 dark:text-gray-500">
+                        (aktualisiert {toDate(article.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Cyan Accent Line */}
