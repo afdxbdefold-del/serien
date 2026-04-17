@@ -481,13 +481,13 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Author & Date with Share Button */}
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <div className="flex items-center gap-3">
+          {/* Author & Date with E-E-A-T + Share Button */}
+          <div className="flex items-start justify-between gap-3 mb-6">
+            <div className="flex items-start gap-3">
               {article.users && (
                 <>
                   {article.users.image ? (
-                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
                       <Image
                         src={article.users.image}
                         alt={article.users.name || 'Author'}
@@ -496,23 +496,40 @@ export default async function ArticlePage({ params }: PageProps) {
                       />
                     </Link>
                   ) : (
-                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
                       {(article.users.name || 'A').charAt(0).toUpperCase()}
                     </Link>
                   )}
-                  <div className="text-sm">
-                    <Link 
-                      href={getAuthorUrl(article.users.name || '')}
-                      rel="author"
-                      className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
-                    >
-                      {article.users.name || 'Redaktion'}
-                    </Link>
-                    <span className="text-gray-500 dark:text-gray-400">,</span>
-                    <br className="sm:hidden" />
-                    <span className="text-gray-500 dark:text-gray-400 sm:ml-1">
-                      {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                    </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link 
+                        href={getAuthorUrl(article.users.name || '')}
+                        rel="author"
+                        className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors text-sm"
+                      >
+                        {article.users.name || 'Redaktion'}
+                      </Link>
+                      {(article.users as any).expertise && (article.users as any).expertise.length > 0 && (
+                        <span className="text-xs text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950 px-2 py-0.5 rounded-full font-medium">
+                          {(article.users as any).expertise[0]}
+                        </span>
+                      )}
+                    </div>
+                    {(article.users as any).bio && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                        {(article.users as any).bio}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      <time dateTime={publishedDate.toISOString()}>
+                        {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                      </time>
+                      {article.updatedAt && new Date(article.updatedAt).getTime() - publishedDate.getTime() > 3600000 && (
+                        <span className="text-gray-400 dark:text-gray-500">
+                          (aktualisiert {toDate(article.updatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -564,19 +581,6 @@ export default async function ArticlePage({ params }: PageProps) {
               <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
             </span>
           </div>
-
-          {/* Autor Box */}
-          {article.users && (
-            <AuthorBox 
-              author={{
-                id: article.users.id,
-                name: article.users.name,
-                image: article.users.image,
-                bio: (article.users as any).bio || null,
-                expertise: (article.users as any).expertise || [],
-              }}
-            />
-          )}
 
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />
