@@ -907,6 +907,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     let finalHeadline = structuredContent.headline; // Fallback: Arbeits-Headline vom Content-LLM
     let headlineVariants: any[] = [];
+    let headlineTop3: any[] = [];
     
     try {
       const { generateHeadlines } = await import('../lib/headline-engine');
@@ -928,8 +929,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
       if (headlineResult.winner && headlineResult.winner.score > 0) {
         finalHeadline = headlineResult.winner.text;
         headlineVariants = headlineResult.allVariants;
+        headlineTop3 = headlineResult.top3;
         console.log(`   ✅ Headline Engine: "${finalHeadline}" (Score: ${headlineResult.winner.score})`);
         console.log(`   ⏱️  ${headlineResult.generationTime}ms für ${headlineResult.allVariants.length} Varianten`);
+        console.log(`   🏆 Top 3: ${headlineResult.top3.map(v => `"${v.text}" (${v.score})`).join(' | ')}`);
         logger.log(`Headline Engine: "${finalHeadline}" (${headlineResult.winner.score}/100, ${headlineResult.winner.type})`);
       } else {
         console.log(`   ⚠️ Headline Engine: Keine gute Variante, nutze Arbeits-Headline`);
@@ -1004,25 +1007,30 @@ export async function runPipelineV2(source: PipelineV2Source) {
       },
     });
 
-    // Store headline variants for A/B testing (if available)
+    // Store headline variants (Top 3 + all) for A/B testing
     if (headlineVariants.length > 0) {
       try {
         await prisma.articles.update({
           where: { id: articleId },
           data: {
             metadata: {
+              headlineTop3: headlineTop3.map(v => ({
+                text: v.text,
+                type: v.type,
+                score: v.score,
+              })),
               headlineVariants: headlineVariants.map(v => ({
                 text: v.text,
                 type: v.type,
                 score: v.score,
               })),
-              headlineWinnerType: headlineVariants[0]?.type || 'unknown',
-              headlineWinnerScore: headlineVariants[0]?.score || 0,
+              headlineWinnerType: headlineTop3[0]?.type || 'unknown',
+              headlineWinnerScore: headlineTop3[0]?.score || 0,
             } as any,
           },
         });
       } catch (e) {
-        // metadata field might not accept JSON — no problem, variants logged in console
+        // metadata field might not accept JSON — variants logged in console
       }
     }
     

@@ -1,97 +1,43 @@
 /**
- * HEADLINE ENGINE v1
+ * HEADLINE ENGINE v2
  * 
- * Separate Headline-Generierung mit Multi-Variant-Approach.
- * Generiert 5-8 Headlines in verschiedenen Stiltypen,
- * scored sie automatisch und wählt die beste aus.
+ * Pattern-basierte Multi-Variant Headline-Generierung.
+ * Jede Headline MUSS einem High-CTR Pattern entsprechen.
  * 
  * Pipeline:
  * 1. Content wird OHNE Headline generiert
- * 2. Headline Engine generiert 6 Varianten (eine pro Typ)
- * 3. Headline Scorer bewertet alle
- * 4. Beste wird als Titel genommen, alle werden gespeichert
+ * 2. Headline Engine generiert 6+ Varianten basierend auf Pattern Library
+ * 3. Headline Scorer v2 bewertet alle (inkl. CTR-Boost + Hard Filter)
+ * 4. Top 3 werden gespeichert, beste wird Titel
+ * 5. Anti-AI Filter entfernt generische Muster
  */
 
 import { scoreHeadline } from './headline-scorer';
+import { getPatternsForPrompt, HEADLINE_PATTERNS } from './headline-patterns';
 
 export interface HeadlineVariant {
   text: string;
   type: string;
   score: number;
   breakdown: {
-    curiosity: number;
+    scrollStop: number;
     clarity: number;
-    uniqueness: number;
-    emotion: number;
+    curiosity: number;
     keyword: number;
     length: number;
+    patternBoost: number;
+    genericPenalty: number;
   };
   penalties: string[];
+  capped: boolean;
 }
 
 export interface HeadlineEngineResult {
   winner: HeadlineVariant;
+  top3: HeadlineVariant[];
   allVariants: HeadlineVariant[];
   generationTime: number;
 }
-
-// Die 6 erzwungenen Headline-Typen
-const HEADLINE_TYPES = [
-  {
-    id: 'surprise',
-    label: 'Überraschung',
-    instruction: 'Beginne mit einem überraschenden Element. Etwas Unerwartetes. Beispiele: "Plötzlich ist alles anders:", "Niemand hat damit gerechnet:", "Gegen alle Erwartungen:"',
-    examples: [
-      'Plötzlich abgesetzt: [Serie] verliert Staffel 4',
-      'Niemand hat damit gerechnet: [Serie] kehrt nach 5 Jahren zurück',
-    ],
-  },
-  {
-    id: 'curiosity',
-    label: 'Neugier',
-    instruction: 'Erzeuge eine Informationslücke. Der Leser MUSS klicken um die Antwort zu erfahren. KEIN Clickbait — die Info muss im Artikel stehen. Beispiele: "Was hinter ... steckt", "Der wahre Grund für...", "Das steckt dahinter:"',
-    examples: [
-      'Was wirklich hinter dem [Serie]-Aus steckt',
-      'Darum schweigt Netflix zur [Serie]-Zukunft',
-    ],
-  },
-  {
-    id: 'factual',
-    label: 'Faktisch stark',
-    instruction: 'Harte Fakten, konkrete Zahlen, offizielle Bestätigungen. Kurz, knackig, Nachrichtenstil. Beispiele: "Jetzt bestätigt:", "Offiziell:", "100% bei Rotten Tomatoes:"',
-    examples: [
-      'Jetzt bestätigt: [Serie] Staffel 3 kommt im Oktober',
-      '[Serie] erreicht 100% bei Rotten Tomatoes — und das ist kein Zufall',
-    ],
-  },
-  {
-    id: 'emotion',
-    label: 'Emotion / Reaktion',
-    instruction: 'Fokus auf die emotionale Reaktion. Wie reagieren Fans, Kritiker, Beteiligte? Beispiele: "Fans rasten aus:", "Kontroverse um...", "Tränen am Set:"',
-    examples: [
-      'Fans rasten aus: [Serie] ändert das Finale komplett',
-      'Kontroverse um [Serie]: Showrunner verteidigt umstrittene Szene',
-    ],
-  },
-  {
-    id: 'direct',
-    label: 'Direkt mit Twist',
-    instruction: 'Klassische Nachricht, aber mit einem unerwarteten Twist oder Detail. Nicht generisch — ein konkretes Detail das überrascht.',
-    examples: [
-      '[Serie] Staffel 4 startet — aber ohne den Hauptdarsteller',
-      'Netflix verlängert [Serie], doch der Showrunner steigt aus',
-    ],
-  },
-  {
-    id: 'contrast',
-    label: 'Kontrast / Spannung',
-    instruction: 'Zwei gegensätzliche Elemente in einer Headline. Erzeugt Spannung durch Widerspruch. Beispiele: "Trotz Rekordquoten:", "Obwohl alle dagegen waren:", "Erst gefeiert, dann..."',
-    examples: [
-      'Trotz Rekordquoten: [Serie] wird nicht verlängert',
-      'Erst gefeiert, jetzt abgesetzt: [Serie] überlebt Staffel 2 nicht',
-    ],
-  },
-];
 
 // Anti-AI Filter: Erkennt zu generische LLM-Muster
 const AI_SLOP_PATTERNS = [
@@ -105,6 +51,8 @@ const AI_SLOP_PATTERNS = [
   /es ist (soweit|offiziell|endlich soweit)/i,
   /hier (sind|ist|kommt) (die|der|das)/i,
   /was wir bisher wissen/i,
+  /neue details (zu|über|enthüllt)/i,
+  /das gibt es zu (sagen|berichten)/i,
 ];
 
 function isAISlop(headline: string): boolean {
@@ -124,7 +72,6 @@ export async function generateHeadlines(input: {
   const start = Date.now();
   const { originalHeadline, articleContent, seriesName, entities } = input;
 
-  // Kürze Content für den Prompt (nur die wichtigsten Fakten)
   const contentSummary = articleContent.substring(0, 1500);
 
   const entitiesText = [
@@ -133,8 +80,10 @@ export async function generateHeadlines(input: {
     entities.keywords?.length ? `Keywords: ${entities.keywords.join(', ')}` : '',
   ].filter(Boolean).join('\n');
 
-  // Ein LLM-Call, 6 Varianten gleichzeitig
-  const prompt = buildHeadlinePrompt(originalHeadline, contentSummary, seriesName, entitiesText);
+  // Pattern Library als Prompt
+  const patternsPrompt = getPatternsForPrompt(seriesName);
+
+  const prompt = buildHeadlinePrompt(originalHeadline, contentSummary, seriesName, entitiesText, patternsPrompt);
   
   const rawVariants = await callHeadlineLLM(prompt);
   
@@ -145,10 +94,12 @@ export async function generateHeadlines(input: {
       // Anti-AI Filter
       if (isAISlop(v.text)) {
         return {
-          ...v,
+          text: v.text,
+          type: v.type,
           score: 0,
-          breakdown: { curiosity: 0, clarity: 0, uniqueness: 0, emotion: 0, keyword: 0, length: 0 },
-          penalties: ['AI-Slop erkannt — automatisch disqualifiziert'],
+          breakdown: { scrollStop: 0, clarity: 0, curiosity: 0, keyword: 0, length: 0, patternBoost: 0, genericPenalty: -30 },
+          penalties: ['AI-SLOP: automatisch disqualifiziert'],
+          capped: true,
         };
       }
       
@@ -159,65 +110,94 @@ export async function generateHeadlines(input: {
         score: result.total,
         breakdown: result.breakdown,
         penalties: result.penalties,
+        capped: result.capped,
       };
     })
     .sort((a, b) => b.score - a.score);
 
-  const winner = scoredVariants[0];
+  // Top 3 (nur mit Score > 0)
+  const top3 = scoredVariants.filter(v => v.score > 0).slice(0, 3);
+  const winner = top3[0] || scoredVariants[0];
 
-  console.log(`   🏆 Headline Engine: ${scoredVariants.length} Varianten generiert`);
-  console.log(`   🥇 Winner (${winner.score}): "${winner.text}" [${winner.type}]`);
-  scoredVariants.slice(1, 4).forEach((v, i) => {
-    console.log(`   ${i === 0 ? '🥈' : i === 1 ? '🥉' : '  '} (${v.score}): "${v.text}" [${v.type}]`);
+  console.log(`\n   🏆 HEADLINE ENGINE v2`);
+  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  scoredVariants.forEach((v, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    const capTag = v.capped ? ' [CAPPED]' : '';
+    const slopTag = v.score === 0 && v.penalties.includes('AI-SLOP: automatisch disqualifiziert') ? ' [SLOP]' : '';
+    const blockTag = v.penalties.some(p => p.startsWith('BLOCKIERT')) ? ' [BLOCKED]' : '';
+    console.log(`   ${medal} ${v.score.toString().padStart(3)} | ${v.type.padEnd(10)} | "${v.text}"${capTag}${slopTag}${blockTag}`);
+    if (v.penalties.length > 0 && i < 3) {
+      console.log(`         └─ ${v.penalties.join(', ')}`);
+    }
   });
-  if (winner.penalties.length > 0) {
-    console.log(`   ⚠️ Penalties: ${winner.penalties.join(', ')}`);
-  }
+  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`   ⏱️  ${Date.now() - start}ms für ${scoredVariants.length} Varianten\n`);
 
   return {
     winner,
+    top3,
     allVariants: scoredVariants,
     generationTime: Date.now() - start,
   };
 }
 
-function buildHeadlinePrompt(originalHeadline: string, content: string, seriesName: string, entities: string): string {
-  const types = HEADLINE_TYPES.map((t, i) => 
-    `${i + 1}. Typ "${t.id}" (${t.label}):\n   ${t.instruction}\n   Beispiele: ${t.examples.map(e => e.replace('[Serie]', seriesName)).join(' | ')}`
-  ).join('\n\n');
+function buildHeadlinePrompt(originalHeadline: string, content: string, seriesName: string, entities: string, patterns: string): string {
+  // Wähle 4 zufällige Pattern-Kategorien für Variation
+  const categories = ['surprise', 'twist', 'curiosity', 'conflict', 'impact', 'reaction'];
+  
+  return `Du bist ein deutscher Headline-Spezialist. Dein EINZIGES Ziel: maximale Click-Through-Rate auf Google Discover.
 
-  return `Du bist ein deutscher Headline-Spezialist für Google Discover. Dein einziges Ziel: maximale Click-Through-Rate.
+Jede Headline muss den Nutzer zum Stoppen und Klicken bringen. Nicht informieren — FESSELN.
 
 QUELL-HEADLINE (englisch): "${originalHeadline}"
 SERIE: ${seriesName}
 ${entities ? `ENTITÄTEN:\n${entities}` : ''}
 
-ARTIKEL-INHALT (Zusammenfassung):
+ARTIKEL-INHALT:
 ${content}
 
-AUFGABE: Generiere genau 6 Headlines auf DEUTSCH. Jede mit einem ANDEREN Stil-Typ:
+===== PATTERN LIBRARY =====
+Du MUSST dich an diese bewährten Muster halten. Jede Headline MUSS einer dieser Strukturen folgen:
+${patterns}
 
-${types}
+===== AUFGABE =====
+Generiere genau 8 Headlines auf DEUTSCH. Nutze VERSCHIEDENE Pattern-Kategorien:
 
-HARTE REGELN:
-- Max 65 Zeichen pro Headline (NICHT 70 — kürzer ist besser!)
+1. Typ "surprise" — Überraschungselement, "plötzlich", "niemand hat damit gerechnet"
+2. Typ "twist" — Unerwartete Wendung, "doch noch", "anders als gedacht"
+3. Typ "curiosity" — Neugier, Informationslücke, "was steckt dahinter", "darum"
+4. Typ "conflict" — Konflikt, "trotz", Spannung zwischen zwei Elementen
+5. Typ "impact" — Direkte Nachricht mit Punch, "jetzt bestätigt", "offiziell"
+6. Typ "reaction" — Reaktion von Fans/Zuschauern
+7. Typ "surprise2" — NOCH eine Überraschung, anderer Ansatz als #1
+8. Typ "curiosity2" — NOCH eine Neugier-Headline, anderer Ansatz als #3
+
+===== HARTE REGELN =====
+- Max 65 Zeichen (NICHT 70!)
 - "${seriesName}" MUSS in JEDER Headline vorkommen
-- ALLES auf Deutsch. KEINE englischen Wörter (außer Eigennamen)
-- KEIN Clickbait: Jede Headline muss durch den Artikel gedeckt sein
-- KEINE generischen Phrasen: "sorgt für Aufsehen", "Fans dürfen sich freuen", "das musst du wissen"
-- KEINE Füllwörter: "tatsächlich", "wirklich", "offenbar", "möglicherweise"
-- Jede Headline braucht EIN klares Trigger-Element: Überraschung ODER neue Info ODER Konflikt ODER Emotion
-- KEINE zwei Headlines dürfen mit dem gleichen Wort beginnen
-- Vermeide Fragezeichen (außer bei Typ "curiosity")
+- ALLES auf Deutsch. KEINE englischen Wörter (außer Eigennamen wie Netflix, Disney+)
+- KEIN Clickbait ohne Deckung im Artikel
+- KEINE generischen Phrasen: "sorgt für Aufsehen", "Fans dürfen sich freuen", "das musst du wissen", "neue Details enthüllt", "kommt gut an"
+- KEINE Füllwörter: "tatsächlich", "offenbar", "anscheinend", "möglicherweise"
+- JEDE Headline braucht EIN Trigger-Element: Überraschung ODER Neugier ODER Konflikt ODER Emotion
+- KEINE Headline beginnt mit "${seriesName}:" (Nachrichtenagentur-Stil)
+- KEINE zwei Headlines beginnen mit dem gleichen Wort
+- Mindestens 3 Headlines müssen "plötzlich", "überraschend", "doch noch" oder "niemand" enthalten
 
-Antworte NUR mit einem JSON-Array. Keine Erklärungen, kein Markdown:
+===== CTR-BOOSTER WÖRTER (VERWENDE SIE!) =====
+"plötzlich", "überraschend", "niemand hat damit gerechnet", "doch noch", "anders als gedacht", "gegen alle Erwartungen", "ausgerechnet", "trotz", "erstmals"
+
+Antworte NUR mit JSON-Array:
 [
   {"type": "surprise", "text": "..."},
+  {"type": "twist", "text": "..."},
   {"type": "curiosity", "text": "..."},
-  {"type": "factual", "text": "..."},
-  {"type": "emotion", "text": "..."},
-  {"type": "direct", "text": "..."},
-  {"type": "contrast", "text": "..."}
+  {"type": "conflict", "text": "..."},
+  {"type": "impact", "text": "..."},
+  {"type": "reaction", "text": "..."},
+  {"type": "surprise2", "text": "..."},
+  {"type": "curiosity2", "text": "..."}
 ]`;
 }
 
@@ -229,11 +209,11 @@ async function callHeadlineLLM(prompt: string): Promise<Array<{ type: string; te
 
     const response = await client.chat.completions.create({
       model: config.model,
-      temperature: 0.9, // Höhere Temperature für kreativere Headlines
+      temperature: 0.95, // Maximale Kreativität
       messages: [
         {
           role: 'system',
-          content: 'Du bist ein deutscher Headline-Spezialist für Google Discover. Antworte NUR mit validem JSON-Array. Kein Markdown, kein Text drumherum.',
+          content: 'Du bist ein deutscher Headline-Spezialist für Google Discover. Dein Ziel: maximale Klickrate. Antworte NUR mit validem JSON-Array. Kein Markdown, kein Text.',
         },
         { role: 'user', content: prompt },
       ],
