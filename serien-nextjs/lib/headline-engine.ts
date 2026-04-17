@@ -10,24 +10,23 @@
  * - explorationMode default ON
  */
 
-import { scoreHeadline, type HeadlineScoreResult } from './headline-scorer';
+import { scoreHeadlineV5, pickWinnerV5, type HeadlineScoreV5Result, type ArticleContext } from './headline-scorer-v5';
 import { getPatternsForPrompt } from './headline-patterns';
 
 export interface HeadlineVariant {
   text: string;
   type: string;
   score: number;
-  breakdown: HeadlineScoreResult['breakdown'];
-  penalties: string[];
+  componentScores: HeadlineScoreV5Result['componentScores'];
+  penalties: HeadlineScoreV5Result['penalties'];
+  boosts: HeadlineScoreV5Result['boosts'];
+  ceilingApplied: string | null;
   selected: boolean;
-  // Logging
-  meta: {
-    wasOutlier: boolean;
-    hadContrast: boolean;
-    hadGenericPenalty: boolean;
-    riskMultiplier: number;
-  };
-  // CTR-Learning prepared
+  meta: HeadlineScoreV5Result['meta'];
+  relativeOutlierBonus: number;
+  passedMinimum: boolean;
+  isStrongCandidate: boolean;
+  // CTR-Learning
   impressions: number;
   clicks: number;
   ctr: number;
@@ -43,12 +42,12 @@ export interface HeadlineEngineResult {
   selectedRank: number;
 }
 
-// Flachere Gewichtung: mehr Exploration
+// Flachere Gewichtung — jetzt in v5 pickWinnerV5 integriert
 const EXPLORATION_WEIGHTS = [0.25, 0.25, 0.20, 0.15, 0.15];
 const CONSERVATIVE_WEIGHTS = [0.45, 0.25, 0.15, 0.10, 0.05];
 
-// Mindestqualität
-const MIN_SCORE = 40;
+// Mindestqualität v5
+const MIN_SCORE = 55;
 
 // Anti-AI Filter (nur echte Slop)
 const AI_SLOP_PATTERNS = [
@@ -110,70 +109,73 @@ export async function generateHeadlines(input: {
 
   const rawVariants = await callHeadlineLLM(prompt);
 
-  // Score alle
+  // === v5 SCORING ===
   const allTexts = rawVariants.map(v => v.text);
-  const scoredVariants: HeadlineVariant[] = rawVariants
-    .map(v => {
-      const slopHit = isAISlop(v.text);
-      const result = scoreHeadline(v.text, seriesName, allTexts);
-      const adjustedScore = slopHit ? Math.max(0, result.total - 20) : result.total;
+  const context: ArticleContext = {
+    seriesName,
+    persons: entities.persons,
+    keywords: entities.keywords,
+  };
 
+  const v5Result = pickWinnerV5(allTexts, context);
+
+  // Map to HeadlineVariant
+  const scoredVariants: HeadlineVariant[] = rawVariants.map(v => {
+    const v5 = v5Result.ranked.find(r => r.headline === v.text);
+    const isSelected = v5Result.winner.headline === v.text;
+    const slopHit = isAISlop(v.text);
+
+    if (!v5) {
       return {
-        text: v.text,
-        type: v.type,
-        score: adjustedScore,
-        breakdown: result.breakdown,
-        penalties: slopHit ? [...result.penalties, 'AI-Slop (-20)'] : result.penalties,
-        selected: false,
-        meta: result.meta,
-        impressions: 0,
-        clicks: 0,
-        ctr: 0,
+        text: v.text, type: v.type, score: 0,
+        componentScores: { hookStrength: 0, topicClarity: 0, specificity: 0, riskConflict: 0, contrastPattern: 0, ctrPrediction: 0 },
+        penalties: [], boosts: [], ceilingApplied: null, selected: isSelected,
+        meta: { hasEntity: false, hasSpecificEvent: false, hasRealConflict: false, hasConditionalContrast: false, seriesStartHandling: 'not_applicable' as const },
+        relativeOutlierBonus: 0, passedMinimum: false, isStrongCandidate: false,
+        impressions: 0, clicks: 0, ctr: 0,
       };
-    })
-    .sort((a, b) => b.score - a.score);
+    }
 
-  // Mindestqualität: score >= 40
-  const eligible = scoredVariants.filter(v => v.score >= MIN_SCORE);
+    const finalScore = slopHit ? Math.max(0, v5.finalScore - 15) : v5.finalScore;
 
-  // Fallback: wenn alle unter 40, nimm die beste
-  const selectionPool = eligible.length > 0 ? eligible : scoredVariants;
+    return {
+      text: v.text, type: v.type, score: finalScore,
+      componentScores: v5.componentScores,
+      penalties: slopHit ? [...v5.penalties, { type: 'ai_slop', phrase: 'AI-Slop', value: -15 }] : v5.penalties,
+      boosts: v5.boosts, ceilingApplied: v5.ceilingApplied, selected: isSelected,
+      meta: v5.meta, relativeOutlierBonus: v5.relativeOutlierBonus,
+      passedMinimum: finalScore >= MIN_SCORE, isStrongCandidate: finalScore >= 70,
+      impressions: 0, clicks: 0, ctr: 0,
+    };
+  }).sort((a, b) => b.score - a.score);
 
-  // Weighted Selection
-  const weights = explorationMode ? EXPLORATION_WEIGHTS : CONSERVATIVE_WEIGHTS;
-  const selectedIndex = weightedSelect(selectionPool.length, weights);
-
-  // Mark selected in original array
-  const selectedVariant = selectionPool[selectedIndex] || selectionPool[0];
-  const globalIndex = scoredVariants.findIndex(v => v.text === selectedVariant.text);
-  if (globalIndex >= 0) scoredVariants[globalIndex].selected = true;
-
-  const winner = selectedVariant;
-  const top3 = scoredVariants.filter(v => v.score >= MIN_SCORE).slice(0, 3);
-  const selectedRank = globalIndex + 1;
+  const winner = scoredVariants.find(v => v.selected) || scoredVariants[0];
+  const top3 = scoredVariants.filter(v => v.passedMinimum).slice(0, 3);
+  const selectedRank = scoredVariants.findIndex(v => v.selected) + 1;
 
   // Logging
-  const filteredCount = scoredVariants.length - eligible.length;
-  console.log(`\n   🏆 HEADLINE ENGINE v4 ${explorationMode ? '(EXPLORATION)' : '(CONSERVATIVE)'}`);
-  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  scoredVariants.forEach((v, i) => {
+  console.log(`\n   🏆 HEADLINE ENGINE v5 ${explorationMode ? '(EXPLORATION)' : '(CONSERVATIVE)'}`);
+  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`   HOK TOP SPE RSK CON CTR OLR = TOT | Headline`);
+  console.log(`   ─────────────────────────────────────────────────────────────────`);
+  scoredVariants.forEach(v => {
     const sel = v.selected ? '👉' : '  ';
-    const medal = i === 0 ? '1' : i === 1 ? '2' : i === 2 ? '3' : (i + 1).toString();
+    const c = v.componentScores;
+    const cols = [c.hookStrength, c.topicClarity, c.specificity, c.riskConflict, c.contrastPattern, c.ctrPrediction, v.relativeOutlierBonus]
+      .map(n => n.toString().padStart(3)).join(' ');
     const flags: string[] = [];
-    if (v.meta.wasOutlier) flags.push('OL');
-    if (v.meta.hadContrast) flags.push('CON');
-    if (v.breakdown.contrastBoost > 0) flags.push('+12c');
-    if (v.breakdown.riskScore > 0) flags.push(`R${v.breakdown.riskScore}×${v.meta.riskMultiplier}`);
-    if (v.breakdown.ctrPrediction !== 0) flags.push(`CTR${v.breakdown.ctrPrediction > 0 ? '+' : ''}${v.breakdown.ctrPrediction}`);
-    if (v.score < MIN_SCORE) flags.push('⊘');
+    if (v.ceilingApplied) flags.push('CAP');
+    if (!v.passedMinimum) flags.push('⊘');
+    if (v.isStrongCandidate) flags.push('★');
+    if (v.meta.hasConditionalContrast) flags.push('CON');
+    if (v.meta.hasRealConflict) flags.push('RSK');
     const flagStr = flags.length ? ` [${flags.join(' ')}]` : '';
-    console.log(`   ${sel} ${medal.padStart(2)}. ${v.score.toString().padStart(3)} | ${v.type.padEnd(11)} | "${v.text}"${flagStr}`);
+    console.log(`   ${sel} ${cols} = ${v.score.toString().padStart(3)} | "${v.text}"${flagStr}`);
+    const penStr = v.penalties.filter(p => p.value < -5).map(p => `${p.phrase}(${p.value})`).join(', ');
+    if (penStr) console.log(`                                          └─ ${penStr}`);
   });
-  if (filteredCount > 0) {
-    console.log(`   ⊘ ${filteredCount} Variante(n) unter Mindestqualität (${MIN_SCORE})`);
-  }
-  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`   Selected: #${selectedRank} "${winner.text}" (${winner.score}) via ${explorationMode ? 'weighted_random' : 'conservative'}`);
+  console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`   Selected: #${selectedRank} "${winner.text}" (${winner.score})${v5Result.filteredOut > 0 ? ` | ${v5Result.filteredOut} unter Minimum` : ''}`);
   console.log(`   ⏱️  ${Date.now() - start}ms\n`);
 
   return {
