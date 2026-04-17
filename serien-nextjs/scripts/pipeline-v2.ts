@@ -964,6 +964,41 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     console.timeEnd('⏱️  STEP 7.6: Headline Engine');
 
+    // ========== STEP 7.7: INTRO ENGINE ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.7: INTRO ENGINE');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7.7: Intro Engine');
+
+    let finalIntro = structuredContent.lead; // Fallback
+    let introVariants: any[] = [];
+
+    try {
+      const { generateIntroVariants } = await import('../lib/intro-engine');
+
+      const factsText = facts?.key_statements?.slice(0, 5).join('. ') || '';
+      const introResult = await generateIntroVariants({
+        headline: finalHeadline,
+        headlineType: headlineTop3[0]?.type,
+        seriesName: dbSeries.name || dbSeries.title || '',
+        facts: factsText,
+        articleContent: structuredContent.markdown?.substring(0, 800),
+      });
+
+      if (introResult.winner && introResult.winner.score >= 50 && introResult.winner.text) {
+        finalIntro = introResult.winner.text;
+        introVariants = introResult.allVariants;
+        console.log(`   ✅ Intro Engine: Score ${introResult.winner.score}, Type: ${introResult.winner.type}`);
+        logger.log(`Intro Engine: "${finalIntro.substring(0, 60)}..." (${introResult.winner.score}/100, ${introResult.winner.type})`);
+      } else {
+        console.log(`   ⚠️ Intro Engine: Kein gutes Intro, nutze Content-Lead`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Intro Engine fehlgeschlagen: ${error.message}`);
+    }
+
+    console.timeEnd('⏱️  STEP 7.7: Intro Engine');
+
     logStep('8_publish');
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
@@ -1006,7 +1041,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         title: finalHeadline,
         slug,
         contentHtml: finalContentWithVideo,
-        excerpt: structuredContent.lead,
+        excerpt: finalIntro,
         metaDescription: structuredContent.metaDescription,
         heroImageUrl: selectedBackdrop 
           ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
@@ -1069,6 +1104,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
                 impressions: 0,
                 clicks: 0,
                 ctr: 0,
+              })),
+              // Intro variants
+              introVariants: introVariants.map((v: any) => ({
+                type: v.type,
+                text: v.text,
+                score: v.score,
+                selected: v.selected || false,
               })),
             } as any,
           },
