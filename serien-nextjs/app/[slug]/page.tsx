@@ -469,22 +469,10 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Excerpt/Lead - Bold Intro with series link */}
+          {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
             <p data-speakable="summary" className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
-              {article.series?.slug && article.series?.name ? (
-                (() => {
-                  const seriesName = article.series!.name || article.series!.title || '';
-                  const seriesSlug = article.series!.slug;
-                  const text = article.excerpt!;
-                  const idx = text.toLowerCase().indexOf(seriesName.toLowerCase());
-                  if (idx === -1) return text;
-                  const before = text.substring(0, idx);
-                  const match = text.substring(idx, idx + seriesName.length);
-                  const after = text.substring(idx + seriesName.length);
-                  return <>{before}<Link href={`/serie/${seriesSlug}`} className="text-cyan-600 dark:text-cyan-400 hover:underline">{match}</Link>{after}</>;
-                })()
-              ) : article.excerpt}
+              {article.excerpt}
             </p>
           )}
 
