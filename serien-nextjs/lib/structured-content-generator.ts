@@ -100,19 +100,8 @@ export async function generateStructuredContent(
   // Validate and assemble
   const output = assembleMarkdown(response);
   
-  // POST-CHECK: Detect English headlines and auto-translate
-  if (isLikelyEnglish(output.headline)) {
-    console.log(`   ⚠️ English headline detected: "${output.headline}"`);
-    console.log(`   🔄 Auto-translating to German...`);
-    const { translateHeadlineOnly } = await import('./headline-translator');
-    const translatedHeadline = await translateHeadlineOnly(output.headline, seriesName);
-    if (translatedHeadline && !isLikelyEnglish(translatedHeadline)) {
-      console.log(`   ✅ Translated headline: "${translatedHeadline}"`);
-      output.headline = translatedHeadline;
-    } else {
-      console.log(`   ⚠️ Translation still English, keeping original. Manual review needed.`);
-    }
-  }
+  // Note: Headline wird durch Headline Engine in pipeline-v2 ersetzt.
+  // Die Arbeits-Headline hier dient nur als Fallback.
   
   console.log(`   ✅ Generated: ${output.sections.length} sections, ${output.qa.length} Q&A`);
   
@@ -180,18 +169,7 @@ SPRACHE: ALLES auf DEUTSCH - ohne Ausnahme!
 - Übersetze ALLE englischen Begriffe: "ratings" → "Quoten/Einschaltquoten", "hits new high" → "erreicht neuen Höchststand", "returns" → "kehrt zurück", "season" → "Staffel", "renewed" → "verlängert", etc.
 
 Struktur:
-1. headline: Max 70 Zeichen. MUSS auf Deutsch sein. Google-Discover-optimiert nach folgenden Regeln:
-   - Erzeuge NEUGIER mit SUBSTANZ: Der Leser will mehr erfahren, aber die Headline verspricht nichts, was der Artikel nicht hält.
-   - NICHT immer mit dem Seriennamen beginnen. Variiere die Struktur:
-     SCHLECHT: "Breaking Bad: Neues Spin-off angekündigt"
-     GUT: "Überraschendes Spin-off bringt Breaking Bad zurück"
-     GUT: "Warum das neue Breaking-Bad-Spin-off alles verändert"
-     GUT: "Drei Jahre Pause vorbei: Breaking Bad kehrt zurück"
-   - Nutze starke, konkrete Wörter: "überraschend", "erstmals", "endlich", "enthüllt", "verrät", "so", "darum"
-   - Verwende Zahlen und Superlative wenn vorhanden (z.B. "100% bei Rotten Tomatoes", "nach 5 Jahren")
-   - KEIN Clickbait: Keine leeren Versprechen ("Du glaubst nicht..."), keine Fragezeichen-Inflation, keine übertriebenen Emotionen
-   - Der Serienname MUSS in der Headline vorkommen, aber nicht zwingend am Anfang
-   - NIEMALS eine englische Headline generieren! Auch wenn die Quell-Headline englisch ist, MUSS deine Headline deutsch sein.
+1. headline: Erzeuge eine KURZE Arbeits-Headline auf Deutsch (wird später durch Headline Engine ersetzt). Max 70 Zeichen. Auf Deutsch.
 2. metaDescription: Max 155 Zeichen, fasst den Kern des Artikels zusammen. Enthält den Seriennamen und den wichtigsten Fakt. Auf Deutsch.
 3. lead: 2-3 Sätze, eigenständig (nicht den ersten Absatz wiederholen). Auf Deutsch.
 4. content: ${targetSections} Sections mit H2 (max 6 Wörter, auf Deutsch) + je 2-3 Absätze (2-4 Sätze)

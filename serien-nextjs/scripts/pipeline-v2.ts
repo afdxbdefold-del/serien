@@ -899,6 +899,50 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 7.5: Internal Linking');
 
+    // ========== STEP 7.6: HEADLINE ENGINE ==========
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.6: HEADLINE ENGINE');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7.6: Headline Engine');
+    
+    let finalHeadline = structuredContent.headline; // Fallback: Arbeits-Headline vom Content-LLM
+    let headlineVariants: any[] = [];
+    
+    try {
+      const { generateHeadlines } = await import('../lib/headline-engine');
+      
+      const headlineResult = await generateHeadlines({
+        originalHeadline: source.title || '',
+        articleContent: structuredContent.markdown,
+        seriesName: dbSeries.name || dbSeries.title || '',
+        entities: {
+          persons: classificationResult.people_names || [],
+          events: classificationResult.key_statements?.slice(0, 3) || [],
+          keywords: [
+            ...(classificationResult.series_names || []),
+            ...(classificationResult.networks_platforms || []),
+          ],
+        },
+      });
+      
+      if (headlineResult.winner && headlineResult.winner.score > 0) {
+        finalHeadline = headlineResult.winner.text;
+        headlineVariants = headlineResult.allVariants;
+        console.log(`   ✅ Headline Engine: "${finalHeadline}" (Score: ${headlineResult.winner.score})`);
+        console.log(`   ⏱️  ${headlineResult.generationTime}ms für ${headlineResult.allVariants.length} Varianten`);
+        logger.log(`Headline Engine: "${finalHeadline}" (${headlineResult.winner.score}/100, ${headlineResult.winner.type})`);
+      } else {
+        console.log(`   ⚠️ Headline Engine: Keine gute Variante, nutze Arbeits-Headline`);
+        logger.log(`Headline Engine: Fallback auf Content-Headline`);
+      }
+    } catch (error: any) {
+      console.log(`   ⚠️ Headline Engine fehlgeschlagen: ${error.message}`);
+      console.log(`   → Nutze Arbeits-Headline: "${finalHeadline}"`);
+      logger.log(`Headline Engine Error: ${error.message}`);
+    }
+    
+    console.timeEnd('⏱️  STEP 7.6: Headline Engine');
+
     logStep('8_publish');
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
@@ -906,7 +950,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 8: Publish');
     
-    const slug = generateSlug(structuredContent.headline);
+    const slug = generateSlug(finalHeadline);
     // articleId already generated in Step 7.5
     
     // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
@@ -938,7 +982,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     await prisma.articles.create({
       data: {
         id: articleId,
-        title: structuredContent.headline,
+        title: finalHeadline,
         slug,
         contentHtml: finalContentWithVideo,
         excerpt: structuredContent.lead,
@@ -959,6 +1003,28 @@ export async function runPipelineV2(source: PipelineV2Source) {
         confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
       },
     });
+
+    // Store headline variants for A/B testing (if available)
+    if (headlineVariants.length > 0) {
+      try {
+        await prisma.articles.update({
+          where: { id: articleId },
+          data: {
+            metadata: {
+              headlineVariants: headlineVariants.map(v => ({
+                text: v.text,
+                type: v.type,
+                score: v.score,
+              })),
+              headlineWinnerType: headlineVariants[0]?.type || 'unknown',
+              headlineWinnerScore: headlineVariants[0]?.score || 0,
+            } as any,
+          },
+        });
+      } catch (e) {
+        // metadata field might not accept JSON — no problem, variants logged in console
+      }
+    }
     
     if (saveAsDraft) {
       console.log(`📝 Article saved as DRAFT`);
