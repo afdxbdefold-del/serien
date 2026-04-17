@@ -466,19 +466,36 @@ export async function runPipelineV2(source: PipelineV2Source) {
         return null;
       }
       
-      // Create series (simplified)
-      dbSeries = await prisma.series.create({
-        data: {
+      // Create series (upsert to handle slug conflicts)
+      const desiredSlug = generateSeriesSlug(completeDetails.name, searchResult.tmdbId);
+      // Check if slug already taken by another series
+      const existingSlug = await prisma.series.findFirst({
+        where: { slug: desiredSlug, tmdbId: { not: searchResult.tmdbId } },
+        select: { tmdbId: true },
+      });
+      const finalSlug = existingSlug ? `${desiredSlug}-${searchResult.tmdbId}` : desiredSlug;
+      
+      dbSeries = await prisma.series.upsert({
+        where: { tmdbId: searchResult.tmdbId },
+        update: {
+          name: completeDetails.name,
+          title: completeDetails.name,
+          overview: completeDetails.overview || undefined,
+          status: completeDetails.status,
+          firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : undefined,
+          updatedAt: new Date(),
+        },
+        create: {
           tmdbId: searchResult.tmdbId,
           name: completeDetails.name,
           title: completeDetails.name,
-          slug: generateSeriesSlug(completeDetails.name, searchResult.tmdbId), // Use slug-utils
+          slug: finalSlug,
           posterPath: completeDetails.posterPath,
           backdropPath: completeDetails.backdropPath,
           overview: completeDetails.overview || '',
           status: completeDetails.status,
           firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
-          trailers: completeDetails.trailers || [], // ✅ Save trailers from TMDB
+          trailers: completeDetails.trailers || [],
           updatedAt: new Date(),
         }
       });
@@ -917,11 +934,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
         articleContent: structuredContent.markdown,
         seriesName: dbSeries.name || dbSeries.title || '',
         entities: {
-          persons: classificationResult.people_names || [],
-          events: classificationResult.key_statements?.slice(0, 3) || [],
+          persons: facts?.people_names || [],
+          events: facts?.key_statements?.slice(0, 3) || [],
           keywords: [
-            ...(classificationResult.series_names || []),
-            ...(classificationResult.networks_platforms || []),
+            ...(facts?.series_names || []),
+            ...(facts?.networks_platforms || []),
           ],
         },
         explorationMode: true, // Exploration ON by default
@@ -993,7 +1010,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         metaDescription: structuredContent.metaDescription,
         heroImageUrl: selectedBackdrop 
           ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
-          : getStreamerFallbackImage(dbSeries.networks || classificationResult.networks_platforms || []),
+          : getStreamerFallbackImage(dbSeries.networks || facts?.networks_platforms || []),
         tmdbId: dbSeries.tmdbId,
         primarySeriesId: dbSeries.tmdbId,
         tmdbType: 'tv',
