@@ -1,19 +1,23 @@
 /**
- * HEADLINE SCORER v2
+ * HEADLINE SCORER v3
  * 
- * Bewertet Headlines für maximale Google Discover CTR.
- * Kein LLM-Call — rein regelbasiert und deterministisch.
+ * Optimiert für maximale Google Discover CTR.
+ * Weniger Blocker, mehr Exploration, Outlier-Förderung.
  * 
- * NEUE Gewichtung (v2):
- * - Scroll-Stop-Potenzial:   0-30
- * - Informationsklarheit:    0-20  
- * - Neugier:                 0-20
- * - Keyword-Präsenz:         0-10
- * - Länge:                   0-10
- * - Pattern CTR-Boost:       0-15 (Bonus)
- * - Generik-Abzug:          -30 (Penalty)
+ * Score-Komponenten:
+ * - scrollStop:        0-30  (Überraschung, Emotion, Konflikt)
+ * - clarity:           0-20  (Verständlichkeit, Verb, Serienname)
+ * - curiosity:         0-20  (Neugier, Informationslücke)
+ * - keyword:           0-10  (Serie, Staffel, Platform)
+ * - length:            0-10  (Sweet Spot 35-65 Zeichen)
+ * - patternBoost:      0-15  (CTR-Pattern Match)
+ * - riskScore:         0-20  (Mut, Ungewöhnlichkeit, Spannung)
+ * - outlierBoost:      0-20  (Deutlich anders als Standard)
+ * - genericPenalty:   -20..0 (Abzug für Generik, NICHT mehr -30)
+ * - noTriggerPenalty: -15..0 (Statt hartem Cap)
  * 
- * SCORE-CAP: Ohne Trigger-Wörter → max 60
+ * KEINE harten Blocker mehr. KEINE Score-Caps.
+ * Alles durch Penalties geregelt — jede Headline hat eine Chance.
  */
 
 import { matchPattern } from './headline-patterns';
@@ -27,42 +31,38 @@ export interface HeadlineScoreResult {
     keyword: number;
     length: number;
     patternBoost: number;
+    riskScore: number;
+    outlierBoost: number;
     genericPenalty: number;
+    noTriggerPenalty: number;
   };
   penalties: string[];
-  capped: boolean;
 }
 
-// ===== GENERISCHE PHRASEN: -30 max =====
+// ===== GENERISCHE PHRASEN: Penalty statt Block =====
 const GENERIC_PHRASES: [string, number][] = [
-  ['sorgt für aufsehen', -10],
-  ['fans dürfen sich freuen', -10],
-  ['kommt gut an', -8],
-  ['das solltest du wissen', -10],
-  ['das musst du wissen', -10],
-  ['alles was du wissen musst', -10],
-  ['alles was wir wissen', -8],
-  ['das erwartet uns', -8],
-  ['das erwartet dich', -8],
-  ['hier sind die details', -10],
-  ['was wir bisher wissen', -8],
-  ['es ist soweit', -8],
-  ['es ist offiziell', -6],
-  ['es wurde bekannt', -8],
-  ['große neuigkeiten', -10],
-  ['spannende neuigkeiten', -10],
-  ['aufregende neuigkeiten', -10],
-  ['große veränderungen', -8],
-  ['wichtige neuigkeit', -8],
-  ['es gibt neuigkeiten', -8],
-  ['jetzt wird es spannend', -8],
-  ['es wird ernst', -8],
-  ['neue details enthüllt', -6],
-  ['seht her', -10],
-  ['das gibt es zu sagen', -8],
+  ['sorgt für aufsehen', -8],
+  ['fans dürfen sich freuen', -8],
+  ['kommt gut an', -6],
+  ['das solltest du wissen', -8],
+  ['das musst du wissen', -8],
+  ['alles was du wissen musst', -8],
+  ['alles was wir wissen', -6],
+  ['das erwartet uns', -6],
+  ['das erwartet dich', -6],
+  ['hier sind die details', -8],
+  ['was wir bisher wissen', -6],
+  ['es ist soweit', -6],
+  ['es wurde bekannt', -6],
+  ['große neuigkeiten', -8],
+  ['spannende neuigkeiten', -8],
+  ['aufregende neuigkeiten', -8],
+  ['jetzt wird es spannend', -6],
+  ['es wird ernst', -6],
+  ['neue details enthüllt', -4],
 ];
 
-// ===== SCROLL-STOP: Überraschung, Emotion, Konflikt =====
+// ===== SCROLL-STOP WÖRTER =====
 const SURPRISE_WORDS = [
   'plötzlich', 'überraschend', 'unerwartet', 'niemand', 'keiner',
   'gegen alle', 'doch noch', 'schock', 'anders als', 'zum ersten mal',
@@ -82,14 +82,12 @@ const CONFLICT_WORDS = [
   'spaltet', 'gegen', 'widerspruch', 'vorwürfe',
 ];
 
-// ===== NEUGIER =====
 const CURIOSITY_TRIGGERS = [
   'warum', 'wieso', 'darum', 'deshalb', 'so', 'dahinter',
   'wirklich', 'was steckt', 'was bedeutet', 'der wahre grund',
   'geheimnis', 'hintergrund', 'was jetzt', 'was passiert',
 ];
 
-// ===== STARKE VERBEN =====
 const STRONG_VERBS = [
   'enthüllt', 'verrät', 'bestätigt', 'bricht', 'zerstört', 'verändert',
   'stoppt', 'rettet', 'verlässt', 'kehrt zurück', 'übernimmt', 'ersetzt',
@@ -97,123 +95,128 @@ const STRONG_VERBS = [
   'schockiert', 'beweist', 'beendet', 'startet', 'abgesetzt', 'verlängert',
 ];
 
-// ===== HARD FILTER: Komplett blockieren =====
-function shouldBlock(headline: string, seriesName: string): string | null {
+// ===== RISK DETECTION =====
+const RISK_INDICATORS = [
+  // Ungewöhnlicher Satzbau
+  { pattern: /^(erst|trotz|obwohl|gegen|nach|ohne|statt)\b/i, score: 6 },
+  // Kontrast-Struktur (A, aber/doch/dann B)
+  { pattern: /,\s*(aber|doch|dann|jetzt|nun)\b/i, score: 5 },
+  // Gedankenstrich als Spannungsbogen
+  { pattern: /\s[–—]\s/, score: 4 },
+  // Direkte Ansprache / provokant
+  { pattern: /(ausgerechnet|gerade jetzt|mitten in)/i, score: 5 },
+  // Nicht mit Substantiv/Artikel beginnen
+  { pattern: /^(plötzlich|darum|warum|trotz|erst|doch|gegen|so|nie)/i, score: 4 },
+  // Emotionale Reibung
+  { pattern: /(spaltet|polarisiert|kontroverse|umstritten|bitter)/i, score: 5 },
+  // Rhetorische Frage
+  { pattern: /\?$/, score: 3 },
+];
+
+// ===== OUTLIER DETECTION =====
+function calculateOutlierBoost(headline: string, seriesName: string): number {
   const lower = headline.toLowerCase();
-  const seriesLower = seriesName.toLowerCase();
-  
-  // Beginnt mit "{Serie}:" → zu neutral, Nachrichtenagentur-Stil
-  if (lower.startsWith(seriesLower + ':')) {
-    return 'Beginnt mit "Serie:" — Nachrichtenagentur-Stil';
-  }
-  
-  // Keinerlei Emotion oder Überraschung
-  const hasAnyTrigger = [
-    ...SURPRISE_WORDS, ...EMOTION_WORDS, ...CONFLICT_WORDS, ...CURIOSITY_TRIGGERS,
-  ].some(w => lower.includes(w));
-  
-  if (!hasAnyTrigger) {
-    // Prüfe ob wenigstens ein starkes Verb da ist
-    const hasVerb = STRONG_VERBS.some(v => lower.includes(v));
-    if (!hasVerb) {
-      return 'Keine Emotion, Überraschung oder starkes Verb';
-    }
-  }
-  
-  return null;
+  let boost = 0;
+
+  // Beginnt NICHT mit Serienname → Bonus (ungewöhnlicher)
+  if (!lower.startsWith(seriesName.toLowerCase())) boost += 5;
+
+  // Kein Doppelpunkt nach erstem Wort (nicht "X: ...") → Bonus
+  const firstColon = headline.indexOf(':');
+  if (firstColon === -1 || firstColon > 20) boost += 3;
+
+  // Enthält Kontrast (A → B Wechsel)
+  if (/,\s*(aber|doch|dann|jetzt|nun|und dann)\b/i.test(headline)) boost += 5;
+  if (/(erst.*jetzt|erst.*dann|trotz.*doch)/i.test(lower)) boost += 5;
+
+  // Sichtbarer Spannungsbogen (Gedankenstrich)
+  if (/\s[–—]\s/.test(headline)) boost += 4;
+
+  // Ungewöhnlich kurz + punchy (unter 45 Zeichen)
+  if (headline.length >= 25 && headline.length <= 45) boost += 3;
+
+  return Math.min(20, boost);
 }
 
 export function scoreHeadline(headline: string, seriesName: string, allVariants: string[] = []): HeadlineScoreResult {
   const lower = headline.toLowerCase();
   const penalties: string[] = [];
-  let capped = false;
-
-  // ===== HARD FILTER =====
-  const blockReason = shouldBlock(headline, seriesName);
-  if (blockReason) {
-    return {
-      total: 0,
-      breakdown: { scrollStop: 0, clarity: 0, curiosity: 0, keyword: 0, length: 0, patternBoost: 0, genericPenalty: -30 },
-      penalties: [`BLOCKIERT: ${blockReason}`],
-      capped: true,
-    };
-  }
 
   // ===== SCROLL-STOP-POTENZIAL (0-30) =====
   let scrollStop = 0;
-  
-  // Überraschung (+10 max)
+
   const surpriseHits = SURPRISE_WORDS.filter(w => lower.includes(w)).length;
   scrollStop += Math.min(10, surpriseHits * 5);
-  
-  // Emotionale Reaktion (+10 max)
+
   const emotionHits = EMOTION_WORDS.filter(w => lower.includes(w)).length;
   scrollStop += Math.min(10, emotionHits * 5);
-  
-  // Klarer Konflikt (+10 max)
+
   const conflictHits = CONFLICT_WORDS.filter(w => lower.includes(w)).length;
   scrollStop += Math.min(10, conflictHits * 5);
-  
+
   scrollStop = Math.min(30, scrollStop);
 
   // ===== INFORMATIONSKLARHEIT (0-20) =====
-  let clarity = 10; // Startwert
-  
-  // Enthält Serienname
+  let clarity = 10;
+
   if (lower.includes(seriesName.toLowerCase())) clarity += 5;
-  
-  // Starkes Verb
   if (STRONG_VERBS.some(v => lower.includes(v))) clarity += 5;
-  
-  // Füllwörter abziehen
+
   const FILLERS = ['tatsächlich', 'offenbar', 'anscheinend', 'möglicherweise', 'eventuell', 'gewissermaßen', 'grundsätzlich', 'eigentlich', 'sozusagen', 'quasi'];
   const fillerCount = FILLERS.filter(f => lower.includes(f)).length;
   clarity -= fillerCount * 3;
-  
+
   clarity = Math.max(0, Math.min(20, clarity));
 
   // ===== NEUGIER (0-20) =====
   let curiosity = 0;
-  
+
   const curiosityHits = CURIOSITY_TRIGGERS.filter(t => lower.includes(t)).length;
   curiosity += Math.min(10, curiosityHits * 5);
-  
-  // Doppelpunkt oder Gedankenstrich (Spannungsaufbau)
+
   if (headline.includes(':') || headline.includes('–') || headline.includes('—')) curiosity += 4;
-  
-  // Frage-Struktur
   if (/^(warum|wieso|was|wie)\b/.test(lower)) curiosity += 4;
-  
-  // Informationslücke
   if (/dahinter|wahrer? grund|hintergrund|geheimnis|was wirklich/.test(lower)) curiosity += 4;
-  
+
   curiosity = Math.min(20, curiosity);
 
   // ===== KEYWORD-PRÄSENZ (0-10) =====
   let keyword = 0;
-  
+
   if (lower.includes(seriesName.toLowerCase())) keyword += 5;
-  else { penalties.push('Serienname fehlt!'); }
-  
+  else { penalties.push('Serienname fehlt'); keyword -= 5; }
+
   if (/staffel\s*\d/.test(lower)) keyword += 3;
   if (/netflix|disney|amazon|prime|trailer|start|premiere|finale|abgesetzt|verlängert/.test(lower)) keyword += 2;
-  
-  keyword = Math.min(10, keyword);
+
+  keyword = Math.max(-5, Math.min(10, keyword));
 
   // ===== LÄNGE (0-10) =====
   let length = 0;
   const charCount = headline.length;
-  
+
   if (charCount >= 35 && charCount <= 65) length = 10;
   else if (charCount >= 28 && charCount <= 70) length = 6;
   else if (charCount >= 20 && charCount <= 80) length = 3;
-  else { length = 0; penalties.push(`Länge ${charCount}z — Ziel: 35-65`); }
+  else { length = 0; penalties.push(`Länge ${charCount}z`); }
 
   // ===== PATTERN CTR-BOOST (0-15) =====
   const patternMatch = matchPattern(headline);
   const patternBoost = patternMatch.ctrBoost;
 
-  // ===== GENERIK-ABZUG (-30 max) =====
+  // ===== RISK SCORE (0-20) =====
+  let riskScore = 0;
+  for (const indicator of RISK_INDICATORS) {
+    if (indicator.pattern.test(headline)) {
+      riskScore += indicator.score;
+    }
+  }
+  riskScore = Math.min(20, riskScore);
+
+  // ===== OUTLIER BOOST (0-20) =====
+  const outlierBoost = calculateOutlierBoost(headline, seriesName);
+
+  // ===== GENERIK-ABZUG (-20 max, abgeschwächt von -30) =====
   let genericPenalty = 0;
   for (const [phrase, penalty] of GENERIC_PHRASES) {
     if (lower.includes(phrase)) {
@@ -221,37 +224,53 @@ export function scoreHeadline(headline: string, seriesName: string, allVariants:
       penalties.push(`Generisch: "${phrase}"`);
     }
   }
-  genericPenalty = Math.max(-30, genericPenalty);
-  
-  // Identische Satzanfänge mit anderen Varianten
+  genericPenalty = Math.max(-20, genericPenalty);
+
+  // Identische Satzanfänge
   if (allVariants.length > 1) {
     const myStart = lower.split(/\s+/).slice(0, 3).join(' ');
     const dupes = allVariants.filter(v => v.toLowerCase().startsWith(myStart)).length;
     if (dupes > 1) {
-      genericPenalty -= 5;
-      penalties.push('Identischer Satzanfang wie andere Variante');
+      genericPenalty = Math.max(-20, genericPenalty - 3);
+      penalties.push('Gleicher Satzanfang');
     }
   }
 
-  // ===== SCORE-CAP REGEL =====
-  // Ohne Trigger-Wörter oder Emotion → max 60
-  const hasTrigger = scrollStop >= 5 || patternBoost >= 5;
+  // ===== NO-TRIGGER PENALTY (statt hartem Cap) =====
+  let noTriggerPenalty = 0;
+  const hasTrigger = scrollStop >= 5 || patternBoost >= 5 || riskScore >= 5;
   if (!hasTrigger) {
-    capped = true;
-    penalties.push('SCORE-CAP: Keine Trigger-Wörter → max 60');
+    noTriggerPenalty = -15;
+    penalties.push('Keine Trigger-Wörter (-15)');
+  }
+
+  // ===== "{Serie}:" PENALTY (statt Blocker) =====
+  if (lower.startsWith(seriesName.toLowerCase() + ':')) {
+    genericPenalty = Math.max(-20, genericPenalty - 10);
+    penalties.push('"Serie:"-Start (-10)');
   }
 
   // ===== TOTAL =====
-  let total = scrollStop + clarity + curiosity + keyword + length + patternBoost + genericPenalty;
-  
-  if (capped && total > 60) total = 60;
-  
-  total = Math.max(0, Math.min(100, total));
+  const total = Math.max(0, Math.min(100,
+    scrollStop + clarity + curiosity + keyword + length +
+    patternBoost + riskScore + outlierBoost +
+    genericPenalty + noTriggerPenalty
+  ));
 
   return {
     total,
-    breakdown: { scrollStop, clarity, curiosity, keyword, length, patternBoost, genericPenalty },
+    breakdown: {
+      scrollStop,
+      clarity,
+      curiosity,
+      keyword,
+      length,
+      patternBoost,
+      riskScore,
+      outlierBoost,
+      genericPenalty,
+      noTriggerPenalty,
+    },
     penalties,
-    capped,
   };
 }

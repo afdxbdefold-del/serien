@@ -924,6 +924,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             ...(classificationResult.networks_platforms || []),
           ],
         },
+        explorationMode: true, // Exploration ON by default
       });
       
       if (headlineResult.winner && headlineResult.winner.score > 0) {
@@ -1007,22 +1008,40 @@ export async function runPipelineV2(source: PipelineV2Source) {
       },
     });
 
-    // Store headline variants (Top 3 + all) for A/B testing
+    // Store headline variants with full data for A/B testing + CTR learning
     if (headlineVariants.length > 0) {
       try {
         await prisma.articles.update({
           where: { id: articleId },
           data: {
             metadata: {
+              headlineEngine: {
+                version: 3,
+                explorationMode: true,
+                selectionMethod: 'weighted_random',
+              },
               headlineTop3: headlineTop3.map(v => ({
                 text: v.text,
                 type: v.type,
                 score: v.score,
+                riskScore: v.breakdown?.riskScore || 0,
+                outlierBoost: v.breakdown?.outlierBoost || 0,
+                selected: v.selected || false,
+                // CTR fields prepared for later
+                impressions: 0,
+                clicks: 0,
+                ctr: 0,
               })),
               headlineVariants: headlineVariants.map(v => ({
                 text: v.text,
                 type: v.type,
                 score: v.score,
+                riskScore: v.breakdown?.riskScore || 0,
+                outlierBoost: v.breakdown?.outlierBoost || 0,
+                selected: v.selected || false,
+                impressions: 0,
+                clicks: 0,
+                ctr: 0,
               })),
               headlineWinnerType: headlineTop3[0]?.type || 'unknown',
               headlineWinnerScore: headlineTop3[0]?.score || 0,
