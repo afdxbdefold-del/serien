@@ -192,6 +192,18 @@ VERBOTEN im Lead:
 4. content: ${targetSections} Sections mit H2 (max 6 Wörter, auf Deutsch) + je 2-3 Absätze (2-4 Sätze)
 5. qa: 3-5 häufige Fragen mit kurzen Antworten. Auf Deutsch.
 
+QUELLEN-REGEL (STRIKT):
+- Schreibe so, als wäre serien.de die PRIMÄRE Nachrichtenquelle.
+- NIEMALS einen Satz mit einer Quellenzuschreibung beginnen:
+  VERBOTEN: "Paramount hat bekannt gegeben...", "Netflix gab bekannt...", "Laut Deadline...", "Wie berichtet wurde...", "Laut Bericht...", "Berichten zufolge...", "Ein Bericht von..."
+- NIEMALS im ERSTEN Absatz eine Quelle nennen.
+- Quellen dürfen optional SPÄTER im Artikel erwähnt werden (ab Absatz 2), aber nie als Satzanfang.
+- STATTDESSEN: Starte immer mit dem Fakt selbst.
+  GUT: "The Boys wird nach Staffel 5 abgesetzt."
+  SCHLECHT: "Amazon hat bekannt gegeben, dass The Boys nach Staffel 5 abgesetzt wird."
+  GUT: "Staffel 3 startet im Oktober auf Netflix."
+  SCHLECHT: "Wie Netflix mitteilte, startet Staffel 3 im Oktober."
+
 Stil: Sachlich, journalistisch. Konkrete Namen statt generische Bezeichnungen ("Robby untersucht" statt "Ein Arzt untersucht"). Deutsche Anführungszeichen: „..."
 Übersetze ALLE englischen Wörter aus den Fakten ins Deutsche (z.B. "approximately" → "etwa", "officially" → "offiziell", "wrapped filming" → "Dreharbeiten abgeschlossen"). Kein einziges englisches Wort im Fließtext.
 Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, NBC, CBS, Fox, The CW) als Empfangshinweis. Beziehe dich stattdessen auf Streaming-Plattformen (Netflix, Disney+, Amazon Prime Video, Sky/WOW, Hulu, Paramount+, Apple TV+ etc.) oder schreibe allgemein "beim jeweiligen Streaming-Anbieter". US-Sender dürfen nur als Produktionshintergrund erwähnt werden, nicht als Empfangsempfehlung.`;
@@ -215,7 +227,7 @@ async function callLLMStructured(prompt: string, retries = 2, temperature?: numb
         messages: [
           {
             role: 'system',
-            content: 'Du bist ein deutscher TV-Artikel-Generator für serien.de. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Auch wenn die Quell-Headline englisch ist, MUSS deine Headline auf Deutsch sein. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Umlaute als ae/oe/ue schreiben ist NICHT nötig - verwende echte Umlaute (ä, ö, ü). Verwende KEINE deutschen Anführungszeichen wie „ oder " - nutze einfache Anführungszeichen oder schreibe ohne.',
+            content: 'Du bist ein deutscher TV-Artikel-Generator für serien.de. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Auch wenn die Quell-Headline englisch ist, MUSS deine Headline auf Deutsch sein. Schreibe als PRIMÄRE Nachrichtenquelle — NIEMALS mit Quellenzuschreibung beginnen ("Laut...", "XY hat bekannt gegeben..."). Starte immer direkt mit dem Fakt. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Umlaute als ae/oe/ue schreiben ist NICHT nötig - verwende echte Umlaute (ä, ö, ü). Verwende KEINE deutschen Anführungszeichen wie „ oder " - nutze einfache Anführungszeichen oder schreibe ohne.',
           },
           {
             role: 'user',
