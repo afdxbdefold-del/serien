@@ -24,7 +24,7 @@
  * Umschaltbar via HEADLINE_SCORER_VERSION.
  */
 
-export const HEADLINE_SCORER_VERSION = 'v5';
+export const HEADLINE_SCORER_VERSION = 'v5.1';
 
 // ============================================================
 // TYPES
@@ -39,6 +39,8 @@ export interface HeadlineScoreV5Result {
   componentScores: {
     hookStrength: number;
     topicClarity: number;
+    visibleTopicClarity: number;
+    contextTopicClarity: number;
     specificity: number;
     riskConflict: number;
     contrastPattern: number;
@@ -51,6 +53,7 @@ export interface HeadlineScoreV5Result {
   rawScoreBeforeCeiling: number;
   meta: {
     hasEntity: boolean;
+    hasVisibleEntity: boolean;
     hasSpecificEvent: boolean;
     hasRealConflict: boolean;
     hasConditionalContrast: boolean;
@@ -171,34 +174,73 @@ const FILLERS = [
 // DETECTION FUNCTIONS
 // ============================================================
 
-export function detectTopicClarity(headline: string, context?: ArticleContext): number {
+// --- ENTITY HINTS für visible detection (ohne Context) ---
+const ENTITY_HINTS = [
+  'netflix', 'disney', 'amazon', 'prime video', 'hbo', 'apple tv',
+  'paramount', 'sky', 'wow', 'hulu', 'marvel', 'star wars', 'dc',
+  'staffel', 'serie', 'showrunner', 'regisseur',
+];
+
+/**
+ * FIX 1: Visible Topic-Clarity — nur was IM HEADLINE steht
+ */
+export function detectVisibleTopicClarity(headline: string, seriesName?: string): number {
   const lower = headline.toLowerCase();
   let score = 0;
 
-  // Named entity (series name)
-  if (context?.seriesName && lower.includes(context.seriesName.toLowerCase())) {
-    score += 12;
+  // Serienname sichtbar im Headline
+  if (seriesName && lower.includes(seriesName.toLowerCase())) {
+    score += 15;
   }
 
-  // Known platforms/brands
-  if (/\b(netflix|disney\+?|amazon|prime video|hbo|apple tv|paramount|sky|wow|hulu)\b/i.test(lower)) {
+  // Doppelpunkt + Name-Pattern = sehr sichtbar
+  if (score === 0 && headline.includes(':')) {
+    // Etwas vor dem Doppelpunkt = potenzieller Entity-Name
+    const beforeColon = headline.substring(0, headline.indexOf(':')).trim();
+    if (beforeColon.length >= 3 && beforeColon.length <= 40) score += 8;
+  }
+
+  // Bekannte Platform/Brand-Keywords
+  if (ENTITY_HINTS.some(kw => lower.includes(kw))) {
     score += 4;
   }
 
-  // Person names from context
-  if (context?.persons) {
-    for (const person of context.persons.slice(0, 5)) {
-      if (person.length > 3 && lower.includes(person.toLowerCase())) {
-        score += 4;
-        break;
-      }
-    }
-  }
-
-  // "Staffel X" = very specific
+  // "Staffel X" = konkrete Serien-Referenz
   if (/staffel\s*\d/i.test(lower)) score += 4;
 
   return Math.min(20, score);
+}
+
+/**
+ * FIX 1: Context Topic-Clarity — aus Artikel-Kontext, NICHT aus Headline
+ */
+export function detectContextTopicClarity(context?: ArticleContext): number {
+  if (!context) return 0;
+  let score = 0;
+
+  if (context.seriesName) score += 6;
+  if (context.persons && context.persons.length > 0) score += 2;
+
+  return Math.min(8, score);
+}
+
+/**
+ * FIX 1: Kombinierte Topic-Clarity mit Cap wenn nur Context
+ */
+export function detectTopicClarity(headline: string, context?: ArticleContext): { total: number; visible: number; context: number } {
+  const visible = detectVisibleTopicClarity(headline, context?.seriesName);
+  const ctx = detectContextTopicClarity(context);
+
+  let total = visible + ctx;
+
+  // KEY FIX: Wenn keine sichtbare Entität → Context allein maximal 8
+  if (visible === 0) {
+    total = Math.min(total, 8);
+  }
+
+  total = Math.min(20, total);
+
+  return { total, visible, context: ctx };
 }
 
 export function detectSpecificEvent(headline: string): number {
@@ -450,13 +492,20 @@ export function scoreHeadlineV5(
 
   // --- COMPONENT SCORES ---
   const hookStrength = computeHookStrength(headline);
-  const topicClarity = detectTopicClarity(headline, articleContext);
+  
+  // FIX 1: Visible vs Context Topic-Clarity
+  const topicClarityResult = detectTopicClarity(headline, articleContext);
+  const topicClarity = topicClarityResult.total;
+  const visibleTopicClarity = topicClarityResult.visible;
+  const contextTopicClarity = topicClarityResult.context;
+  
   const specificity = detectSpecificEvent(headline);
   const riskConflict = detectRealConflict(headline);
   const contrastPattern = detectConditionalContrast(headline);
   const ctrPrediction = computeCtrPrediction(headline, topicClarity, specificity);
 
   // --- PENALTIES ---
+  // FIX 2: Hard vs Soft strikt getrennt
   const hardKillerHits = detectHardKillers(headline);
   penalties.push(...hardKillerHits);
   let totalHardPenalty = hardKillerHits.reduce((s, h) => s + h.value, 0);
@@ -480,21 +529,42 @@ export function scoreHeadlineV5(
   else if (charCount < 25) { lengthPenalty = -5; penalties.push({ type: 'length', phrase: `${charCount}z < 25`, value: -5 }); }
 
   // Duplicate start with peers
+  let dupePenalty = 0;
   if (peerHeadlines && peerHeadlines.length > 1) {
     const lower = headline.toLowerCase();
     const myStart = lower.split(/\s+/).slice(0, 3).join(' ');
     const dupes = peerHeadlines.filter(p => p !== headline && p.toLowerCase().startsWith(myStart)).length;
     if (dupes > 0) {
+      dupePenalty = -3;
       penalties.push({ type: 'dupe_start', phrase: myStart, value: -3 });
     }
   }
 
   // --- BOOSTS ---
+  
+  // FIX 3: Premium Pattern Boost (+12 für semantischen Kontrast)
+  let premiumBoost = 0;
   if (contrastPattern >= 8) {
-    boosts.push({ type: 'semantic_contrast', reason: 'Echte semantische Wende erkannt', value: contrastPattern });
+    premiumBoost = 12;
+    boosts.push({ type: 'premium_contrast', reason: 'Semantischer Kontrast-Pattern erkannt', value: 12 });
   }
+
+  // FIX 3: Combo Bonus — visible entity + specificity + risk zusammen
+  let comboBonus = 0;
+  if (visibleTopicClarity >= 10 && specificity >= 10 && riskConflict >= 8) {
+    comboBonus = 6;
+    boosts.push({ type: 'combo_clarity_risk', reason: 'Entity + Event + Conflict', value: 6 });
+  }
+
+  // FIX 3: High-Quality Bonus — Hook + Risk + Event + sichtbare Entity
+  let hqBonus = 0;
+  if (hookStrength >= 5 && riskConflict >= 5 && specificity >= 6 && visibleTopicClarity >= 8) {
+    hqBonus = 5;
+    boosts.push({ type: 'high_quality', reason: 'Hook + Risk + Event + Entity', value: 5 });
+  }
+
   if (hookStrength >= 15) {
-    boosts.push({ type: 'strong_hook', reason: 'Starker Hook', value: 0 }); // Already counted in component
+    boosts.push({ type: 'strong_hook', reason: 'Starker Hook', value: 0 });
   }
 
   // Relative outlier
@@ -504,16 +574,16 @@ export function scoreHeadlineV5(
   }
 
   // --- RAW SCORE ---
-  const totalPenalties = totalHardPenalty + totalSoftPenalty + seriesHandling.penalty + lengthPenalty +
-    (peerHeadlines ? penalties.filter(p => p.type === 'dupe_start').reduce((s, p) => s + p.value, 0) : 0);
+  const totalPenalties = totalHardPenalty + totalSoftPenalty + seriesHandling.penalty + lengthPenalty + dupePenalty;
 
   let rawScore = hookStrength + topicClarity + specificity + riskConflict +
-    contrastPattern + ctrPrediction + relativeOutlierBonus + totalPenalties;
+    contrastPattern + ctrPrediction + relativeOutlierBonus +
+    premiumBoost + comboBonus + hqBonus + totalPenalties;
 
   rawScore = Math.max(0, rawScore);
   const rawScoreBeforeCeiling = rawScore;
 
-  // --- CEILING ---
+  // --- CEILING (FIX 3: erst ganz am Ende) ---
   const { score: cappedScore, ceiling } = applyScoreCeiling(rawScore, topicClarity, specificity);
   const finalScore = Math.max(0, Math.min(100, cappedScore));
 
@@ -531,6 +601,8 @@ export function scoreHeadlineV5(
     componentScores: {
       hookStrength,
       topicClarity,
+      visibleTopicClarity,
+      contextTopicClarity,
       specificity,
       riskConflict,
       contrastPattern,
@@ -543,6 +615,7 @@ export function scoreHeadlineV5(
     rawScoreBeforeCeiling,
     meta: {
       hasEntity: topicClarity >= 8,
+      hasVisibleEntity: visibleTopicClarity >= 8,
       hasSpecificEvent: specificity >= 6,
       hasRealConflict: riskConflict >= 6,
       hasConditionalContrast: contrastPattern >= 8,
