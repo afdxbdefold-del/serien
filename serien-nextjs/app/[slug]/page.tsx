@@ -428,7 +428,7 @@ export default async function ArticlePage({ params }: PageProps) {
           </h1>
 
           {/* Author with E-E-A-T + Datum */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center justify-center gap-3 mb-6">
             {article.users && (
               <>
                 {article.users.image ? (
