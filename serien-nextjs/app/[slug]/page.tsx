@@ -525,9 +525,6 @@ export default async function ArticlePage({ params }: PageProps) {
             </figure>
           )}
 
-          {/* Cyan Accent Line — directly under image source */}
-          <div className="h-0.5 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
-
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
             <p data-speakable="summary" className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
