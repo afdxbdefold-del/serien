@@ -18,6 +18,7 @@ const NEWS_SOURCES = [
   { domain: 'thecinemaholic.com', name: 'The Cinemaholic' },
   { domain: 'tvline.com', name: 'TVLine' },
   { domain: 'collider.com', name: 'Collider' },
+  { domain: 'deadline.com', name: 'Deadline' },
 ];
 
 // Series keywords for filtering

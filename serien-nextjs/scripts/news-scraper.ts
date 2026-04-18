@@ -31,6 +31,12 @@ export const NEWS_SOURCES = {
     domain: 'thecinemaholic.com',
     type: 'wordpress',
   },
+  deadline: {
+    name: 'Deadline TV',
+    url: 'https://deadline.com/v/tv/feed/',
+    domain: 'deadline.com',
+    type: 'rss',
+  },
 } as const;
 
 type SourceKey = keyof typeof NEWS_SOURCES;
@@ -359,6 +365,72 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
 }
 
 /**
+ * Scrape news from a generic RSS feed (Deadline TV, etc.)
+ */
+async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  console.log(`🔍 Scraping ${source.name} (RSS)...\n`);
+
+  const response = await fetch(source.url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${source.name}: ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  const results: NewsArticle[] = [];
+  const seenUrls = new Set<string>();
+  const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
+
+  for (const item of items) {
+    const titleMatch = item.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+    const linkMatch = item.match(/<link>([^<]+)<\/link>/);
+    const pubMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
+
+    if (!titleMatch || !linkMatch) continue;
+
+    const rawTitle = titleMatch[1].trim();
+    // Decode HTML entities
+    const title = rawTitle
+      .replace(/&#8216;|&#8217;/g, "'")
+      .replace(/&#8220;|&#8221;/g, '"')
+      .replace(/&#038;/g, '&')
+      .replace(/&#8211;|&#8212;/g, '–')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+
+    const url = linkMatch[1].trim();
+    if (seenUrls.has(url)) continue;
+
+    // Only include items from the last 6h
+    if (pubMatch) {
+      const pubTime = new Date(pubMatch[1]).getTime();
+      if (!Number.isFinite(pubTime) || pubTime < sixHoursAgo) continue;
+    }
+
+    seenUrls.add(url);
+    results.push({
+      title,
+      url,
+      timeAgo: pubMatch ? pubMatch[1] : '',
+      source: source.name,
+      series: undefined,
+    });
+  }
+
+  console.log(`   ${results.length} relevant (≤6h, TV content)`);
+  return results;
+}
+
+/**
  * Fetch news articles from a single source (for preview/listing)
  */
 export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArticle[]> {
@@ -366,13 +438,15 @@ export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArt
   if (!source) {
     throw new Error(`Unknown source: ${sourceKey}`);
   }
-  
+
   if (source.type === 'valnet') {
     return scrapeValnetNews(sourceKey);
   } else if (source.type === 'wordpress') {
     return scrapeWordPressNews(sourceKey);
+  } else if (source.type === 'rss') {
+    return scrapeRssNews(sourceKey);
   }
-  
+
   throw new Error(`Unknown source type: ${source.type}`);
 }
 
@@ -395,7 +469,7 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider', 'cinemaholic'],
+    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
@@ -429,6 +503,8 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         // Use appropriate scraper based on source type
         if (source.type === 'wordpress') {
           articles = await scrapeWordPressNews(sourceKey as SourceKey);
+        } else if (source.type === 'rss') {
+          articles = await scrapeRssNews(sourceKey as SourceKey);
         } else {
           articles = await scrapeValnetNews(sourceKey as SourceKey);
         }
@@ -554,11 +630,13 @@ if (require.main === module) {
   const screenrantOnly = args.includes('--screenrant');
   const colliderOnly = args.includes('--collider');
   const cinemaholicOnly = args.includes('--cinemaholic');
+  const deadlineOnly = args.includes('--deadline');
   
-  let sources: SourceKey[] = ['screenrant', 'collider', 'cinemaholic'];
+  let sources: SourceKey[] = ['screenrant', 'collider', 'cinemaholic', 'deadline'];
   if (screenrantOnly) sources = ['screenrant'];
   if (colliderOnly) sources = ['collider'];
   if (cinemaholicOnly) sources = ['cinemaholic'];
+  if (deadlineOnly) sources = ['deadline'];
   
   processAllNews({ sources, limit, dryRun, onlyNew: true })
     .then(() => process.exit(0))
