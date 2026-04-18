@@ -163,7 +163,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                Serien News
+                Aktuelle Serien News
               </h2>
               <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
             </div>
