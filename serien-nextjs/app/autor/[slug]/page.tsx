@@ -8,6 +8,7 @@ import { generateAuthorSlug, matchAuthorBySlug } from '@/lib/author-utils';
 import { generateAuthorSchema } from '@/lib/schema-generator';
 import Breadcrumb from '@/components/Breadcrumb';
 import { generateBreadcrumbSchema } from '@/lib/schema-generator';
+import { seoTitle, seoDescription } from '@/lib/seo-meta';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,9 +52,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   const articleCount = author._count.articles;
 
+  const rawTitle = `${author.name} – Autor`;
+  const rawDescription = `Alle Artikel von ${author.name} auf serien.de – ${articleCount} ${articleCount === 1 ? 'Artikel' : 'Artikel'} rund um Serien, Streaming und Reviews.`;
+  const finalTitle = seoTitle(rawTitle);
+  const finalDescription = seoDescription(rawDescription);
+
   return {
-    title: `${author.name} - Autor | serien.de`,
-    description: `Alle Artikel von ${author.name} auf serien.de. ${articleCount} ${articleCount === 1 ? 'Artikel' : 'Artikel'} verfügbar.`,
+    title: finalTitle,
+    description: finalDescription,
     metadataBase: new URL(baseUrl),
     robots: {
       index: true,
@@ -63,8 +69,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       canonical: `${baseUrl}/autor/${slug}`,
     },
     openGraph: {
-      title: `${author.name} - Autor | serien.de`,
-      description: `Alle Artikel von ${author.name}`,
+      title: finalTitle,
+      description: finalDescription,
       type: 'profile',
       url: `${baseUrl}/autor/${slug}`,
     },

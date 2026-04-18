@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import { generateSeriesSchema, generateBreadcrumbSchema } from '@/lib/schema-generator';
+import { seoTitle, seoDescription } from '@/lib/seo-meta';
 import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial-hook';
 import { getSeriesQA } from '@/lib/series-qa-action';
 import MobileSeriesLayout from '@/components/series/MobileSeriesLayout';
@@ -59,9 +60,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // noindex for broken slugs (non-Latin titles that generated invalid slugs like "-2661")
   const shouldIndex = canonicalSlug && !canonicalSlug.startsWith('-');
 
+  const rawTitle = `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`;
+  const rawDescription = `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`;
+  const finalTitle = seoTitle(rawTitle);
+  const finalDescription = seoDescription(rawDescription);
+  const ogTitle = seoTitle(seriesName);
+  const ogDescription = seoDescription(series.overview || `Alle Neuigkeiten zu ${seriesName}`);
+
   return {
-    title: `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`,
-    description: `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`,
+    title: finalTitle,
+    description: finalDescription,
     metadataBase: new URL(baseUrl),
     robots: {
       index: shouldIndex,
@@ -74,8 +82,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       canonical: `${baseUrl}/serie/${canonicalSlug}`,
     },
     openGraph: {
-      title: `${seriesName} | serien.de`,
-      description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
+      title: ogTitle,
+      description: ogDescription,
       type: 'website',
       url: `${baseUrl}/serie/${canonicalSlug}`,
       images: [
@@ -89,8 +97,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${seriesName} | serien.de`,
-      description: series.overview || `Alle Neuigkeiten zu ${seriesName}`,
+      title: ogTitle,
+      description: ogDescription,
       images: [ogImage],
     },
   };

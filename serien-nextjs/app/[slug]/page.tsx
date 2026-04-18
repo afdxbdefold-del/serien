@@ -14,6 +14,7 @@ import WhereToStreamBox from '@/components/WhereToStreamBox';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions, generateBreadcrumbSchema } from '@/lib/schema-generator';
+import { seoTitle, seoDescription } from '@/lib/seo-meta';
 import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
@@ -246,9 +247,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? `${baseUrl}${ogImagePath.startsWith('/') ? '' : '/'}${ogImagePath}`
       : null;
 
+  const finalTitle = seoTitle(article.title);
+  const finalDescription = seoDescription(article.excerpt || '');
+
   return {
-    title: `${article.title} | serien.de`,
-    description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
+    title: finalTitle,
+    description: finalDescription,
     metadataBase: new URL(baseUrl),
     robots: {
       index: true,
@@ -262,7 +266,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     openGraph: {
       title: article.title,
-      description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
+      description: finalDescription,
       type: 'article',
       url: `${baseUrl}/${slug}`,
       siteName: 'serien.de',
@@ -284,7 +288,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     twitter: {
       card: 'summary_large_image',
       title: article.title,
-      description: article.excerpt || 'Aktuelle Serien-News auf serien.de',
+      description: finalDescription,
       images: ogImage ? [ogImage] : undefined,
       site: '@serien_de',
     },
