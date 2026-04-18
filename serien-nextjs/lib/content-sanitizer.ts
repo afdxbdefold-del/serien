@@ -172,6 +172,10 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
   // STEP 1.5: Remove "Weitere News zu..." and "Alle Entwicklungen zur Serie..." link boxes
   sanitized = sanitized.replace(/<p[^>]*class="internal-link-box"[^>]*>.*?<\/p>/gi, '');
 
+  // STEP 1.6: Remove embedded "Weitere Artikel zur Serie" list block
+  // (rendered separately as cards by the page)
+  sanitized = sanitized.replace(/<div[^>]*class="[^"]*related-articles[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+
   const matches = Array.from(sanitized.matchAll(headingRegex));
   
   for (const match of matches) {

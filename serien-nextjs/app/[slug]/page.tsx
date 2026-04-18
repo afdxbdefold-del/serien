@@ -136,6 +136,41 @@ const getRelatedNews = (articleId: string, category: string | null, primarySerie
   { revalidate: 300, tags: ['related-news'] }
 )();
 
+// Cached fetch for articles from the SAME series (for "Mehr zu <Serie>" cards)
+const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstable_cache(
+  async () => {
+    return prisma.articles.findMany({
+      where: {
+        OR: [
+          { status: 'published' },
+          { status: 'PUBLISHED' }
+        ],
+        id: { not: articleId },
+        primarySeriesId,
+      },
+      take: 3,
+      orderBy: { publishedAt: 'desc' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        heroLocalUrl: true,
+        cardImageUrl: true,
+        tmdbId: true,
+        tmdbType: true,
+        publishedAt: true,
+        category: true,
+        series: {
+          select: { networks: true },
+        },
+      },
+    });
+  },
+  [`series-articles-${articleId}-${primarySeriesId}`],
+  { revalidate: 300, tags: ['series-articles'] }
+)();
+
 // ISR - Revalidate every 5 minutes for near-real-time data with caching
 export const revalidate = 300;
 
@@ -284,6 +319,11 @@ export default async function ArticlePage({ params }: PageProps) {
     article.category, 
     article.primarySeriesId
   );
+
+  // Fetch same-series articles for "Mehr zu <Serie>" card section
+  const seriesArticles = article.primarySeriesId
+    ? await getSeriesArticles(article.id, article.primarySeriesId)
+    : [];
 
   // Fetch TMDB season data if missing from DB (cached 24h)
   let seriesSeasonData: { numberOfSeasons: number; lastAirDate: string | null; networks: string[] } | null = null;
@@ -522,6 +562,32 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Ad Unit - Below Q&A */}
           <ClientAdSlot position="below_author" className="my-8" />
+
+          {/* Mehr zu <Serie> - Cards from same series */}
+          {seriesArticles.length > 0 && article.series && (
+            <section aria-labelledby="series-more" className="mt-10 mb-10">
+              <h3 id="series-more" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                Mehr zu „{article.series.title || article.series.name}"
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {seriesArticles.map((news) => (
+                  <NewsCard
+                    key={news.id}
+                    slug={news.slug}
+                    title={news.title}
+                    excerpt={news.excerpt}
+                    heroLocalUrl={news.heroLocalUrl}
+                    cardImageUrl={news.cardImageUrl}
+                    tmdbId={news.tmdbId}
+                    tmdbType={news.tmdbType}
+                    publishedAt={news.publishedAt}
+                    category={news.category}
+                    networks={news.series?.networks as string[] || []}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Article Meta - Source & Last Updated */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
