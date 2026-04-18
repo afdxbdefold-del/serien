@@ -942,6 +942,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           ],
         },
         explorationMode: true, // Exploration ON by default
+        preserveOriginalStyle: (source.url || '').includes('thecinemaholic.com'),
       });
       
       if (headlineResult.winner && headlineResult.winner.score > 0) {

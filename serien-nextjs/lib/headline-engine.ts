@@ -92,10 +92,12 @@ export async function generateHeadlines(input: {
     keywords?: string[];
   };
   explorationMode?: boolean;
+  preserveOriginalStyle?: boolean;
 }): Promise<HeadlineEngineResult> {
   const start = Date.now();
   const { originalHeadline, articleContent, seriesName, entities } = input;
   const explorationMode = input.explorationMode !== false;
+  const preserveOriginalStyle = input.preserveOriginalStyle === true;
 
   const contentSummary = articleContent.substring(0, 1500);
   const entitiesText = [
@@ -105,7 +107,7 @@ export async function generateHeadlines(input: {
   ].filter(Boolean).join('\n');
 
   const patternsPrompt = getPatternsForPrompt(seriesName);
-  const prompt = buildHeadlinePrompt(originalHeadline, contentSummary, seriesName, entitiesText, patternsPrompt);
+  const prompt = buildHeadlinePrompt(originalHeadline, contentSummary, seriesName, entitiesText, patternsPrompt, preserveOriginalStyle);
 
   const rawVariants = await callHeadlineLLM(prompt);
 
@@ -189,7 +191,18 @@ export async function generateHeadlines(input: {
   };
 }
 
-function buildHeadlinePrompt(originalHeadline: string, content: string, seriesName: string, entities: string, patterns: string): string {
+function buildHeadlinePrompt(originalHeadline: string, content: string, seriesName: string, entities: string, patterns: string, preserveOriginalStyle = false): string {
+  const preserveNote = preserveOriginalStyle ? `
+
+===== QUELL-STIL BEWAHREN =====
+Die Quell-Headline ist bewusst nicht-reißerisch und faktisch. Bewahre diesen Stil:
+- Kernaussage der Quell-Headline beibehalten (nicht verdrehen oder neu framen)
+- Keine Hinzufügung von "plötzlich", "überraschend", "niemand hat gerechnet", wenn die Quelle sie nicht enthält
+- Bleibe semantisch nah am englischen Original — übersetze und adaptiere, erfinde nicht neu
+- Kontrast-Muster und bold/wildcard Varianten nur dann, wenn die Artikel-Fakten das wirklich hergeben
+- Die deutsche Headline sollte für jemanden, der das englische Original kennt, als die gleiche Nachricht erkennbar sein
+` : '';
+
   return `Du bist ein deutscher Headline-Spezialist. Dein EINZIGES Ziel: maximale Click-Through-Rate auf Google Discover.
 
 Jede Headline muss den Nutzer zum Stoppen und Klicken bringen. Nicht informieren — FESSELN.
@@ -199,7 +212,7 @@ SERIE: ${seriesName}
 ${entities ? `ENTITÄTEN:\n${entities}` : ''}
 
 ARTIKEL-INHALT:
-${content}
+${content}${preserveNote}
 
 ===== PATTERN LIBRARY =====
 Nutze diese bewährten Muster als Inspiration. Du darfst auch EIGENE kreative Strukturen verwenden, solange sie klickstark sind:
