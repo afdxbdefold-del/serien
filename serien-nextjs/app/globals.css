@@ -439,3 +439,12 @@ section.context p {
 .dark section.context p {
   color: hsl(215, 20%, 65%);
 }
+
+/* Hide scrollbar but keep scroll functional (for breadcrumb overflow) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
