@@ -532,7 +532,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 )}
               </div>
               <figcaption className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
-                Bild: {article.imageAttribution || 'serien.de'}
+                Bild: {[article.series?.networks?.[0], article.imageAttribution || 'TMDB'].filter(Boolean).join(' · ')}
               </figcaption>
             </figure>
           )}
