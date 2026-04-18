@@ -116,6 +116,7 @@ export default async function AuthorPage({ params }: PageProps) {
       email: true,
       image: true,
       bio: true,
+      fullBio: true,
       expertise: true,
       createdAt: true,
     },
@@ -212,12 +213,19 @@ export default async function AuthorPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Bio */}
-          {authorFull?.bio && (
+          {/* Bio — full version preferred, fallback to short bio */}
+          {((authorFull as any)?.fullBio || authorFull?.bio) && (
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-gray-700 leading-relaxed">
-                {authorFull.bio}
-              </p>
+              {(authorFull as any)?.fullBio ? (
+                <div
+                  className="text-gray-700 leading-relaxed space-y-4 [&_p]:leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: (authorFull as any).fullBio }}
+                />
+              ) : (
+                <p className="text-gray-700 leading-relaxed">
+                  {authorFull?.bio}
+                </p>
+              )}
             </div>
           )}
 

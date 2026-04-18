@@ -513,6 +513,7 @@ model users {
   favoriteStreamers   String[]        @default([])
   onboardingCompleted Boolean         @default(false)
   bio                 String?
+  fullBio             String?
   expertise           String[]        @default([])
   articles            articles[]
   comments            comments[]
