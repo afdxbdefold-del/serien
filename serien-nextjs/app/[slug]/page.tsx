@@ -423,12 +423,12 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Title */}
-          <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 leading-tight">
+          <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 leading-tight text-center">
             {article.title}
           </h1>
 
           {/* Datum */}
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
             {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
           </div>
 
