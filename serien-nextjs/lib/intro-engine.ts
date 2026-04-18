@@ -122,17 +122,34 @@ ${typesBlock}
 
 HARTE REGELN FÜR JEDES INTRO:
 - EXAKT 3 Sätze. Nicht mehr, nicht weniger.
-- Satz 1 MUSS sofort einen Hook setzen (Konsequenz, Bruch, Überraschung) — KEIN neutraler Einstieg.
-- Satz 2 = konkrete Fakten (Wer, Was, Wann, Wo — Cast, Plattform, Termin).
-- Satz 3 = Relevanz für Story oder Zuschauer.
-- ALLES auf Deutsch.
+
+SATZ 1 (HOOK):
+- MAXIMAL 12 Wörter. Kurz, hart, direkt.
+- MUSS einen Hook enthalten: Kontrast, Überraschung, Ranking oder Zahl.
+- Beispiele:
+  GUT: "Platz 3 weltweit — und das nach nur einer Woche."
+  GUT: "Abgesetzt trotz Rekordquoten."
+  GUT: "97% bei Rotten Tomatoes sprechen für sich."
+  SCHLECHT: "Jahrelang galt die Verfilmung als gescheitert, doch nun..."
+  SCHLECHT: "Die neue Serie hat sich überraschenderweise als sehr erfolgreich erwiesen."
+
+SATZ 2 (FAKTEN):
+- Konkrete Info: Platz, Startdatum, Plattform, Cast, Staffelzahl.
+- Keine Wiederholung von Satz 1.
+
+SATZ 3 (RELEVANZ):
+- Warum das relevant ist: Erfolg, Kritik, Trend, Fan-Reaktion.
 
 STRIKT VERBOTEN:
+- Einleitungen wie "Jahrelang galt", "Seit langem", "Schon immer"
+- Verschachtelte Sätze (max 1 Komma pro Satz)
+- Füllwörter: "tatsächlich", "offenbar", "gewissermaßen", "eigentlich"
 - NICHT mit Quelle starten: "Paramount hat...", "Netflix gab bekannt...", "Laut Berichten..."
-- NICHT mit Zeitangabe starten: "In Staffel 2...", "Am 15. Mai...", "Seit 2020..."
+- NICHT mit Zeitangabe starten: "In Staffel 2...", "Am 15. Mai..."
 - NICHT neutral starten: "Es gibt Neuigkeiten...", "Es wurde bekannt..."
-- NICHT die Headline wiederholen oder umformulieren.
-- KEIN Intro das auf JEDEN beliebigen Artikel passen würde.
+- NICHT die Headline wiederholen oder umformulieren
+- KEIN Intro das auf JEDEN beliebigen Artikel passen würde
+- ALLES auf Deutsch
 
 Das Intro MUSS die Headline-Logik FORTSETZEN:
 - Headline = Konflikt → Intro = Konsequenz des Konflikts

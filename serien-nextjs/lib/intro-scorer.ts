@@ -91,6 +91,16 @@ export function scoreIntro(intro: string, headlineType?: string): IntroScoreResu
     score += 15;
   }
 
+  // +10: First sentence is short + punchy (max 12 words)
+  const firstSentenceWords = (sentences[0] || '').trim().split(/\s+/).length;
+  if (firstSentenceWords <= 12 && firstSentenceWords >= 3) {
+    boosts.push({ reason: 'Satz 1: Kurz + punchy (≤12 Wörter)', value: 10 });
+    score += 10;
+  } else if (firstSentenceWords > 18) {
+    penalties.push({ reason: `Satz 1 zu lang: ${firstSentenceWords} Wörter`, value: -10 });
+    score -= 10;
+  }
+
   // +10: Emotion/tension words present
   if (TENSION_WORDS.some(w => lower.includes(w))) {
     boosts.push({ reason: 'Spannungswörter vorhanden', value: 10 });
@@ -142,6 +152,12 @@ export function scoreIntro(intro: string, headlineType?: string): IntroScoreResu
   // -15: Starts with timeline
   if (TIMELINE_START_PATTERNS.some(p => p.test(intro))) {
     penalties.push({ reason: 'Startet mit Zeitangabe', value: -15 });
+    score -= 15;
+  }
+
+  // -15: Starts with slow buildup ("Jahrelang galt", "Seit langem", "Schon immer")
+  if (/^(jahrelang|seit langem|seit langer zeit|schon immer|seit jeher|lange zeit)/i.test(intro.trim())) {
+    penalties.push({ reason: 'Langsamer Einstieg', value: -15 });
     score -= 15;
   }
 
