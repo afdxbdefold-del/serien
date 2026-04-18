@@ -427,12 +427,7 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Datum */}
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-3 text-center">
-            {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-          </div>
-
-          {/* Author with E-E-A-T */}
+          {/* Author with E-E-A-T + Datum */}
           <div className="flex items-center gap-3 mb-6">
             {article.users && (
               <>
@@ -451,18 +446,16 @@ export default async function ArticlePage({ params }: PageProps) {
                   </Link>
                 )}
                 <div className="text-sm">
-                  <Link 
+                  <Link
                     href={getAuthorUrl(article.users.name || '')}
                     rel="author"
                     className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
                   >
                     {article.users.name || 'Redaktion'}
                   </Link>
-                  {(article.users as any).bio && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                      {(article.users as any).bio}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                  </p>
                 </div>
               </>
             )}
