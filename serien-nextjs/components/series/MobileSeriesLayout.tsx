@@ -42,7 +42,6 @@ export default function MobileSeriesLayout({
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
       <Breadcrumb items={[{ label: 'Serien', href: '/trending' }, { label: series.name || series.title }]} className="mb-4" />
-      <h1 id="series-hero" className="sr-only">{series.name}</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden mb-6">
         <MobileHeroWithVideo
           backdropPath={series.backdropPath}
@@ -53,7 +52,7 @@ export default function MobileSeriesLayout({
         />
         
         <div className="pt-6 px-6 pb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+          <h1 id="series-hero" className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
             {series.name}
           </h1>
 

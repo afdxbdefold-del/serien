@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { generateAuthorSlug, matchAuthorBySlug } from '@/lib/author-utils';
 import { generateAuthorSchema } from '@/lib/schema-generator';
 import Breadcrumb from '@/components/Breadcrumb';
+import { generateBreadcrumbSchema } from '@/lib/schema-generator';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,9 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   );
 
   if (!author || !author.name) {
-    return {
-      title: 'Autor nicht gefunden | serien.de',
-    };
+    notFound();
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
@@ -159,6 +158,16 @@ export default async function AuthorPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(authorSchema) }}
+      />
+      {/* BreadcrumbList Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(generateBreadcrumbSchema([
+            { name: 'Autoren', url: '/autoren' },
+            { name: authorFull?.name || '', url: `/autor/${slug}` },
+          ])),
+        }}
       />
       
       <div className="container mx-auto px-6 md:px-12 py-8 max-w-6xl">

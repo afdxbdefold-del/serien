@@ -45,8 +45,6 @@ export default function DesktopSeriesLayout({
   
   return (
     <section className="hidden lg:block" aria-labelledby="series-desktop">
-      <h1 id="series-desktop" className="sr-only">{series.name}</h1>
-      
       {/* HERO SECTION mit Video/Backdrop - FULL WIDTH oben */}
       <div className="relative w-full aspect-[21/9] max-h-[500px] bg-gray-900 overflow-hidden">
         {localTrailerUrl ? (
@@ -89,7 +87,7 @@ export default function DesktopSeriesLayout({
                 />
               )}
               <div className="flex-1">
-                <h2 className="text-4xl font-bold text-white mb-3">{series.name}</h2>
+                <h2 id="series-desktop" className="text-4xl font-bold text-white mb-3">{series.name}</h2>
                 <div className="flex items-center gap-3 flex-wrap">
                   {series.voteAverage && (
                     <RatingWithContext 

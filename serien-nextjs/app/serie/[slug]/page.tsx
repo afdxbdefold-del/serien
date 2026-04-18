@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
-import { generateSeriesSchema } from '@/lib/schema-generator';
+import { generateSeriesSchema, generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial-hook';
 import { getSeriesQA } from '@/lib/series-qa-action';
 import MobileSeriesLayout from '@/components/series/MobileSeriesLayout';
@@ -300,6 +300,16 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(seriesSchema),
+        }}
+      />
+      {/* BreadcrumbList Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(generateBreadcrumbSchema([
+            { name: 'Serien', url: '/trending' },
+            { name: series.name || series.title || '', url: `/serie/${series.slug}` },
+          ])),
         }}
       />
       

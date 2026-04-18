@@ -229,10 +229,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const article = await getArticleMetadata(slug);
 
   if (!article) {
-    return {
-      title: 'Artikel nicht gefunden | serien.de',
-      robots: { index: false, follow: false },
-    };
+    notFound();
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
