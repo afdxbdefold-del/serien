@@ -540,6 +540,24 @@ export default async function ArticlePage({ params }: PageProps) {
             <ShareButton title={article.title} />
           </div>
 
+          {/* Trust / E-E-A-T Author Box */}
+          {article.users && (
+            <div className="mt-10">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                Artikel geschrieben von:
+              </h3>
+              <AuthorBox
+                author={{
+                  id: article.users.id,
+                  name: article.users.name,
+                  image: article.users.image,
+                  bio: (article.users as any).bio ?? null,
+                  expertise: ((article.users as any).expertise as string[]) ?? [],
+                }}
+              />
+            </div>
+          )}
+
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />
         </div>

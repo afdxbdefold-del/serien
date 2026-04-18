@@ -58,7 +58,7 @@ export default function AuthorBox({ author }: AuthorBoxProps) {
               className="rounded-full object-cover"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
               {author.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -74,7 +74,7 @@ export default function AuthorBox({ author }: AuthorBoxProps) {
           
           <Link 
             href={`/autor/${authorSlug}`}
-            className="text-lg font-semibold text-gray-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            className="text-lg font-semibold text-gray-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
           >
             {author.name}
           </Link>
@@ -85,7 +85,7 @@ export default function AuthorBox({ author }: AuthorBoxProps) {
               {author.expertise.slice(0, 3).map((tag, idx) => (
                 <span 
                   key={idx}
-                  className="text-xs px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full"
+                  className="text-xs px-2 py-0.5 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full"
                 >
                   {tag}
                 </span>
@@ -103,7 +103,7 @@ export default function AuthorBox({ author }: AuthorBoxProps) {
           {/* Link to Full Profile */}
           <Link 
             href={`/autor/${authorSlug}`}
-            className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium mt-3 transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium mt-3 transition-colors"
           >
             Alle Artikel von {author.name.split(' ')[0]}
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
