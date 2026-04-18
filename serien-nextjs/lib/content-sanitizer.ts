@@ -175,23 +175,6 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
         sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
       }
     }
-  } else {
-    // No excerpt provided — still check if first paragraph looks like a lead
-    // (3 sentences or fewer, no links, before first H2)
-    const firstH2 = sanitized.indexOf('<h2');
-    if (firstH2 > 0) {
-      const beforeH2 = sanitized.substring(0, firstH2);
-      const firstPMatch = beforeH2.match(/<p[^>]*>(.*?)<\/p>/s);
-      if (firstPMatch) {
-        const text = firstPMatch[1].replace(/<[^>]*>/g, '').trim();
-        const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-        // If it's a short intro paragraph (1-3 sentences) without links, remove it
-        // since it's likely the generated lead duplicated in content
-        if (sentences.length <= 3 && !firstPMatch[1].includes('<a ')) {
-          sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
-        }
-      }
-    }
   }
   
   // STEP 2: Remove artificial headings
