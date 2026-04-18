@@ -145,65 +145,26 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </section>
       )}
 
-      {/* Authenticated: Show H1 at top */}
-      {isAuthenticated && (
-        <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
-          <div className="container mx-auto px-6 md:px-12">
-            <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-              Serien-News
-            </h1>
-          </div>
-        </section>
-      )}
+      {/* H1 for all users */}
+      <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
+        <div className="container mx-auto px-6 md:px-12">
+          <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+            Serien News, Trailer & Streaming-Starts
+          </h1>
+        </div>
+      </section>
 
       {/* News Feed Section */}
       <div className="container mx-auto px-6 md:px-12 pt-1 pb-8">
         <div className="max-w-7xl mx-auto">
-          {/* Section Header with Tabs */}
+          {/* Section Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                Aktuelle Serien News
+                Serien News, Trailer & Streaming-Starts
               </h2>
               <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
             </div>
-          </div>
-
-          {/* Tabs - Stylische Pill-Buttons */}
-          <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Kategorien">
-            <button
-              onClick={() => setActiveTab('all')}
-              role="tab"
-              aria-selected={activeTab === 'all'}
-              aria-controls="tab-panel-all"
-              className={`relative px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                activeTab === 'all'
-                  ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg dark:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              data-testid="tab-all-news"
-            >
-              Alle News
-            </button>
-            <button
-              onClick={() => setActiveTab('feed')}
-              role="tab"
-              aria-selected={activeTab === 'feed'}
-              aria-controls="tab-panel-feed"
-              className={`relative px-6 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
-                activeTab === 'feed'
-                  ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg dark:shadow-[0_0_20px_rgba(6,182,212,0.5)]'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-              data-testid="tab-my-feed"
-            >
-              Mein Feed
-              {followedSeriesIds.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 text-xs bg-white/20 dark:bg-white/10 rounded-full">
-                  {followedSeriesIds.length}
-                </span>
-              )}
-            </button>
           </div>
 
           {/* Tip Box - Glassmorphism in Dark Mode */}
@@ -213,11 +174,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </p>
           </div>
 
-          {/* Content based on active tab */}
-          {activeTab === 'all' ? (
-            <div id="tab-panel-all" role="tabpanel" aria-labelledby="tab-all-news">
-              {/* News Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Content: All News (no tabs) */}
+          <div id="news-feed">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGridNews.slice(0, 6).map((item: any, index: number) => (
                   <NewsCard 
                     key={item.id}
@@ -295,56 +254,8 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 </div>
               )}
             </div>
-          ) : (
-            /* Mein Feed Tab Content */
-            <div id="tab-panel-feed" role="tabpanel" aria-labelledby="tab-my-feed">
-              {followedSeriesIds.length > 0 && feedNews.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {feedNews.map((item: any) => (
-                    <NewsCard 
-                      key={item.id}
-                      slug={item.slug}
-                      title={item.title}
-                      excerpt={item.excerpt}
-                      heroLocalUrl={item.heroLocalUrl}
-                      heroImageUrl={item.heroImageUrl}
-                      cardImageUrl={item.cardImageUrl}
-                      tmdbId={item.tmdbId}
-                      tmdbType={item.tmdbType}
-                      publishedAt={item.publishedAt}
-                      category={item.category}
-                      authorName={item.author?.name}
-                      networks={item.primarySeries?.networks || []}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <div className="space-y-4">
-                    <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-[hsl(230,25%,12%)] rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {followedSeriesIds.length === 0 ? 'Noch keine Serien gefolgt' : 'Keine News zu deinen Serien'}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                      Gehe zu einer Serien-Seite und klicke auf "Folgen", um News zu dieser Serie hier zu sehen.
-                    </p>
-                    <a 
-                      href="/serienfinder"
-                      className="inline-block mt-4 px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-lg transition-colors"
-                    >
-                      Serien entdecken
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
 
       {/* Floating Newsfilter Button - Glassmorphism */}
       <button
