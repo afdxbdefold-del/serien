@@ -10,17 +10,17 @@ import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
 const ALL_STREAMERS = [
-  { id: 'Netflix', label: 'Netflix', color: 'bg-red-600' },
-  { id: 'HBO Max', label: 'HBO Max', color: 'bg-purple-700' },
-  { id: 'Amazon Prime', label: 'Prime Video', color: 'bg-brand' },
-  { id: 'Disney+', label: 'Disney+', color: 'bg-blue-900' },
-  { id: 'Apple TV+', label: 'Apple TV+', color: 'bg-gray-900' },
-  { id: 'Paramount+', label: 'Paramount+', color: 'bg-brand' },
-  { id: 'Sky', label: 'Sky', color: 'bg-slate-800' },
-  { id: 'WOW', label: 'WOW', color: 'bg-purple-600' },
-  { id: 'RTL+', label: 'RTL+', color: 'bg-red-500' },
-  { id: 'Joyn', label: 'Joyn', color: 'bg-pink-500' },
-  { id: 'MagentaTV', label: 'MagentaTV', color: 'bg-pink-600' },
+  { id: 'Netflix', label: 'Netflix', color: 'bg-red-600', aliases: ['Netflix'] },
+  { id: 'Prime Video', label: 'Prime Video', color: 'bg-brand', aliases: ['Prime Video', 'Amazon Prime', 'Amazon Prime Video'] },
+  { id: 'Disney+', label: 'Disney+', color: 'bg-blue-900', aliases: ['Disney+', 'Disney Plus'] },
+  { id: 'Apple TV+', label: 'Apple TV+', color: 'bg-gray-900', aliases: ['Apple TV+', 'Apple TV'] },
+  { id: 'HBO Max', label: 'HBO Max', color: 'bg-purple-700', aliases: ['HBO Max', 'HBO', 'Max'] },
+  { id: 'Paramount+', label: 'Paramount+', color: 'bg-brand', aliases: ['Paramount+', 'Paramount+ with Showtime', 'Showtime'] },
+  { id: 'Sky', label: 'Sky', color: 'bg-slate-800', aliases: ['Sky', 'Sky Atlantic', 'Sky One'] },
+  { id: 'WOW', label: 'WOW', color: 'bg-purple-600', aliases: ['WOW'] },
+  { id: 'RTL+', label: 'RTL+', color: 'bg-red-500', aliases: ['RTL+', 'RTL'] },
+  { id: 'Joyn', label: 'Joyn', color: 'bg-pink-500', aliases: ['Joyn'] },
+  { id: 'MagentaTV', label: 'MagentaTV', color: 'bg-pink-600', aliases: ['MagentaTV'] },
 ];
 
 interface HomeClientProps {
@@ -73,19 +73,23 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
     });
   }, [news, followedSeriesIds]);
 
-  // Filter by selected streamers
+  // Filter by selected streamers (with alias matching)
   const filterByStreamers = (items: any[], isNews = false) => {
     if (selectedStreamers.length === 0) return items;
+    // Build expanded alias set based on selection
+    const expanded = new Set<string>();
+    for (const id of selectedStreamers) {
+      const s = ALL_STREAMERS.find(x => x.id === id);
+      (s?.aliases || [id]).forEach(a => expanded.add(a.toLowerCase()));
+    }
     return items.filter(item => {
-      // For news articles, check primarySeries.networks
-      if (isNews && item.primarySeries?.networks) {
-        return item.primarySeries.networks.some((network: string) => 
-          selectedStreamers.includes(network)
-        );
+      if (isNews) {
+        const networks = item.series?.networks || item.primarySeries?.networks || [];
+        if (networks.length === 0) return false;
+        return networks.some((n: string) => expanded.has(n.toLowerCase()));
       }
-      // For series, check networks or providers
       const itemNetworks = item.networks || item.providers || [];
-      return itemNetworks.some((network: string) => selectedStreamers.includes(network));
+      return itemNetworks.some((n: string) => expanded.has(n.toLowerCase()));
     });
   };
 
