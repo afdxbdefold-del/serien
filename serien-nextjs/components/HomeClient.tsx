@@ -146,18 +146,8 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       </section>
 
       {/* News Feed Section */}
-      <div className="container mx-auto px-6 md:px-12 pt-1 pb-8">
+      <div className="container mx-auto px-6 md:px-12 pt-6 pb-8">
         <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                Serien News, Trailer & Streaming-Starts
-              </h2>
-              <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full hidden sm:block dark:shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-            </div>
-          </div>
-
           {/* Tabs */}
           <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Optionen">
             <button
