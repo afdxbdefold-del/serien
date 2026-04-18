@@ -526,7 +526,7 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Cyan Accent Line — directly under image source */}
-          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
+          <div className="h-0.5 w-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded mb-6" />
 
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
