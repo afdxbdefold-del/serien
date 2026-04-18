@@ -37,6 +37,24 @@ export const NEWS_SOURCES = {
     domain: 'deadline.com',
     type: 'rss',
   },
+  variety: {
+    name: 'Variety TV',
+    url: 'https://variety.com/v/tv/feed/',
+    domain: 'variety.com',
+    type: 'rss',
+  },
+  hollywoodreporter: {
+    name: 'Hollywood Reporter TV',
+    url: 'https://www.hollywoodreporter.com/c/tv/feed/',
+    domain: 'hollywoodreporter.com',
+    type: 'rss',
+  },
+  tvinsider: {
+    name: 'TVInsider',
+    url: 'https://www.tvinsider.com/feed/',
+    domain: 'tvinsider.com',
+    type: 'rss',
+  },
 } as const;
 
 type SourceKey = keyof typeof NEWS_SOURCES;
@@ -469,7 +487,7 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline'],
+    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
@@ -632,7 +650,7 @@ if (require.main === module) {
   const cinemaholicOnly = args.includes('--cinemaholic');
   const deadlineOnly = args.includes('--deadline');
   
-  let sources: SourceKey[] = ['screenrant', 'collider', 'cinemaholic', 'deadline'];
+  let sources: SourceKey[] = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'];
   if (screenrantOnly) sources = ['screenrant'];
   if (colliderOnly) sources = ['collider'];
   if (cinemaholicOnly) sources = ['cinemaholic'];

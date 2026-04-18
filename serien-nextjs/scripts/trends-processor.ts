@@ -19,6 +19,9 @@ const NEWS_SOURCES = [
   { domain: 'tvline.com', name: 'TVLine' },
   { domain: 'collider.com', name: 'Collider' },
   { domain: 'deadline.com', name: 'Deadline' },
+  { domain: 'variety.com', name: 'Variety' },
+  { domain: 'hollywoodreporter.com', name: 'Hollywood Reporter' },
+  { domain: 'tvinsider.com', name: 'TVInsider' },
 ];
 
 // Series keywords for filtering
