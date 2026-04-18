@@ -119,7 +119,7 @@ export async function generateHeadlines(input: {
     keywords: entities.keywords,
   };
 
-  const v5Result = pickWinnerV5(allTexts, context);
+  const v5Result = pickWinnerV5(allTexts, context, { preserveOriginalStyle });
 
   // Map to HeadlineVariant
   const scoredVariants: HeadlineVariant[] = rawVariants.map(v => {

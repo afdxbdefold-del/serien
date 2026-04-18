@@ -630,16 +630,21 @@ export function scoreHeadlineV5(
 
 export function pickWinnerV5(
   headlines: string[],
-  articleContext?: ArticleContext
+  articleContext?: ArticleContext,
+  options?: { preserveOriginalStyle?: boolean }
 ): { winner: HeadlineScoreV5Result; ranked: HeadlineScoreV5Result[]; filteredOut: number } {
+  const preserveMode = options?.preserveOriginalStyle === true;
+  // In preserve mode lower the minimum threshold so faithful translations aren't filtered out
+  const minScore = preserveMode ? 40 : 55;
+
   // Score all
   const scored = headlines.map(h => scoreHeadlineV5(h, articleContext, headlines));
 
   // Sort descending
   scored.sort((a, b) => b.finalScore - a.finalScore);
 
-  // Filter: under 55 = out
-  const eligible = scored.filter(s => s.passedMinimum);
+  // Filter based on configured minimum
+  const eligible = scored.filter(s => s.finalScore >= minScore);
   const filteredOut = scored.length - eligible.length;
 
   // If nothing passes, take best anyway
