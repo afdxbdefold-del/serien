@@ -158,6 +158,30 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           </div>
 
+          {/* Tabs */}
+          <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Optionen">
+            <button
+              className="relative px-6 py-2.5 rounded-full font-semibold text-sm bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg dark:shadow-[0_0_20px_rgba(6,182,212,0.5)]"
+              data-testid="tab-all-news"
+            >
+              Alle News
+              {selectedStreamers.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-white/20 dark:bg-white/10 rounded-full">
+                  {selectedStreamers.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowFilterModal(true)}
+              className="relative px-6 py-2.5 rounded-full font-semibold text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 inline-flex items-center gap-2"
+              data-testid="tab-newsfilter"
+              aria-label="Newsfilter öffnen"
+            >
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Newsfilter
+            </button>
+          </div>
+
           {/* Tip Box - Glassmorphism in Dark Mode */}
           <div className="mb-6 bg-gray-50 dark:bg-[hsl(230,25%,9%)] border border-gray-200 dark:border-[hsl(230,25%,15%)] rounded-lg p-3" role="note">
             <p className="text-xs text-gray-600 dark:text-[hsl(215,20%,65%)]">
