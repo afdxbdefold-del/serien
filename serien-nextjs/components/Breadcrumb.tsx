@@ -24,7 +24,7 @@ export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
           <li key={i} className="flex items-center gap-1 min-w-0">
             <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />
             {item.href && i < items.length - 1 ? (
-              <Link href={item.href} className="hover:text-gray-900 dark:hover:text-white transition-colors truncate">
+              <Link href={item.href} className="hover:text-gray-900 dark:hover:text-white transition-colors flex-shrink-0">
                 {item.label}
               </Link>
             ) : (
