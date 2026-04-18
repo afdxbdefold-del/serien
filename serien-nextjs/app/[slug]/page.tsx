@@ -62,6 +62,7 @@ const getArticle = (slug: string) => unstable_cache(
         primarySeriesId: true,
         status: true,
         contentType: true,
+        imageAttribution: true,
         wasBedeutetDasText: true,
         darumRelevantText: true,
         bisherigerStandText: true,
@@ -496,39 +497,44 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* HERO - Video/Image */}
           {(article.heroImageUrl || article.heroLocalUrl || (article.tmdbId && article.tmdbType)) && (
-            <div className="relative w-full bg-black rounded-lg overflow-hidden mb-6">
-              {article.category === 'neue-videos' ? (
-                <div className="relative aspect-video">
-                  {article.heroVideoUrl && !article.heroVideoUrl.includes('youtube.com') ? (
-                    <video
-                      className="w-full h-full object-cover"
-                      controls
-                      playsInline
-                      preload="metadata"
-                      poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
-                    >
-                      <source src={article.heroVideoUrl} type="video/mp4" />
-                      Dein Browser unterstützt HTML5 Video nicht.
-                    </video>
-                  ) : (
-                    <Image
-                      src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                      alt={article.title}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                  )}
-                </div>
-              ) : (
-                <InlineVideoPlayer
-                  heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                  trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
-                  title={article.title}
-                  fullWidth={false}
-                />
-              )}
-            </div>
+            <figure className="mb-6">
+              <div className="relative w-full bg-black rounded-lg overflow-hidden">
+                {article.category === 'neue-videos' ? (
+                  <div className="relative aspect-video">
+                    {article.heroVideoUrl && !article.heroVideoUrl.includes('youtube.com') ? (
+                      <video
+                        className="w-full h-full object-cover"
+                        controls
+                        playsInline
+                        preload="metadata"
+                        poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
+                      >
+                        <source src={article.heroVideoUrl} type="video/mp4" />
+                        Dein Browser unterstützt HTML5 Video nicht.
+                      </video>
+                    ) : (
+                      <Image
+                        src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                        alt={article.title}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <InlineVideoPlayer
+                    heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                    trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
+                    title={article.title}
+                    fullWidth={false}
+                  />
+                )}
+              </div>
+              <figcaption className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
+                Bild: {article.imageAttribution || 'serien.de'}
+              </figcaption>
+            </figure>
           )}
 
           {/* Excerpt/Lead - Bold Intro */}
