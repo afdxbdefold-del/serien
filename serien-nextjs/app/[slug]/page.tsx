@@ -567,7 +567,7 @@ export default async function ArticlePage({ params }: PageProps) {
       {relatedNews.length > 0 && (
         <div className="container mx-auto px-4 md:px-6 max-w-3xl py-8">
           <section aria-labelledby="similar-news">
-            <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ähnliche News</h3>
+            <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Neue News</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedNews.map((news) => (
                 <NewsCard
