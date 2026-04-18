@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
@@ -132,6 +132,25 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       setLoadingMore(false);
     }
   };
+
+  // Auto-load more news when filter is active and filtered results are below threshold
+  const MIN_AFTER_FILTER = 10;
+  const MAX_AUTO_FETCHES = 5;
+  const autoFetchCountRef = useRef(0);
+
+  useEffect(() => {
+    autoFetchCountRef.current = 0;
+  }, [selectedStreamers]);
+
+  useEffect(() => {
+    if (selectedStreamers.length === 0) return;
+    if (!hasMoreNews || loadingMore) return;
+    if (filteredGridNews.length >= MIN_AFTER_FILTER) return;
+    if (autoFetchCountRef.current >= MAX_AUTO_FETCHES) return;
+    autoFetchCountRef.current += 1;
+    loadMoreNews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStreamers, filteredGridNews.length, hasMoreNews, loadingMore]);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
