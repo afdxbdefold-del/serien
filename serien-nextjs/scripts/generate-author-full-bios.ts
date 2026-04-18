@@ -24,26 +24,57 @@ async function generateBio(
   model: string,
   client: ReturnType<typeof createLLMClient>,
 ): Promise<string> {
-  const prompt = `Du schreibst eine ausführliche Autoren-Biografie für die Profilseite einer deutschen Serien-Redaktion (serien.de). Die Biografie wird als E-E-A-T-Signal für Google verwendet (Experience, Expertise, Authoritativeness, Trust).
+  const prompt = `Du schreibst eine Autoren-Biografie für serien.de — optimiert für Googles E-E-A-T-Signale (Experience, Expertise, Authoritativeness, Trust). Der Text wird auf /autor/${name.toLowerCase().replace(/\s+/g,'-')} angezeigt und ist ein direktes Ranking-Signal.
 
 AUTOR: ${name}
-KURZBIO: ${shortBio}
-EXPERTISE-TAGS: ${expertise.join(', ')}
-BEISPIEL-ARTIKELTHEMEN (vom Autor geschrieben):
+KURZBIO (E-E-A-T-Summary): ${shortBio}
+EXPERTISE: ${expertise.join(', ')}
+LETZTE 10 ARTIKELTHEMEN:
 ${sampleTitles.slice(0, 10).map(t => `  - ${t}`).join('\n')}
 
-SCHREIBE EINE LANGBIO mit folgenden Regeln:
-1. 3 Absätze, ca. 350–450 Wörter
-2. Absatz 1: Werdegang + warum diese Person serien.de prägt (konkret, keine Phrasen)
-3. Absatz 2: Inhaltliche Schwerpunkte (was analysiert sie? wie geht sie an Serien heran?) — orientiere dich an den Expertise-Tags und den Beispielartikeln
-4. Absatz 3: Persönlicher Zugang, Lieblingsserien, Schreibstil, was Leser von ihr erwarten können
-5. DEUTSCH, Du-Form nicht verwenden
-6. Kein Marketing-Sprech ("leidenschaftlich", "unersetzlich", "weltklasse")
-7. Konkret und spezifisch — erwähne echte Serien/Shows, Genres, Phänomene
-8. Plain-Text HTML mit <p>-Tags (3 Absätze), keine Überschriften
-9. KEINE Einleitungsphrase wie "Hier ist die Bio:" — starte direkt mit dem Fließtext
+E-E-A-T-REGELN für den Text:
 
-ANTWORT (nur der HTML-Text, keine Meta-Kommentare):`;
+**Experience (echte Erfahrung zeigen):**
+- Konkrete Stationen im Werdegang (Studium, frühere Medien, Jahre im Journalismus)
+- Hands-on: Screener gesehen, Set-Besuche, Junkets, Reviews seit Jahr X
+- Persönliche Stil-Marker: "seit 2015", "seit der ersten Staffel", "nach über 200 Reviews"
+
+**Expertise (Tiefe belegen):**
+- Fachbegriffe korrekt: Showrunner, Episodenstruktur, Genre-Konventionen, Streaming-Metriken
+- Konkrete Werke nennen, die in den Expertise-Bereich passen (nicht nur aus den Beispiel-Artikeln — auch verwandte Klassiker/Benchmarks)
+- Analytische Perspektive: Was macht eine Serie gut? Wo liegt der Fokus? (Erzählstruktur? Charakterbogen? Production Design?)
+
+**Authoritativeness (Autorität):**
+- Tonfall sicher, nicht devot ("analysiert", "ordnet ein", "bewertet" — NIE "liebt", "findet toll", "schwärmt")
+- Positionierung innerhalb der deutschen Streaming-/Seriengesellschaft
+- Ein Absatz über Qualitätsstandards beim Schreiben: Was erwarten Leser*innen? (z.B. "spoilerfrei wenn angekündigt", "zwischen Faktenlage und Spekulation differenziert")
+
+**Trust (Vertrauen):**
+- Transparenz: Serien.de folgt Autorenrichtlinien, keine bezahlten Reviews
+- Aktualisierungen: neue Infos werden nachgepflegt statt überschrieben
+- Fehlerkultur: Korrekturen werden markiert
+
+STRUKTUR (exakt 3 Absätze, ca. 400–500 Wörter gesamt):
+
+**Absatz 1 – Wer & Woher (Experience-fokus):**
+Werdegang, Stationen, wie viele Jahre im Bereich, warum serien.de. Konkrete Zahlen + Orte. Keine Floskeln.
+
+**Absatz 2 – Was & Wie (Expertise-fokus):**
+Inhaltliche Schwerpunkte mit BENCHMARK-Serien (konkrete Namen aus den Expertise-Bereichen). Arbeitsweise: Wie analysiert sie? Welche Quellen nutzt sie? (TMDB, Variety, Deadline, Trade Press, Interviews, Screener). Was macht ihre Perspektive einzigartig?
+
+**Absatz 3 – Haltung & Versprechen (Authority + Trust):**
+Qualitätsanspruch, redaktionelle Haltung, was Leser*innen konkret erwarten dürfen. Lieblingsserien (3–5 konkrete Titel, gemischt aus den Expertise-Genres). Schlusssatz mit klarer Positionierung.
+
+HARTE REGELN:
+- DEUTSCH, Sie-Form vermeiden (neutral)
+- KEINE Floskeln: "leidenschaftlich", "unersetzlich", "begeistert", "liebt es", "mit Herz und Seele"
+- KEINE KI-Phrasen: "In der heutigen schnelllebigen Welt…", "Im Zeitalter von Streaming…"
+- Konkret > abstrakt
+- Plain HTML: Genau 3 <p>-Tags, keine Überschriften, keine Listen
+- Starte direkt mit dem Text, KEINE Einleitungsphrase
+- Zahl-Werte erlaubt (z.B. "seit 2017", "über 200 Artikel", "rund 50 Serien pro Jahr")
+
+ANTWORT (nur das HTML, nichts sonst):`;
 
   const modelsToTry = [model, 'gpt-4o-mini'];
   let lastError: any;
@@ -53,7 +84,7 @@ ANTWORT (nur der HTML-Text, keine Meta-Kommentare):`;
         const completion = await client.chat.completions.create({
           model: m,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1200,
+          max_tokens: 1500,
           temperature: 0.7,
         });
         let text = completion.choices[0].message.content || '';
