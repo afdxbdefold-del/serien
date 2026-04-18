@@ -44,14 +44,16 @@ function createClient() {
 
 async function callLLM(prompt: string, preferredModel: string): Promise<string> {
   const client = createClient();
-  const modelsToTry = [preferredModel, 'gpt-4o-mini'];
+  // Per handoff: Claude Sonnet is unstable via Emergent proxy → prefer fast gpt-4o-mini,
+  // fall back to Claude only if mini fails.
+  const modelsToTry = ['gpt-4o-mini', preferredModel];
   let lastError: unknown;
   for (const model of modelsToTry) {
     try {
       const completion = await client.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 3000,
+        max_tokens: 6000,
         temperature: 0.7,
       });
       return completion.choices[0].message.content || '';
@@ -153,6 +155,38 @@ function clamp(n: unknown, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
+/**
+ * Recover a truncated JSON array by finding the last `},` or `}]` and closing
+ * the array. Used when the LLM output is cut off at max_tokens.
+ */
+function tryRecoverTruncatedArray(raw: string): QuestionItem[] {
+  let content = raw.trim();
+  if (content.startsWith('```json')) content = content.slice(7);
+  else if (content.startsWith('```')) content = content.slice(3);
+  if (content.endsWith('```')) content = content.slice(0, -3);
+  content = content.trim();
+  const start = content.indexOf('[');
+  if (start < 0) return [];
+  // Find the last closing brace that is followed by a comma or end-of-array
+  // That's our last complete object.
+  const slice = content.slice(start);
+  // Match all `}` positions
+  const closes: number[] = [];
+  for (let i = 0; i < slice.length; i++) if (slice[i] === '}') closes.push(i);
+  for (let i = closes.length - 1; i >= 0; i--) {
+    const candidate = slice.slice(0, closes[i] + 1) + ']';
+    try {
+      const parsed = JSON.parse(candidate);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed as QuestionItem[];
+      }
+    } catch {
+      // Try next-earlier closing brace
+    }
+  }
+  return [];
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -175,10 +209,15 @@ export async function POST(req: NextRequest) {
       const parsed = parseLLMJson(raw);
       if (Array.isArray(parsed)) items = parsed as QuestionItem[];
     } catch (err) {
-      return NextResponse.json(
-        { error: 'Failed to parse LLM response', raw: raw.substring(0, 500) },
-        { status: 502 }
-      );
+      // Try to recover truncated JSON arrays: find the last complete object
+      // and close the array with ']'.
+      items = tryRecoverTruncatedArray(raw);
+      if (items.length === 0) {
+        return NextResponse.json(
+          { error: 'Failed to parse LLM response', raw: raw.substring(0, 500) },
+          { status: 502 }
+        );
+      }
     }
 
     const cleaned = dedupeAndClean(items);
