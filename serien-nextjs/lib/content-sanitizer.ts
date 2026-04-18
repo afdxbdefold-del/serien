@@ -149,30 +149,19 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
     '$1$2</div>'
   );
   
-  // STEP 1: Remove duplicate lead if it appears at the start of content
-  // The excerpt/lead is shown separately above the content, so remove it from contentHtml
-  if (excerpt) {
-    const excerptClean = excerpt.trim();
-    // Match first <p> tag
-    const firstPMatch = sanitized.match(/<p[^>]*>(.*?)<\/p>/s);
-    
+  // STEP 1: Remove first paragraph if excerpt exists
+  // The excerpt/lead is shown separately above the content as bold intro.
+  // The contentHtml often contains its own lead as first <p> — always remove it
+  // to prevent double-intro display.
+  if (excerpt && excerpt.trim().length > 20) {
+    const firstPMatch = sanitized.match(/^(\s*<p[^>]*>.*?<\/p>)/s);
     if (firstPMatch) {
-      const firstPContent = firstPMatch[1].trim();
-      // Remove HTML tags for comparison
+      const firstPContent = firstPMatch[1];
       const firstPPlain = firstPContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      const excerptPlain = excerptClean.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      
-      // Remove first paragraph if it matches excerpt:
-      // - exact match
-      // - starts with same 50 chars
-      // - shares 60%+ of words (covers Intro Engine rewrites)
-      const shouldRemove = firstPPlain === excerptPlain ||
-        firstPPlain.startsWith(excerptPlain.substring(0, Math.min(50, excerptPlain.length))) ||
-        excerptPlain.startsWith(firstPPlain.substring(0, Math.min(50, firstPPlain.length))) ||
-        calculateWordOverlap(firstPPlain, excerptPlain) >= 0.6;
-        
-      if (shouldRemove) {
-        sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
+      // Only remove if it looks like a lead (no H2 inside, reasonable length, before main content)
+      const isLeadLike = firstPPlain.length > 30 && firstPPlain.length < 800 && !firstPContent.includes('<h2');
+      if (isLeadLike) {
+        sanitized = sanitized.replace(/^\s*<p[^>]*>.*?<\/p>/s, '').trim();
       }
     }
   }
