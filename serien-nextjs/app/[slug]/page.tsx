@@ -309,6 +309,11 @@ export default async function ArticlePage({ params }: PageProps) {
     return formattedDate;
   };
 
+  // Reading time (200 wpm)
+  const plainText = (article.contentHtml || '').replace(/<[^>]+>/g, ' ');
+  const wordCount = plainText.trim().split(/\s+/).filter(Boolean).length;
+  const readingMinutes = Math.max(1, Math.round(wordCount / 200));
+
   // Determine image URL
   const imageUrl = article.heroImagePath || 
     article.ogImageUrl || 
@@ -427,38 +432,25 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Author with E-E-A-T + Datum */}
-          <div className="flex items-center justify-center gap-3 mb-6">
+          {/* Author Meta Line (inline, centered, no avatar) */}
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
             {article.users && (
               <>
-                {article.users.image ? (
-                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={article.users.image}
-                      alt={article.users.name || 'Author'}
-                      fill
-                      className="object-cover"
-                    />
-                  </Link>
-                ) : (
-                  <Link href={getAuthorUrl(article.users.name || '')} rel="author" className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {(article.users.name || 'A').charAt(0).toUpperCase()}
-                  </Link>
-                )}
-                <div className="text-sm">
-                  <Link
-                    href={getAuthorUrl(article.users.name || '')}
-                    rel="author"
-                    className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
-                  >
-                    {article.users.name || 'Redaktion'}
-                  </Link>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                    {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {publishedDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                  </p>
-                </div>
+                <Link
+                  href={getAuthorUrl(article.users.name || '')}
+                  rel="author"
+                  className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                >
+                  {article.users.name || 'Redaktion'}
+                </Link>
+                <span className="mx-2">·</span>
               </>
             )}
+            <span>
+              {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </span>
+            <span className="mx-2">·</span>
+            <span>{readingMinutes} Min</span>
           </div>
 
           {/* HERO - Video/Image */}
