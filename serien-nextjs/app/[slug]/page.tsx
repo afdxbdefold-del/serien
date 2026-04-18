@@ -94,7 +94,7 @@ const getArticle = (slug: string) => unstable_cache(
 )();
 
 // Cached related news fetch
-const getRelatedNews = (articleId: string, category: string | null, primarySeriesId: number | null) => unstable_cache(
+const getRelatedNews = (articleId: string) => unstable_cache(
   async () => {
     return prisma.articles.findMany({
       where: {
@@ -103,14 +103,6 @@ const getRelatedNews = (articleId: string, category: string | null, primarySerie
           { status: 'PUBLISHED' }
         ],
         id: { not: articleId },
-        AND: category || primarySeriesId ? [
-          {
-            OR: [
-              category ? { category } : {},
-              primarySeriesId ? { primarySeriesId } : {},
-            ].filter(o => Object.keys(o).length > 0),
-          }
-        ] : [],
       },
       take: 3,
       orderBy: { publishedAt: 'desc' },
@@ -134,8 +126,8 @@ const getRelatedNews = (articleId: string, category: string | null, primarySerie
       },
     });
   },
-  [`related-news-${articleId}`],
-  { revalidate: 300, tags: ['related-news'] }
+  [`latest-news-${articleId}`],
+  { revalidate: 300, tags: ['latest-news'] }
 )();
 
 // Cached fetch for articles from the SAME series (for "Mehr zu <Serie>" cards)
@@ -315,12 +307,8 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch related news with cached query
-  const relatedNews = await getRelatedNews(
-    article.id, 
-    article.category, 
-    article.primarySeriesId
-  );
+  // Fetch 3 latest news (site-wide) for "Neue News" section
+  const relatedNews = await getRelatedNews(article.id);
 
   // Fetch same-series articles for "Mehr zu <Serie>" card section
   const seriesArticles = article.primarySeriesId
