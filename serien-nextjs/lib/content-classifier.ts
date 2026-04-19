@@ -106,44 +106,69 @@ ${(textHead || '').substring(0, 1500)}
 Classify this content now.
 `.trim();
 
-  try {
-    const response = await client.chat.completions.create({
-      model: LLM_CONFIG.model,
-      messages: [
-        { role: 'system', content: CLASSIFIER_PROMPT },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_completion_tokens: 500,
-    });
+  // Retry up to 3× on transient proxy errors (502, 401, timeout, ECONNRESET).
+  // Until today 3 articles/day were skipped because Claude/proxy hiccupped and
+  // the classifier immediately returned UNKNOWN.
+  const MAX_ATTEMPTS = 3;
+  let lastError: any;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model: LLM_CONFIG.model,
+        messages: [
+          { role: 'system', content: CLASSIFIER_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.1,
+        max_completion_tokens: 500,
+      });
 
-    const content = response.choices[0]?.message?.content;
-    
-    if (!content) {
-      throw new Error('No response from classifier');
+      const content = response.choices[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('No response from classifier');
+      }
+
+      const result = parseJsonResponse(content) as ClassificationResult;
+
+      // Validation
+      const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'FEATURE_ESSAY', 'MOVIE', 'MIXED', 'UNKNOWN'];
+      if (!validTypes.includes(result.content_type)) {
+        throw new Error(`Invalid content_type: ${result.content_type}`);
+      }
+
+      if (attempt > 1) {
+        console.log(`  ℹ Classifier succeeded on attempt ${attempt}`);
+      }
+      return result;
+    } catch (error: any) {
+      lastError = error;
+      const msg = error?.message || String(error);
+      const isRetriable =
+        msg.includes('502') || msg.includes('503') || msg.includes('504') ||
+        msg.includes('401') || msg.includes('429') ||
+        msg.includes('timeout') || msg.includes('ECONNRESET') ||
+        msg.includes('overloaded') || msg.includes('rate_limit') ||
+        msg.includes('fetch failed');
+
+      if (isRetriable && attempt < MAX_ATTEMPTS) {
+        const backoff = 2000 * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+        console.warn(`⚠️  Classifier attempt ${attempt}/${MAX_ATTEMPTS} failed: ${msg.substring(0, 100)} — retry in ${backoff}ms`);
+        await new Promise(r => setTimeout(r, backoff));
+        continue;
+      }
+      break; // non-retriable or out of retries
     }
-
-    const result = parseJsonResponse(content) as ClassificationResult;
-    
-    // Validation
-    const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'FEATURE_ESSAY', 'MOVIE', 'MIXED', 'UNKNOWN'];
-    if (!validTypes.includes(result.content_type)) {
-      throw new Error(`Invalid content_type: ${result.content_type}`);
-    }
-
-    return result;
-    
-  } catch (error: any) {
-    console.error('❌ Classification failed:', error.message);
-    // Fallback to UNKNOWN on error
-    return {
-      content_type: 'UNKNOWN',
-      confidence: 0,
-      series_candidates: [],
-      signals: { title: [], text: [] },
-      reasoning: `Error: ${error.message}`
-    };
   }
+
+  console.error('❌ Classification failed after retries:', lastError?.message);
+  return {
+    content_type: 'UNKNOWN',
+    confidence: 0,
+    series_candidates: [],
+    signals: { title: [], text: [] },
+    reasoning: `Error: ${lastError?.message || 'unknown'}`
+  };
 }
 
 export function shouldSkipArticle(classification: ClassificationResult): boolean {
