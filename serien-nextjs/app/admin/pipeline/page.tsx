@@ -1744,8 +1744,20 @@ export default function AdminPipelinePage() {
                         <td className="py-3 px-4 whitespace-nowrap">{formatTime(run.startedAt)}</td>
                         <td className="py-3 px-4">{getPipelineBadge(run.pipeline)}</td>
                         <td className="py-3 px-4">{getStatusBadge(run.status)}</td>
-                        <td className="py-3 px-4 max-w-xs truncate" title={run.inputQuery || run.inputVideoId || '-'}>
-                          {run.inputQuery || run.inputVideoId || '-'}
+                        <td className="py-3 px-4 max-w-xs truncate" title={run.inputSource || run.inputQuery || run.inputVideoId || '-'}>
+                          {run.inputSource ? (
+                            <a
+                              href={run.inputSource}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`pipeline-run-input-link-${run.id}`}
+                              className="text-cyan-600 hover:underline"
+                            >
+                              {run.inputQuery || run.inputVideoId || run.inputSource}
+                            </a>
+                          ) : (
+                            run.inputQuery || run.inputVideoId || '-'
+                          )}
                         </td>
                         <td className="py-3 px-4">
                           {run.articleSlug ? (
