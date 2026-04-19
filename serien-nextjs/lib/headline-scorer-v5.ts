@@ -96,6 +96,14 @@ const DISCOVER_MOMENTUM_WORDS = [
   'hit des jahres', 'geheimtipp',
   // Star power (non-hyped)
   'macht.{0,10}noch interessanter', 'wegen.{0,15}reden',
+  // Nostalgia / TV legends — recognition + curiosity
+  'tv-legende', 'tv legende', 'rief einfach an', 'ohne kontakte',
+  'kaum jemand ahnte', 'tv-geschichte schreibt', 'tv geschichte schreibt',
+  'prägte.{0,30}über jahre', 'dabei begann alles', 'lange vor',
+  'niemand rechnete damit', 'wurde.{0,15}kult', 'ausgerechnet so begann',
+  'verdankt.{0,15}mehr', 'wäre.{0,15}nie dasselbe', 'wuerde nie dasselbe',
+  'für millionen unvergesslich', 'damals begann alles',
+  'ausnahmeerscheinung', 'jahrzehnte(?:lang)?',
 ];
 
 const DISCOVER_EDITORIAL_STARTS = [
@@ -107,6 +115,16 @@ const DISCOVER_EDITORIAL_STARTS = [
   /^kritiker\s/i,              // "Kritiker feiern..."
   /^für fans\s/i,              // "Für Fans wird es..."
   /^viele übersehen\s/i,       // "Viele übersehen..."
+  /^heute kennt\s/i,           // "Heute kennt ihn jeder..."
+  /^ohne\s/i,                  // "Ohne Kontakte...", "Ohne X wäre..."
+  /^lange vor\s/i,             // "Lange vor X fiel..."
+  /^vor\s+\S+:/i,              // "Vor NCIS: So sah..."
+  /^was viele\s/i,             // "Was viele über X nicht wissen"
+  /^er rief\s/i,               // "Er rief einfach an..."
+  /^so begann\s/i,             // "So begann die Karriere..."
+  /^ein (mutiger|einfacher)\s/i,// "Ein mutiger Schritt..."
+  /^ausgerechnet so\s/i,       // "Ausgerechnet so begann..."
+  /^über jahre geprägt:/i,     // "Über Jahre geprägt: Warum..."
 ];
 
 function computeDiscoverResonance(headline: string): number {

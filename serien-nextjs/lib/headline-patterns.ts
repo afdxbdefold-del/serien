@@ -21,7 +21,8 @@ export type HeadlineAngle =
   | 'star_power'       // actor drives interest in the show
   | 'underrated'       // hidden gem, overlooked
   | 'controversy'      // polarising, divisive, criticism
-  | 'trend_momentum';  // buzz, people talking again, viral moment
+  | 'trend_momentum'   // buzz, people talking again, viral moment
+  | 'nostalgia';       // career origins, TV legends, classic stars, legacy roles
 
 // ══════════════════════════════════════════════════════════════════════
 // v2 PATTERNS — 20 Discover-optimised templates
@@ -66,6 +67,41 @@ export const DISCOVER_PATTERNS: DiscoverPattern[] = [
   // ─── UNDERRATED / HIDDEN GEM (19–20) ───────────────────────────────
   { id: 'undr_01', angle: 'underrated',  template: 'Viele übersehen {SERIE} noch immer – dabei läuft es gerade stark',           requires: ['SERIE'],                  ctrBoost: 11 },
   { id: 'undr_02', angle: 'underrated',  template: '{SERIE} könnte der unterschätzteste Hit des Jahres sein',                    requires: ['SERIE'],                  ctrBoost: 12 },
+
+  // ══════════════════════════════════════════════════════════════════
+  // NOSTALGIA / TV LEGENDS (21–40) — career origins, legacy actors,
+  // classic TV, NCIS/CSI/Magnum-style long-runners. Curiosity + recognition.
+  // All require STAR (the legend is the primary subject).
+  // ══════════════════════════════════════════════════════════════════
+  // Career Beginnings
+  { id: 'nost_01', angle: 'nostalgia',   template: 'Er rief einfach an – Jahre später wurde {STAR} TV-Legende',                  requires: ['STAR'],                    ctrBoost: 13 },
+  { id: 'nost_02', angle: 'nostalgia',   template: 'Ohne Kontakte gestartet – später wurde {STAR} zum Gesicht von {SERIE}',      requires: ['STAR','SERIE'],            ctrBoost: 12 },
+  { id: 'nost_03', angle: 'nostalgia',   template: 'Ein mutiger Schritt änderte alles für {STAR}',                               requires: ['STAR'],                    ctrBoost: 11 },
+  { id: 'nost_04', angle: 'nostalgia',   template: 'So begann die Karriere von {STAR} lange vor {SERIE}',                        requires: ['STAR','SERIE'],            ctrBoost: 12 },
+
+  // Legend Status
+  { id: 'nost_05', angle: 'nostalgia',   template: 'Heute kennt ihn jeder – damals begann alles ganz klein',                     requires: ['STAR'],                    ctrBoost: 10 },
+  { id: 'nost_06', angle: 'nostalgia',   template: '{STAR} prägte {SERIE} über Jahre wie kaum ein anderer',                      requires: ['STAR','SERIE'],            ctrBoost: 12 },
+  { id: 'nost_07', angle: 'nostalgia',   template: 'Kaum zu glauben, wie lange {STAR} schon TV-Geschichte schreibt',             requires: ['STAR'],                    ctrBoost: 11 },
+  { id: 'nost_08', angle: 'nostalgia',   template: '{STAR} wurde mit {SERIE} zur Ausnahmeerscheinung',                           requires: ['STAR','SERIE'],            ctrBoost: 10 },
+
+  // Forgotten Past
+  { id: 'nost_09', angle: 'nostalgia',   template: 'Viele kennen {STAR} nur aus {SERIE} – dabei begann alles ganz anders',        requires: ['STAR','SERIE'],            ctrBoost: 13 },
+  { id: 'nost_10', angle: 'nostalgia',   template: 'Vor {SERIE}: So sah die Karriere von {STAR} wirklich aus',                   requires: ['STAR','SERIE'],            ctrBoost: 12 },
+  { id: 'nost_11', angle: 'nostalgia',   template: 'Was viele über {STAR} bis heute nicht wissen',                               requires: ['STAR'],                    ctrBoost: 11 },
+  { id: 'nost_12', angle: 'nostalgia',   template: 'Lange vor {SERIE} fiel {STAR} bereits auf',                                  requires: ['STAR','SERIE'],            ctrBoost: 11 },
+
+  // Surprise / Unexpected
+  { id: 'nost_13', angle: 'nostalgia',   template: 'Kaum jemand ahnte damals, was aus {STAR} werden würde',                      requires: ['STAR'],                    ctrBoost: 12 },
+  { id: 'nost_14', angle: 'nostalgia',   template: 'Niemand rechnete damit – später wurde {STAR} Kult',                          requires: ['STAR'],                    ctrBoost: 12 },
+  { id: 'nost_15', angle: 'nostalgia',   template: 'Ein einfacher Moment machte {STAR} später berühmt',                          requires: ['STAR'],                    ctrBoost: 11 },
+  { id: 'nost_16', angle: 'nostalgia',   template: 'Ausgerechnet so begann die Karriere von {STAR}',                             requires: ['STAR'],                    ctrBoost: 10 },
+
+  // Series Legacy
+  { id: 'nost_17', angle: 'nostalgia',   template: '{SERIE} verdankt {STAR} mehr, als viele denken',                             requires: ['STAR','SERIE'],            ctrBoost: 12 },
+  { id: 'nost_18', angle: 'nostalgia',   template: 'Ohne {STAR} wäre {SERIE} nie dasselbe geworden',                             requires: ['STAR','SERIE'],            ctrBoost: 12 },
+  { id: 'nost_19', angle: 'nostalgia',   template: 'Über Jahre geprägt: Warum {STAR} für {SERIE} so wichtig war',                requires: ['STAR','SERIE'],            ctrBoost: 11 },
+  { id: 'nost_20', angle: 'nostalgia',   template: '{STAR} machte {SERIE} für Millionen unvergesslich',                          requires: ['STAR','SERIE'],            ctrBoost: 12 },
 ];
 
 // ══════════════════════════════════════════════════════════════════════
@@ -80,6 +116,7 @@ export const ANGLE_META: Record<HeadlineAngle, { label: string; cues: string[] }
   underrated:      { label: 'Underrated / Hidden Gem',  cues: ['overlooked','hidden gem','underrated','sleeper hit','flying under the radar','deserves more'] },
   controversy:     { label: 'Controversy',              cues: ['divisive','polarising','backlash','controversy','split fans','mixed reviews','drama off-set'] },
   trend_momentum:  { label: 'Trend / Momentum',         cues: ['going viral','trending','buzz','everyone is talking','tiktok','word of mouth'] },
+  nostalgia:       { label: 'Nostalgia / TV Legend',    cues: ['decades','legendary','legend','icon','iconic','veteran','pioneer','long-running','anniversary','milestone','debuted','before becoming famous','early career','first role','big break','back in','call(ed) the producer','rang','phoned','got his start','got her start','at the time','years ago','throwback','classic tv'] },
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -94,7 +131,7 @@ export function detectAngle(title: string, content: string = ''): HeadlineAngle 
   const text = `${title} ${content.substring(0, 2000)}`.toLowerCase();
   const scores: Record<HeadlineAngle, number> = {
     success: 0, comeback: 0, season_update: 0, quality_praise: 0,
-    star_power: 0, underrated: 0, controversy: 0, trend_momentum: 0,
+    star_power: 0, underrated: 0, controversy: 0, trend_momentum: 0, nostalgia: 0,
   };
   for (const [angle, meta] of Object.entries(ANGLE_META) as Array<[HeadlineAngle, typeof ANGLE_META[HeadlineAngle]]>) {
     for (const cue of meta.cues) {
@@ -108,6 +145,16 @@ export function detectAngle(title: string, content: string = ''): HeadlineAngle 
   if (/\b(top\s*\d+|#\d+|most-watched|viewership|millionen)\b/i.test(text)) scores.success += 2;
   if (/\b(overlooked|hidden\s*gem|underrated|sleeper)\b/i.test(text)) scores.underrated += 3;
   if (/\b(controvers|backlash|polaris|split|divisive)\b/i.test(text)) scores.controversy += 3;
+
+  // Nostalgia / TV-Legend triggers — MOST SPECIFIC, apply strongly
+  if (/\b(call(?:ed)?|rang|phoned|dialled)\b.{0,60}\b(producer|director|showrunner|casting|boss|executive|network|creator)\b/i.test(text)) scores.nostalgia += 6;
+  if (/\bbefore\s+(becoming|he\s+was|she\s+was|fame)\b/i.test(text)) scores.nostalgia += 4;
+  if (/\b(early\s+(career|role|days)|first\s+(role|big\s+break|break)|got\s+his\s+start|got\s+her\s+start)\b/i.test(text)) scores.nostalgia += 5;
+  if (/\b(legend(?:ary)?|icon(?:ic)?|veteran|pioneer|trailblazer)\b/i.test(text)) scores.nostalgia += 3;
+  if (/\b(decades?|jahrzehnte?|for\s+\d{2}\s+years|über\s+\d{2}\s+jahre)\b/i.test(text)) scores.nostalgia += 3;
+  if (/\b(anniversar|milestone|throwback|classic\s+tv|old\s+interview)\b/i.test(text)) scores.nostalgia += 3;
+  if (/\bback\s+in\s+(19|20)\d{2}s?\b/i.test(text)) scores.nostalgia += 4;
+  if (/\b(long-running|lang(?:jährig|e\s+jahre)|seit\s+(?:jahren|jahrzehnten))\b/i.test(text)) scores.nostalgia += 2;
 
   const best = (Object.entries(scores) as Array<[HeadlineAngle, number]>)
     .sort((a, b) => b[1] - a[1])[0];
@@ -157,10 +204,11 @@ export function getPatternsForAngle(
     comeback:        ['trend_momentum', 'season_update'],
     season_update:   ['comeback', 'trend_momentum'],
     quality_praise:  ['success', 'underrated'],
-    star_power:      ['trend_momentum', 'quality_praise'],
+    star_power:      ['trend_momentum', 'quality_praise', 'nostalgia'],
     underrated:      ['quality_praise', 'trend_momentum'],
     controversy:     ['trend_momentum', 'star_power'],
     trend_momentum:  ['success', 'comeback'],
+    nostalgia:       ['star_power', 'underrated'],
   };
 
   const primaryPatterns = DISCOVER_PATTERNS.filter(p => p.angle === primary && canFill(p));
@@ -237,6 +285,7 @@ const ANGLE_TO_V1: Record<HeadlineAngle, HeadlinePattern['category']> = {
   underrated:      'curiosity',
   controversy:     'conflict',
   trend_momentum:  'surprise',
+  nostalgia:       'curiosity',
 };
 
 export const HEADLINE_PATTERNS: HeadlinePattern[] = DISCOVER_PATTERNS.map(p => ({
@@ -289,6 +338,18 @@ export function matchPattern(headline: string): { matched: boolean; patternId: s
     [/reden (jetzt )?wieder alle/, 5],
     [/ausgerechnet/, 3],
     [/verdichten sich/, 4],
+    // Nostalgia fingerprints
+    [/rief einfach an/, 7],
+    [/ohne kontakte gestartet/, 6],
+    [/tv-legende|tv legende/, 5],
+    [/kaum jemand ahnte/, 6],
+    [/prägte.{0,20}(über jahre|seit jahrzehnten)/, 6],
+    [/dabei begann alles/, 5],
+    [/lange vor\b/, 4],
+    [/niemand rechnete damit.{0,20}(sp(ä|ae)ter|kult)/, 6],
+    [/verdankt.{0,20}mehr,? als viele/, 6],
+    [/ohne .{2,30} w(ä|ae)re .{2,30} nie dasselbe/, 6],
+    [/für millionen unvergesslich/, 6],
   ];
   let boost = 0;
   for (const [rx, b] of boosters) if (rx.test(lower)) boost += b;

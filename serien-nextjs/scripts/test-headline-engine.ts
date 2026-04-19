@@ -47,6 +47,19 @@ const CASES = [
       },
     },
   },
+  {
+    label: 'NOSTALGIA — Mark Harmon called Jack Webb',
+    input: {
+      originalHeadline: "Mark Harmon's Career Almost Didn't Happen — He Called Jack Webb Directly",
+      articleContent: 'Before becoming the face of NCIS, Mark Harmon was a young actor with no real industry contacts. In a recent Parade interview, Harmon revealed that he simply called producer Jack Webb directly, which led to his first big break on the drama series Sam in 1978. Decades later, Harmon would become one of television\'s most iconic leading men, defining NCIS for 19 seasons. The Emmy-winning actor reflected on how a single phone call changed everything and launched a career that has spanned nearly five decades on American television.',
+      seriesName: 'Navy CIS',
+      entities: {
+        persons: ['Mark Harmon', 'Jack Webb'],
+        events: ['Called Jack Webb directly', 'First role on Sam 1978'],
+        keywords: ['Navy CIS', 'NCIS', 'CBS'],
+      },
+    },
+  },
 ];
 
 async function main() {

@@ -124,12 +124,19 @@ function extractVariables(
     }
   }
 
-  // Star: first credible person name from entity list that is NOT the
-  // series name itself.
-  const persons = (entities.persons || []).filter(p =>
+  // Star: prefer FULL names (First + Last) over single-word entries since
+  // legacy/nostalgia audiences react strongly to name recognition (Mark
+  // Harmon, David Hasselhoff, Tom Selleck, Angela Lansbury, …).
+  const personsRaw = (entities.persons || []).filter(p =>
     p && p.length >= 3 && p.toLowerCase() !== seriesName.toLowerCase()
   );
-  const star = persons[0];
+  const personsSorted = [...personsRaw].sort((a, b) => {
+    const aFull = /^[A-ZÄÖÜ][\wÄÖÜäöüß'-]+\s+[A-ZÄÖÜ][\wÄÖÜäöüß'-]+/.test(a) ? 1 : 0;
+    const bFull = /^[A-ZÄÖÜ][\wÄÖÜäöüß'-]+\s+[A-ZÄÖÜ][\wÄÖÜäöüß'-]+/.test(b) ? 1 : 0;
+    if (aFull !== bFull) return bFull - aFull;  // full names first
+    return 0;
+  });
+  const star = personsSorted[0];
 
   // Season: match "Season 3" / "Staffel 3" in source title first, else content.
   const titleSeason = originalTitle.match(/\b(?:Season|Staffel)\s*(\d{1,2})\b/i);
@@ -203,11 +210,18 @@ export async function generateHeadlines(input: {
   const preserveOriginalStyle = input.preserveOriginalStyle === true;
 
   // 1) Angle classification (heuristic — cheap, deterministic)
-  const detectedAngle = detectAngle(originalHeadline, articleContent);
+  let detectedAngle = detectAngle(originalHeadline, articleContent);
 
   // 2) Extract SERIE / STAR / PLATTFORM / STAFFEL for pattern slot-filling
   const vars = extractVariables(originalHeadline, articleContent, entities, seriesName);
   const patternVars = { serie: seriesName, ...vars };
+
+  // Nostalgia needs a STAR. If classifier picked nostalgia but we can't fill
+  // {STAR}, fall back to star_power → then to the next-best angle so we
+  // don't feed patterns with empty slots to the LLM.
+  if (detectedAngle === 'nostalgia' && !vars.star) {
+    detectedAngle = 'star_power';
+  }
 
   // 3) Build focused pattern set: primary angle + adjacent
   const focusPatterns = getPatternsForAngle(detectedAngle, patternVars, { includeAdjacent: true });
@@ -371,16 +385,20 @@ Du klassifizierst die Story in GENAU EINEN dieser Angles (pick one):
   6. underrated       — Geheimtipp, übersehen
   7. controversy      — polarisiert, spaltet
   8. trend_momentum   — viral, alle reden wieder drüber
+  9. nostalgia        — TV-Legenden, Karriere-Ursprung, Jahrzehnte-Serien, klassische Stars (NCIS/CSI/Magnum-Ära)
 
 ===== MUSTER FÜR DEN PRIMÄREN ANGLE =====
 ${focusBlock}
 
-===== GESAMT-BIBLIOTHEK (20 Muster) =====
-${libraryBlock}${banBlock}
+===== GESAMT-BIBLIOTHEK (40 Muster) =====
+${libraryBlock}${banBlock}${detectedAngle === 'nostalgia' ? `
+
+===== SONDERREGELN FÜR NOSTALGIE/LEGACY-ANGLE =====
+Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren auf NAMENSWIEDERERKENNUNG — nutze den vollen Namen "${vars.star || '{STAR}'}" häufig, nicht Pronomen wie „er/sie/ihn/ihr". Ton: respektvoll, neugierig, mit Wehmut. Keine Reißer, kein Spott. Bewahre die Legenden-Würde des Stars.` : ''}
 
 ===== REGELN =====
 - Generiere genau 10 Headlines auf DEUTSCH.
-- "${seriesName}" MUSS in JEDER Headline vorkommen.
+- "${seriesName}" MUSS in JEDER Headline vorkommen${detectedAngle === 'nostalgia' ? `, UND der Name "${vars.star || '{STAR}'}" sollte in mindestens 7 von 10 Headlines vorkommen` : ''}.
 - Max 65 Zeichen pro Headline.
 - Nutze die Muster als INSPIRATION, kopiere nicht wörtlich — variiere Wortstellung & Rhythmus.
 - Schreibe so, wie ein Mensch bei Quotenmeter, DWDL oder serienjunkies schreiben würde.
