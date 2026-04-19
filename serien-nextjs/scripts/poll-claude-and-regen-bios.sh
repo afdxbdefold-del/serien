@@ -19,7 +19,7 @@ while true; do
   RESP=$(curl -s --max-time 15 -X POST "https://integrations.emergentagent.com/llm/chat/completions" \
     -H "Authorization: Bearer $KEY" \
     -H "Content-Type: application/json" \
-    -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"ping"}],"max_tokens":10}' \
+    -d '{"model":"claude-sonnet-4-5","messages":[{"role":"user","content":"ping"}],"max_tokens":10}' \
     -w "\n[HTTP_CODE:%{http_code}]" 2>/dev/null)
 
   CODE=$(echo "$RESP" | grep -oE '\[HTTP_CODE:[0-9]+\]' | tr -dc '0-9')
