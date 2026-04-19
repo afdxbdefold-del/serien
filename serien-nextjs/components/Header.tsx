@@ -109,7 +109,7 @@ export default function Header() {
     <>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#00b4d8] border-b border-white/10">
-        <div className="max-w-[1400px] mx-auto px-4">
+        <div className="container mx-auto px-6 md:px-12">
           <div className="flex items-center justify-between h-16">
             {/* Left - Logo & Nav */}
             <div className="flex items-center gap-6" ref={dropdownRef}>
