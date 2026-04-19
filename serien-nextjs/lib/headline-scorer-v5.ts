@@ -71,7 +71,67 @@ export interface ArticleContext {
 // WORD LISTS
 // ============================================================
 
+// --- DISCOVER RESONANCE (v5.1) ---
+// Natural, editorial, curiosity-driven phrasing characteristic of the
+// 20 Discover patterns. Rewards headlines that feel like a human chef-vom-
+// dienst wrote them instead of a formula engine.
+const DISCOVER_MOMENTUM_WORDS = [
+  // Staying-power / success-language
+  'hört einfach nicht auf', 'hört nicht auf', 'bleibt ganz vorne', 'bleibt oben',
+  'bleibt größer', 'monate später', 'selbst jetzt', 'auch jetzt',
+  'schlägt weiter', 'dominiert', 'überflügelt', 'lässt hinter sich',
+  'gehört zu den größten', 'noch immer', 'weiter besser', 'ganz oben',
+  // Resonance / quality-praise
+  'trifft.{0,8}den nerv', 'überzeugt.{0,20}(skeptiker|viele|zuschauer)',
+  'kritiker feiern', 'kommt.{0,10}so (gut|stark) an', 'so stark ankommt',
+  'und das hat gründe', 'so viele überzeugt', 'gerade so stark',
+  // Momentum / talk-of-the-town
+  'reden.{0,10}wieder', 'gesprächsstoff', 'sorgt wieder', 'wieder da',
+  'meldet sich zurück', 'kaum jemand sah', 'niemand rechnete',
+  // Season / waiting
+  'rückt näher', 'verdichten sich.{0,10}zeichen', 'früher zurückkehren',
+  'neue hinweise', 'für fans wird es',
+  // Underrated / hidden gem
+  'viele übersehen', 'unterschätzt', 'dabei läuft es', 'der unterschätzteste',
+  'hit des jahres', 'geheimtipp',
+  // Star power (non-hyped)
+  'macht.{0,10}noch interessanter', 'wegen.{0,15}reden',
+];
+
+const DISCOVER_EDITORIAL_STARTS = [
+  /^warum\s/i,                // "Warum X gerade so..."
+  /^monate später:/i,          // "Monate später: ..."
+  /^selbst\s/i,                // "Selbst Skeptiker..."
+  /^niemand\s/i,               // "Niemand rechnete..."
+  /^kaum jemand\s/i,           // "Kaum jemand sah..."
+  /^kritiker\s/i,              // "Kritiker feiern..."
+  /^für fans\s/i,              // "Für Fans wird es..."
+  /^viele übersehen\s/i,       // "Viele übersehen..."
+];
+
+function computeDiscoverResonance(headline: string): number {
+  const lower = headline.toLowerCase();
+  let score = 0;
+
+  // Phrase matches (each +3, capped)
+  let phraseHits = 0;
+  for (const phrase of DISCOVER_MOMENTUM_WORDS) {
+    const rx = phrase.includes('.') ? new RegExp(phrase, 'i') : null;
+    if (rx ? rx.test(lower) : lower.includes(phrase)) phraseHits++;
+  }
+  score += Math.min(12, phraseHits * 3);
+
+  // Editorial opener bonus (+4)
+  if (DISCOVER_EDITORIAL_STARTS.some(rx => rx.test(headline))) score += 4;
+
+  // Em-dash / middle-pause — hallmark of editorial Discover writing (+2)
+  if (/\s[–—]\s/.test(headline) && phraseHits >= 1) score += 2;
+
+  return Math.max(0, Math.min(16, score));
+}
+
 // --- HOOK STRENGTH ---
+
 const STRONG_HOOKS = [
   'plötzlich', 'überraschend', 'ausgerechnet', 'doch noch', 'vor dem aus',
   'abgesetzt', 'gestrichen', 'umstritten', 'eskaliert', 'floppt',
@@ -503,6 +563,7 @@ export function scoreHeadlineV5(
   const riskConflict = detectRealConflict(headline);
   const contrastPattern = detectConditionalContrast(headline);
   const ctrPrediction = computeCtrPrediction(headline, topicClarity, specificity);
+  const discoverResonance = computeDiscoverResonance(headline);
 
   // --- PENALTIES ---
   // FIX 2: Hard vs Soft strikt getrennt
@@ -512,8 +573,13 @@ export function scoreHeadlineV5(
   totalHardPenalty = Math.max(-20, totalHardPenalty);
 
   const softKillerHits = detectSoftKillers(headline);
-  penalties.push(...softKillerHits);
-  let totalSoftPenalty = softKillerHits.reduce((s, h) => s + h.value, 0);
+  // v5.1: "könnte" is legitimate in Discover "könnte der unterschätzteste Hit" patterns;
+  // drop that penalty when the headline shows editorial resonance markers.
+  const filteredSoftKillers = discoverResonance >= 6
+    ? softKillerHits.filter(h => !['könnte', 'möglicherweise', 'eventuell'].includes(h.phrase))
+    : softKillerHits;
+  penalties.push(...filteredSoftKillers);
+  let totalSoftPenalty = filteredSoftKillers.reduce((s, h) => s + h.value, 0);
   totalSoftPenalty = Math.max(-12, totalSoftPenalty);
 
   // Series: handling
@@ -567,6 +633,13 @@ export function scoreHeadlineV5(
     boosts.push({ type: 'strong_hook', reason: 'Starker Hook', value: 0 });
   }
 
+  // v5.1 Discover Resonance Boost — rewards natural/editorial Discover phrasing
+  let discoverBoost = 0;
+  if (discoverResonance >= 3) {
+    discoverBoost = discoverResonance; // 0–12
+    boosts.push({ type: 'discover_resonance', reason: 'Natürliche Discover-Sprache', value: discoverResonance });
+  }
+
   // Relative outlier
   const relativeOutlierBonus = computeRelativeOutlierBonus(headline, peerHeadlines || null, articleContext);
   if (relativeOutlierBonus > 0) {
@@ -578,7 +651,7 @@ export function scoreHeadlineV5(
 
   let rawScore = hookStrength + topicClarity + specificity + riskConflict +
     contrastPattern + ctrPrediction + relativeOutlierBonus +
-    premiumBoost + comboBonus + hqBonus + totalPenalties;
+    premiumBoost + comboBonus + hqBonus + discoverBoost + totalPenalties;
 
   rawScore = Math.max(0, rawScore);
   const rawScoreBeforeCeiling = rawScore;
@@ -588,9 +661,11 @@ export function scoreHeadlineV5(
   const finalScore = Math.max(0, Math.min(100, cappedScore));
 
   // --- MINIMUM ---
-  const passedMinimum = finalScore >= 55;
-  const isReserve = finalScore >= 55 && finalScore < 65;
-  const isStrongCandidate = finalScore >= 70;
+  // v5.1: 50 statt 55 — Discover-Headlines sind weicher formuliert
+  // (kein Shock-Vokabular), erreichen aber trotzdem hohe CTR.
+  const passedMinimum = finalScore >= 50;
+  const isReserve = finalScore >= 50 && finalScore < 62;
+  const isStrongCandidate = finalScore >= 68;
 
   return {
     headline,
@@ -634,8 +709,8 @@ export function pickWinnerV5(
   options?: { preserveOriginalStyle?: boolean }
 ): { winner: HeadlineScoreV5Result; ranked: HeadlineScoreV5Result[]; filteredOut: number } {
   const preserveMode = options?.preserveOriginalStyle === true;
-  // In preserve mode lower the minimum threshold so faithful translations aren't filtered out
-  const minScore = preserveMode ? 40 : 55;
+  // v5.1: 45 statt 55 (preserve-mode 35 statt 40) — weiche Discover-Headlines
+  const minScore = preserveMode ? 35 : 45;
 
   // Score all
   const scored = headlines.map(h => scoreHeadlineV5(h, articleContext, headlines));

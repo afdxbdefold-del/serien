@@ -60,7 +60,7 @@ export interface HeadlineEngineResult {
   bannedPhrases: string[];           // NEW in v5.1
 }
 
-const MIN_SCORE = 55;
+const MIN_SCORE = 50;
 
 // Editorial AI-slop phrases to strip out entirely.
 const AI_SLOP_PATTERNS = [
