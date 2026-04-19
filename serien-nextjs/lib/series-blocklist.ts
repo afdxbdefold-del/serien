@@ -1,64 +1,100 @@
 /**
- * Series/Topic Blocklist
+ * Series / Topic Blocklist (DB-backed, cached)
  *
- * Prevents future articles about listed series/topics from entering the pipeline.
- * Checked at three levels:
- *   1. news-scraper — URL-pattern + title-keyword match (pre-fetch, saves LLM cost)
- *   2. pipeline-v2 — post-classification safety net on TMDB-ID + Series-Title
- *   3. admin /api/admin/pipeline — same safety net for single-article trigger
+ * Entries live in the `blocklist_entries` table and are managed via /admin/blocklist.
+ * Loaded once per process + cached for 60 s; mutations call `invalidateBlocklistCache()`.
  *
- * To block a new series, add entries to BLOCKED_SERIES.
- * Matching is case-insensitive; URL patterns are substring-matched.
+ * Match levels:
+ *   • URL substring  (source url)         — checked during scraping
+ *   • Title keyword  (headline substring) — checked during scraping + pipeline start
+ *   • TMDB ID        (resolved series)    — checked post-TMDB as safety net
+ *
+ * On any hit we call `recordBlocklistHit(entryId)` (fire-and-forget) to increment
+ * the entry's `hits` + `lastHitAt` for the admin dashboard.
  */
+import prisma from './prisma';
+
 export interface BlockedSeries {
-  /** Human-readable label for logs */
+  id: string;
   label: string;
-  /** TMDB IDs that identify this series (most reliable signal) */
-  tmdbIds?: number[];
-  /** Lowercase substrings to search in URL (source URL) */
-  urlPatterns?: string[];
-  /** Lowercase substrings to search in title (headline) */
-  titleKeywords?: string[];
+  tmdbIds: number[];
+  urlPatterns: string[];     // lowercase substring match
+  titleKeywords: string[];   // lowercase substring match
+  enabled: boolean;
 }
 
-export const BLOCKED_SERIES: BlockedSeries[] = [
-  {
-    label: 'Jeopardy! (US Game Show)',
-    tmdbIds: [2912, 103081], // Jeopardy! + Celebrity Jeopardy!
-    urlPatterns: ['/jeopardy', '-jeopardy-', 'jeopardy!'],
-    titleKeywords: ['jeopardy', 'ken jennings', 'mayim bialik'],
-  },
-];
+// ─── In-process cache ──────────────────────────────────────────────────────
+let cache: BlockedSeries[] | null = null;
+let cacheExpires = 0;
+const TTL_MS = 60_000;
 
-// ──────────────────────────────────────────────────────────────────────────
-// Match helpers — return the first matching blocklist entry or null
-// ──────────────────────────────────────────────────────────────────────────
-export function blockReasonForSource(
+async function getEntries(): Promise<BlockedSeries[]> {
+  if (cache && Date.now() < cacheExpires) return cache;
+  const rows = await prisma.blocklist_entries.findMany({
+    where: { enabled: true },
+    select: { id: true, label: true, tmdbIds: true, urlPatterns: true, titleKeywords: true, enabled: true },
+  });
+  cache = rows.map((r) => ({
+    id: r.id,
+    label: r.label,
+    tmdbIds: r.tmdbIds || [],
+    urlPatterns: (r.urlPatterns || []).map((s) => s.toLowerCase()),
+    titleKeywords: (r.titleKeywords || []).map((s) => s.toLowerCase()),
+    enabled: r.enabled,
+  }));
+  cacheExpires = Date.now() + TTL_MS;
+  return cache;
+}
+
+export function invalidateBlocklistCache() {
+  cache = null;
+  cacheExpires = 0;
+}
+
+// ─── Fire-and-forget hit recorder ──────────────────────────────────────────
+export function recordBlocklistHit(entryId: string) {
+  prisma.blocklist_entries
+    .update({
+      where: { id: entryId },
+      data: { hits: { increment: 1 }, lastHitAt: new Date() },
+    })
+    .catch(() => { /* best-effort */ });
+}
+
+// ─── Match helpers ─────────────────────────────────────────────────────────
+export async function blockReasonForSource(
   title: string,
   url: string,
-): BlockedSeries | null {
+): Promise<BlockedSeries | null> {
   const t = (title || '').toLowerCase();
   const u = (url || '').toLowerCase();
-  for (const b of BLOCKED_SERIES) {
-    if (b.urlPatterns?.some((p) => u.includes(p.toLowerCase()))) return b;
-    if (b.titleKeywords?.some((k) => t.includes(k.toLowerCase()))) return b;
+  const entries = await getEntries();
+  for (const b of entries) {
+    if (b.urlPatterns.some((p) => u.includes(p))) { recordBlocklistHit(b.id); return b; }
+    if (b.titleKeywords.some((k) => t.includes(k))) { recordBlocklistHit(b.id); return b; }
   }
   return null;
 }
 
-export function blockReasonForTmdbId(tmdbId: number | null | undefined): BlockedSeries | null {
+export async function blockReasonForTmdbId(
+  tmdbId: number | null | undefined,
+): Promise<BlockedSeries | null> {
   if (tmdbId == null) return null;
-  for (const b of BLOCKED_SERIES) {
-    if (b.tmdbIds?.includes(tmdbId)) return b;
+  const entries = await getEntries();
+  for (const b of entries) {
+    if (b.tmdbIds.includes(tmdbId)) { recordBlocklistHit(b.id); return b; }
   }
   return null;
 }
 
-export function blockReasonForSeriesTitle(seriesTitle: string | null | undefined): BlockedSeries | null {
+export async function blockReasonForSeriesTitle(
+  seriesTitle: string | null | undefined,
+): Promise<BlockedSeries | null> {
   if (!seriesTitle) return null;
   const s = seriesTitle.toLowerCase();
-  for (const b of BLOCKED_SERIES) {
-    if (b.titleKeywords?.some((k) => s.includes(k.toLowerCase()))) return b;
+  const entries = await getEntries();
+  for (const b of entries) {
+    if (b.titleKeywords.some((k) => s.includes(k))) { recordBlocklistHit(b.id); return b; }
   }
   return null;
 }

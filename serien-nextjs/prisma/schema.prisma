@@ -668,3 +668,22 @@ model content_queue {
   @@index([topic])
 }
 
+
+/// Series / topic blocklist — admin-managed exclusion list for the content pipeline.
+/// Matches on ANY of: tmdbIds (post-TMDB), urlPatterns (substring, source url), titleKeywords (substring, title).
+model blocklist_entries {
+  id             String   @id @default(cuid())
+  label          String
+  tmdbIds        Int[]    @default([])
+  urlPatterns    String[] @default([])
+  titleKeywords  String[] @default([])
+  enabled        Boolean  @default(true)
+  hits           Int      @default(0)
+  lastHitAt      DateTime?
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([enabled])
+}
+

@@ -101,6 +101,7 @@ export default function AdminDashboardPage() {
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
               { id: 'seo', label: '🔍 SEO Audit', href: '/admin/seo' },
               { id: 'branding', label: '🎨 Branding', href: '/admin/branding' },
+              { id: 'blocklist', label: '🚫 Blocklist', href: '/admin/blocklist' },
               { id: 'users', label: '👥 Users', href: null },
             ].map(({ id, label, href }) => (
               href ? (

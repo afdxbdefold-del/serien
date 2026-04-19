@@ -172,7 +172,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
   // SERIES BLOCKLIST (earliest gate — saves LLM cost + TMDB calls)
   // ════════════════════════════════════════════════════════════════════════
   {
-    const blocked = blockReasonForSource(source.title, source.url);
+    const blocked = await blockReasonForSource(source.title, source.url);
     if (blocked) {
       console.log(`⛔ BLOCKED: "${blocked.label}" matched via URL/Title`);
       await logger.fail(`Blocklist: ${blocked.label}`, 'blocklist-source');
@@ -470,7 +470,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // BLOCKLIST SAFETY NET (post-TMDB — catches cases URL/title missed)
     // ══════════════════════════════════════════════════════════════════════
     {
-      const blocked = blockReasonForTmdbId(searchResult.tmdbId);
+      const blocked = await blockReasonForTmdbId(searchResult.tmdbId);
       if (blocked) {
         console.log(`⛔ BLOCKED: "${blocked.label}" matched via TMDB-ID ${searchResult.tmdbId}`);
         await logger.fail(`Blocklist (TMDB): ${blocked.label}`, 'blocklist-tmdb');

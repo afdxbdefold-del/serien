@@ -142,11 +142,11 @@ function isWithin6Hours(timeAgo: string): boolean {
 
 import { blockReasonForSource } from '../lib/series-blocklist';
 
-function isRelevantArticle(article: NewsArticle): boolean {
+async function isRelevantArticle(article: NewsArticle): Promise<boolean> {
   const titleLower = article.title.toLowerCase();
 
   // BLOCKLIST: skip globally-blocked series/topics
-  if (blockReasonForSource(article.title, article.url)) {
+  if (await blockReasonForSource(article.title, article.url)) {
     return false;
   }
   
@@ -307,7 +307,8 @@ async function scrapeValnetNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   }
   
   // Filter for relevance
-  const relevantArticles = cleanArticles.filter(isRelevantArticle);
+  const relevantFlags = await Promise.all(cleanArticles.map(isRelevantArticle));
+  const relevantArticles = cleanArticles.filter((_, i) => relevantFlags[i]);
   console.log(`   ${relevantArticles.length} relevant (≤6h, TV content)`);
   
   return relevantArticles;
@@ -367,25 +368,26 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   console.log(`   Found ${cleanArticles.length} articles from ${source.name}`);
   
   // For WordPress without time info, we check relevance by keywords only (time filter happens in pipeline)
-  const relevantArticles = cleanArticles.filter(article => {
+  const _flags = await Promise.all(cleanArticles.map(async (article) => {
     const titleLower = article.title.toLowerCase();
 
     // Blocklist (series/topic)
-    if (blockReasonForSource(article.title, article.url)) return false;
+    if (await blockReasonForSource(article.title, article.url)) return false;
 
     // Skip unwanted
     for (const skip of SKIP_KEYWORDS) {
       if (titleLower.includes(skip.toLowerCase())) return false;
     }
-    
+
     // Include TV content
     for (const keyword of RELEVANT_KEYWORDS) {
       if (titleLower.includes(keyword.toLowerCase())) return true;
     }
-    
+
     // TV patterns
     return /season\s*\d+|renewed|canceled|cancelled|trailer|premiere/i.test(titleLower);
-  });
+  }));
+  const relevantArticles = cleanArticles.filter((_, i) => _flags[i]);
   
   console.log(`   ${relevantArticles.length} relevant (TV content)`);
   
