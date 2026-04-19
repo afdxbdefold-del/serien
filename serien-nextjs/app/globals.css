@@ -77,6 +77,11 @@
   * {
     @apply border-border;
   }
+  html, body {
+    /* Belt-and-suspenders: never let a rogue wide element (like an ad)
+       trigger horizontal page scroll on mobile. */
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
