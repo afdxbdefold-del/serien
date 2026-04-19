@@ -46,10 +46,12 @@ export async function GET(request: NextRequest) {
     
     console.log('[CRON] Starting news import...');
     
-    // Scrape from ScreenRant, Collider and Cinemaholic
+    // Scrape from all 7 configured sources: 3 valnet/wp sites + 4 premium RSS feeds.
+    // Premium sources (Deadline, Variety, HR, TVInsider) bring journalistic industry
+    // news — not the "10/10 streaming success" listicles Collider/ScreenRant prefer.
     const result = await processAllNews({
-      sources: ['screenrant', 'collider', 'cinemaholic'],
-      limit: 5, // 5 per source
+      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
+      limit: 4, // 4 per source × 7 = up to 28 candidates per cron run
       dryRun: false,
       onlyNew: true,
     });

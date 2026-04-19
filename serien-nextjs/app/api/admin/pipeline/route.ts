@@ -1047,9 +1047,9 @@ export async function POST(request: NextRequest) {
         const { processAllNews, NEWS_SOURCES } = await import('@/scripts/news-scraper');
         debugLog.push(`📰 Quellen: ${Object.keys(NEWS_SOURCES).join(', ')}`);
         
-        // Process only 1 article (the freshest one)
+        // Process only 1 article (the freshest one) from ALL 7 sources
         const result = await processAllNews({
-          sources: ['screenrant', 'collider', 'cinemaholic'],
+          sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
           limit: 1, // NUR 1 Artikel
           dryRun: false,
           onlyNew: true,
