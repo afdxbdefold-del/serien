@@ -276,7 +276,8 @@ export default function QuestionRadarPage() {
     <div style={{ minHeight: '100vh', background: '#0a0f1c', color: '#e6e9ef', fontFamily: 'ui-sans-serif, system-ui, -apple-system' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto', padding: '32px 24px' }}>
         <header style={{ marginBottom: 32 }}>
-          <a href="/admin/dashboard" style={{ color: '#94a3b8', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }} data-testid="back-to-dashboard">← Zurück zum Dashboard</a>
+          <a href="/admin/dashboard" style={{ color: '#94a3b8', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12, marginRight: 16 }} data-testid="back-to-dashboard">← Zurück zum Dashboard</a>
+          <a href="/admin/content-queue" style={{ color: '#22d3ee', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }} data-testid="link-to-queue">📋 Content Queue →</a>
           <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: -0.5 }}>
             User Question Radar <span style={{ color: '#06b6d4', fontSize: 18, fontWeight: 600 }}>// Content Command Center</span>
           </h1>
