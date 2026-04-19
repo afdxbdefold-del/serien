@@ -2020,3 +2020,8 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Secret-leak prevention
+vercel.env
+.env.production
+.env.local

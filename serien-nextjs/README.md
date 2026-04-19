@@ -51,7 +51,7 @@ git push -u origin main
 
 ### 3. Environment Variables
 ```env
-DATABASE_URL=postgresql://...
+DATABASE_URL=<your-neon-connection-string>
 NEXT_PUBLIC_BASE_URL=https://serien.de
 ```
 

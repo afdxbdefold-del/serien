@@ -100,7 +100,7 @@ async def main():
     client = AsyncIOMotorClient("mongodb://localhost:27017")
     db = client["test_database"]
     
-    api_key = "sk-emergent-..."  # Emergent LLM Key
+    api_key = "<YOUR_EMERGENT_LLM_KEY>"  # Emergent LLM Key
     
     result = await run_crawler(
         api_key=api_key,
@@ -153,8 +153,8 @@ asyncio.run(main())
 ### Umgebungsvariablen (.env):
 
 ```env
-TMDB_API_KEY="c0e0553140b7bd5f982df64c86319c1b"
-EMERGENT_LLM_KEY="sk-emergent-..."
+TMDB_API_KEY="YOUR_TMDB_API_KEY_HERE"
+EMERGENT_LLM_KEY="<YOUR_EMERGENT_LLM_KEY>"
 ```
 
 ### Quellen anpassen:

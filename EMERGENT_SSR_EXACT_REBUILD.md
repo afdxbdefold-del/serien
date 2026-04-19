@@ -135,7 +135,7 @@ import os
 
 class TMDBService:
     def __init__(self):
-        self.api_key = os.getenv("TMDB_API_KEY", "c0e0553140b7bd5f982df64c86319c1b")
+        self.api_key = os.getenv("TMDB_API_KEY", "YOUR_TMDB_API_KEY_HERE")
         self.base_url = "https://api.themoviedb.org/3"
         self.image_base = "https://image.tmdb.org/t/p"
     
@@ -419,7 +419,7 @@ if __name__ == "__main__":
 ```bash
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=serien_db
-TMDB_API_KEY=c0e0553140b7bd5f982df64c86319c1b
+TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE
 REDIS_HOST=localhost
 REDIS_PORT=6379
 ```

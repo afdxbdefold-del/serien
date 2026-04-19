@@ -107,7 +107,7 @@ imageAttribution String    @default("TMDB")
 
 **Erforderliche Environment Variable:**
 ```env
-TMDB_API_KEY=c0e0553140b7bd5f982df64c86319c1b
+TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE
 ```
 
 ## 🎯 Vorteile

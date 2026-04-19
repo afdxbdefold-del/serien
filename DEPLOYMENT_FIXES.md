@@ -62,8 +62,8 @@ Stelle sicher, dass in Vercel folgende Variablen gesetzt sind:
 
 ### Required
 ```
-DATABASE_URL=postgresql://...
-TMDB_API_KEY=c0e0553140b7bd5f982df64c86319c1b
+DATABASE_URL=<your-neon-connection-string>
+TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE
 NEXT_PUBLIC_BASE_URL=https://serien-5v18x10.vercel.app
 JWT_SECRET=<generiere-einen-sicheren-32-char-string>
 ```

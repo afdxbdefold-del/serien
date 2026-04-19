@@ -81,7 +81,7 @@ git push -u origin main --force
 
 4. **Environment Variables hinzufügen:**
    ```env
-   DATABASE_URL=postgresql://...  (dein Neon Connection String)
+   DATABASE_URL=<your-neon-connection-string>  (dein Neon Connection String)
    NEXT_PUBLIC_BASE_URL=https://serien.de
    ```
 
@@ -100,7 +100,7 @@ git push -u origin main --force
 
 ### Erforderlich
 ```env
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+DATABASE_URL=<your-neon-connection-string-goes-here>
 ```
 
 ### Optional (für später)

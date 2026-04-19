@@ -63,11 +63,11 @@ Siehe `/app/frontend/README_PROTOTYPE.md`
 
 ## TMDB API Key
 
-Dein TMDB API Key: `c0e0553140b7bd5f982df64c86319c1b`
+Dein TMDB API Key: `YOUR_TMDB_API_KEY_HERE`
 
 **Hinterlegen in WordPress:**
 - Option A: Admin Panel → TMDB Settings
-- Option B: In `wp-config.php`: `define('TMDB_API_KEY', 'c0e0553140b7bd5f982df64c86319c1b');`
+- Option B: In `wp-config.php`: `define('TMDB_API_KEY', 'YOUR_TMDB_API_KEY_HERE');`
 
 ---
 

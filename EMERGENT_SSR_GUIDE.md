@@ -153,7 +153,7 @@ GET  /api/tmdb/series/{tmdb_id}
 ```
 
 **TMDB Integration:**
-- API Key: bereits vorhanden (c0e0553140b7bd5f982df64c86319c1b)
+- API Key: bereits vorhanden (YOUR_TMDB_API_KEY_HERE)
 - Bilder: Verwende TMDB URLs direkt (kein lokales Speichern)
 - Cache TMDB responses in MongoDB (series.tmdb_data)
 
@@ -373,7 +373,7 @@ REACT_APP_BACKEND_URL=https://video-autoplay-fix-3.preview.emergentagent.com
 # backend/.env
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=serien_db
-TMDB_API_KEY=c0e0553140b7bd5f982df64c86319c1b
+TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE
 ```
 
 **Deployment-Workflow:**
