@@ -32,6 +32,9 @@ const STREAMING_PROVIDERS = [
 // More menu items
 const MORE_ITEMS = [
   { name: 'Top 100 Serien', href: '/top-100-serien', icon: Flame, description: 'Täglich aktualisiertes Ranking' },
+  { name: 'Top 100 Netflix', href: '/top-100-netflix', icon: Flame, description: 'Die besten Netflix-Serien' },
+  { name: 'Top 100 Prime Video', href: '/top-100-amazon-prime', icon: Flame, description: 'Die besten Prime-Serien' },
+  { name: 'Top 100 Disney+', href: '/top-100-disney-plus', icon: Flame, description: 'Die besten Disney+ Serien' },
   { name: 'Trending', href: '/trending', icon: Flame, description: 'Was Deutschland gerade schaut' },
   { name: 'Neue Videos', href: '/neue-videos', icon: Play, description: 'Trailer & Ankündigungen' },
   { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
