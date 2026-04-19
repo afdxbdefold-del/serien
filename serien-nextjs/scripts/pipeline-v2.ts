@@ -184,10 +184,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const trigger = source.trigger || 'manual';
     
     if (trigger !== 'manual') {
-      // Prüfe ob diese URL in den letzten 24h bereits verarbeitet wurde
+      // Nur SUCCESSFUL Runs der letzten 24h blockieren — gescheiterte Runs
+      // (z.B. Classifier-Timeout → UNKNOWN) dürfen neu versucht werden,
+      // sonst altern Artikel aus dem Relevanzfenster und gehen verloren.
       const recentRun = await prisma.pipeline_runs.findFirst({
         where: {
           inputSource: source.url,
+          status: 'success',
           startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
           id: { not: logger.getRunId() || '' },
         },
@@ -196,7 +199,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       });
 
       if (recentRun) {
-        console.log(`⏭️  URL bereits verarbeitet (${recentRun.status}, ${new Date(recentRun.startedAt).toLocaleTimeString('de-DE')})`);
+        console.log(`⏭️  URL bereits erfolgreich verarbeitet (${new Date(recentRun.startedAt).toLocaleTimeString('de-DE')})`);
         console.log(`   → Überspringe. Manuelle Trigger umgehen diesen Check.`);
         await logger.fail('URL bereits verarbeitet (Dedup)', 'url-dedup');
         return null;

@@ -555,10 +555,14 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           select: { id: true }
         });
         
-        // Check 2: URL was already processed in last 24h
+        // Check 2: URL was successfully processed in last 24h.
+        // Only SUCCESS counts as dedup — if a previous run FAILED (e.g.
+        // classifier hiccup → UNKNOWN), we must retry, otherwise the URL
+        // ages out of the 6h relevance window and the article is lost.
         const recentRun = !exists ? await prisma.pipeline_runs.findFirst({
           where: {
             inputSource: article.url,
+            status: 'success',
             startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
           },
           select: { id: true }
