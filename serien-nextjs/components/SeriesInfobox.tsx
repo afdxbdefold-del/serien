@@ -57,7 +57,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
   }
 
   const posterImage = data.posterPath 
-    ? `https://image.tmdb.org/t/p/w500${data.posterPath}`
+    ? `/img/tmdb/w500${data.posterPath}`
     : null;
 
   return (

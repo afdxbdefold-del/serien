@@ -234,7 +234,7 @@ export default function MobileSeriesLayout({
                     <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
                       {actor.profile_path ? (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                          src={`/img/tmdb/w185${actor.profile_path}`}
                           alt={actor.name}
                           fill
                           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
@@ -355,7 +355,7 @@ export default function MobileSeriesLayout({
                     />
                   ) : character.persons?.profilePath ? (
                     <Image
-                      src={`https://image.tmdb.org/t/p/w185${character.persons.profilePath}`}
+                      src={`/img/tmdb/w185${character.persons.profilePath}`}
                       alt={character.name}
                       fill
                       sizes="33vw"

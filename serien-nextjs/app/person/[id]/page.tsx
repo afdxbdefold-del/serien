@@ -269,7 +269,7 @@ export default async function PersonPage({ params }: PageProps) {
                     <Link key={series.tmdbId} href={`/serie/${series.slug}`} className="group">
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition bg-gray-200 dark:bg-gray-800">
                         {(series.posterLocalUrl || series.posterPath) ? (
-                          <Image src={series.posterLocalUrl || `https://image.tmdb.org/t/p/w342${series.posterPath}`}
+                          <Image src={series.posterLocalUrl || `/img/tmdb/w342${series.posterPath}`}
                             alt={series.name || series.title || ''} fill sizes="(max-width: 640px) 25vw, 150px" className="object-cover" loading="lazy" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center"><span className="text-gray-400 text-xs">Kein Bild</span></div>
@@ -317,7 +317,7 @@ export default async function PersonPage({ params }: PageProps) {
                   {displayCredits.map((credit: any, idx: number) => (
                     <div key={`${credit.id}-${idx}`} className="flex items-center gap-3 p-3 md:p-4">
                       {credit.poster_path ? (
-                        <Image src={`https://image.tmdb.org/t/p/w92${credit.poster_path}`}
+                        <Image src={`/img/tmdb/w92${credit.poster_path}`}
                           alt={credit.name || ''} width={40} height={60}
                           className="rounded w-[40px] h-[60px] object-cover flex-shrink-0" loading="lazy" />
                       ) : (

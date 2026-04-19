@@ -24,7 +24,7 @@ export default function MobileHeroWithVideo({
       <div className="relative w-full aspect-video bg-gray-900">
         <R2VideoPlayer
           src={localTrailerUrl}
-          poster={backdropPath ? `https://image.tmdb.org/t/p/w780${backdropPath}` : undefined}
+          poster={backdropPath ? `/img/tmdb/w780${backdropPath}` : undefined}
         />
       </div>
     );
@@ -51,7 +51,7 @@ export default function MobileHeroWithVideo({
       {backdropPath && (
         <>
           <Image
-            src={`https://image.tmdb.org/t/p/original${backdropPath}`}
+            src={`/img/tmdb/original${backdropPath}`}
             alt={seriesName}
             fill
             className="object-cover"
@@ -64,7 +64,7 @@ export default function MobileHeroWithVideo({
       {posterPath && (
         <div className="absolute bottom-4 left-4 z-10">
           <Image
-            src={`https://image.tmdb.org/t/p/w500${posterPath}`}
+            src={`/img/tmdb/w500${posterPath}`}
             alt={seriesName}
             width={80}
             height={120}

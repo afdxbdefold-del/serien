@@ -66,7 +66,7 @@ export default async function RelatedSeries({ currentSeriesId, genres, networks 
             <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
               {series.posterPath ? (
                 <Image
-                  src={`https://image.tmdb.org/t/p/w342${series.posterPath}`}
+                  src={`/img/tmdb/w342${series.posterPath}`}
                   alt={series.name || series.title}
                   fill
                   sizes="(max-width: 640px) 50vw, 200px"

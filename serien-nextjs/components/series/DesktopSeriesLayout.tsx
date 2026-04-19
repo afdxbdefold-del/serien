@@ -59,7 +59,7 @@ export default function DesktopSeriesLayout({
         {localTrailerUrl ? (
           <R2VideoPlayer
             src={localTrailerUrl}
-            poster={series.backdropPath ? `https://image.tmdb.org/t/p/w780${series.backdropPath}` : undefined}
+            poster={series.backdropPath ? `/img/tmdb/w780${series.backdropPath}` : undefined}
           />
         ) : trailerKey ? (
           <iframe
@@ -72,7 +72,7 @@ export default function DesktopSeriesLayout({
         ) : series.backdropPath ? (
           <>
             <Image
-              src={`https://image.tmdb.org/t/p/original${series.backdropPath}`}
+              src={`/img/tmdb/original${series.backdropPath}`}
               alt={series.name || ''}
               fill
               className="object-cover"
@@ -88,7 +88,7 @@ export default function DesktopSeriesLayout({
             <div className="flex items-end gap-6">
               {series.posterPath && (
                 <Image
-                  src={`https://image.tmdb.org/t/p/w500${series.posterPath}`}
+                  src={`/img/tmdb/w500${series.posterPath}`}
                   alt={series.name || ''}
                   width={140}
                   height={210}
@@ -188,7 +188,7 @@ export default function DesktopSeriesLayout({
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
                         {actor.profile_path ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                            src={`/img/tmdb/w185${actor.profile_path}`}
                             alt={actor.name}
                             fill
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
@@ -261,7 +261,7 @@ export default function DesktopSeriesLayout({
                         />
                       ) : character.persons?.profilePath ? (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w185${character.persons.profilePath}`}
+                          src={`/img/tmdb/w185${character.persons.profilePath}`}
                           alt={character.name}
                           fill
                           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
@@ -441,7 +441,7 @@ export default function DesktopSeriesLayout({
                       <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2">
                         {actor.profile_path ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                            src={`/img/tmdb/w185${actor.profile_path}`}
                             alt={actor.name}
                             fill
                             className="object-cover"

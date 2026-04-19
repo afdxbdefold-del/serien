@@ -172,7 +172,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                     <div className="flex items-start gap-3">
                       {character.actor?.profilePath && (
                         <Image
-                          src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
+                          src={`/img/tmdb/w185${character.actor.profilePath}`}
                           alt={character.name} width={50} height={75}
                           className="rounded-lg shadow-sm flex-shrink-0" loading="lazy"
                         />

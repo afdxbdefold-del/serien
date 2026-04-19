@@ -57,7 +57,7 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
               <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
                 {actor.profile_path ? (
                   <Image
-                    src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                    src={`/img/tmdb/w185${actor.profile_path}`}
                     alt={actor.name}
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"

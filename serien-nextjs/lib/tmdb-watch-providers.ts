@@ -60,10 +60,10 @@ export async function getTVWatchProviders(seriesId: number): Promise<WatchProvid
 }
 
 /**
- * Get TMDB image URL for provider logo
+ * Get TMDB image URL for provider logo (routed via our proxy for edge-caching).
  */
 export function getTMDBLogoUrl(logoPath: string, size: 'original' | 'w92' | 'w154' | 'w185' = 'w92'): string {
-  return `https://image.tmdb.org/t/p/${size}${logoPath}`;
+  return `/img/tmdb/${size}${logoPath}`;
 }
 
 /**

@@ -409,7 +409,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                           />
                         ) : relChar.persons?.profilePath ? (
                           <Image
-                            src={`https://image.tmdb.org/t/p/w185${relChar.persons.profilePath}`}
+                            src={`/img/tmdb/w185${relChar.persons.profilePath}`}
                             alt={relChar.name}
                             fill
                             sizes="(max-width: 640px) 50vw, 25vw"
@@ -499,7 +499,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
               >
                 {character.series.posterPath && (
                   <Image
-                    src={`https://image.tmdb.org/t/p/w300${character.series.posterPath}`}
+                    src={`/img/tmdb/w300${character.series.posterPath}`}
                     alt={seriesName}
                     width={300}
                     height={450}

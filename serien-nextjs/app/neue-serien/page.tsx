@@ -349,7 +349,7 @@ export default async function NeueSerienPage() {
                         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
                           {release.posterPath ? (
                             <Image
-                              src={`https://image.tmdb.org/t/p/w342${release.posterPath}`}
+                              src={`/img/tmdb/w342${release.posterPath}`}
                               alt={release.name}
                               fill
                               className="object-cover"

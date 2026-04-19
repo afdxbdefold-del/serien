@@ -126,7 +126,7 @@ async function getTrendingData() {
 // Article Card Component
 function TrendArticleCard({ article }: { article: any }) {
   const heroImage = article.heroImage || 
-    (article.series?.posterPath ? `https://image.tmdb.org/t/p/w500${article.series.posterPath}` : null);
+    (article.series?.posterPath ? `/img/tmdb/w500${article.series.posterPath}` : null);
   
   return (
     <Link
@@ -339,7 +339,7 @@ export default async function TrendingHubPage() {
                   <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-2">
                     {release.posterPath ? (
                       <Image
-                        src={`https://image.tmdb.org/t/p/w342${release.posterPath}`}
+                        src={`/img/tmdb/w342${release.posterPath}`}
                         alt={release.name}
                         fill
                         className="object-cover"

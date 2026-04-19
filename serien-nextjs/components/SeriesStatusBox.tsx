@@ -33,7 +33,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
   const [loading, setLoading] = useState(true);
 
   // Determine which poster image to use
-  const posterImage = posterUrl || (posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null);
+  const posterImage = posterUrl || (posterPath ? `/img/tmdb/w500${posterPath}` : null);
 
   useEffect(() => {
     async function fetchStatus() {

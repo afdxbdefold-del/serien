@@ -71,7 +71,7 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
               {character.actor?.profilePath && (
                 <div className="flex-shrink-0">
                   <Image
-                    src={`https://image.tmdb.org/t/p/w185${character.actor.profilePath}`}
+                    src={`/img/tmdb/w185${character.actor.profilePath}`}
                     alt={character.name}
                     width={48}
                     height={72}

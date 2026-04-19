@@ -286,7 +286,7 @@ export default async function KalenderPage({
                           <Link href={`/serie/${ep.seriesSlug}`} className="shrink-0">
                             {ep.series?.posterPath ? (
                               <Image
-                                src={`https://image.tmdb.org/t/p/w92${ep.series.posterPath}`}
+                                src={`/img/tmdb/w92${ep.series.posterPath}`}
                                 alt={ep.seriesName}
                                 width={60}
                                 height={90}

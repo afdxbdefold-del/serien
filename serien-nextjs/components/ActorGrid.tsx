@@ -38,7 +38,7 @@ export default function ActorGrid({ persons }: ActorGridProps) {
   // Helper function to get TMDB image URL
   const getTMDBImageUrl = (path: string | null, size: string = 'w185') => {
     if (!path) return null;
-    return `https://image.tmdb.org/t/p/${size}${path}`;
+    return `/img/tmdb/${size}${path}`;
   };
 
   return (

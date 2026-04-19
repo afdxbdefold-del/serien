@@ -302,7 +302,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                   <Link href={`/serie/${show.slug}`} className="block relative aspect-[2/3] overflow-hidden bg-gray-200">
                     {(show.posterLocalUrl || show.posterPath) ? (
                       <Image
-                        src={show.posterLocalUrl || `https://image.tmdb.org/t/p/w500${show.posterPath}`}
+                        src={show.posterLocalUrl || `/img/tmdb/w500${show.posterPath}`}
                         alt={show.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
