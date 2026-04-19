@@ -165,6 +165,33 @@ const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstab
   { revalidate: 300, tags: ['series-articles'] }
 )();
 
+// E-E-A-T: Other articles by the SAME author about the SAME series.
+// Used for the "Mehr zu dieser Serie von <Autor>"-Section under the author trust box.
+const getAuthorSeriesArticles = (articleId: string, primarySeriesId: number, authorId: string) => unstable_cache(
+  async () => {
+    return prisma.articles.findMany({
+      where: {
+        OR: [
+          { status: 'published' },
+          { status: 'PUBLISHED' },
+        ],
+        id: { not: articleId },
+        primarySeriesId,
+        authorId,
+      },
+      take: 3,
+      orderBy: { publishedAt: 'desc' },
+      select: {
+        slug: true,
+        title: true,
+        publishedAt: true,
+      },
+    });
+  },
+  [`author-series-articles-${articleId}-${primarySeriesId}-${authorId}`],
+  { revalidate: 300, tags: ['author-series-articles'] }
+)();
+
 // ISR - Revalidate every 5 minutes for near-real-time data with caching
 export const revalidate = 300;
 
@@ -313,6 +340,11 @@ export default async function ArticlePage({ params }: PageProps) {
   // Fetch same-series articles for "Mehr zu <Serie>" card section
   const seriesArticles = article.primarySeriesId
     ? await getSeriesArticles(article.id, article.primarySeriesId)
+    : [];
+
+  // E-E-A-T: other articles by the SAME author about the SAME series
+  const authorSeriesArticles = (article.primarySeriesId && article.users?.id)
+    ? await getAuthorSeriesArticles(article.id, article.primarySeriesId, article.users.id)
     : [];
 
   // Fetch TMDB season data if missing from DB (cached 24h)
@@ -613,6 +645,34 @@ export default async function ArticlePage({ params }: PageProps) {
                   expertise: ((article.users as any).expertise as string[]) ?? [],
                 }}
               />
+
+              {/* Mehr zu dieser Serie vom gleichen Autor */}
+              {authorSeriesArticles.length > 0 && article.series && article.users.name && (
+                <div className="mt-4 bg-slate-50 dark:bg-gray-800/50 rounded-xl border border-slate-200 dark:border-gray-700 p-5" data-testid="author-series-articles">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+                    Mehr zu {article.series.title || article.series.name} von {article.users.name.split(' ')[0]}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                    {article.users.name.split(' ')[0]} hat {authorSeriesArticles.length === 1 ? 'einen weiteren Artikel' : `${authorSeriesArticles.length} weitere Artikel`} zur selben Serie verfasst.
+                  </p>
+                  <ul className="space-y-2">
+                    {authorSeriesArticles.map((a) => (
+                      <li key={a.slug}>
+                        <Link
+                          href={`/${a.slug}`}
+                          className="group flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                          data-testid={`author-series-article-${a.slug}`}
+                        >
+                          <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400 group-hover:text-cyan-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span className="font-medium leading-snug">{a.title}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
