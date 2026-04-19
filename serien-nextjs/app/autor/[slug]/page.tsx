@@ -94,14 +94,25 @@ export default async function AuthorPage({ params }: PageProps) {
       name: true,
       email: true,
       image: true,
+      role: true,
       createdAt: true,
+      _count: { select: { articles: { where: { status: 'published' } } } },
     },
   });
 
-  // Find the matching author
-  const author = allUsers.find((user) => 
+  // Find matching author(s) — when multiple users share a name, prefer
+  // role=author then highest article count. Otherwise a duplicate low-article
+  // user can shadow the real author record (and its fullBio).
+  const matches = allUsers.filter((user) =>
     user.name && matchAuthorBySlug(slug, user.name)
   );
+  matches.sort((a, b) => {
+    const ra = a.role === 'author' ? 0 : a.role === 'admin' ? 1 : 2;
+    const rb = b.role === 'author' ? 0 : b.role === 'admin' ? 1 : 2;
+    if (ra !== rb) return ra - rb;
+    return (b._count?.articles || 0) - (a._count?.articles || 0);
+  });
+  const author = matches[0];
 
   if (!author || !author.name) {
     notFound();

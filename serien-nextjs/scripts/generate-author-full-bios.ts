@@ -1,10 +1,13 @@
 /**
- * Generate long-form author bios (fullBio) for all authors using Claude Sonnet 4.6.
+ * Generate long-form author bios (fullBio) for all authors using Claude Sonnet 4.5.
  *
  * Per author:
- *   - 3–4 paragraphs (~350–500 words)
- *   - Werdegang / Schwerpunkte / Ton / Interessen
- *   - Based on: existing short bio + expertise tags + written article topics
+ *   - 3 paragraphs, ~400–500 words
+ *   - E-E-A-T optimized: Experience / Expertise / Authority / Trust
+ *   - Based on: existing short bio + expertise tags + last 10 article titles
+ *
+ * Claude-ONLY (no gpt-mini fallback — user requirement).
+ * Retries: 5 attempts with exponential backoff on retriable errors.
  *
  * Run:
  *   npx tsx scripts/generate-author-full-bios.ts          # dry-run
@@ -54,16 +57,16 @@ E-E-A-T-REGELN für den Text:
 - Aktualisierungen: neue Infos werden nachgepflegt statt überschrieben
 - Fehlerkultur: Korrekturen werden markiert
 
-STRUKTUR (exakt 3 Absätze, ca. 400–500 Wörter gesamt):
+STRUKTUR (exakt 3 Absätze, ZWINGEND 400–500 Wörter GESAMT — d.h. jeder Absatz ~130–170 Wörter):
 
-**Absatz 1 – Wer & Woher (Experience-fokus):**
-Werdegang, Stationen, wie viele Jahre im Bereich, warum serien.de. Konkrete Zahlen + Orte. Keine Floskeln.
+**Absatz 1 – Wer & Woher (Experience-fokus, 130–170 Wörter):**
+Werdegang mit konkreten Stationen (Universität + Stadt, frühere Medien/Publikationen, Jahr des Einstiegs, Art der Tätigkeit). Mindestens 4 konkrete Eckdaten (Jahreszahlen, Orte, Mengenangaben wie "über 300 Artikel"). Keine Floskeln.
 
-**Absatz 2 – Was & Wie (Expertise-fokus):**
-Inhaltliche Schwerpunkte mit BENCHMARK-Serien (konkrete Namen aus den Expertise-Bereichen). Arbeitsweise: Wie analysiert sie? Welche Quellen nutzt sie? (TMDB, Variety, Deadline, Trade Press, Interviews, Screener). Was macht ihre Perspektive einzigartig?
+**Absatz 2 – Was & Wie (Expertise-fokus, 130–170 Wörter):**
+Inhaltliche Schwerpunkte mit MINDESTENS 5 BENCHMARK-Serien (konkrete Titel in <em>-Tags). Arbeitsweise detailliert: Welche Quellen? (TMDB, Variety, Deadline, The Hollywood Reporter, Trade Press, Interviews, Screener). Analytische Methodik: Was wird geprüft (Showrunner-Wechsel, Produktionsbudgets, Besetzungsentscheidungen, Tonalitäts-Konsistenz)? Wie differenziert sie zwischen bestätigten Daten, Gerüchten und Spekulation?
 
-**Absatz 3 – Haltung & Versprechen (Authority + Trust):**
-Qualitätsanspruch, redaktionelle Haltung, was Leser*innen konkret erwarten dürfen. Lieblingsserien (3–5 konkrete Titel, gemischt aus den Expertise-Genres). Schlusssatz mit klarer Positionierung.
+**Absatz 3 – Haltung & Versprechen (Authority + Trust, 130–170 Wörter):**
+Qualitätsanspruch, redaktionelle Haltung (keine bezahlten Reviews, Update-Policy mit Zeitstempel, Spoiler-Kennzeichnung, Transparenz bei Streaming-Zahlen). MINDESTENS 4 persönliche Benchmark-Serien aus den Expertise-Genres mit je 1 kurzer Begründung (z.B. "<em>Better Call Saul</em> für Charakterentwicklung"). Schlusssatz mit klarer Positionierung der Erwartungshaltung an Leser.
 
 HARTE REGELN:
 - DEUTSCH, Sie-Form vermeiden (neutral)
@@ -76,15 +79,15 @@ HARTE REGELN:
 
 ANTWORT (nur das HTML, nichts sonst):`;
 
-  const modelsToTry = [model, 'gpt-4o-mini'];
+  const modelsToTry = [model]; // Claude-only (user requirement: never use gpt-mini for articles)
   let lastError: any;
   for (const m of modelsToTry) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const completion = await client.chat.completions.create({
           model: m,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1500,
+          max_tokens: 2500,
           temperature: 0.7,
         });
         let text = completion.choices[0].message.content || '';
@@ -92,16 +95,21 @@ ANTWORT (nur das HTML, nichts sonst):`;
         if (!text.includes('<p>')) {
           text = text.split(/\n\s*\n/).filter(Boolean).map(p => `<p>${p.trim()}</p>`).join('\n');
         }
-        if (attempt > 0 || m !== model) console.log(`    ℹ used ${m} attempt ${attempt + 1}`);
+        if (attempt > 0) console.log(`    ℹ succeeded on attempt ${attempt + 1}`);
         return text;
       } catch (e: any) {
         lastError = e;
         const msg = e?.message || String(e);
-        if (msg.includes('502') || msg.includes('timeout') || msg.includes('ECONNRESET')) {
-          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        const retriable = msg.includes('502') || msg.includes('503') || msg.includes('504')
+          || msg.includes('timeout') || msg.includes('ECONNRESET') || msg.includes('rate_limit')
+          || msg.includes('overloaded') || msg.includes('529');
+        if (retriable && attempt < 4) {
+          const backoff = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s, 16s
+          console.log(`    ⚠ retriable error "${msg.substring(0, 80)}" — retry in ${backoff}ms`);
+          await new Promise(r => setTimeout(r, backoff));
           continue;
         }
-        break;
+        throw e;
       }
     }
   }
@@ -120,6 +128,10 @@ async function main() {
 
   const client = createLLMClient();
   const { model } = getLLMConfig();
+  console.log(`Model: ${model}\n`);
+
+  const failures: string[] = [];
+  let succeeded = 0;
 
   for (const author of authors) {
     // Get sample article titles written by this author
@@ -159,14 +171,23 @@ async function main() {
       } else {
         console.log(`    PREVIEW: ${fullBio.substring(0, 200).replace(/<[^>]+>/g, ' ')}…`);
       }
+      succeeded++;
       await new Promise(r => setTimeout(r, 500));
     } catch (e: any) {
       console.error(`    ✗ Error: ${e.message}`);
+      failures.push(`${author.name}: ${e.message}`);
     }
   }
 
-  console.log(`\nDone. ${APPLY ? '' : '\nRe-run with --apply to save.'}`);
+  console.log(`\n============================================`);
+  console.log(`✓ Succeeded: ${succeeded}/${authors.length}`);
+  if (failures.length) {
+    console.log(`✗ Failed: ${failures.length}`);
+    failures.forEach(f => console.log(`   - ${f}`));
+  }
+  console.log(`${APPLY ? '💾 Persisted to DB' : '(dry-run) Re-run with --apply to save.'}`);
   await prisma.$disconnect();
+  if (failures.length > 0) process.exit(1);
 }
 
 main().catch(async e => { console.error(e); await prisma.$disconnect(); process.exit(1); });
