@@ -60,6 +60,8 @@ export function generateArticleSchema(article: {
       logo: {
         '@type': 'ImageObject',
         url: 'https://serien.de/logo.png',
+        width: 600,
+        height: 60,
       },
     },
     mainEntityOfPage: {
