@@ -92,6 +92,7 @@ export default function AdminDashboardPage() {
               { id: 'analytics', label: '📈 Live Analytics', href: '/admin/analytics' },
               { id: 'discover', label: '🎯 Discover Analytics', href: '/admin/discover-analytics' },
               { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
+              { id: 'headline-angles', label: '🎭 Headline Angles', href: '/admin/headline-angles' },
               { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
               { id: 'series', label: '📺 Serien', href: '/admin/series' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
