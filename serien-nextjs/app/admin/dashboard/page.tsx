@@ -95,6 +95,7 @@ export default function AdminDashboardPage() {
               { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
               { id: 'series', label: '📺 Serien', href: '/admin/series' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
+              { id: 'question-radar', label: '🎯 Question Radar', href: '/admin/question-radar' },
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
               { id: 'seo', label: '🔍 SEO Audit', href: '/admin/seo' },
               { id: 'users', label: '👥 Users', href: null },
