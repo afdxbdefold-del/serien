@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Metadata } from 'next';
 import { getAuthorUrl } from '@/lib/author-utils';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
+import SeriesAuthorLookup from './SeriesAuthorLookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -291,6 +292,9 @@ export default async function AutorenPage() {
             </div>
           )}
         </section>
+
+        {/* Series → Author lookup */}
+        <SeriesAuthorLookup />
 
         {/* Trust section */}
         <section className="mt-20 pt-12 border-t border-slate-200">
