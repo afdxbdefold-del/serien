@@ -5,6 +5,7 @@ import { Metadata } from 'next';
 import { getAuthorUrl } from '@/lib/author-utils';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
 import SeriesAuthorLookup from './SeriesAuthorLookup';
+import GenreExpertsToggle from './GenreExpertsToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,9 +160,38 @@ export default async function AutorenPage() {
   // Genre-Expertinnen: aggregate article counts by (author, series-genre).
   // Data-driven author ranking per genre — unlike the manual `expertise`
   // tags, this reflects what each author actually writes about.
+  // Computed twice: all-time + last 90 days, so a client toggle can switch.
   // ───────────────────────────────────────────────────────────────────────
   type GenreRow = { author: string; image: string | null; genre: string; cnt: number };
-  const genreRows = await prisma.$queryRaw<GenreRow[]>`
+
+  const buildGenreSections = (rows: GenreRow[]) => {
+    const byGenre = new Map<string, Map<string, { author: string; image: string | null; cnt: number }>>();
+    for (const row of rows) {
+      const g = canonicalGenre(row.genre);
+      if (!g) continue;
+      if (!byGenre.has(g)) byGenre.set(g, new Map());
+      const inner = byGenre.get(g)!;
+      const existing = inner.get(row.author);
+      if (existing) {
+        existing.cnt += row.cnt;
+      } else {
+        inner.set(row.author, { author: row.author, image: row.image, cnt: row.cnt });
+      }
+    }
+    return GENRE_HEADLINES
+      .map((genre) => {
+        const inner = byGenre.get(genre);
+        if (!inner) return null;
+        const top = Array.from(inner.values())
+          .sort((a, b) => b.cnt - a.cnt)
+          .slice(0, 3);
+        if (top.length === 0) return null;
+        return { genre, top };
+      })
+      .filter((x): x is { genre: string; top: { author: string; image: string | null; cnt: number }[] } => !!x);
+  };
+
+  const genreRowsAllTime = await prisma.$queryRaw<GenreRow[]>`
     SELECT u.name AS author, u.image AS image, unnest(s.genres) AS genre, COUNT(*)::int AS cnt
     FROM articles a
     JOIN users u ON a."authorId" = u.id
@@ -172,32 +202,20 @@ export default async function AutorenPage() {
     GROUP BY u.name, u.image, genre
   `;
 
-  // Collapse raw genre labels → canonical headline genres, aggregate counts
-  const byGenre = new Map<string, Map<string, { author: string; image: string | null; cnt: number }>>();
-  for (const row of genreRows) {
-    const g = canonicalGenre(row.genre);
-    if (!g) continue;
-    if (!byGenre.has(g)) byGenre.set(g, new Map());
-    const inner = byGenre.get(g)!;
-    const existing = inner.get(row.author);
-    if (existing) {
-      existing.cnt += row.cnt;
-    } else {
-      inner.set(row.author, { author: row.author, image: row.image, cnt: row.cnt });
-    }
-  }
+  const genreRows90Days = await prisma.$queryRaw<GenreRow[]>`
+    SELECT u.name AS author, u.image AS image, unnest(s.genres) AS genre, COUNT(*)::int AS cnt
+    FROM articles a
+    JOIN users u ON a."authorId" = u.id
+    JOIN series s ON a."primarySeriesId" = s."tmdbId"
+    WHERE a.status = 'published'
+      AND u.role IN ('author', 'admin')
+      AND u."fullBio" IS NOT NULL
+      AND a."publishedAt" >= NOW() - INTERVAL '90 days'
+    GROUP BY u.name, u.image, genre
+  `;
 
-  const genreSections = GENRE_HEADLINES
-    .map((genre) => {
-      const inner = byGenre.get(genre);
-      if (!inner) return null;
-      const top = Array.from(inner.values())
-        .sort((a, b) => b.cnt - a.cnt)
-        .slice(0, 3);
-      if (top.length === 0) return null;
-      return { genre, top };
-    })
-    .filter((x): x is { genre: string; top: { author: string; image: string | null; cnt: number }[] } => !!x);
+  const genreSectionsAll = buildGenreSections(genreRowsAllTime);
+  const genreSections90 = buildGenreSections(genreRows90Days);
 
   // JSON-LD: list of Person schemas
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
@@ -376,71 +394,12 @@ export default async function AutorenPage() {
           )}
         </section>
 
-        {/* Genre-Expertinnen */}
-        {genreSections.length > 0 && (
-          <section className="mt-20 pt-12 border-t border-slate-200" data-testid="genre-experts">
-            <div className="max-w-3xl mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold tracking-wide uppercase mb-4">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Genre-Expertinnen
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">
-                Wer schreibt worüber — datenbasiert
-              </h2>
-              <p className="text-slate-600">
-                Keine manuellen Tags: Diese Rangfolge basiert auf der tatsächlichen Artikel-Historie.
-                Wer eine Serie im Genre besonders oft analysiert hat, steht oben.
-              </p>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {genreSections.map(({ genre, top }) => (
-                <div
-                  key={genre}
-                  className="bg-white rounded-xl border border-slate-200/80 p-5"
-                  data-testid={`genre-block-${genre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                >
-                  <div className="flex items-baseline justify-between mb-4">
-                    <h3 className="font-bold text-lg text-slate-900">{genre}</h3>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                      Top {top.length}
-                    </span>
-                  </div>
-                  <ol className="space-y-3">
-                    {top.map((entry, idx) => (
-                      <li key={entry.author}>
-                        <Link
-                          href={getAuthorUrl(entry.author)}
-                          className="flex items-center gap-3 group"
-                        >
-                          <span className="text-xs font-bold text-slate-400 w-4 flex-shrink-0">
-                            {idx + 1}
-                          </span>
-                          {entry.image ? (
-                            <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
-                              <Image src={entry.image} alt={entry.author} fill sizes="36px" className="object-cover" />
-                            </div>
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                              {entry.author.charAt(0)}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-sm text-slate-900 group-hover:text-cyan-600 transition-colors truncate">
-                              {entry.author}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {entry.cnt} {entry.cnt === 1 ? 'Artikel' : 'Artikel'} im Genre
-                            </div>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ))}
-            </div>
-          </section>
+        {/* Genre-Expertinnen (with All-Time / 90 Tage toggle) */}
+        {(genreSectionsAll.length > 0 || genreSections90.length > 0) && (
+          <GenreExpertsToggle
+            sectionsAllTime={genreSectionsAll}
+            sections90Days={genreSections90}
+          />
         )}
 
         {/* Series → Author lookup */}
