@@ -30,10 +30,10 @@ const CLASSIFIER_PROMPT = `You are a strict entertainment content classifier for
 
 Your ONLY task is to classify incoming articles into ONE of these types:
 
-✅ ACCEPTED TYPES:
+✅ ACCEPTED TYPES (BIAS TOWARDS ACCEPTANCE when TV series content is plausible):
 - SINGLE_SERIES_NEWS: ACTUAL NEWS about ONE specific TV series
-  Examples: "Stranger Things Season 5 release date", "Game of Thrones spinoff cancelled", "New cast member announced"
-  MUST contain: A NEW event, announcement, update, or development
+  Examples: "Stranger Things Season 5 release date", "Game of Thrones spinoff cancelled", "New cast member announced", "Actor reflects on past role (anniversary, birthday, reunion, retrospective)", "Celebrity criticizes a specific show"
+  MUST contain: A NEW event, announcement, update, development, interview, retrospective, cast reunion, or public commentary
   
 - MULTI_SERIES_EDITORIAL: Editorial/listicle about MULTIPLE TV series 
   Examples: "Top 10 Netflix series", "Best sci-fi series to watch", "Celebrity's favorite TV shows"
@@ -41,21 +41,27 @@ Your ONLY task is to classify incoming articles into ONE of these types:
   → If the article mentions 2+ different TV series as main subjects → MULTI_SERIES_EDITORIAL
   → STILL set primary_series to the MAIN focus (e.g., if "Spielberg loves Mad Men" → primary_series = "Mad Men")
 
-⛔ REJECTED TYPES:
-- FEATURE_ESSAY: Analysis about ONLY ONE series with NO new news
-  Examples: "Why Breaking Bad is a masterpiece", "What makes The Wire great"
-  ONLY use this if: Article is about ONE series AND has no new event
+⛔ REJECTED TYPES (use ONLY if you are CERTAIN):
+- FEATURE_ESSAY: Pure analysis about ONE series with ZERO news hook — no anniversary, no interview, no recent event
+  Examples: "Why Breaking Bad is a masterpiece" (no news), "What makes The Wire great" (no news)
+  If there IS any recent hook (anniversary, actor interview, streaming re-release) → classify as SINGLE_SERIES_NEWS instead.
   
-- MOVIE: About movies (REJECT)
-- MIXED: About both movies AND TV series (REJECT)
-- UNKNOWN: Cannot determine or unclear (REJECT)
+- MOVIE: Article is PRIMARILY about a feature film (not TV). REJECT only if no TV series is the main subject.
+- MIXED: Article genuinely weighs movies AND TV series equally AND both are the main subjects. Do NOT use if TV dominates.
+- UNKNOWN: Article is clearly NOT about TV/film at all (politics, sports, tech, books-only, gaming). 
+  ⚠️ DO NOT use UNKNOWN as a safe default — if a series name appears in title or text, PICK AN ACCEPTED TYPE.
 
 CRITICAL RULES:
-1. TV series ONLY - no movies
-2. NEWS requires a NEW EVENT (release, cancellation, casting, renewal, etc.)
+1. TV series ONLY - no movies as main subject
+2. NEWS requires a NEW EVENT (release, cancellation, casting, renewal, anniversary, interview, reunion, public commentary, streaming milestone, etc.)
 3. If article mentions MULTIPLE series (even without news) → MULTI_SERIES_EDITORIAL (ACCEPT!)
-4. FEATURE_ESSAY only for single-series analysis without news
+4. Actor retrospectives / anniversaries / birthday reunions → SINGLE_SERIES_NEWS (the event IS the news)
 5. Celebrity talking about their favorite shows = MULTI_SERIES_EDITORIAL (they usually mention multiple)
+6. Streaming-success milestones (views, chart positions) → SINGLE_SERIES_NEWS
+
+🎯 DEFAULT BEHAVIOUR:
+When a TV series is clearly the main subject of the article but you are uncertain which exact news category fits, DEFAULT to SINGLE_SERIES_NEWS with a note in reasoning.
+NEVER pick UNKNOWN just because the news angle is subtle. UNKNOWN is for articles that have NOTHING to do with TV.
 
 ⚠️ IMPORTANT - AVOID THESE COMMON MISTAKES:
 - "X's Rival" or "Competitor to X" means the article is NOT about X
@@ -100,8 +106,8 @@ export async function classifyContent(
 INPUT:
 Title: ${title || 'Untitled'}
 URL: ${url || ''}
-Text (first 1500 chars):
-${(textHead || '').substring(0, 1500)}
+Text (first 4000 chars):
+${(textHead || '').substring(0, 4000)}
 
 Classify this content now.
 `.trim();
