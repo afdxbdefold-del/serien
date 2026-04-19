@@ -69,7 +69,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
       where: finalWhere,
       include: {
         series: { select: { tmdbId: true, name: true, title: true, posterPath: true, slug: true } },
-        actor: { select: { name: true, profilePath: true } },
+        persons: { select: { name: true, profilePath: true, slug: true } },
       },
       orderBy,
       skip: (currentPage - 1) * PER_PAGE,
@@ -170,9 +170,9 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                     data-testid={`figur-card-${character.slug}`}
                   >
                     <div className="flex items-start gap-3">
-                      {character.actor?.profilePath && (
+                      {character.persons?.profilePath && (
                         <Image
-                          src={`/img/tmdb/w185${character.actor.profilePath}`}
+                          src={`/img/tmdb/w185${character.persons.profilePath}`}
                           alt={character.name} width={50} height={75}
                           className="rounded-lg shadow-sm flex-shrink-0" loading="lazy"
                         />
@@ -181,8 +181,8 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                         <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm line-clamp-2">
                           {character.name}
                         </h3>
-                        {character.actor && (
-                          <p className="text-xs text-gray-500 mt-0.5">{character.actor.name}</p>
+                        {character.persons && (
+                          <p className="text-xs text-gray-500 mt-0.5">{character.persons.name}</p>
                         )}
                         {seriesName && (
                           <p className="text-xs text-blue-600 mt-1 line-clamp-1">{seriesName}</p>
