@@ -1,20 +1,23 @@
 /**
- * User Question Radar
+ * User Question Radar — Content Decision Engine
  *
  * POST /api/admin/question-radar
  * Body: { topic: string, boost?: boolean }
  *
- * Returns ~100 realistic user-intent questions in German, grouped into categories,
- * scored for Search Intent / Discover Potential / Evergreen Potential / Competition,
- * and rendered into 3 article-headline variants each.
+ * Returns 30 categorized, fully scored question items for a given topic/franchise.
+ * Each item carries SEO / Discover / Social / Monetization / Competition scores,
+ * a recommended content format and a trend delta computed from prior runs.
+ *
+ * Everything comes from ONE Claude Sonnet 4.5 call — no extra LLM cost per field.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getLLMConfig, parseLLMJson } from '@/lib/llm-config';
+import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 const CATEGORIES = [
   'Staffel / Release',
@@ -25,128 +28,168 @@ const CATEGORIES = [
   'Empfehlungen',
 ] as const;
 
+const INTENT_TYPES = ['Informational', 'Commercial', 'Navigational', 'Transactional'] as const;
+const FORMATS = ['article', 'reel', 'carousel', 'faq'] as const;
+const FRESHNESS = ['Evergreen', 'Seasonal', 'Breaking'] as const;
+
 type Competition = 'Low' | 'Medium' | 'High';
+type IntentType = typeof INTENT_TYPES[number];
+type Format = typeof FORMATS[number];
+type Freshness = typeof FRESHNESS[number];
 
 interface QuestionItem {
   question: string;
   category: typeof CATEGORIES[number];
+  // Original scores (kept for backward compat)
   searchIntent: number;
   discoverPotential: number;
   evergreen: number;
   competition: Competition;
   articleHeadlines: string[];
+  // New scoring dimensions
+  intentType: IntentType;
+  seoScore: number;
+  discoverScore: number;
+  socialScore: number;
+  monetizationScore: number;
+  competitionScore: number;
+  freshness: Freshness;
+  recommendedFormat: Format;
+  // Computed server-side (not LLM)
+  trend?: 'up' | 'down' | 'flat' | 'new';
+  trendDelta?: number; // discoverScore vs 7d avg
 }
 
 function createClient() {
-  const { apiKey, baseURL } = getLLMConfig();
-  return new OpenAI({ apiKey, baseURL, timeout: 45_000, maxRetries: 0 });
+  const config = getLLMConfig();
+  return new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  });
 }
 
 async function callLLM(prompt: string, preferredModel: string): Promise<string> {
   const client = createClient();
-  // Per handoff: Claude Sonnet is unstable via Emergent proxy → prefer fast gpt-4o-mini,
-  // fall back to Claude only if mini fails.
-  const modelsToTry = ['gpt-4o-mini', preferredModel];
+  // Claude first (better scoring quality), gpt-4o-mini fallback if proxy 502s.
+  // With 2 × 15-item batches the payload is small enough for Claude to finish
+  // well under the proxy's 60s timeout.
+  const modelsToTry = [preferredModel, 'gpt-4o-mini'];
   let lastError: unknown;
   for (const model of modelsToTry) {
     try {
       const completion = await client.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 6000,
-        temperature: 0.7,
+        max_tokens: 4000,
+        temperature: 0.6,
       });
       return completion.choices[0].message.content || '';
     } catch (e) {
       lastError = e;
-      // Continue to next model on any error (timeout, 502, parse fail etc.)
       continue;
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-function buildPrompt(topic: string, boost: boolean): string {
-  const boostNote = boost ? `
+function buildPrompt(topic: string, boost: boolean, batch: 'A' | 'B'): string {
+  const boostNote = boost ? `\n\nTREND-BOOST: Topic ist heiß — Release-Dates, Cancellation, Trailer, Kontroversen priorisieren.` : '';
 
-TREND-BOOST: Dieses Topic ist gerade heiß. Priorisiere Fragen zu:
-- Aktuelles Startdatum / Verzögerungen
-- Cancellation / Verlängerung
-- Aktuelle Trailer
-- Besetzungsänderungen
-- Kontroversen / Reaktionen
-- Ende erklärt / Twists
-` : '';
+  const categoryBlock = batch === 'A'
+    ? `Genau 5 Fragen pro Kategorie (c-Wert):
+1 = Staffel/Release
+2 = Streaming/Verfügbarkeit
+3 = Bewertung/Lohnt sich`
+    : `Genau 5 Fragen pro Kategorie (c-Wert):
+4 = Story/Ende erklärt
+5 = Cast/Produktion
+6 = Empfehlungen`;
 
-  return `Du bist ein deutscher Content-Stratege für serien.de. Dein Ziel: ECHTE Suchintent-Fragen finden, die deutsche User bei Google, YouTube und ChatGPT zu einer Serie/Franchise/Plattform stellen.
+  const total = 15;
+
+  return `Du bist deutscher Content-Stratege für serien.de. Erzeuge ${total} realistische deutsche User-Fragen zum Topic.
 
 TOPIC: "${topic}"${boostNote}
 
-ANWEISUNGEN:
-1. Erzeuge EXAKT 30 realistische deutsche Fragen zum Topic — Qualität vor Quantität.
-2. Jede Frage muss klingen wie eine echte Google-Suche oder Konversation mit einem KI-Assistenten.
-3. PFLICHT: Genau 5 Fragen pro Kategorie, keine Kategorie darf leer sein:
-   A) "Staffel / Release" — Release-Datum, Verlängerungen, Cancellation, Anzahl Folgen
-   B) "Streaming / Availability" — Wo streamen? Netflix? Prime? Disney+? In Deutschland?
-   C) "Bewertung / Lohnt sich?" — Gut? FSK? Für Familien? Besser als X?
-   D) "Story / Ende erklärt" — Plot, Twists, Ende, Tod eines Charakters
-   E) "Cast / Produktion" — Schauspieler, Showrunner, Drehort, Budget
-   F) "Empfehlungen" — Ähnliche Serien, "wenn du X magst, dann..." — PFLICHT: 5 konkrete Alternativ-Serien-Fragen
+PFLICHT: ${categoryBlock}
 
-4. KEINE Duplikate, keine Quatsch-Fragen, keine Fragen ohne Suchvolumen-Potenzial.
-5. NATÜRLICHE deutsche Phrasierung. Keine Übersetzungen aus dem Englischen.
-6. Priorisiere deutschsprachiges Suchverhalten (DACH): deutsche Sendernamen bevorzugen (Netflix, Prime Video, Disney+, Sky, WOW, RTL+, Joyn).
+Antworte NUR als JSON-Array (${total} Einträge, keine Prosa, keine Codeblöcke).
 
-5. Für JEDE Frage bewerte:
-   - searchIntent (1-100): Wie viele Deutsche suchen das aktuell? (100 = Millionen, 50 = mittelgroß, 20 = Nische)
-   - discoverPotential (1-100): Wie gut passt das zu Google Discover (emotional + aktuell)? 100 = perfekter Discover-Kandidat
-   - evergreen (1-100): Wie lange ist das relevant? (100 = jahrelang, 50 = Monate, 20 = Tage)
-   - competition: "Low" | "Medium" | "High" — wie viele etablierte Seiten ranken dafür?
+Felder je Eintrag:
+- q: string (deutsche User-Frage)
+- c: int (Kategorie-Code, siehe oben)
+- i: "I"|"C"|"N"|"T" (Informational/Commercial/Navigational/Transactional)
+- seo: int 0-100 (Google-SEO-Potenzial)
+- disc: int 0-100 (Google-Discover-Potenzial)
+- soc: int 0-100 (Viral-Potenzial Reels/TikTok)
+- cmp: int 0-100 (Konkurrenz)
+- ev: int 0-100 (Evergreen-Faktor)
+- f: "E"|"S"|"B" (Evergreen/Seasonal/Breaking)
+- fmt: "article"|"reel"|"carousel"|"faq"
+- h1, h2, h3: 3 Artikel-Headlines (SEO-freundlich, natürlich deutsch)
 
-6. Für JEDE Frage generiere 3 konkrete Artikel-Headlines (natürlich, SEO-freundlich, nicht klickbaity-billig).
+Beispiel:
+[{"q":"Wann kommt Fallout Staffel 2?","c":1,"i":"I","seo":92,"disc":88,"soc":70,"cmp":80,"ev":40,"f":"S","fmt":"article","h1":"Fallout Staffel 2: Wann startet sie auf Prime Video?","h2":"Wann kommt Fallout Staffel 2? Alle Infos zum Release","h3":"Fallout Staffel 2 – Release, Cast und Story"}]
 
-ANTWORT NUR ALS JSON-ARRAY — keine Einleitung, kein Markdown-Block, nur reines JSON. Beispielformat:
-
-[
-  {
-    "question": "Wann kommt Fallout Staffel 2?",
-    "category": "Staffel / Release",
-    "searchIntent": 92,
-    "discoverPotential": 88,
-    "evergreen": 40,
-    "competition": "High",
-    "articleHeadlines": [
-      "Fallout Staffel 2: Wann startet sie auf Prime Video?",
-      "Wann kommt Fallout Staffel 2? Alle Infos zum Release",
-      "Fallout Staffel 2 – Release, Cast und Story im Überblick"
-    ]
-  }
-]
-
-WICHTIG: Exakt 30 Einträge, gültiges JSON, keine trailing commas.`;
+WICHTIG: Keine Duplikate. Natürliches Deutsch. DACH-Streamer bevorzugen. Exakt ${total} Einträge. Gültiges JSON.`;
 }
 
-function dedupeAndClean(items: QuestionItem[]): QuestionItem[] {
-  const seen = new Set<string>();
-  const out: QuestionItem[] = [];
-  for (const it of items) {
-    if (!it?.question || !it.category) continue;
-    const key = it.question.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
-    if (!key || seen.has(key)) continue;
-    if (key.length < 5) continue;
-    if (!CATEGORIES.includes(it.category)) continue;
-    seen.add(key);
-    out.push({
-      question: it.question.trim(),
-      category: it.category,
-      searchIntent: clamp(it.searchIntent, 1, 100),
-      discoverPotential: clamp(it.discoverPotential, 1, 100),
-      evergreen: clamp(it.evergreen, 1, 100),
-      competition: ['Low', 'Medium', 'High'].includes(it.competition) ? it.competition : 'Medium',
-      articleHeadlines: Array.isArray(it.articleHeadlines) ? it.articleHeadlines.filter(h => typeof h === 'string' && h.trim().length > 10).slice(0, 3) : [],
-    });
-  }
-  return out;
+// Decode compact LLM format back to rich QuestionItem shape.
+type CompactItem = {
+  q: string; c: number; i: string;
+  seo: number; disc: number; soc: number; cmp: number; ev: number;
+  f: string; fmt: string;
+  h1?: string; h2?: string; h3?: string;
+};
+
+const CATEGORY_BY_CODE: Record<number, typeof CATEGORIES[number]> = {
+  1: 'Staffel / Release',
+  2: 'Streaming / Availability',
+  3: 'Bewertung / Lohnt sich?',
+  4: 'Story / Ende erklärt',
+  5: 'Cast / Produktion',
+  6: 'Empfehlungen',
+};
+const INTENT_BY_CODE: Record<string, IntentType> = {
+  I: 'Informational', C: 'Commercial', N: 'Navigational', T: 'Transactional',
+};
+const FRESHNESS_BY_CODE: Record<string, Freshness> = {
+  E: 'Evergreen', S: 'Seasonal', B: 'Breaking',
+};
+
+function expandCompact(items: CompactItem[]): Partial<QuestionItem>[] {
+  return items.map(it => {
+    const category = CATEGORY_BY_CODE[it.c] || 'Staffel / Release';
+    const intentType = INTENT_BY_CODE[it.i] || 'Informational';
+    const cmp = clamp(it.cmp, 0, 100);
+    const competition: Competition = cmp >= 67 ? 'High' : cmp >= 34 ? 'Medium' : 'Low';
+    const seo = clamp(it.seo, 0, 100);
+    const soc = clamp(it.soc, 0, 100);
+    // Monetization = seo × intent-multiplier (Commercial/Transactional pay more).
+    const intentMultiplier = intentType === 'Transactional' ? 1.1
+      : intentType === 'Commercial' ? 1.0
+      : intentType === 'Navigational' ? 0.8 : 0.7;
+    const monetizationScore = clamp(Math.round(seo * intentMultiplier), 0, 100);
+    return {
+      question: it.q,
+      category,
+      intentType,
+      seoScore: seo,
+      discoverScore: clamp(it.disc, 0, 100),
+      socialScore: soc,
+      competitionScore: cmp,
+      monetizationScore,
+      searchIntent: seo,
+      discoverPotential: clamp(it.disc, 0, 100),
+      evergreen: clamp(it.ev, 0, 100),
+      competition,
+      freshness: FRESHNESS_BY_CODE[it.f] || 'Evergreen',
+      recommendedFormat: oneOf(it.fmt, FORMATS, 'article'),
+      articleHeadlines: [it.h1, it.h2, it.h3].filter(
+        (x): x is string => typeof x === 'string' && x.trim().length > 10
+      ).slice(0, 3),
+    };
+  });
 }
 
 function clamp(n: unknown, min: number, max: number): number {
@@ -155,11 +198,51 @@ function clamp(n: unknown, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
+function oneOf<T extends readonly string[]>(value: unknown, options: T, fallback: T[number]): T[number] {
+  return options.includes(value as T[number]) ? (value as T[number]) : fallback;
+}
+
+function dedupeAndClean(items: Partial<QuestionItem>[]): QuestionItem[] {
+  const seen = new Set<string>();
+  const out: QuestionItem[] = [];
+  for (const it of items) {
+    if (!it?.question || !it.category) continue;
+    const key = it.question.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+    if (!key || seen.has(key)) continue;
+    if (key.length < 5) continue;
+    if (!CATEGORIES.includes(it.category as typeof CATEGORIES[number])) continue;
+    seen.add(key);
+
+    const comp = oneOf(it.competition, ['Low', 'Medium', 'High'] as const, 'Medium');
+    const competitionScore = clamp(it.competitionScore ?? (comp === 'High' ? 80 : comp === 'Medium' ? 50 : 25), 0, 100);
+
+    out.push({
+      question: it.question.trim(),
+      category: it.category as typeof CATEGORIES[number],
+      searchIntent: clamp(it.searchIntent, 1, 100),
+      discoverPotential: clamp(it.discoverPotential, 1, 100),
+      evergreen: clamp(it.evergreen, 1, 100),
+      competition: comp,
+      articleHeadlines: Array.isArray(it.articleHeadlines)
+        ? it.articleHeadlines.filter(h => typeof h === 'string' && h.trim().length > 10).slice(0, 3)
+        : [],
+      intentType: oneOf(it.intentType, INTENT_TYPES, 'Informational'),
+      seoScore: clamp(it.seoScore ?? it.searchIntent, 0, 100),
+      discoverScore: clamp(it.discoverScore ?? it.discoverPotential, 0, 100),
+      socialScore: clamp(it.socialScore, 0, 100),
+      monetizationScore: clamp(it.monetizationScore, 0, 100),
+      competitionScore,
+      freshness: oneOf(it.freshness, FRESHNESS, 'Evergreen'),
+      recommendedFormat: oneOf(it.recommendedFormat, FORMATS, 'article'),
+    });
+  }
+  return out;
+}
+
 /**
- * Recover a truncated JSON array by finding the last `},` or `}]` and closing
- * the array. Used when the LLM output is cut off at max_tokens.
+ * Recover a truncated JSON array — used when the LLM gets cut off at max_tokens.
  */
-function tryRecoverTruncatedArray(raw: string): QuestionItem[] {
+function tryRecoverTruncatedArray(raw: string): Partial<QuestionItem>[] {
   let content = raw.trim();
   if (content.startsWith('```json')) content = content.slice(7);
   else if (content.startsWith('```')) content = content.slice(3);
@@ -167,24 +250,76 @@ function tryRecoverTruncatedArray(raw: string): QuestionItem[] {
   content = content.trim();
   const start = content.indexOf('[');
   if (start < 0) return [];
-  // Find the last closing brace that is followed by a comma or end-of-array
-  // That's our last complete object.
   const slice = content.slice(start);
-  // Match all `}` positions
   const closes: number[] = [];
   for (let i = 0; i < slice.length; i++) if (slice[i] === '}') closes.push(i);
   for (let i = closes.length - 1; i >= 0; i--) {
     const candidate = slice.slice(0, closes[i] + 1) + ']';
     try {
       const parsed = JSON.parse(candidate);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed as QuestionItem[];
-      }
-    } catch {
-      // Try next-earlier closing brace
-    }
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Partial<QuestionItem>[];
+    } catch { /* try next */ }
   }
   return [];
+}
+
+function normalizeTopicKey(topic: string): string {
+  return topic.toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+}
+
+function normalizeQuestionKey(q: string): string {
+  return q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Compute trend delta for each item based on prior runs of the same topic.
+ * Compares current discoverScore vs. avg discoverScore from runs in [7d, 30d] ago.
+ */
+async function applyTrendHistory(topicKey: string, items: QuestionItem[]): Promise<QuestionItem[]> {
+  const now = Date.now();
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+  try {
+    const priorRuns = await prisma.radar_runs.findMany({
+      where: { topicKey, createdAt: { gte: thirtyDaysAgo, lt: sevenDaysAgo } },
+      select: { items: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    if (priorRuns.length === 0) {
+      return items.map(i => ({ ...i, trend: 'new' as const, trendDelta: 0 }));
+    }
+
+    const priorByQuestion = new Map<string, number[]>();
+    for (const run of priorRuns) {
+      const arr = Array.isArray(run.items) ? (run.items as unknown as QuestionItem[]) : [];
+      for (const it of arr) {
+        if (!it?.question) continue;
+        const k = normalizeQuestionKey(it.question);
+        const score = typeof it.discoverScore === 'number' ? it.discoverScore : it.discoverPotential;
+        if (typeof score !== 'number') continue;
+        const bucket = priorByQuestion.get(k) || [];
+        bucket.push(score);
+        priorByQuestion.set(k, bucket);
+      }
+    }
+
+    return items.map(item => {
+      const k = normalizeQuestionKey(item.question);
+      const prior = priorByQuestion.get(k);
+      if (!prior || prior.length === 0) {
+        return { ...item, trend: 'new' as const, trendDelta: 0 };
+      }
+      const priorAvg = prior.reduce((s, v) => s + v, 0) / prior.length;
+      const delta = Math.round(item.discoverScore - priorAvg);
+      const trend: 'up' | 'down' | 'flat' = delta > 5 ? 'up' : delta < -5 ? 'down' : 'flat';
+      return { ...item, trend, trendDelta: delta };
+    });
+  } catch (e) {
+    console.warn('[radar] trend history lookup failed:', e);
+    return items.map(i => ({ ...i, trend: 'new' as const, trendDelta: 0 }));
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -201,26 +336,33 @@ export async function POST(req: NextRequest) {
     }
 
     const { model } = getLLMConfig();
-    const prompt = buildPrompt(topic, boost);
-    const raw = await callLLM(prompt, model);
+    // Parallel generation — 2 × 15 items is reliably under proxy timeout,
+    // whereas a single 30-item call consistently 502s.
+    const [rawA, rawB] = await Promise.all([
+      callLLM(buildPrompt(topic, boost, 'A'), model),
+      callLLM(buildPrompt(topic, boost, 'B'), model),
+    ]);
 
-    let items: QuestionItem[] = [];
-    try {
-      const parsed = parseLLMJson(raw);
-      if (Array.isArray(parsed)) items = parsed as QuestionItem[];
-    } catch (err) {
-      // Try to recover truncated JSON arrays: find the last complete object
-      // and close the array with ']'.
-      items = tryRecoverTruncatedArray(raw);
-      if (items.length === 0) {
-        return NextResponse.json(
-          { error: 'Failed to parse LLM response', raw: raw.substring(0, 500) },
-          { status: 502 }
-        );
+    const compact: CompactItem[] = [];
+    for (const raw of [rawA, rawB]) {
+      try {
+        const parsed = parseLLMJson(raw);
+        if (Array.isArray(parsed)) compact.push(...(parsed as CompactItem[]));
+      } catch {
+        const recovered = tryRecoverTruncatedArray(raw);
+        compact.push(...(recovered as unknown as CompactItem[]));
       }
     }
 
-    const cleaned = dedupeAndClean(items);
+    if (compact.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to parse LLM response' },
+        { status: 502 }
+      );
+    }
+
+    const expanded = expandCompact(compact);
+    const cleaned = dedupeAndClean(expanded);
 
     if (cleaned.length === 0) {
       return NextResponse.json(
@@ -229,19 +371,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build category breakdown for UI convenience
+    const topicKey = normalizeTopicKey(topic);
+    const withTrend = await applyTrendHistory(topicKey, cleaned);
+
+    // Persist run for future trend analysis (fire-and-forget tolerated)
+    try {
+      await prisma.radar_runs.create({
+        data: {
+          topic,
+          topicKey,
+          boost,
+          items: withTrend as unknown as object,
+        },
+      });
+    } catch (e) {
+      console.warn('[radar] failed to persist run:', e);
+    }
+
     const byCategory = CATEGORIES.reduce((acc, cat) => {
-      acc[cat] = cleaned.filter(i => i.category === cat).length;
+      acc[cat] = withTrend.filter(i => i.category === cat).length;
       return acc;
     }, {} as Record<string, number>);
 
+    const byFormat = FORMATS.reduce((acc, fmt) => {
+      acc[fmt] = withTrend.filter(i => i.recommendedFormat === fmt).length;
+      return acc;
+    }, {} as Record<Format, number>);
+
     return NextResponse.json({
       topic,
+      topicKey,
       boost,
-      total: cleaned.length,
+      total: withTrend.length,
       byCategory,
+      byFormat,
       generatedAt: new Date().toISOString(),
-      items: cleaned,
+      items: withTrend,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
