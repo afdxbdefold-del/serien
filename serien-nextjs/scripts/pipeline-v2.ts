@@ -16,6 +16,7 @@ import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/charac
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
+import { blockReasonForSource, blockReasonForTmdbId } from '../lib/series-blocklist';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
 import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
 import { getTvDetailsComplete } from '../lib/tmdb';
@@ -166,6 +167,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
   
   logger.log(`Source: ${source.title}`);
   logger.addMetadata('url', source.url);
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SERIES BLOCKLIST (earliest gate — saves LLM cost + TMDB calls)
+  // ════════════════════════════════════════════════════════════════════════
+  {
+    const blocked = blockReasonForSource(source.title, source.url);
+    if (blocked) {
+      console.log(`⛔ BLOCKED: "${blocked.label}" matched via URL/Title`);
+      await logger.fail(`Blocklist: ${blocked.label}`, 'blocklist-source');
+      return null;
+    }
+  }
 
   const now = new Date();
   
@@ -452,6 +465,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Series: ${searchResult.name} (ID: ${searchResult.tmdbId})`);
     console.log(`   Confidence: ${(searchResult.confidence * 100).toFixed(1)}%`);
     console.log(`   Method: ${searchResult.matchMethod}`);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BLOCKLIST SAFETY NET (post-TMDB — catches cases URL/title missed)
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const blocked = blockReasonForTmdbId(searchResult.tmdbId);
+      if (blocked) {
+        console.log(`⛔ BLOCKED: "${blocked.label}" matched via TMDB-ID ${searchResult.tmdbId}`);
+        await logger.fail(`Blocklist (TMDB): ${blocked.label}`, 'blocklist-tmdb');
+        return null;
+      }
+    }
     
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({

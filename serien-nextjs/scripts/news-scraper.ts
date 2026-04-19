@@ -140,8 +140,15 @@ function isWithin6Hours(timeAgo: string): boolean {
   return false;
 }
 
+import { blockReasonForSource } from '../lib/series-blocklist';
+
 function isRelevantArticle(article: NewsArticle): boolean {
   const titleLower = article.title.toLowerCase();
+
+  // BLOCKLIST: skip globally-blocked series/topics
+  if (blockReasonForSource(article.title, article.url)) {
+    return false;
+  }
   
   // FIRST: Check if article is within 6 hours
   if (!isWithin6Hours(article.timeAgo)) {
@@ -362,7 +369,10 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   // For WordPress without time info, we check relevance by keywords only (time filter happens in pipeline)
   const relevantArticles = cleanArticles.filter(article => {
     const titleLower = article.title.toLowerCase();
-    
+
+    // Blocklist (series/topic)
+    if (blockReasonForSource(article.title, article.url)) return false;
+
     // Skip unwanted
     for (const skip of SKIP_KEYWORDS) {
       if (titleLower.includes(skip.toLowerCase())) return false;
