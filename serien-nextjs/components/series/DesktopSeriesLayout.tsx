@@ -12,6 +12,7 @@ import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import R2VideoPlayer from '@/components/R2VideoPlayer';
 import Breadcrumb from '@/components/Breadcrumb';
+import SeriesAuthorBox from '@/components/series/SeriesAuthorBox';
 
 interface DesktopSeriesLayoutProps {
   series: any;
@@ -25,6 +26,13 @@ interface DesktopSeriesLayoutProps {
   seriesQA: any[];
   slug: string;
   characters: any[];
+  topSeriesAuthor?: {
+    name: string;
+    image: string | null;
+    fullBio: string | null;
+    expertise: string[];
+    articleCount: number;
+  } | null;
 }
 
 export default function DesktopSeriesLayout({
@@ -39,6 +47,7 @@ export default function DesktopSeriesLayout({
   seriesQA,
   slug,
   characters,
+  topSeriesAuthor,
 }: DesktopSeriesLayoutProps) {
   // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
@@ -295,6 +304,13 @@ export default function DesktopSeriesLayout({
               content={series.discoverNewsContext || ''}
             />
           </div>
+
+          {topSeriesAuthor && (
+            <SeriesAuthorBox
+              author={topSeriesAuthor}
+              seriesName={series.name || series.title}
+            />
+          )}
 
           {series.articles && series.articles.length > 0 ? (
             <div className="space-y-6">

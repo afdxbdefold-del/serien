@@ -288,6 +288,49 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     genres,
   });
 
+  // ──────────────────────────────────────────────────────────────────────
+  // E-E-A-T: Find top-editor for this series (most published articles about it).
+  // Only counts real authors (role in author/admin) with a fullBio.
+  // ──────────────────────────────────────────────────────────────────────
+  const authorGroups = await prisma.articles.groupBy({
+    by: ['authorId'],
+    where: {
+      status: 'published',
+      OR: [
+        { primarySeriesId: tmdbId },
+        { article_series: { some: { seriesId: tmdbId } } },
+      ],
+      users: { role: { in: ['author', 'admin'] }, fullBio: { not: null } },
+    },
+    _count: { id: true },
+    orderBy: { _count: { id: 'desc' } },
+    take: 1,
+  });
+
+  let topSeriesAuthor: {
+    name: string;
+    image: string | null;
+    fullBio: string | null;
+    expertise: string[];
+    articleCount: number;
+  } | null = null;
+
+  if (authorGroups.length > 0 && authorGroups[0].authorId) {
+    const user = await prisma.users.findUnique({
+      where: { id: authorGroups[0].authorId },
+      select: { name: true, image: true, fullBio: true, expertise: true },
+    });
+    if (user?.name) {
+      topSeriesAuthor = {
+        name: user.name,
+        image: user.image || null,
+        fullBio: (user as any).fullBio || null,
+        expertise: user.expertise || [],
+        articleCount: authorGroups[0]._count.id,
+      };
+    }
+  }
+
   // Serialize Prisma Date objects for React Server Components
   const serializedSeries = {
     ...series,
@@ -333,6 +376,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         seriesQA={seriesQA || []}
         slug={slug}
         characters={characters || []}
+        topSeriesAuthor={topSeriesAuthor}
       />
 
       <DesktopSeriesLayout
@@ -347,6 +391,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         seriesQA={seriesQA || []}
         slug={slug}
         characters={characters || []}
+        topSeriesAuthor={topSeriesAuthor}
       />
     </main>
   );

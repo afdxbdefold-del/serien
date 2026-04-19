@@ -11,6 +11,7 @@ import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import Breadcrumb from '@/components/Breadcrumb';
+import SeriesAuthorBox from '@/components/series/SeriesAuthorBox';
 
 interface MobileSeriesLayoutProps {
   series: any;
@@ -24,6 +25,13 @@ interface MobileSeriesLayoutProps {
   seriesQA: any[];
   slug: string;
   characters: any[];
+  topSeriesAuthor?: {
+    name: string;
+    image: string | null;
+    fullBio: string | null;
+    expertise: string[];
+    articleCount: number;
+  } | null;
 }
 
 export default function MobileSeriesLayout({
@@ -38,6 +46,7 @@ export default function MobileSeriesLayout({
   seriesQA,
   slug,
   characters,
+  topSeriesAuthor,
 }: MobileSeriesLayoutProps) {
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
@@ -110,6 +119,15 @@ export default function MobileSeriesLayout({
             {relevanceContext.text}
           </p>
         </section>
+      )}
+
+      {topSeriesAuthor && (
+        <div className="lg:hidden mb-6">
+          <SeriesAuthorBox
+            author={topSeriesAuthor}
+            seriesName={series.name || series.title}
+          />
+        </div>
       )}
 
       {series.articles && series.articles.length > 0 && (
