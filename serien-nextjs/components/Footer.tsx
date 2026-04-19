@@ -64,6 +64,7 @@ export default function Footer() {
               <ul className="space-y-2">
                 {[
                   { href: '/', label: 'News' },
+                  { href: '/top-100-serien', label: 'Top 100 Serien' },
                   { href: '/serienfinder', label: 'Serienfinder' },
                   { href: '/personen', label: 'Personen' },
                   { href: '/figuren', label: 'Figuren' },

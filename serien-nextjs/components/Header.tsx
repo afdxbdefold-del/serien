@@ -31,6 +31,7 @@ const STREAMING_PROVIDERS = [
 
 // More menu items
 const MORE_ITEMS = [
+  { name: 'Top 100 Serien', href: '/top-100-serien', icon: Flame, description: 'Täglich aktualisiertes Ranking' },
   { name: 'Trending', href: '/trending', icon: Flame, description: 'Was Deutschland gerade schaut' },
   { name: 'Neue Videos', href: '/neue-videos', icon: Play, description: 'Trailer & Ankündigungen' },
   { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
