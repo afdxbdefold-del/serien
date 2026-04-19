@@ -33,16 +33,16 @@ export const metadata = {
     siteName: 'serien.de',
     images: [
       {
-        url: '/og-image.png?v=2',
-        width: 1280,
-        height: 896,
-        alt: 'serien.de - Serien-News, Trailer & Updates',
+        url: '/og-image.png?v=3',
+        width: 1200,
+        height: 630,
+        alt: 'serien.de - Serien-News, Reviews & Streaming',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    images: ['/og-image.png?v=2'],
+    images: ['/twitter-card.png?v=3'],
   },
 };
 
