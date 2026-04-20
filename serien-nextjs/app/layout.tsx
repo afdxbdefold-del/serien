@@ -70,19 +70,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
         
         {/* AdSense Script - Load synchronously, no defer */}
-        {process.env.NEXT_PUBLIC_ADSENSE_CLIENT && (
-          <>
-            <script
-              src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_CLIENT}`}
-              crossOrigin="anonymous"
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.adsbygoogle = window.adsbygoogle || [];`
-              }}
-            />
-          </>
-        )}
+        {(() => {
+          const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || 'ca-pub-8583619451045805';
+          return (
+            <>
+              <script
+                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`}
+                crossOrigin="anonymous"
+              />
+              <script
+                dangerouslySetInnerHTML={{
+                  __html: `window.adsbygoogle = window.adsbygoogle || [];`
+                }}
+              />
+            </>
+          );
+        })()}
         
         {/* Global Schema.org markup */}
         <script
