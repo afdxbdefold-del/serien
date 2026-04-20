@@ -69,23 +69,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
         
-        {/* AdSense Script - Load synchronously, no defer */}
-        {(() => {
-          const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || 'ca-pub-8583619451045805';
-          return (
-            <>
-              <script
-                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`}
-                crossOrigin="anonymous"
-              />
-              <script
-                dangerouslySetInnerHTML={{
-                  __html: `window.adsbygoogle = window.adsbygoogle || [];`
-                }}
-              />
-            </>
-          );
-        })()}
+        {/* AdSense - NEVER REMOVE. Hardcoded publisher ID, must always be in <head>. */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+          crossOrigin="anonymous"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.adsbygoogle = window.adsbygoogle || [];`
+          }}
+        />
         
         {/* Global Schema.org markup */}
         <script
