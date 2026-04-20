@@ -1039,26 +1039,46 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const slug = generateSlug(finalHeadline);
     // articleId already generated in Step 7.5
     
-    // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
-    // Nutzt die gesamte TMDB Gallery (nicht nur Top 10) und verteilt gleichmäßig für maximale Vielfalt
+    // ✅ BACKDROP COOLDOWN (7 Tage pro Bild — keine Wiederholung kurz hintereinander)
+    // 1. Lade alle in den letzten 7 Tagen verwendeten Hero-Bilder (serie + global)
+    // 2. Filtere topBackdrops auf "nicht kürzlich genutzt"
+    // 3. Bei Exhaustion (alle im Cooldown) → nimm den am längsten nicht genutzten
     let selectedBackdrop = dbSeries.backdropPath;
     try {
-      const articleCount = await prisma.articles.count({
-        where: { primarySeriesId: dbSeries.tmdbId }
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const recentArticles = await prisma.articles.findMany({
+        where: {
+          primarySeriesId: dbSeries.tmdbId,
+          publishedAt: { gte: sevenDaysAgo },
+          heroImageUrl: { not: null },
+        },
+        select: { heroImageUrl: true, publishedAt: true },
+        orderBy: { publishedAt: 'desc' },
       });
+      // Extract backdrop paths from recent hero URLs (e.g. /p/original/abc123.jpg → abc123.jpg)
+      const recentPaths = new Set<string>();
+      for (const a of recentArticles) {
+        const m = (a.heroImageUrl || '').match(/\/(?:original|w\d+)(\/[^?]+)$/);
+        if (m) recentPaths.add(m[1]);
+      }
+
       const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 50);
       if (topBackdrops.length > 0) {
-        // Distribute evenly across entire gallery for visual diversity
-        const step = Math.max(1, Math.floor(topBackdrops.length / Math.max(articleCount + 1, 2)));
-        const index = (articleCount * step) % topBackdrops.length;
-        const rotatedBackdrop = topBackdrops[index]?.path;
-        if (rotatedBackdrop) {
-          selectedBackdrop = rotatedBackdrop;
-          console.log(`🖼️  Backdrop rotiert: Index ${index} von ${topBackdrops.length} (Step: ${step})`);
+        const available = topBackdrops.filter((b) => b?.path && !recentPaths.has(b.path));
+        if (available.length > 0) {
+          // Deterministic pick from unused pool: most popular untouched first
+          selectedBackdrop = available[0].path;
+          console.log(`🖼️  Backdrop: ${available.length}/${topBackdrops.length} verfügbar (${recentPaths.size} im 7d-Cooldown) → Pfad ${selectedBackdrop}`);
+        } else {
+          // Exhaustion → fall back to least-recently-used. Last article's image is least desirable.
+          const lruPath = [...recentPaths][recentPaths.size - 1]; // oldest of the recent set
+          const inGallery = topBackdrops.find((b) => b?.path === lruPath);
+          selectedBackdrop = (inGallery?.path) || topBackdrops[0]?.path || dbSeries.backdropPath;
+          console.log(`⚠️  Alle ${topBackdrops.length} Backdrops im 7d-Cooldown — nehme ältesten (${selectedBackdrop})`);
         }
       }
     } catch (e) {
-      console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard');
+      console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard:', (e as Error).message);
     }
     
     // Determine final status based on confidence
