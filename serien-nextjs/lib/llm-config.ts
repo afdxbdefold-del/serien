@@ -19,7 +19,7 @@ export function getLLMConfig() {
   return {
     apiKey,
     baseURL: isEmergentKey ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
-    model: isEmergentKey ? 'claude-sonnet-4-5' : 'gpt-4o',
+    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-4o',
   };
 }
 
