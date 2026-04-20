@@ -216,21 +216,14 @@ Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, N
  */
 async function callLLMStructured(prompt: string, retries = 2, temperature?: number): Promise<any> {
   let lastError: Error | null = null;
-  let usedFallback = false;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
       const openai = createLLMClient();
 
-      // Force GPT-4o-mini when falling back after a Claude safety block
-      const model = usedFallback ? 'gpt-4o-mini' : LLM_CONFIG.model;
-      if (usedFallback) {
-        console.log(`   🔄 Using fallback model: ${model}`);
-      }
-
       const response = await openai.chat.completions.create({
-        model,
+        model: LLM_CONFIG.model,
         messages: [
           {
             role: 'system',
@@ -278,17 +271,9 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
       lastError = error;
       const errorType = error.code || error.name || 'Unknown';
       const msg = error?.message || String(error);
-      const isSafetyBlock = /403|access_denied|safety|content_policy|content policy/i.test(msg);
-
-      // Claude safety block → automatically fall back to GPT-4o-mini
-      if (isSafetyBlock && !usedFallback) {
-        console.log(`   ⚠️ Claude safety-blocked content-gen — switching to GPT-4o-mini fallback`);
-        usedFallback = true;
-        attempt--; // don't consume this retry; immediately re-attempt with fallback
-        continue;
-      }
-      if (isSafetyBlock && usedFallback) {
-        console.log(`   ⛔ Both Claude and GPT safety-blocked — giving up`);
+      // Claude safety block detected: don't waste retries, pipeline will fail to draft
+      if (/403|access_denied|safety|content_policy|content policy/i.test(msg)) {
+        console.log(`   ⚠️ LLM safety block at content-gen — aborting retries`);
         throw new Error(`CONTENT_SAFETY_BLOCK: ${msg.substring(0, 140)}`);
       }
       console.log(`   ⚠️ LLM attempt ${attempt}/${retries} failed: [${errorType}] ${error.message}`);
