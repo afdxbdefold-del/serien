@@ -96,6 +96,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           tmdbId: true,
           name: true,
           title: true,
+          slug: true,
           posterPath: true,
         },
       },
@@ -233,7 +234,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
       {/* Hero Section */}
       <div className="bg-gradient-to-b from-blue-50 to-white py-12">
         <div className="container mx-auto px-4 max-w-4xl">
-          <Breadcrumb items={[{ label: 'Figuren', href: '/figuren' }, { label: seriesName, href: `/serie/${character.seriesTmdbId}` }, { label: character.name }]} className="mb-6" />
+          <Breadcrumb items={[{ label: 'Figuren', href: '/figuren' }, { label: seriesName, href: `/serie/${character.series.slug || character.seriesTmdbId}` }, { label: character.name }]} className="mb-6" />
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
             {character.name}
           </h1>
@@ -258,7 +259,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 <div>
                   <span className="text-sm text-gray-500">Serie:</span>
                   <Link
-                    href={`/serie/${character.seriesTmdbId}`}
+                    href={`/serie/${character.series.slug || character.seriesTmdbId}`}
                     className="ml-2 text-blue-600 hover:underline font-medium"
                   >
                     {seriesName}
@@ -494,7 +495,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 Zur Serie
               </h3>
               <Link
-                href={`/serie/${character.seriesTmdbId}`}
+                href={`/serie/${character.series.slug || character.seriesTmdbId}`}
                 className="block hover:opacity-80 transition-opacity"
               >
                 {character.series.posterPath && (

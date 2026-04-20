@@ -82,7 +82,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
         {/* Series Poster with Link */}
         {seriesSlug && (
           <Link 
-            href={`/serie/${seriesId}-${seriesSlug}`}
+            href={`/serie/${seriesSlug}`}
             className="flex-shrink-0 group"
           >
             <div className="relative w-20 h-28 rounded-lg overflow-hidden shadow-md transition-transform group-hover:scale-105 bg-gradient-to-br from-gray-100 to-gray-200">
@@ -106,7 +106,7 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
           {/* Series Title with Link */}
           {seriesSlug ? (
             <Link 
-              href={`/serie/${seriesId}-${seriesSlug}`}
+              href={`/serie/${seriesSlug}`}
               className="block mb-3"
             >
               <h3 className="text-base font-bold text-gray-900 hover:text-blue-600 transition-colors">

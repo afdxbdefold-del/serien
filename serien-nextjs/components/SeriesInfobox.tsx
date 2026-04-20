@@ -126,7 +126,7 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
           {/* CTA: Single, prominent button */}
           <div>
             <Link
-              href={`/serie/${seriesId}-${seriesSlug}`}
+              href={`/serie/${seriesSlug}`}
               className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
             >
               Zur Serien-Übersicht
