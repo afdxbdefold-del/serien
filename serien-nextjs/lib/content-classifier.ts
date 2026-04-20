@@ -175,6 +175,9 @@ Classify this content now.
   console.log(`[classifier] Loop exited. isSafetyBlock=${isSafetyBlock} lastError=${lastError?.message?.slice(0,120)}`);
   if (isSafetyBlock) {
     const blob = `${title} ${textHead}`.toLowerCase();
+    const titleLower = title.toLowerCase();
+
+    // Positive signals: TV series indicators
     const tvSignals = [
       'season', 'staffel', 'series', 'serie', 'episode', 'finale',
       ' hbo', 'netflix', 'prime video', 'disney+', 'apple tv', 'paramount',
@@ -183,8 +186,23 @@ Classify this content now.
       'drama', 'comedy', 'thriller', 'sitcom', 'actor', 'actress',
     ];
     const hits = tvSignals.filter(s => blob.includes(s));
-    console.log(`[classifier] Heuristic TV signals found: ${hits.length} (${hits.slice(0,5).join(',')})`);
-    if (hits.length >= 2) {
+
+    // Negative signals: industry/business/celebrity-gossip indicators
+    // If the TITLE is dominated by these, skip the heuristic rescue to avoid
+    // generating drafts for unmatchable articles (e.g. "Madonna's Manager …",
+    // "Microdramas Platform … Shifts Strategy", "… Exec Honored With Award").
+    const industryNoise = [
+      'strategy', 'revenue', 'ugc', 'ipo', 'merger', 'acquisition',
+      'platform shift', 'exec ', 'executive', 'award', 'honored',
+      'manager', 'tour', 'coachella', 'concert', 'album',
+      'microdrama', 'youtube',
+    ];
+    const noiseHits = industryNoise.filter(s => titleLower.includes(s));
+
+    console.log(`[classifier] Heuristic: TV=${hits.length} noise=${noiseHits.length} (${hits.slice(0,5).join(',')})`);
+
+    // Rescue only if we have strong TV signals AND noise doesn't dominate
+    if (hits.length >= 2 && noiseHits.length < 2) {
       console.log(`  ↳ Heuristic rescued: ${hits.length} TV signals → SINGLE_SERIES_NEWS`);
       return {
         content_type: 'SINGLE_SERIES_NEWS',
@@ -194,7 +212,7 @@ Classify this content now.
         reasoning: `HEURISTIC_AFTER_SAFETY_BLOCK: ${hits.length} TV signals detected`
       };
     }
-    console.log(`  ↳ Heuristic: only ${hits.length} TV signals — keep UNKNOWN`);
+    console.log(`  ↳ Heuristic: skip (TV=${hits.length}, noise=${noiseHits.length}) — keep UNKNOWN`);
   }
 
   console.error('❌ Classification failed after retries:', lastError?.message);

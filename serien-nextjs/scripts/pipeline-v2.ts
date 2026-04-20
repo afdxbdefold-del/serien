@@ -435,13 +435,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
         console.log('❌ No match found in TMDB or DB');
         console.log('   → Artikel wird als DRAFT gespeichert (keine Serie gefunden)');
         saveAsDraft = true;
-        draftReason = `Keine Serie gefunden (TMDB: ${searchResult ? `${searchResult.name} ${(searchResult.confidence * 100).toFixed(0)}%` : 'null'})`;
-        
+        draftReason = `Keine Serie gefunden (TMDB: ${searchResult ? `${searchResult.name ?? '?'} ${(searchResult.confidence * 100).toFixed(0)}%` : 'null'})`;
+
         // Verwende eine Fallback-Serie oder null
         if (!searchResult) {
-          // Kein Match - wir brauchen trotzdem eine Serie für den Artikel
-          // Speichere ohne Serie (tmdbId = null)
+          // Kein Match - kein sinnvoller Artikel möglich ohne Serie → sauber überspringen
           await logger.log(`Draft: ${draftReason}`);
+          await logger.fail(
+            'Keine TMDB-Serie gefunden (Serie nicht in TMDB, kein DB-Match)',
+            'tmdb-no-match',
+          );
+          console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+          return null;
         }
       }
     }
