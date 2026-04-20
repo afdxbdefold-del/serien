@@ -55,18 +55,30 @@ export async function GET(req: NextRequest) {
   let unknownClassification = 0;
   let classifierDurations: number[] = [];
 
+  function parseMeta(raw: unknown): Record<string, unknown> {
+    if (!raw) return {};
+    if (typeof raw === 'object') return raw as Record<string, unknown>;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; }
+    }
+    return {};
+  }
+
   for (const r of runs) {
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
     if (r.status === 'failed' && r.errorStep) {
       byFailStep[r.errorStep] = (byFailStep[r.errorStep] || 0) + 1;
     }
-    const meta = typeof r.metadata === 'object' && r.metadata !== null ? (r.metadata as any) : {};
-    const reason = String(meta.classifierReasoning || '');
-    if (/403|access_denied/.test(reason)) safetyBlocks++;
-    if (reason.includes('HEURISTIC_AFTER_SAFETY_BLOCK')) heuristicRescues++;
-    if ((r.errorMessage || '').includes('nicht relevant')) unknownClassification++;
-    // crude duration proxy: if metadata has classifierDurationMs use it; else skip
-    if (typeof meta.classifierDurationMs === 'number') classifierDurations.push(meta.classifierDurationMs);
+    const meta = parseMeta(r.metadata);
+    const reason = String((meta as any).classifierReasoning || '');
+    const errMsg = r.errorMessage || '';
+    const combined = `${reason} ${errMsg}`;
+    if (/403|access_denied|safety/i.test(combined)) safetyBlocks++;
+    if (reason.includes('HEURISTIC_AFTER_SAFETY_BLOCK') || /heuristic/i.test(reason)) heuristicRescues++;
+    if (errMsg.includes('nicht relevant') || reason.includes('UNKNOWN')) unknownClassification++;
+    if (typeof (meta as any).classifierDurationMs === 'number') {
+      classifierDurations.push((meta as any).classifierDurationMs);
+    }
   }
 
   // Publish rate from `articles` table within the same window
@@ -79,15 +91,16 @@ export async function GET(req: NextRequest) {
   const recentFailures = runs
     .filter(r => r.status === 'failed')
     .slice(0, 15)
-    .map(r => {
-      const meta = typeof r.metadata === 'object' && r.metadata !== null ? (r.metadata as any) : {};
+    .map((r) => {
+      const meta = parseMeta(r.metadata);
+      const reason = (meta as any).classifierReasoning;
       return {
         id: r.id,
         at: r.createdAt.toISOString(),
         step: r.errorStep || '?',
         message: r.errorMessage || '',
-        classifierReasoning: meta.classifierReasoning ? String(meta.classifierReasoning).slice(0, 240) : null,
-        title: (r.inputQuery || '').slice(0, 120),
+        classifierReasoning: reason ? String(reason).slice(0, 240) : null,
+        title: (r.inputQuery || r.articleTitle || '').slice(0, 120),
       };
     });
 
@@ -131,7 +144,7 @@ export async function GET(req: NextRequest) {
     lastPublished: lastPublished.map(a => ({
       slug: a.slug,
       title: a.title,
-      publishedAt: a.publishedAt.toISOString(),
+      publishedAt: (a.publishedAt ?? new Date()).toISOString(),
     })),
   });
 }

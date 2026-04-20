@@ -96,6 +96,7 @@ export default function AdminDashboardPage() {
               { id: 'articles', label: '📝 Artikel', href: '/admin/articles' },
               { id: 'series', label: '📺 Serien', href: '/admin/series' },
               { id: 'pipeline', label: '🚀 Pipeline', href: '/admin/pipeline' },
+              { id: 'pipeline-health', label: '❤️ Pipeline-Health', href: '/admin/pipeline-health' },
               { id: 'question-radar', label: '🎯 Question Radar', href: '/admin/question-radar' },
               { id: 'content-queue', label: '📋 Content Queue', href: '/admin/content-queue' },
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
