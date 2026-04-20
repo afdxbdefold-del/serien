@@ -172,17 +172,20 @@ Classify this content now.
   // Claude refused for safety reasons. Use a keyword heuristic: if the
   // title/text contains TV/series signals, classify as SINGLE_SERIES_NEWS
   // rather than dropping the article to UNKNOWN.
+  console.log(`[classifier] Loop exited. isSafetyBlock=${isSafetyBlock} lastError=${lastError?.message?.slice(0,120)}`);
   if (isSafetyBlock) {
     const blob = `${title} ${textHead}`.toLowerCase();
     const tvSignals = [
-      ' season ', ' staffel ', ' series', ' serie ', ' episode', ' finale',
-      ' hbo', ' netflix', ' prime video', ' disney+', ' apple tv', ' paramount',
-      ' peacock', ' hulu', ' bbc', ' showtime', ' fx ', ' amc ', ' itv ', ' stars',
+      'season', 'staffel', 'series', 'serie', 'episode', 'finale',
+      ' hbo', 'netflix', 'prime video', 'disney+', 'apple tv', 'paramount',
+      'peacock', 'hulu', ' bbc', 'showtime', ' fx ', ' amc ', ' itv ', 'stars',
       'cast', 'showrunner', 'renewed', 'canceled', 'cancelled', 'trailer', 'premiere',
+      'drama', 'comedy', 'thriller', 'sitcom', 'actor', 'actress',
     ];
     const hits = tvSignals.filter(s => blob.includes(s));
+    console.log(`[classifier] Heuristic TV signals found: ${hits.length} (${hits.slice(0,5).join(',')})`);
     if (hits.length >= 2) {
-      console.log(`  ↳ Heuristic: ${hits.length} TV signals found → SINGLE_SERIES_NEWS`);
+      console.log(`  ↳ Heuristic rescued: ${hits.length} TV signals → SINGLE_SERIES_NEWS`);
       return {
         content_type: 'SINGLE_SERIES_NEWS',
         confidence: 0.5,
