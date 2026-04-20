@@ -112,11 +112,13 @@ ${(textHead || '').substring(0, 4000)}
 Classify this content now.
 `.trim();
 
-  // Retry up to 3× on transient proxy errors (502, 401, timeout, ECONNRESET).
-  // Until today 3 articles/day were skipped because Claude/proxy hiccupped and
-  // the classifier immediately returned UNKNOWN.
+  // Retry with exponential backoff. On Claude safety refusals (403 access_denied)
+  // we do a last-ditch heuristic fallback rather than returning UNKNOWN — our
+  // pipeline only fetches serien-related sources, so a refused article is almost
+  // always legitimate TV news that Claude won't touch (crime, death, sensitive topics).
   const MAX_ATTEMPTS = 3;
   let lastError: any;
+  let isSafetyBlock = false;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const response = await client.chat.completions.create({
@@ -150,10 +152,12 @@ Classify this content now.
     } catch (error: any) {
       lastError = error;
       const msg = error?.message || String(error);
-      // IMPORTANT: retry on *every* error by default. The previous whitelist
-      // (only 502/503/timeout/ECONNRESET/…) missed JSON-parse SyntaxErrors and
-      // unknown SDK errors — those caused silent UNKNOWN fallback in <50ms.
-      // Only skip retry if we've exhausted attempts.
+      // Detect Claude safety refusal — don't retry, it will always refuse.
+      if (/403|access_denied|safety|content_policy|content policy/i.test(msg)) {
+        isSafetyBlock = true;
+        console.warn(`⚠️  Safety block detected on attempt ${attempt}: ${msg.substring(0, 140)} — switching to heuristic`);
+        break;
+      }
       if (attempt < MAX_ATTEMPTS) {
         const backoff = 2000 * Math.pow(2, attempt - 1); // 2s, 4s, 8s
         console.warn(`⚠️  Classifier attempt ${attempt}/${MAX_ATTEMPTS} failed: ${msg.substring(0, 160)} — retry in ${backoff}ms`);
@@ -162,6 +166,32 @@ Classify this content now.
       }
       break; // out of retries
     }
+  }
+
+  // ── HEURISTIC FALLBACK (only on safety refusal) ────────────────────────
+  // Claude refused for safety reasons. Use a keyword heuristic: if the
+  // title/text contains TV/series signals, classify as SINGLE_SERIES_NEWS
+  // rather than dropping the article to UNKNOWN.
+  if (isSafetyBlock) {
+    const blob = `${title} ${textHead}`.toLowerCase();
+    const tvSignals = [
+      ' season ', ' staffel ', ' series', ' serie ', ' episode', ' finale',
+      ' hbo', ' netflix', ' prime video', ' disney+', ' apple tv', ' paramount',
+      ' peacock', ' hulu', ' bbc', ' showtime', ' fx ', ' amc ', ' itv ', ' stars',
+      'cast', 'showrunner', 'renewed', 'canceled', 'cancelled', 'trailer', 'premiere',
+    ];
+    const hits = tvSignals.filter(s => blob.includes(s));
+    if (hits.length >= 2) {
+      console.log(`  ↳ Heuristic: ${hits.length} TV signals found → SINGLE_SERIES_NEWS`);
+      return {
+        content_type: 'SINGLE_SERIES_NEWS',
+        confidence: 0.5,
+        series_candidates: [],
+        signals: { title: [], text: hits.slice(0, 5) },
+        reasoning: `HEURISTIC_AFTER_SAFETY_BLOCK: ${hits.length} TV signals detected`
+      };
+    }
+    console.log(`  ↳ Heuristic: only ${hits.length} TV signals — keep UNKNOWN`);
   }
 
   console.error('❌ Classification failed after retries:', lastError?.message);
