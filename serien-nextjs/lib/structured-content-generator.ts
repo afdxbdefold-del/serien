@@ -270,6 +270,12 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
     } catch (error: any) {
       lastError = error;
       const errorType = error.code || error.name || 'Unknown';
+      const msg = error?.message || String(error);
+      // Claude safety block detected: don't waste retries, pipeline will fail to draft
+      if (/403|access_denied|safety|content_policy|content policy/i.test(msg)) {
+        console.log(`   ⚠️ LLM safety block at content-gen — aborting retries`);
+        throw new Error(`CONTENT_SAFETY_BLOCK: ${msg.substring(0, 140)}`);
+      }
       console.log(`   ⚠️ LLM attempt ${attempt}/${retries} failed: [${errorType}] ${error.message}`);
       
       if (attempt < retries) {

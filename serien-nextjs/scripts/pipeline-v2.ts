@@ -459,6 +459,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`✅ TMDB Match accepted: ${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)`);
     }
     
+    // If no searchResult at all (new/unknown series), skip rest cleanly instead of crashing
+    if (!searchResult) {
+      await logger.fail('Keine TMDB-Serie gefunden (Serie möglicherweise noch nicht in TMDB)', 'tmdb-no-match');
+      return null;
+    }
+    
     logger.log(`Serie: ${searchResult.name} (TMDB: ${searchResult.tmdbId})`);
     logger.addMetadata('seriesName', searchResult.name);
     logger.addMetadata('tmdbId', searchResult.tmdbId);

@@ -83,7 +83,22 @@ Extract all facts now (preserve exact wording, no translation).
     return facts;
     
   } catch (error: any) {
-    console.error('❌ Fact extraction failed:', error.message);
+    const msg = error?.message || String(error);
+    // On Claude safety block, don't fail the pipeline — return empty facts.
+    // The article still has title/text for downstream steps (headline, content generation).
+    if (/403|access_denied|safety|content_policy|content policy/i.test(msg)) {
+      console.warn(`⚠️  Fact-extraction safety block — returning empty facts, pipeline continues`);
+      return {
+        series_names: [],
+        season_numbers: [],
+        episode_numbers: [],
+        people_names: [],
+        key_statements: [],
+        release_dates: [],
+        networks_platforms: [],
+      };
+    }
+    console.error('❌ Fact extraction failed:', msg);
     throw error;
   }
 }
