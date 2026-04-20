@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeAllImagesForItem } from '@/lib/image-storage';
+import { generateBrandedHero } from '@/lib/generate-branded-hero';
 import prisma from '@/lib/prisma';
 
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
@@ -143,6 +144,33 @@ export async function GET(request: NextRequest, context: RouteParams) {
     const results = await storeAllImagesForItem(type as 'tv' | 'movie', tmdbId);
     
     if (!results.hero) {
+      // BRANDED FALLBACK: generate a branded hero image from series metadata
+      // (happens when TMDB has no backdrops, e.g. upcoming series in production)
+      try {
+        const series = await prisma.series.findUnique({
+          where: { tmdbId },
+          select: { name: true, title: true, networks: true, status: true },
+        });
+        if (series) {
+          const networks = Array.isArray(series.networks) ? series.networks : [];
+          const network = (networks[0] as any)?.name || null;
+          const buf = await generateBrandedHero({
+            title: series.title || series.name || 'Serie',
+            network,
+            status: series.status,
+          });
+          console.log(`🎨 Generated branded hero for ${type}/${id} (no TMDB backdrop)`);
+          return new Response(buf, {
+            headers: {
+              'Content-Type': 'image/jpeg',
+              'Cache-Control': 'public, max-age=86400',
+              'X-Hero-Source': 'branded-fallback',
+            },
+          });
+        }
+      } catch (genErr) {
+        console.error('Branded hero generation failed:', genErr);
+      }
       return NextResponse.redirect(new URL('/placeholders/hero.webp', request.url));
     }
 

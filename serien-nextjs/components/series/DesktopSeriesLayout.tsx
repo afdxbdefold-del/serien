@@ -59,7 +59,7 @@ export default function DesktopSeriesLayout({
         {localTrailerUrl ? (
           <R2VideoPlayer
             src={localTrailerUrl}
-            poster={series.backdropPath ? `/img/tmdb/w780${series.backdropPath}` : undefined}
+            poster={series.backdropPath ? `/img/tmdb/w780${series.backdropPath}` : `/img/hero/${series.tmdbType || 'tv'}/${series.tmdbId}`}
           />
         ) : trailerKey ? (
           <iframe
@@ -69,18 +69,19 @@ export default function DesktopSeriesLayout({
             allowFullScreen
             className="absolute inset-0 w-full h-full"
           />
-        ) : series.backdropPath ? (
+        ) : (
           <>
             <Image
-              src={`/img/tmdb/original${series.backdropPath}`}
+              src={series.backdropPath ? `/img/tmdb/original${series.backdropPath}` : `/img/hero/${series.tmdbType || 'tv'}/${series.tmdbId}`}
               alt={series.name || ''}
               fill
               className="object-cover"
               priority
+              unoptimized={!series.backdropPath}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950/90 via-gray-950/40 to-transparent" />
           </>
-        ) : null}
+        )}
         
         {/* Series Info Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-gray-950 via-gray-950/80 to-transparent">

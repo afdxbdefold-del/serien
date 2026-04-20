@@ -9,6 +9,7 @@ interface MobileHeroWithVideoProps {
   seriesName: string;
   trailerKey: string | null;
   localTrailerUrl?: string | null;
+  fallbackHeroUrl?: string;
 }
 
 export default function MobileHeroWithVideo({
@@ -17,15 +18,14 @@ export default function MobileHeroWithVideo({
   seriesName,
   trailerKey,
   localTrailerUrl,
+  fallbackHeroUrl,
 }: MobileHeroWithVideoProps) {
+  const posterForVideo = backdropPath ? `/img/tmdb/w780${backdropPath}` : fallbackHeroUrl;
   // Prioritize R2-hosted local trailer over YouTube embed
   if (localTrailerUrl) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
-        <R2VideoPlayer
-          src={localTrailerUrl}
-          poster={backdropPath ? `/img/tmdb/w780${backdropPath}` : undefined}
-        />
+        <R2VideoPlayer src={localTrailerUrl} poster={posterForVideo} />
       </div>
     );
   }
@@ -46,16 +46,18 @@ export default function MobileHeroWithVideo({
   }
 
   // Fallback: Backdrop-Bild wenn kein Trailer
+  const heroSrc = backdropPath ? `/img/tmdb/original${backdropPath}` : fallbackHeroUrl;
   return (
     <div className="relative w-full aspect-[21/9] bg-gray-900">
-      {backdropPath && (
+      {heroSrc && (
         <>
           <Image
-            src={`/img/tmdb/original${backdropPath}`}
+            src={heroSrc}
             alt={seriesName}
             fill
             className="object-cover"
             priority
+            unoptimized={!backdropPath}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         </>

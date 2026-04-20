@@ -58,6 +58,7 @@ export default function MobileSeriesLayout({
           seriesName={series.name || ''}
           trailerKey={trailers.length > 0 ? trailers[0].key : null}
           localTrailerUrl={localTrailerUrl}
+          fallbackHeroUrl={!series.backdropPath ? `/img/hero/${series.tmdbType || 'tv'}/${series.tmdbId}` : undefined}
         />
         
         <div className="pt-6 px-6 pb-6">
