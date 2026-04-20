@@ -341,8 +341,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Type: ${classification.content_type}`);
     console.log(`   Primary Series: ${classification.primary_series || 'nicht erkannt'}`);
     console.log(`   Reasoning: ${classification.reasoning || '-'}`);
-    logger.log(`Klassifiziert als: ${classification.content_type}`);
+    logger.log(`Klassifiziert als: ${classification.content_type} | ${(classification.reasoning || '').slice(0, 200)}`);
     logger.addMetadata('contentType', classification.content_type);
+    logger.addMetadata('classifierReasoning', classification.reasoning || null);
     if (classification.primary_series) {
       logger.addMetadata('primarySeries', classification.primary_series);
     }

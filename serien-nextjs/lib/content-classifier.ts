@@ -150,30 +150,28 @@ Classify this content now.
     } catch (error: any) {
       lastError = error;
       const msg = error?.message || String(error);
-      const isRetriable =
-        msg.includes('502') || msg.includes('503') || msg.includes('504') ||
-        msg.includes('401') || msg.includes('429') ||
-        msg.includes('timeout') || msg.includes('ECONNRESET') ||
-        msg.includes('overloaded') || msg.includes('rate_limit') ||
-        msg.includes('fetch failed');
-
-      if (isRetriable && attempt < MAX_ATTEMPTS) {
+      // IMPORTANT: retry on *every* error by default. The previous whitelist
+      // (only 502/503/timeout/ECONNRESET/…) missed JSON-parse SyntaxErrors and
+      // unknown SDK errors — those caused silent UNKNOWN fallback in <50ms.
+      // Only skip retry if we've exhausted attempts.
+      if (attempt < MAX_ATTEMPTS) {
         const backoff = 2000 * Math.pow(2, attempt - 1); // 2s, 4s, 8s
-        console.warn(`⚠️  Classifier attempt ${attempt}/${MAX_ATTEMPTS} failed: ${msg.substring(0, 100)} — retry in ${backoff}ms`);
+        console.warn(`⚠️  Classifier attempt ${attempt}/${MAX_ATTEMPTS} failed: ${msg.substring(0, 160)} — retry in ${backoff}ms`);
         await new Promise(r => setTimeout(r, backoff));
         continue;
       }
-      break; // non-retriable or out of retries
+      break; // out of retries
     }
   }
 
   console.error('❌ Classification failed after retries:', lastError?.message);
+  const errMsg = lastError?.message || 'unknown error';
   return {
     content_type: 'UNKNOWN',
     confidence: 0,
     series_candidates: [],
     signals: { title: [], text: [] },
-    reasoning: `Error: ${lastError?.message || 'unknown'}`
+    reasoning: `CLASSIFIER_ERROR: ${errMsg}`
   };
 }
 
