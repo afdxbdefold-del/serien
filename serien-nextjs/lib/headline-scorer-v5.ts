@@ -664,8 +664,18 @@ export function scoreHeadlineV5(
     boosts.push({ type: 'relative_outlier', reason: 'Stärker als Peer-Durchschnitt', value: relativeOutlierBonus });
   }
 
+  // v5.2 Platform-First Rule:
+  // Do not place a platform/network FIRST unless it has mainstream consumer pull
+  // in Germany. Mainstream whitelist: Netflix, Prime Video, Disney+, HBO, Apple TV+.
+  // For niche/regional platforms (Paramount+, Peacock, WOW, Sky, Hulu, Max, ARD, ZDF…)
+  // the series title must come first → strong −15 penalty on first-position placement.
+  const platformFirstPenalty = computePlatformFirstPenalty(headline);
+  if (platformFirstPenalty < 0) {
+    penalties.push({ type: 'platform_first', phrase: 'nicht-mainstream Plattform vorne', value: platformFirstPenalty });
+  }
+
   // --- RAW SCORE ---
-  const totalPenalties = totalHardPenalty + totalSoftPenalty + seriesHandling.penalty + lengthPenalty + dupePenalty;
+  const totalPenalties = totalHardPenalty + totalSoftPenalty + seriesHandling.penalty + lengthPenalty + dupePenalty + platformFirstPenalty;
 
   let rawScore = hookStrength + topicClarity + specificity + riskConflict +
     contrastPattern + ctrPrediction + relativeOutlierBonus +
@@ -716,6 +726,62 @@ export function scoreHeadlineV5(
     },
   };
 }
+
+// ============================================================
+// PLATFORM-FIRST RULE (v5.2)
+// ============================================================
+// Regel: Plattform darf NUR vor dem Serientitel stehen, wenn die Plattform
+// in Deutschland Mainstream-Consumer-Pull hat. Ansonsten muss der Serientitel
+// zuerst kommen (bessere Wiedererkennbarkeit, Google Discover bevorzugt Brand-First).
+//
+// ALLOWED PLATFORM-FIRST (≥ 4 Mio DE-Abos oder starker Brand-Recall):
+//   Netflix, Prime Video, Amazon Prime, Disney+, HBO, HBO Max, Max, Apple TV+
+// NOT ALLOWED as first word (niche/regional — penalize):
+//   Paramount+, Peacock, Hulu, WOW, Sky, ARD, ZDF, RTL+, Arte, ProSieben, ZDFneo …
+
+const MAINSTREAM_PLATFORMS_DE = [
+  'netflix',
+  'prime video', 'amazon prime', 'amazon',
+  'disney+', 'disney plus',
+  'hbo', 'hbo max', 'max',
+  'apple tv+', 'apple tv', 'appletv',
+];
+
+const NICHE_PLATFORMS_DE = [
+  'paramount+', 'paramount plus',
+  'peacock',
+  'hulu',
+  'wow',
+  'sky',
+  'ard', 'ardmediathek', 'das erste',
+  'zdf', 'zdfneo', 'zdf mediathek',
+  'rtl+', 'rtl plus', 'rtlplus',
+  'arte', 'arte mediathek',
+  'prosieben', 'joyn',
+  'magenta tv', 'magentatv',
+  'crunchyroll',
+  'mubi',
+];
+
+function computePlatformFirstPenalty(headline: string): number {
+  const h = headline.trim().toLowerCase();
+  // Check: does the headline START with a niche platform name?
+  // Guard with word boundary so "Maxime" doesn't match "Max".
+  for (const p of NICHE_PLATFORMS_DE) {
+    // require the phrase at position 0 AND followed by whitespace/punctuation or end
+    if (h.startsWith(p)) {
+      const afterPos = p.length;
+      const next = h[afterPos];
+      if (next === undefined || /[\s:,\-–—.!?]/.test(next)) {
+        return -15;
+      }
+    }
+  }
+  return 0;
+}
+
+// (Mainstream list kept exported-able if ever needed by renderers; no-op here.)
+export const __v5_platform_first = { MAINSTREAM_PLATFORMS_DE, NICHE_PLATFORMS_DE };
 
 // ============================================================
 // WINNER SELECTION
