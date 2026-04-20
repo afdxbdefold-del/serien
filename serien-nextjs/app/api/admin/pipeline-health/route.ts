@@ -1,0 +1,137 @@
+/**
+ * Pipeline Health API
+ * GET /api/admin/pipeline-health?window=60  (minutes)
+ *
+ * Returns aggregate stats for the admin pipeline-health dashboard:
+ *   - run totals by status + by failure step
+ *   - classifier metrics: UNKNOWN rate, 403 safety-block count, avg duration
+ *   - recent failures (last 15, with step + reason)
+ *   - publish rate (articles/h over window)
+ */
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import prisma from '@/lib/prisma';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+);
+
+async function verifyAdmin(req: NextRequest): Promise<boolean> {
+  const auth = req.headers.get('authorization');
+  if (!auth?.startsWith('Bearer ')) return false;
+  try {
+    const { payload } = await jwtVerify(auth.substring(7), JWT_SECRET);
+    return payload.role === 'admin';
+  } catch { return false; }
+}
+
+export async function GET(req: NextRequest) {
+  if (!(await verifyAdmin(req))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const windowMin = Math.max(5, Math.min(1440, Number(new URL(req.url).searchParams.get('window') || '60')));
+  const since = new Date(Date.now() - windowMin * 60 * 1000);
+
+  const runs = await prisma.pipeline_runs.findMany({
+    where: { createdAt: { gte: since } },
+    select: {
+      id: true,
+      status: true,
+      errorStep: true,
+      errorMessage: true,
+      inputQuery: true,
+      metadata: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 2000,
+  });
+
+  // Aggregate
+  const byStatus: Record<string, number> = {};
+  const byFailStep: Record<string, number> = {};
+  let safetyBlocks = 0;
+  let heuristicRescues = 0;
+  let unknownClassification = 0;
+  let classifierDurations: number[] = [];
+
+  for (const r of runs) {
+    byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+    if (r.status === 'failed' && r.errorStep) {
+      byFailStep[r.errorStep] = (byFailStep[r.errorStep] || 0) + 1;
+    }
+    const meta = typeof r.metadata === 'object' && r.metadata !== null ? (r.metadata as any) : {};
+    const reason = String(meta.classifierReasoning || '');
+    if (/403|access_denied/.test(reason)) safetyBlocks++;
+    if (reason.includes('HEURISTIC_AFTER_SAFETY_BLOCK')) heuristicRescues++;
+    if ((r.errorMessage || '').includes('nicht relevant')) unknownClassification++;
+    // crude duration proxy: if metadata has classifierDurationMs use it; else skip
+    if (typeof meta.classifierDurationMs === 'number') classifierDurations.push(meta.classifierDurationMs);
+  }
+
+  // Publish rate from `articles` table within the same window
+  const published = await prisma.articles.count({
+    where: { status: 'published', publishedAt: { gte: since } },
+  });
+  const publishPerHour = Math.round((published * 60) / Math.max(1, windowMin));
+
+  // Recent failures
+  const recentFailures = runs
+    .filter(r => r.status === 'failed')
+    .slice(0, 15)
+    .map(r => {
+      const meta = typeof r.metadata === 'object' && r.metadata !== null ? (r.metadata as any) : {};
+      return {
+        id: r.id,
+        at: r.createdAt.toISOString(),
+        step: r.errorStep || '?',
+        message: r.errorMessage || '',
+        classifierReasoning: meta.classifierReasoning ? String(meta.classifierReasoning).slice(0, 240) : null,
+        title: (r.inputQuery || '').slice(0, 120),
+      };
+    });
+
+  // Last published
+  const lastPublished = await prisma.articles.findMany({
+    where: { status: 'published' },
+    orderBy: { publishedAt: 'desc' },
+    take: 10,
+    select: { slug: true, title: true, publishedAt: true },
+  });
+
+  const successRatePct = runs.length ? Math.round(((byStatus.success || 0) / runs.length) * 100) : 0;
+  const safetyRatePct = runs.length ? Math.round((safetyBlocks / runs.length) * 100) : 0;
+
+  // Health indicator
+  let health: 'ok' | 'warn' | 'critical' = 'ok';
+  if (runs.length > 0) {
+    if (safetyRatePct > 50 || successRatePct < 5) health = 'critical';
+    else if (safetyRatePct > 20 || successRatePct < 20) health = 'warn';
+  }
+
+  return NextResponse.json({
+    generatedAt: new Date().toISOString(),
+    windowMinutes: windowMin,
+    health,
+    totals: {
+      runs: runs.length,
+      byStatus,
+      byFailStep,
+      published,
+      publishPerHour,
+      successRatePct,
+    },
+    classifier: {
+      unknownClassification,
+      safetyBlocks,
+      safetyRatePct,
+      heuristicRescues,
+    },
+    recentFailures,
+    lastPublished: lastPublished.map(a => ({
+      slug: a.slug,
+      title: a.title,
+      publishedAt: a.publishedAt.toISOString(),
+    })),
+  });
+}
