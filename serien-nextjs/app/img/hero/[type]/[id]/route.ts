@@ -149,7 +149,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
       try {
         const series = await prisma.series.findUnique({
           where: { tmdbId },
-          select: { name: true, title: true, networks: true, status: true },
+          select: { name: true, title: true, networks: true, status: true, posterPath: true },
         });
         if (series) {
           const networks = Array.isArray(series.networks) ? series.networks : [];
@@ -158,6 +158,8 @@ export async function GET(request: NextRequest, context: RouteParams) {
             title: series.title || series.name || 'Serie',
             network,
             status: series.status,
+            posterPath: series.posterPath,
+            tmdbId,
           });
           console.log(`🎨 Generated branded hero for ${type}/${id} (no TMDB backdrop)`);
           return new Response(buf, {
