@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const now = new Date();
     const adSlotRecord = await prisma.ad_slots.upsert({
       where: { position },
       update: {
@@ -36,8 +37,10 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         mobileOnly: mobileOnly ?? false,
         desktopOnly: desktopOnly ?? false,
+        updatedAt: now,
       },
       create: {
+        id: `ad_${position}_${Date.now()}`,
         position,
         name,
         description,
@@ -48,6 +51,7 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         mobileOnly: mobileOnly ?? false,
         desktopOnly: desktopOnly ?? false,
+        updatedAt: now,
       },
     });
 
