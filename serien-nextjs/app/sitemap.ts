@@ -1,11 +1,23 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
+import { headers } from 'next/headers';
+import { logCrawlerHit } from '@/lib/crawler-logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // 1 hour
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://serien.de';
+
+  // Log crawler hit (tiny overhead, only logs recognized bots)
+  try {
+    const h = await headers();
+    await logCrawlerHit({
+      userAgent: h.get('user-agent'),
+      path: '/sitemap.xml',
+      ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+    });
+  } catch {}
 
   const [articles, series, indexedPersons, characters] = await Promise.all([
     prisma.articles.findMany({

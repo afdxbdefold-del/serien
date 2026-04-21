@@ -695,3 +695,16 @@ model app_settings {
 }
 
 
+model crawler_hits {
+  id        String   @id @default(cuid())
+  bot       String
+  path      String
+  userAgent String?  @db.Text
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([bot, createdAt])
+  @@index([createdAt])
+}
+
+

@@ -16,6 +16,7 @@ import {
   Gauge,
   Clock,
 } from 'lucide-react';
+import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 
 type Health = 'ok' | 'warn' | 'critical';
 
@@ -425,12 +426,14 @@ export default function PipelineHealthPage() {
           </section>
         </div>
 
+        {/* Crawler stats */}
+        <CrawlerStatsCard />
+
         {/* Recent failures */}
         <section
           className="rounded-xl border border-slate-200 bg-white p-5"
           data-testid="failures-card"
-        >
-          <h2 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+        >          <h2 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-500" /> Letzte Fehler (15)
           </h2>
           {(data?.recentFailures?.length ?? 0) === 0 ? (

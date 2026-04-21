@@ -1,7 +1,19 @@
 import prisma from '@/lib/prisma';
+import { headers } from 'next/headers';
+import { logCrawlerHit } from '@/lib/crawler-logger';
 
 export async function GET() {
   const baseUrl = 'https://serien.de';
+
+  // Log crawler hit (tiny overhead, only logs recognized bots)
+  try {
+    const h = await headers();
+    await logCrawlerHit({
+      userAgent: h.get('user-agent'),
+      path: '/news-sitemap.xml',
+      ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+    });
+  } catch {}
   
   // Get articles from last 48 hours only
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
