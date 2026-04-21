@@ -40,6 +40,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Kill-switch: if pipeline.cron.paused = true in app_settings, skip run
+  try {
+    const { getBoolSetting, SETTINGS } = await import('@/lib/app-settings');
+    const paused = await getBoolSetting(SETTINGS.PIPELINE_CRON_PAUSED, false);
+    if (paused) {
+      console.log('[CRON] Skipped: pipeline.cron.paused = true');
+      return NextResponse.json({
+        skipped: true,
+        reason: 'pipeline.cron.paused',
+        durationMs: Date.now() - startTime,
+      });
+    }
+  } catch (e: any) {
+    console.warn('[CRON] Kill-switch check failed, continuing:', e.message);
+  }
+
   try {
     // Dynamic import to avoid bundling issues
     const { processAllNews } = await import('@/scripts/news-scraper');

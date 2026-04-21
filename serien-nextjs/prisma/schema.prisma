@@ -687,3 +687,11 @@ model blocklist_entries {
   @@index([enabled])
 }
 
+model app_settings {
+  key         String   @id
+  value       String
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
+
+

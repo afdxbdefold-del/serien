@@ -14,7 +14,7 @@ export async function GET() {
     model: cfg.model,
     baseURL: cfg.baseURL,
     apiKeyPrefix: cfg.apiKey ? cfg.apiKey.slice(0, 10) + '…' : 'missing',
-    buildMarker: 'v-2026-04-21-fix-sanitize-retry-catch-block',
+    buildMarker: 'v-2026-04-21-killswitch-plus-sanitize-catch',
     serverTime: new Date().toISOString(),
   });
 }

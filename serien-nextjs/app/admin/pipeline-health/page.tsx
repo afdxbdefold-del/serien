@@ -68,6 +68,45 @@ export default function PipelineHealthPage() {
   const [windowMin, setWindowMin] = useState<number>(60);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [paused, setPaused] = useState<boolean | null>(null);
+  const [toggling, setToggling] = useState(false);
+
+  const loadPaused = useCallback(async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    if (!token) return;
+    try {
+      const r = await fetch('/api/admin/pipeline-toggle', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setPaused(Boolean(d.paused));
+      }
+    } catch {}
+  }, []);
+
+  const togglePaused = useCallback(async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    if (!token) return;
+    if (paused === null) return;
+    const next = !paused;
+    if (next && !window.confirm('Pipeline-Cron wirklich pausieren? Keine neuen Artikel werden erzeugt, bis du wieder aktivierst.')) return;
+    setToggling(true);
+    try {
+      const r = await fetch('/api/admin/pipeline-toggle', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paused: next }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setPaused(Boolean(d.paused));
+      }
+    } finally {
+      setToggling(false);
+    }
+  }, [paused]);
 
   const load = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
@@ -102,7 +141,8 @@ export default function PipelineHealthPage() {
   useEffect(() => {
     setLoading(true);
     load();
-  }, [load]);
+    loadPaused();
+  }, [load, loadPaused]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -216,6 +256,44 @@ export default function PipelineHealthPage() {
             data-testid="error-banner"
           >
             {err}
+          </div>
+        )}
+
+        {/* Kill-switch */}
+        {paused !== null && (
+          <div
+            className={`rounded-xl border px-5 py-4 flex items-center justify-between ${
+              paused
+                ? 'bg-amber-50 border-amber-300 text-amber-900'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+            data-testid="killswitch-card"
+          >
+            <div className="flex items-center gap-3">
+              <ShieldAlert className={`w-5 h-5 ${paused ? 'text-amber-600' : 'text-slate-400'}`} />
+              <div>
+                <div className="font-semibold">
+                  Pipeline-Cron {paused ? 'PAUSIERT' : 'aktiv'}
+                </div>
+                <div className="text-xs opacity-80">
+                  {paused
+                    ? 'Vercel-Scheduler läuft, aber jeder Run wird sofort übersprungen. Keine neuen Artikel werden generiert.'
+                    : 'Cron generiert automatisch neue Artikel aus RSS-Feeds.'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={togglePaused}
+              disabled={toggling}
+              data-testid="killswitch-toggle"
+              className={`rounded-md px-4 py-2 text-sm font-semibold text-white transition-colors ${
+                paused
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-amber-600 hover:bg-amber-700'
+              } ${toggling ? 'opacity-60 cursor-wait' : ''}`}
+            >
+              {toggling ? 'Speichert…' : paused ? '▶ Reaktivieren' : '⏸ Pausieren'}
+            </button>
           </div>
         )}
 
