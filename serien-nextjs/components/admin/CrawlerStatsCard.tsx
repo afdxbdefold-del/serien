@@ -1,20 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, Bot, Clock, RefreshCw, TrendingUp } from 'lucide-react';
+import { Search, Clock, RefreshCw, TrendingUp, Info } from 'lucide-react';
 
-interface ByBot {
-  bot: string;
+interface Category {
+  id: 'google' | 'google-news' | 'google-discover';
+  label: string;
+  description: string;
   hits: number;
   firstAt: string | null;
   lastAt: string | null;
+  shared?: boolean;
 }
 
 interface CrawlerStats {
   windowHours: number;
   generatedAt: string;
   totalHits: number;
-  byBot: ByBot[];
+  categories: Category[];
   googleNews: {
     totalHits: number;
     lastHitAt: string | null;
@@ -41,6 +44,12 @@ function fmtInterval(min: number | null): string {
   const h = min / 60;
   return `alle ~${h.toFixed(1)}h`;
 }
+
+const CATEGORY_ICON: Record<Category['id'], string> = {
+  google: '🔍',
+  'google-news': '📰',
+  'google-discover': '✨',
+};
 
 export default function CrawlerStatsCard() {
   const [data, setData] = useState<CrawlerStats | null>(null);
@@ -81,7 +90,7 @@ export default function CrawlerStatsCard() {
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-          <Search className="w-4 h-4 text-cyan-500" /> Crawler-Aktivität
+          <Search className="w-4 h-4 text-cyan-500" /> Google Crawler-Aktivität
         </h2>
         <div className="flex items-center gap-2">
           <select
@@ -162,50 +171,44 @@ export default function CrawlerStatsCard() {
             )}
           </div>
 
-          {/* All bots table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-testid="bots-table">
-              <thead className="text-xs uppercase tracking-wider text-slate-500">
-                <tr className="border-b border-slate-200">
-                  <th className="py-2 pr-3 text-left">Bot</th>
-                  <th className="py-2 pr-3 text-right">Hits</th>
-                  <th className="py-2 pr-3 text-left">Erster</th>
-                  <th className="py-2 pr-3 text-left">Letzter</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.byBot.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-4 text-center text-slate-400 text-xs">
-                      Noch keine Crawler-Hits im Fenster.
-                    </td>
-                  </tr>
-                )}
-                {data.byBot.map((b) => (
-                  <tr
-                    key={b.bot}
-                    data-testid={`bot-${b.bot}`}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <td className="py-2 pr-3">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Bot className="w-3.5 h-3.5 text-slate-400" />
-                        {b.bot}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums font-semibold">
-                      {b.hits}
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-slate-500">
-                      {fmtRelative(b.firstAt)}
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-slate-500">
-                      {fmtRelative(b.lastAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* 3 Category cards: Google / Google News / Google Discover */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="category-cards">
+            {data.categories.map((cat) => (
+              <div
+                key={cat.id}
+                data-testid={`category-${cat.id}`}
+                className={`rounded-lg border p-4 ${
+                  cat.shared
+                    ? 'border-slate-200 bg-slate-50'
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-slate-900 flex items-center gap-2">
+                    <span className="text-base">{CATEGORY_ICON[cat.id]}</span>
+                    {cat.label}
+                  </span>
+                  {cat.shared && (
+                    <span
+                      title="Identisch mit Google – Discover hat keinen eigenen User-Agent"
+                      className="inline-flex"
+                    >
+                      <Info className="w-3.5 h-3.5 text-slate-400" />
+                    </span>
+                  )}
+                </div>
+                <div className="text-2xl font-bold tabular-nums text-slate-900">
+                  {cat.hits.toLocaleString('de-DE')}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1 leading-tight">
+                  {cat.description}
+                </div>
+                <div className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Zuletzt: <b>{fmtRelative(cat.lastAt)}</b>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Recent feed */}
