@@ -152,6 +152,8 @@ STRIKT VERBOTEN:
 - NICHT neutral starten: "Es gibt Neuigkeiten...", "Es wurde bekannt..."
 - NICHT die Headline wiederholen oder umformulieren
 - KEIN Intro das auf JEDEN beliebigen Artikel passen würde
+- KI-TEMPLATE-PHRASEN verboten: "offiziell bestätigt", "im Überblick", "verständlich erklärt", "alles was ihr wissen müsst", "mit wichtigen Details"
+- KEINE HYPE-VOKABELN: "mega", "unglaublich", "spektakulär", "sensationell", "Fans dürfen sich freuen"
 - ALLES auf Deutsch
 
 Das Intro MUSS die Headline-Logik FORTSETZEN:

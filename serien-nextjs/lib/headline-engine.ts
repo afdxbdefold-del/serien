@@ -238,7 +238,7 @@ export async function generateHeadlines(input: {
     originalHeadline, contentSummary, seriesName, vars,
     focusPatterns, allByAngle, detectedAngle, banned, preserveOriginalStyle,
   });
-  let rawVariants = await callHeadlineLLM(prompt);
+  let rawVariants = await callHeadlineLLM(prompt, seriesName);
 
   // 6) Hard-filter: remove any variant that hits a BANNED phrase
   if (banned.length > 0) {
@@ -401,7 +401,7 @@ Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren
 ===== REGELN =====
 - Generiere genau 10 Headlines auf DEUTSCH.
 - "${seriesName}" MUSS in JEDER Headline vorkommen${detectedAngle === 'nostalgia' ? `, UND der Name "${vars.star || '{STAR}'}" sollte in mindestens 7 von 10 Headlines vorkommen` : ''}.
-- Max 65 Zeichen pro Headline.
+- Max 65 Zeichen pro Headline, **Sweet-Spot 40–65 Zeichen** (Google Discover Card).
 - Nutze die Muster als INSPIRATION, kopiere nicht wörtlich — variiere Wortstellung & Rhythmus.
 - Schreibe so, wie ein Mensch bei Quotenmeter, DWDL oder serienjunkies schreiben würde.
 - Natürlicher deutscher Satzrhythmus. Keine hohle Euphorie.
@@ -410,6 +410,39 @@ Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren
 - Mindestens 6 verschiedene Angles über die 10 Headlines verteilen.
 - Kein Clickbait ohne Deckung im Artikel. Jede Behauptung muss aus dem Content gestützt sein.
 - VERBOTEN: Gedankenstriche (— oder –) in Headlines. Das ist ein klassisches KI-Schreibmuster. Nutze stattdessen Doppelpunkt (":"), Komma oder Punkt.
+
+===== PERFORMANCE-COACH (winning vs. safe) =====
+Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Kandidat:
+
+1) SCROLL-STOP START — Feed-Karten zeigen die ersten 2–3 Wörter groß.
+   ✅ Starte mit: Eigenname ("Jenna Ortega …"), Zahl ("3 Jahre später …"), starkes Verb ("Streicht Netflix …").
+   ❌ Starte NICHT mit: "Die", "Der", "Das", "In", "Auf", "Nach", "Mit", "Ist", "Sind" — das tötet die Stopping Power.
+
+2) OPEN LOOP / NEUGIER — Lass einen Teil der Antwort offen, statt alles zu verraten.
+   ✅ "Warum {SERIE} {X} tut", "Darum kippt {SERIE} {X}", "Was hinter {X} steckt", "Deshalb verlässt {STAR} {SERIE}".
+   ❌ "{SERIE} bekommt Staffel 3 bestätigt" (alles verraten, kein Klick-Grund).
+
+3) EMOTIONALE VERANKERUNG — eine konkrete Emotion, KEINE Hype-Vokabel.
+   ✅ Abschied, Rückkehr, Krise, Schock, Wende, Comeback, Verrat, Trauer, Triumph.
+   ❌ "Mega", "Unglaublich", "Spektakulär", "Fans dürfen sich freuen" — das ist Boulevard-Müll.
+
+4) STARKES HANDLUNGS-VERB — nicht "ist/hat/gibt/kommt".
+   ✅ kippt, streicht, verlässt, enthüllt, feuert, stoppt, bricht, überrascht, verliert, triumphiert.
+   ❌ "ist offiziell", "gibt bekannt", "kommt zurück" — flach und template-haft.
+
+5) NATÜRLICHE SPRACHE — kein KI-Smell.
+   ❌ VERBOTEN: "offiziell bestätigt", "im Überblick", "verständlich erklärt", "alles was ihr wissen müsst", "mit wichtigen Details".
+   ✅ So schreibt ein Mensch: "Brooks verrät seine Romanze mit Rae" statt "Brooks erklärt offiziell die Beziehung zu Rae".
+
+6) KEINE LABEL-TITEL (Colon-Pattern) — "Serie: Staffel X bestätigt" performt 20% schlechter als Aussagesatz.
+   ✅ "Warum Wednesday Staffel 3 alles verändert"
+   ❌ "Wednesday: Staffel 3 bei Netflix bestätigt"
+   (Ausnahme: Nostalgia-Angle darf Doppelpunkt nach Star-Name.)
+
+7) FEED-CTR SANITY — kurz genug, konkret, mind. ein Anker (Zahl, Name, Ort, Zeitangabe).
+
+Gib dir selbst einen Check pro Headline: "Scroll-Stop, Open Loop, Emotion, starkes Verb, natürlich?"
+Wenn du 3 oder mehr der 5 Punkte erfüllst, ist es eine Winning-Headline. Strebe das für mindestens 7 der 10 Kandidaten an.
 
 ===== BEISPIEL-OUTPUT (Struktur) =====
 Topic: "Fallout reaches 100 million viewers months after finale"
@@ -431,7 +464,7 @@ Gib NUR ein JSON-Array zurück, exakt in dieser Form — keine Erklärung, kein 
 // ══════════════════════════════════════════════════════════════════════
 // LLM CALL
 // ══════════════════════════════════════════════════════════════════════
-async function callHeadlineLLM(prompt: string): Promise<Array<{ type: string; text: string; angle?: HeadlineAngle; score?: number }>> {
+async function callHeadlineLLM(prompt: string, seriesName: string = ''): Promise<Array<{ type: string; text: string; angle?: HeadlineAngle; score?: number }>> {
   try {
     const { createLLMClient, getLLMConfig, parseLLMJson } = await import('./llm-config');
     const client = createLLMClient();

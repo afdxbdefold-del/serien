@@ -181,7 +181,13 @@ SPRACHE: ALLES auf DEUTSCH - ohne Ausnahme!
 - Übersetze ALLE englischen Begriffe: "ratings" → "Quoten/Einschaltquoten", "hits new high" → "erreicht neuen Höchststand", "returns" → "kehrt zurück", "season" → "Staffel", "renewed" → "verlängert", etc.
 
 Struktur:
-1. headline: Erzeuge eine KURZE Arbeits-Headline auf Deutsch (wird später durch Headline Engine ersetzt). Max 70 Zeichen. Auf Deutsch.
+1. headline: Erzeuge eine KURZE Arbeits-Headline auf Deutsch (wird später durch Headline Engine ersetzt). Max 70 Zeichen, ideal 40–65. Auf Deutsch.
+   WINNING-HEADLINE-REGELN (pflicht):
+   - Starte mit Name, Zahl oder starkem Verb — NICHT mit "Die", "Der", "Das", "In", "Auf", "Nach".
+   - Nutze ein starkes Handlungs-Verb: kippt, streicht, verlässt, enthüllt, überrascht, feuert, verliert, triumphiert. Kein "ist/hat/gibt/kommt".
+   - Wenn möglich: Open Loop ("Warum…", "Darum…", "Was hinter…", "Deshalb…") oder konkrete Emotion (Abschied, Rückkehr, Krise, Schock, Wende).
+   - VERBOTEN: "offiziell bestätigt", "im Überblick", "alles was ihr wissen müsst", "verständlich erklärt".
+   - KEIN Label-Titel ("Serie: Staffel X bestätigt") — schreibe einen Aussagesatz.
 2. metaDescription: Max 155 Zeichen, fasst den Kern des Artikels zusammen. Enthält den Seriennamen und den wichtigsten Fakt. Auf Deutsch.
 3. lead: EXAKT 3 Sätze. Der Lead MUSS die Headline-Logik fortsetzen — nicht wiederholen, sondern weitertragen.
 
