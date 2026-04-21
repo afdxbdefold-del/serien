@@ -57,6 +57,47 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ========================================================================
+  // LEGACY WORDPRESS FEED REDIRECTS (permanent, 301)
+  //
+  // serien.de used to run on WordPress. Googlebot still crawls the old
+  // feed URLs years later. We map them to their semantic equivalents on
+  // the new stack so Google reindexes with equity intact instead of 404-ing.
+  // ========================================================================
+  const origin = request.nextUrl.origin;
+
+  // /feed/gn  = WordPress Google News Sitemap plugin endpoint → our news-sitemap.xml
+  if (path === '/feed/gn' || path === '/feed/gn/') {
+    return NextResponse.redirect(`${origin}/news-sitemap.xml`, 301);
+  }
+
+  // /feed, /feed/, /feed/rss, /feed/atom  = site-wide RSS → our sitemap
+  if (/^\/feed(\/(rss|rss2|atom|rdf)?)?\/?$/i.test(path)) {
+    return NextResponse.redirect(`${origin}/sitemap.xml`, 301);
+  }
+
+  // /comments/feed, /author/<slug>/feed  = gone for good (must run BEFORE the generic [slug]/feed rule)
+  if (path === '/comments/feed' || path === '/comments/feed/' || /^\/author\/[^/]+\/feed\/?$/i.test(path)) {
+    return new NextResponse('Gone', {
+      status: 410,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  }
+
+  // /<slug>/feed  = WordPress per-post RSS → the post itself (content-equivalent)
+  const postFeedMatch = path.match(/^\/([^/]+)\/feed\/?$/i);
+  if (postFeedMatch && !path.startsWith('/feed/')) {
+    return NextResponse.redirect(`${origin}/${postFeedMatch[1]}`, 301);
+  }
+
+  // ?feed=... query-string variant → strip query and 301 to clean URL
+  const feedQuery = request.nextUrl.searchParams.get('feed');
+  if (feedQuery) {
+    const clean = new URL(request.nextUrl);
+    clean.searchParams.delete('feed');
+    return NextResponse.redirect(clean, 301);
+  }
+
   const response = NextResponse.next();
 
   // Crawler tracking: fire-and-forget POST to internal endpoint.
@@ -64,7 +105,6 @@ export function middleware(request: NextRequest) {
   const ua = request.headers.get('user-agent') || '';
   const bot = detectBot(ua);
   if (bot) {
-    const origin = request.nextUrl.origin;
     // fetch is non-blocking here; response is already routed.
     fetch(`${origin}/api/track/crawler`, {
       method: 'POST',
