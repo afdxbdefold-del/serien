@@ -684,12 +684,21 @@ export default function AnalyticsPage() {
 
           {/* Raw Traffic Sources */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm" data-testid="traffic-sources-raw">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900 dark:text-white">
                 Traffic-Quellen Referrer ({dayTab === 'today' ? 'Heute' : 'Gestern'})
               </h2>
+              {(() => {
+                const sources = dayTab === 'today' ? data?.trafficSources : data?.trafficSourcesYesterday;
+                const count = sources?.length ?? 0;
+                return count > 0 ? (
+                  <span className="text-xs text-gray-500 tabular-nums" data-testid="referrer-count">
+                    {count} Quellen
+                  </span>
+                ) : null;
+              })()}
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3 max-h-[480px] overflow-y-auto">
               {(() => {
                 const sources = dayTab === 'today' ? data?.trafficSources : data?.trafficSourcesYesterday;
                 return !sources || sources.length === 0 ? (
@@ -704,7 +713,7 @@ export default function AnalyticsPage() {
                     >
                       <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{parseReferrer(source.source)}</span>
-                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{source.count}</span>
+                      <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400 tabular-nums">{source.count}</span>
                       <ArrowUpRight className="w-3.5 h-3.5 text-gray-400" />
                     </button>
                   ))

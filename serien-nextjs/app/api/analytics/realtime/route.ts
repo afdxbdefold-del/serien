@@ -212,7 +212,7 @@ export async function GET() {
         AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
         AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
         AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-      GROUP BY e.referrer ORDER BY count DESC LIMIT 10
+      GROUP BY e.referrer HAVING COUNT(*) >= 1 ORDER BY count DESC LIMIT 500
     ` as { source: string; count: bigint }[];
 
     // Device breakdown (from sessions, not events — more accurate)
@@ -386,7 +386,7 @@ export async function GET() {
         AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
         AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
         AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-      GROUP BY e.referrer ORDER BY count DESC LIMIT 10
+      GROUP BY e.referrer HAVING COUNT(*) >= 1 ORDER BY count DESC LIMIT 500
     ` as { source: string; count: bigint }[];
 
     // Devices yesterday (from sessions — exclude bots)
