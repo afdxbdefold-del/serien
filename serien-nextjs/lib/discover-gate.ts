@@ -1,13 +1,17 @@
 /**
- * EMERGENT_DISCOVER_GATE - 100 Punkte System
- * 
- * A) HEADLINE_QUALITY: 30 Punkte
- * B) FRESHNESS: 20 Punkte
- * C) CONTENT_OPENING: 20 Punkte
- * D) IMAGE/VISUAL: 15 Punkte
- * E) TRUST/CLARITY: 15 Punkte
- * 
- * PASS: ≥ 70 Punkte → publishMode = "DISCOVER"
+ * EMERGENT_DISCOVER_GATE - 130 Punkte System
+ *
+ * A1) HEADLINE_HYGIENE:     30 Punkte (clear, series, news value, no dupes, no clickbait)
+ * A2) HEADLINE_PERFORMANCE: 30 Punkte (curiosity, emotion, scroll-stop, natural, strong verb, CTR)
+ * B)  FRESHNESS:            20 Punkte
+ * C)  CONTENT_OPENING:      20 Punkte
+ * D)  IMAGE/VISUAL:         15 Punkte
+ * E)  TRUST/CLARITY:        15 Punkte
+ *
+ * PASS: ≥ 91 Punkte (~70%) → publishMode = "DISCOVER"
+ *
+ * Philosophy: Not just safe headlines — winning headlines.
+ * Hygiene keeps us out of trouble; performance wins the feed card.
  */
 
 import { getLLMFetchConfig } from './llm-config';
@@ -28,12 +32,14 @@ interface DiscoverGateInput {
 }
 
 interface DiscoverScoreBreakdown {
-  headline_quality: number; // 0-30
+  headline_hygiene: number; // 0-30
+  headline_performance: number; // 0-30
+  headline_quality: number; // 0-60 (hygiene + performance, kept for backwards-compat)
   freshness: number; // 0-20
   content_opening: number; // 0-20
   image_visual: number; // 0-15
   trust_clarity: number; // 0-15
-  total: number; // 0-100
+  total: number; // 0-130
 }
 
 interface DiscoverGateResult {
@@ -50,6 +56,21 @@ interface DiscoverDashboardMetrics {
     news_value_clear: boolean;
     has_duplicates: boolean;
     is_clickbait: boolean;
+    score: number; // 0-30 (hygiene)
+    verdict: 'PASS' | 'FAIL';
+    reasons: string[];
+  };
+  headline_performance: {
+    has_curiosity: boolean;
+    has_emotion: boolean;
+    starts_strong: boolean;
+    first_word: string;
+    no_ai_phrase: boolean;
+    has_strong_verb: boolean;
+    length_sweet_spot: boolean;
+    has_colon_title_pattern: boolean;
+    has_number: boolean;
+    feed_ctr_sub_score: number; // 0-5
     score: number; // 0-30
     verdict: 'PASS' | 'FAIL';
     reasons: string[];
@@ -91,7 +112,7 @@ interface DiscoverDashboardMetrics {
     reasons: string[];
   };
   aggregation: {
-    total_score: number; // 0-100
+    total_score: number; // 0-130
     final_verdict: 'DISCOVER' | 'SEARCH_ONLY';
     primary_blockers: string[];
     improvement_hints: string[];
@@ -121,6 +142,176 @@ const GENERIC_HEADLINE_PATTERNS = [
   'kehrt zurück',
 ];
 
+// ═══════════════════════════════════════════════════════════════════════
+// HEADLINE PERFORMANCE SCORING — Not just safe, winning headlines
+// ═══════════════════════════════════════════════════════════════════════
+
+// Open-loop / curiosity triggers — creates a gap the reader wants to close
+const CURIOSITY_PATTERNS: RegExp[] = [
+  /\bwarum\b/i,
+  /\bwieso\b/i,
+  /\bwas.*bedeutet/i,
+  /\bwas.*steckt/i,
+  /\bwie.*schafft/i,
+  /\bhinter.*steckt/i,
+  /steckt dahinter/i,
+  /\bgeheimnis\b/i,
+  /\brätsel\b/i,
+  /\btrick\b/i,
+  /\bwendung\b/i,
+  /\bplan\b/i,
+  /bringt.*ans licht/i,
+  /\bführt zu\b/i,
+  /deshalb\b/i,
+  /darum\b/i,
+];
+
+// Emotional anchors (concrete emotions, NOT hype-words like "mega")
+const EMOTIONAL_WORDS = [
+  'abschied', 'schock', 'drama', 'enttäuscht', 'enttäuschung', 'durchbruch',
+  'überraschung', 'überrascht', 'rückkehr', 'comeback', 'trauer', 'trauert',
+  'triumph', 'verlust', 'verrat', 'verraten', 'krise', 'skandal',
+  'neustart', 'wende', 'bruch', 'mysterium', 'rätsel',
+  'kampf', 'angst', 'hoffnung', 'liebe', 'hass', 'wut', 'streit',
+  'eskalation', 'aus', 'ende', 'finale', 'neubeginn',
+];
+
+// "Weak" first words — article/preposition starts kill scroll-stop power
+const WEAK_FIRST_WORDS = new Set([
+  'die', 'der', 'das', 'den', 'dem', 'des',
+  'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
+  'in', 'im', 'auf', 'nach', 'bei', 'mit', 'zu', 'zum', 'zur',
+  'von', 'vor', 'vom', 'über', 'unter', 'für', 'aus',
+  'und', 'aber', 'oder', 'denn',
+  'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'hat', 'haben',
+  'so', 'diese', 'dieser', 'dieses',
+]);
+
+// Strong action verbs that signal something happened
+const STRONG_VERBS = [
+  'beendet', 'kippt', 'streicht', 'verlässt', 'überrascht',
+  'schockiert', 'bricht', 'stürmt', 'zerreißt', 'erobert',
+  'kehrt zurück', 'kehrt', 'stirbt', 'verschwindet', 'entlarvt',
+  'setzt', 'kündigt', 'stoppt', 'enthüllt', 'bestätigt',
+  'verliert', 'gewinnt', 'entdeckt', 'verrät', 'feuert',
+  'zerstört', 'rettet', 'triumphiert', 'scheitert', 'eskaliert',
+  'dreht', 'beendet', 'kassiert', 'holt', 'verpasst',
+  'warnt', 'droht', 'erhebt', 'zieht', 'wirft',
+];
+
+// AI-smell patterns (feel robotic, over-formal, template-like)
+const AI_GENERIC_PATTERNS: RegExp[] = [
+  /offiziell (bestätigt|angekündigt|verkündet)/i,
+  /verständlich (erklärt|zusammengefasst)/i,
+  /mit.*wichtigen.*details/i,
+  /alles.*was.*(wir|ihr|du).*wissen/i,
+  /alle.*infos.*im.*überblick/i,
+  /im.*überblick\b/i,
+  /das.*große\s(ende|finale)/i,
+  /im folgenden/i,
+  /zusammengefasst/i,
+];
+
+function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
+  const reasons: string[] = [];
+  let score = 0;
+  const safe = (headline || '').trim();
+  const lower = safe.toLowerCase();
+  const words = safe.split(/\s+/);
+  const firstWord = words[0]?.replace(/[^\wäöüß]/gi, '').toLowerCase() || '';
+
+  // 1. CURIOSITY / OPEN LOOP (5)
+  const has_curiosity = CURIOSITY_PATTERNS.some((p) => p.test(safe));
+  if (has_curiosity) {
+    score += 5;
+  } else {
+    reasons.push('Kein Open-Loop / Neugier-Trigger');
+  }
+
+  // 2. EMOTIONAL PULL (5)
+  const has_emotion = EMOTIONAL_WORDS.some((w) => lower.includes(w));
+  if (has_emotion) {
+    score += 5;
+  } else {
+    reasons.push('Keine emotionale Verankerung');
+  }
+
+  // 3. SCROLL-STOP POWER (5) — first word matters on feed cards
+  const starts_with_number = /^\d/.test(safe);
+  const starts_with_name = /^[A-ZÄÖÜ][a-zäöüß]+/.test(safe) && !WEAK_FIRST_WORDS.has(firstWord);
+  const starts_strong = starts_with_number || starts_with_name;
+  if (starts_strong) {
+    score += 5;
+  } else {
+    reasons.push(`Schwacher Einstieg: "${firstWord}" — lieber mit Name, Zahl oder Verb starten`);
+  }
+
+  // 4. NATURAL HUMAN WORDING (5) — penalize AI-template phrases
+  const ai_phrase_hit = AI_GENERIC_PATTERNS.find((p) => p.test(safe));
+  const no_ai_phrase = !ai_phrase_hit;
+  if (no_ai_phrase) {
+    score += 5;
+  } else {
+    reasons.push('KI-Template-Phrase erkannt');
+  }
+
+  // 5. STRONG VERBS / CONCRETE WORDING (5)
+  const has_strong_verb = STRONG_VERBS.some((v) => lower.includes(v));
+  if (has_strong_verb) {
+    score += 5;
+  } else {
+    reasons.push('Kein starkes Handlungs-Verb');
+  }
+
+  // 6. FEED CTR POTENTIAL (5) — sweet-spot length + no colon-title + concreteness
+  let ctr_score = 0;
+  const len = safe.length;
+  const length_sweet_spot = len >= 40 && len <= 70;
+  if (length_sweet_spot) {
+    ctr_score += 2;
+  } else if (len < 40) {
+    reasons.push(`Zu kurz für Feed-Card (${len} Zeichen, ideal 40–70)`);
+  } else {
+    reasons.push(`Zu lang für Feed-Card (${len} Zeichen, ideal 40–70)`);
+  }
+
+  // Colon-title pattern like "Wednesday: Staffel 3 kommt" reads as label + detail
+  // and performs worse than a declarative sentence in Discover cards.
+  const has_colon_title_pattern = /^[^:]{3,30}:\s/i.test(safe);
+  if (!has_colon_title_pattern) {
+    ctr_score += 2;
+  } else {
+    reasons.push('Colon-Title-Muster drückt CTR (lieber Aussagesatz)');
+  }
+
+  // A number (season, episode, year, count) adds concreteness
+  const has_number = /\d/.test(safe);
+  if (has_number) ctr_score += 1;
+
+  score += ctr_score;
+
+  const verdict: 'PASS' | 'FAIL' = score >= 18 ? 'PASS' : 'FAIL';
+  if (verdict === 'FAIL') {
+    fail_reasons.push(`Headline-Performance unter Schwelle (${score}/30)`);
+  }
+
+  return {
+    has_curiosity,
+    has_emotion,
+    starts_strong,
+    first_word: firstWord,
+    no_ai_phrase,
+    has_strong_verb,
+    length_sweet_spot,
+    has_colon_title_pattern,
+    has_number,
+    feed_ctr_sub_score: ctr_score,
+    score: Math.max(0, Math.min(30, score)),
+    verdict,
+    reasons,
+  };
+}
+
 export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGateResult> {
   const fail_reasons: string[] = [];
   
@@ -132,9 +323,12 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
   const paragraphs = (input.article_html || '').match(/<p>(.*?)<\/p>/g) || [];
   const paragraphTexts = paragraphs.map(p => p.replace(/<\/?p>/g, '').trim());
 
-  // === A) HEADLINE QUALITY (30 Punkte) ===
+  // === A1) HEADLINE HYGIENE (30 Punkte) ===
   const headlineMetrics = scoreHeadline(input.final_headline, input.primary_series, fail_reasons);
-  
+
+  // === A2) HEADLINE PERFORMANCE (30 Punkte) ===
+  const headlinePerformanceMetrics = scoreHeadlinePerformance(input.final_headline, fail_reasons);
+
   // === B) FRESHNESS (20 Punkte) ===
   const freshnessMetrics = scoreFreshness(input.publishedAt, fail_reasons);
   
@@ -147,18 +341,20 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
   // === E) TRUST/CLARITY (15 Punkte) ===
   const trustMetrics = scoreTrust(plainText, fail_reasons);
 
-  // === TOTAL SCORE ===
-  const total_score = 
+  // === TOTAL SCORE (out of 130) ===
+  const total_score =
     headlineMetrics.score +
+    headlinePerformanceMetrics.score +
     freshnessMetrics.score +
     contentMetrics.score +
     imageMetrics.score +
     trustMetrics.score;
 
-  const discover_eligible = total_score >= 70;
+  const discover_eligible = total_score >= 91;
 
   const dashboard: DiscoverDashboardMetrics = {
     headline: headlineMetrics,
+    headline_performance: headlinePerformanceMetrics,
     freshness: freshnessMetrics,
     content_opening: contentMetrics,
     image_visual: imageMetrics,
@@ -166,15 +362,17 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
     aggregation: {
       total_score,
       final_verdict: discover_eligible ? 'DISCOVER' : 'SEARCH_ONLY',
-      primary_blockers: identifyBlockers(headlineMetrics, freshnessMetrics, contentMetrics, imageMetrics, trustMetrics),
-      improvement_hints: generateHints(headlineMetrics, freshnessMetrics, contentMetrics, imageMetrics, trustMetrics),
+      primary_blockers: identifyBlockers(headlineMetrics, headlinePerformanceMetrics, freshnessMetrics, contentMetrics, imageMetrics, trustMetrics),
+      improvement_hints: generateHints(headlineMetrics, headlinePerformanceMetrics, freshnessMetrics, contentMetrics, imageMetrics, trustMetrics),
     },
   };
 
   return {
     discover_eligible,
     scores: {
-      headline_quality: headlineMetrics.score,
+      headline_hygiene: headlineMetrics.score,
+      headline_performance: headlinePerformanceMetrics.score,
+      headline_quality: headlineMetrics.score + headlinePerformanceMetrics.score,
       freshness: freshnessMetrics.score,
       content_opening: contentMetrics.score,
       image_visual: imageMetrics.score,
@@ -480,11 +678,19 @@ function identifyBlockers(...metrics: any[]): string[] {
 
 function generateHints(...metrics: any[]): string[] {
   const hints: string[] = [];
-  
-  const [headline, freshness, content, image, trust] = metrics;
-  
+
+  const [headline, performance, freshness, content, image, trust] = metrics;
+
   if (headline.score < 20) {
     hints.push('Headline konkreter formulieren (WAS passiert mit WEM)');
+  }
+  if (performance && performance.score < 20) {
+    if (!performance.has_curiosity) hints.push('Open Loop einbauen („Warum …", „Darum …", „Was dahinter steckt")');
+    if (!performance.has_emotion) hints.push('Konkrete Emotion anker (Abschied, Rückkehr, Krise, Schock)');
+    if (!performance.starts_strong) hints.push('Mit Name, Zahl oder Verb starten — nicht mit „Die" oder „In"');
+    if (!performance.has_strong_verb) hints.push('Starkes Handlungs-Verb einsetzen (kippt, streicht, enthüllt, verlässt)');
+    if (!performance.no_ai_phrase) hints.push('KI-Template raus („offiziell bestätigt", „im Überblick")');
+    if (performance.has_colon_title_pattern) hints.push('Doppelpunkt-Titel vermeiden — Aussagesatz schreibt besser');
   }
   if (freshness.score < 15) {
     hints.push('Artikel zeitnah veröffentlichen (ideal: heute)');
@@ -498,6 +704,6 @@ function generateHints(...metrics: any[]): string[] {
   if (trust.score < 12) {
     hints.push('Spekulation vermeiden, nur verifizierte Fakten');
   }
-  
+
   return hints;
 }

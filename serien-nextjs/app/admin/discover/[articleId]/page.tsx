@@ -41,16 +41,18 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
   });
 
   const score = dashboard.discoverScore;
-  const passed = score >= 70;
+  const passed = score >= 91;
 
-  const scoreColor = score >= 85 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
-  const scoreBg = score >= 85 ? 'bg-green-50' : score >= 70 ? 'bg-yellow-50' : 'bg-red-50';
+  const scoreColor = score >= 110 ? 'text-green-600' : score >= 91 ? 'text-yellow-600' : 'text-red-600';
+  const scoreBg = score >= 110 ? 'bg-green-50' : score >= 91 ? 'bg-yellow-50' : 'bg-red-50';
 
   const headline = (dashboard.headlineMetrics as unknown) as MetricBlock;
   const freshness = (dashboard.freshnessMetrics as unknown) as MetricBlock;
   const content = (dashboard.contentMetrics as unknown) as MetricBlock;
   const image = (dashboard.imageMetrics as unknown) as MetricBlock;
   const trust = (dashboard.trustMetrics as unknown) as MetricBlock;
+  // Performance is nested inside headlineMetrics.performance (written by pipeline-v2)
+  const performance = ((dashboard.headlineMetrics as any)?.performance ?? null) as MetricBlock | null;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -87,7 +89,7 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
 
             <div className={`${scoreBg} rounded-lg p-4 text-center min-w-[120px]`}>
               <div className={`text-5xl font-bold ${scoreColor} mb-1`} data-testid="total-score">{score}</div>
-              <div className="text-xs text-gray-500 mb-2">von 100</div>
+              <div className="text-xs text-gray-500 mb-2">von 130</div>
               {passed ? (
                 <div className="flex items-center justify-center gap-1 text-green-700 font-medium text-sm">
                   <CheckCircle2 className="h-4 w-4" />
@@ -105,7 +107,7 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
           <div className="flex flex-wrap gap-4 text-sm pt-4 border-t">
             <div>
               <span className="text-gray-500">Schwellenwert:</span>{' '}
-              <span className="font-medium">≥ 70 Punkte</span>
+              <span className="font-medium">≥ 91 Punkte</span>
             </div>
             <div>
               <span className="text-gray-500">Pipeline-Version:</span>{' '}
@@ -128,7 +130,7 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <CategoryCard
             emoji="📰"
-            title="Headline Quality"
+            title="Headline Hygiene"
             score={headline?.score ?? 0}
             max={30}
             verdict={headline?.verdict}
@@ -140,6 +142,24 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
               { label: 'Kein Clickbait', ok: !headline?.is_clickbait },
             ]}
             reasons={headline?.reasons}
+          />
+          <CategoryCard
+            emoji="🎯"
+            title="Headline Performance"
+            score={performance?.score ?? 0}
+            max={30}
+            verdict={performance?.verdict}
+            checks={performance ? [
+              { label: 'Open Loop / Neugier', ok: performance.has_curiosity },
+              { label: 'Emotionale Verankerung', ok: performance.has_emotion },
+              { label: `Scroll-Stop Einstieg${performance.first_word ? ` ("${performance.first_word}")` : ''}`, ok: performance.starts_strong },
+              { label: 'Natürliche Sprache (kein KI-Template)', ok: performance.no_ai_phrase },
+              { label: 'Starkes Handlungs-Verb', ok: performance.has_strong_verb },
+              { label: `Feed-CTR-Profil (${performance.feed_ctr_sub_score ?? 0}/5)`, ok: (performance.feed_ctr_sub_score ?? 0) >= 3 },
+            ] : [
+              { label: 'Performance-Daten nicht verfügbar (älterer Artikel)', neutral: true },
+            ]}
+            reasons={performance?.reasons}
           />
           <CategoryCard
             emoji="🕐"

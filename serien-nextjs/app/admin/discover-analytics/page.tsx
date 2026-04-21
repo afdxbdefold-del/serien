@@ -74,14 +74,14 @@ export default function DiscoverAnalyticsPage() {
 
   // Filter metrics
   const filteredMetrics = metrics.filter(m => {
-    if (filter === 'passed') return m.discoverScore >= 70;
-    if (filter === 'failed') return m.discoverScore < 70;
+    if (filter === 'passed') return m.discoverScore >= 91;
+    if (filter === 'failed') return m.discoverScore < 91;
     return true;
   });
 
   // Calculate stats
   const totalCount = metrics.length;
-  const passedCount = metrics.filter(m => m.discoverScore >= 70).length;
+  const passedCount = metrics.filter(m => m.discoverScore >= 91).length;
   const failedCount = totalCount - passedCount;
   const avgScore = metrics.length > 0 
     ? metrics.reduce((sum, m) => sum + m.discoverScore, 0) / metrics.length 
@@ -127,14 +127,14 @@ export default function DiscoverAnalyticsPage() {
             trend={null}
           />
           <StatCard 
-            title="Bestanden (≥70)" 
+            title="Bestanden (≥91)" 
             value={passedCount} 
             icon="✅"
             trend={totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0}
             trendLabel="%"
           />
           <StatCard 
-            title="Durchgefallen (<70)" 
+            title="Durchgefallen (<91)" 
             value={failedCount} 
             icon="❌"
             trend={totalCount > 0 ? Math.round((failedCount / totalCount) * 100) : 0}
@@ -149,7 +149,7 @@ export default function DiscoverAnalyticsPage() {
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900" data-testid="discover-threshold-info">
-          <strong>Schwellenwert:</strong> Artikel mit <strong>≥ 70 Punkten</strong> werden als <code className="bg-blue-100 px-1 rounded">DISCOVER</code> klassifiziert und landen in der Google News Sitemap. Alle anderen laufen als <code className="bg-blue-100 px-1 rounded">SEARCH_ONLY</code>.
+          <strong>Schwellenwert:</strong> Artikel mit <strong>≥ 91 Punkten</strong> werden als <code className="bg-blue-100 px-1 rounded">DISCOVER</code> klassifiziert und landen in der Google News Sitemap. Alle anderen laufen als <code className="bg-blue-100 px-1 rounded">SEARCH_ONLY</code>.
         </div>
 
         {/* Filters */}
@@ -318,14 +318,14 @@ function StatCard({
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const passed = score >= 70;
+  const passed = score >= 91;
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
       passed 
         ? 'bg-green-100 text-green-800' 
         : 'bg-red-100 text-red-800'
     }`}>
-      {score}/100
+      {score}/130
     </span>
   );
 }

@@ -1521,7 +1521,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
               timestamp: new Date(),
               finalVerdict: gateResult.discover_eligible ? 'DISCOVER_OK' : 'SEARCH_ONLY',
               discoverScore: gateResult.scores.total,
-              headlineMetrics: gateResult.dashboard.headline as any,
+              // Nest performance inside headlineMetrics to avoid schema migration
+              headlineMetrics: {
+                ...(gateResult.dashboard.headline as any),
+                performance: gateResult.dashboard.headline_performance,
+              } as any,
               freshnessMetrics: gateResult.dashboard.freshness as any,
               contentMetrics: gateResult.dashboard.content_opening as any,
               imageMetrics: gateResult.dashboard.image_visual as any,
@@ -1536,7 +1540,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             data: { publishMode }
           });
           
-          console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/100 → ${publishMode}`);
+          console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/130 → ${publishMode}`);
         } catch (error: any) {
           console.log(`   ⚠️  Discover Gate failed: ${error.message}`);
         }
