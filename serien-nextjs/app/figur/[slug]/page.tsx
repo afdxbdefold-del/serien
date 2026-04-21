@@ -157,6 +157,8 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
       title: true,
       excerpt: true,
       publishedAt: true,
+      heroImageUrl: true,
+      heroImagePath: true,
       cardImageUrl: true,
     },
   });

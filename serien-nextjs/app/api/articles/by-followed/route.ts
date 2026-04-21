@@ -27,6 +27,8 @@ export async function POST(request: Request) {
         excerpt: true,
         slug: true,
         heroLocalUrl: true,
+        heroImageUrl: true,
+        heroImagePath: true,
         cardImageUrl: true,
         publishedAt: true,
         category: true,

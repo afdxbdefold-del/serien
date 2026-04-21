@@ -128,6 +128,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             excerpt: true,
             publishedAt: true,
             heroLocalUrl: true,
+            heroImageUrl: true,
+            heroImagePath: true,
             cardImageUrl: true,
             authorId: true,
             users: {
@@ -159,6 +161,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
             excerpt: true,
             publishedAt: true,
             heroLocalUrl: true,
+            heroImageUrl: true,
+            heroImagePath: true,
             cardImageUrl: true,
             authorId: true,
             users: {

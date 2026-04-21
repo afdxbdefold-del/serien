@@ -85,6 +85,8 @@ const getDiscoveryPlusData = unstable_cache(
           title: true,
           excerpt: true,
           heroLocalUrl: true,
+          heroImageUrl: true,
+          heroImagePath: true,
           cardImageUrl: true,
           tmdbId: true,
           tmdbType: true,

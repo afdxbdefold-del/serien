@@ -112,6 +112,8 @@ const getRelatedNews = (articleId: string) => unstable_cache(
         title: true,
         excerpt: true,
         heroLocalUrl: true,
+        heroImageUrl: true,
+        heroImagePath: true,
         cardImageUrl: true,
         tmdbId: true,
         tmdbType: true,
@@ -149,7 +151,11 @@ const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstab
         slug: true,
         title: true,
         excerpt: true,
+        heroImageUrl: true,
+        heroImagePath: true,
         heroLocalUrl: true,
+        heroImageUrl: true,
+        heroImagePath: true,
         cardImageUrl: true,
         tmdbId: true,
         tmdbType: true,
@@ -600,6 +606,7 @@ export default async function ArticlePage({ params }: PageProps) {
                     slug={news.slug}
                     title={news.title}
                     excerpt={news.excerpt}
+                    heroImageUrl={news.heroImageUrl || (news.heroImagePath ? `/${news.heroImagePath.replace(/^\//, '')}` : undefined)}
                     heroLocalUrl={news.heroLocalUrl}
                     cardImageUrl={news.cardImageUrl}
                     tmdbId={news.tmdbId}
