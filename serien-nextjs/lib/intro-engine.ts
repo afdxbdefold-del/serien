@@ -10,6 +10,7 @@
  */
 
 import { scoreIntro, type IntroScoreResult } from './intro-scorer';
+import { stripDashes } from './strip-dashes';
 
 export interface IntroVariant {
   type: string;
@@ -64,7 +65,7 @@ export async function generateIntroVariants(input: {
   const { headline, headlineType, seriesName, facts, articleContent } = input;
 
   const prompt = buildIntroPrompt(headline, seriesName, facts, articleContent);
-  const rawVariants = await callIntroLLM(prompt);
+  const rawVariants = await callIntroLLM(prompt, input.seriesName);
 
   // Score all
   const scored: IntroVariant[] = rawVariants.map(v => {
@@ -169,7 +170,7 @@ JSON-Array (NUR das):
 ]`;
 }
 
-async function callIntroLLM(prompt: string): Promise<Array<{ type: string; text: string }>> {
+async function callIntroLLM(prompt: string, seriesName: string): Promise<Array<{ type: string; text: string }>> {
   try {
     const { createLLMClient, getLLMConfig, parseLLMJson } = await import('./llm-config');
     const client = createLLMClient();
@@ -197,19 +198,6 @@ async function callIntroLLM(prompt: string): Promise<Array<{ type: string; text:
         type: String(item.type),
         // Strip em/en-dashes (AI-tell), preserve series names with dashes
         text: stripDashes(String(item.text).trim(), [seriesName]),
-      }));
-  } catch (error: any) {
-    console.error('Intro LLM call failed:', error.message);
-    return [];
-  }
-}
-e(/[—–]\s+/g, ', ')
-          .replace(/\s+[—–]/g, ', ')
-          .replace(/[—–]/g, ', ')
-          .replace(/  +/g, ' ')
-          .replace(/,\s*,/g, ',')
-          .replace(/\s+:/g, ':')
-          .trim(),
       }));
   } catch (error: any) {
     console.error('Intro LLM call failed:', error.message);

@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
         step: r.errorStep || '?',
         message: r.errorMessage || '',
         classifierReasoning: reason ? String(reason).slice(0, 240) : null,
-        title: (r.inputQuery || r.articleTitle || '').slice(0, 120),
+        title: (r.inputQuery || '').slice(0, 120),
       };
     });
 
