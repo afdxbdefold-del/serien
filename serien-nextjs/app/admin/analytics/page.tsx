@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { 
   Users, Eye, Clock, Globe, Monitor, Smartphone, Tablet,
   TrendingUp, TrendingDown, RefreshCw, ExternalLink, ArrowUpRight,
-  MousePointerClick, Timer, BarChart3, Activity
+  MousePointerClick, Timer, BarChart3, Activity, X, Loader2
 } from 'lucide-react';
+import ReferrerDetailModal from '@/components/admin/ReferrerDetailModal';
 
 interface SourceCategory {
   category: string;
@@ -163,6 +164,7 @@ export default function AnalyticsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [dayTab, setDayTab] = useState<'today' | 'yesterday'>('today');
+  const [detailReferrer, setDetailReferrer] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -694,11 +696,17 @@ export default function AnalyticsPage() {
                   <p className="text-gray-500 text-center py-4">Keine Daten</p>
                 ) : (
                   sources.map((source) => (
-                    <div key={source.source} className="flex items-center gap-3">
+                    <button
+                      key={source.source}
+                      onClick={() => setDetailReferrer(source.source)}
+                      className="w-full flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded-md px-2 py-1.5 transition-colors"
+                      data-testid={`referrer-row-${source.source}`}
+                    >
                       <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="flex-1 text-sm text-gray-900 dark:text-white truncate">{parseReferrer(source.source)}</span>
                       <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">{source.count}</span>
-                    </div>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-gray-400" />
+                    </button>
                   ))
                 );
               })()}
@@ -756,6 +764,15 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Referrer Detail Modal */}
+      {detailReferrer && (
+        <ReferrerDetailModal
+          source={detailReferrer}
+          day={dayTab}
+          onClose={() => setDetailReferrer(null)}
+        />
+      )}
     </div>
   );
 }
