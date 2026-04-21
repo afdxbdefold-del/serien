@@ -38,7 +38,8 @@ import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
-import { checkForDuplicate, quickTitleSimilarityCheck } from '../lib/duplicate-checker';
+import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
+import { computeStoryFingerprint } from '../lib/story-fingerprint';
 import { indexNewArticle } from '../lib/google-indexing';
 import { indexNowArticle } from '../lib/indexnow';
 
@@ -635,6 +636,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
+    // STAGE A: Jaccard title + core-event pre-filter (0 LLM calls)
+    // Catches ~80% of "same story, different publisher" hits before we burn
+    // an LLM call on them.
+    const preFilterHit = await preFilterDuplicate({
+      newTitle: source.title,
+      seriesTmdbIds: [dbSeries.tmdbId],
+      storyFingerprint: null, // facts not yet extracted
+    });
+    if (preFilterHit) {
+      console.log(`\n⛔ PRE-FILTER DUPLIKAT (${preFilterHit.stage}):`);
+      console.log(`   Match: "${preFilterHit.matchedTitle}"`);
+      console.log(`   Slug: /${preFilterHit.matchedSlug}`);
+      console.log(`   Similarity: ${(preFilterHit.similarity * 100).toFixed(0)}%`);
+      logger.log(`Pre-Filter-Duplikat (${preFilterHit.stage}): /${preFilterHit.matchedSlug}`);
+      await logger.fail(
+        `Duplikat (${preFilterHit.stage}): /${preFilterHit.matchedSlug}`,
+        `duplicate-${preFilterHit.stage}`,
+      );
+      console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
+      return null;
+    }
+
+    // STAGE B: LLM semantic check (bestehend, aber fail-closed)
     const duplicateResult = await checkForDuplicate(
       source.title,
       fullSourceText.substring(0, 500), // Erste 500 Zeichen als Zusammenfassung
@@ -652,14 +676,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`   Duplikat von: ${duplicateResult.duplicateOf || 'unbekannt'}`);
       console.log(`   → Artikel wird übersprungen.`);
       logger.log(`Duplikat erkannt: ${duplicateResult.reason}`);
-      await logger.fail(`Duplikat: ${duplicateResult.coreEvent}`, 'duplicate-check');
+      await logger.fail(`Duplikat: ${duplicateResult.coreEvent}`, 'duplicate-llm');
       console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
       return null;
     }
 
+    // Persist the normalized core-event for downstream pre-filters on future articles
+    const coreEventNormalizedValue = normalizeCoreEvent(duplicateResult.coreEvent);
+
     console.log(`✅ Kein Duplikat - Thema ist neu: "${duplicateResult.coreEvent}"`);
     logger.log(`Thema OK: ${duplicateResult.topicCategory} - ${duplicateResult.coreEvent}`);
     logger.addMetadata('topicCategory', duplicateResult.topicCategory);
+    logger.addMetadata('coreEventNormalized', coreEventNormalizedValue);
     console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
 
     logStep('4_fact_extraction');
@@ -672,6 +700,48 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const facts = await extractFacts(fullSourceText, source.title);
     console.log(`✅ Extracted ${facts.length} facts`);
     console.timeEnd('⏱️  STEP 4: Fact Extraction');
+
+    // ========== STEP 4.5: STORY FINGERPRINT GATE ==========
+    // Hash over structured facts → catches "same story, different publisher"
+    // even when titles differ. Runs BEFORE content generation (cheapest stop).
+    logStep('4.5_fingerprint_gate');
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 4.5: STORY FINGERPRINT GATE 🧬');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 4.5: Fingerprint Gate');
+
+    const fingerprintBundle = computeStoryFingerprint(facts);
+    let storyFingerprintValue: string | null = null;
+
+    if (!fingerprintBundle) {
+      console.log('   ⚠️  Zu wenige Fact-Signale für Fingerprint (skip gate)');
+      logger.log('Fingerprint-Gate: skipped (low signal)');
+    } else {
+      storyFingerprintValue = fingerprintBundle.fingerprint;
+      console.log(`   🧬 Fingerprint: ${fingerprintBundle.fingerprint.slice(0, 12)}…`);
+
+      const fingerprintHit = await preFilterDuplicate({
+        newTitle: source.title,
+        seriesTmdbIds: [dbSeries.tmdbId],
+        storyFingerprint: fingerprintBundle.fingerprint,
+      });
+
+      if (fingerprintHit?.stage === 'fingerprint') {
+        console.log(`\n⛔ FINGERPRINT-DUPLIKAT:`);
+        console.log(`   Match: "${fingerprintHit.matchedTitle}"`);
+        console.log(`   Slug: /${fingerprintHit.matchedSlug}`);
+        logger.log(`Fingerprint-Duplikat: /${fingerprintHit.matchedSlug}`);
+        await logger.fail(
+          `Duplikat (fingerprint): /${fingerprintHit.matchedSlug}`,
+          'duplicate-fingerprint',
+        );
+        console.timeEnd('⏱️  STEP 4.5: Fingerprint Gate');
+        return null;
+      }
+      console.log('   ✅ Fingerprint ist neu');
+      logger.addMetadata('storyFingerprint', fingerprintBundle.fingerprint);
+    }
+    console.timeEnd('⏱️  STEP 4.5: Fingerprint Gate');
 
     logStep('5_content_generation');
     // ========== STEP 5: STRUCTURED CONTENT GENERATION (ONE CALL!) ==========
@@ -1136,6 +1206,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
           sourceUrl: source.url,
           // Draft reason logged in debugLog, not stored in metadata
           confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
+          // Duplicate-prevention fingerprints
+          coreEventNormalized: coreEventNormalizedValue || null,
+          storyFingerprint: storyFingerprintValue,
         },
       });
     } catch (err: any) {

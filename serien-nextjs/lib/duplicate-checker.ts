@@ -46,6 +46,154 @@ interface ExistingArticle {
 }
 
 /**
+ * Normalize text for Jaccard / core-event comparison.
+ */
+function normalizeTerms(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[„""'''`]/g, '')
+    .replace(/[^a-z0-9äöüß]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter((w) => w.length > 2);
+}
+
+function jaccard(aWords: string[], bWords: string[]): number {
+  if (!aWords.length || !bWords.length) return 0;
+  const a = new Set(aWords);
+  const b = new Set(bWords);
+  const inter = Array.from(a).filter((x) => b.has(x)).length;
+  const union = new Set([...Array.from(a), ...Array.from(b)]).size;
+  return union === 0 ? 0 : inter / union;
+}
+
+export function normalizeCoreEvent(raw: string): string {
+  return normalizeTerms(raw).sort().join(' ');
+}
+
+/**
+ * Pre-Filter (no LLM): exact fingerprint / exact core-event / Jaccard-title.
+ *
+ * - Jaccard-Titel ≥ 0.65 in last 14 days → duplicate
+ * - Core-Event-Overlap ≥ 0.7 (Jaccard on normalized tokens) in last 30 days → duplicate
+ * - Exact story-fingerprint hit in last 30 days → duplicate
+ *
+ * @returns null when pre-filter is negative (→ caller runs LLM check)
+ */
+export interface PreFilterHit {
+  stage: 'jaccard-title' | 'core-event' | 'fingerprint';
+  matchedSlug: string;
+  matchedTitle: string;
+  similarity: number;
+}
+
+export async function preFilterDuplicate(opts: {
+  newTitle: string;
+  seriesTmdbIds: number[];
+  storyFingerprint: string | null;
+}): Promise<PreFilterHit | null> {
+  const { newTitle, seriesTmdbIds, storyFingerprint } = opts;
+  const now = Date.now();
+  const d14 = new Date(now - 14 * 24 * 60 * 60 * 1000);
+  const d30 = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+  // 1) Fingerprint exact match (30 days)
+  if (storyFingerprint) {
+    const hit = await prisma.articles.findFirst({
+      where: {
+        storyFingerprint,
+        status: 'published',
+        publishedAt: { gte: d30 },
+      },
+      select: { slug: true, title: true },
+      orderBy: { publishedAt: 'desc' },
+    });
+    if (hit) {
+      return {
+        stage: 'fingerprint',
+        matchedSlug: hit.slug,
+        matchedTitle: hit.title,
+        similarity: 1.0,
+      };
+    }
+  }
+
+  const seriesFilter =
+    seriesTmdbIds.length > 0
+      ? { primarySeriesId: { in: seriesTmdbIds } }
+      : {};
+
+  // 2) Jaccard-Title (14 days)
+  const recent14 = await prisma.articles.findMany({
+    where: {
+      ...seriesFilter,
+      status: 'published',
+      publishedAt: { gte: d14 },
+    },
+    select: { slug: true, title: true, coreEventNormalized: true },
+    orderBy: { publishedAt: 'desc' },
+    take: 100,
+  });
+
+  const newTitleWords = normalizeTerms(newTitle);
+  let bestTitle: { sim: number; slug: string; title: string } | null = null;
+  for (const a of recent14) {
+    const sim = jaccard(newTitleWords, normalizeTerms(a.title));
+    if (sim >= 0.65 && (!bestTitle || sim > bestTitle.sim)) {
+      bestTitle = { sim, slug: a.slug, title: a.title };
+    }
+  }
+  if (bestTitle) {
+    return {
+      stage: 'jaccard-title',
+      matchedSlug: bestTitle.slug,
+      matchedTitle: bestTitle.title,
+      similarity: bestTitle.sim,
+    };
+  }
+
+  // 3) Core-Event overlap (30 days) — uses tokens from new title
+  const newTitleTokens = new Set(newTitleWords);
+  if (newTitleTokens.size >= 3) {
+    const recent30 = await prisma.articles.findMany({
+      where: {
+        ...seriesFilter,
+        status: 'published',
+        publishedAt: { gte: d30 },
+        coreEventNormalized: { not: null },
+      },
+      select: { slug: true, title: true, coreEventNormalized: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 200,
+    });
+
+    let bestEvent: { sim: number; slug: string; title: string } | null = null;
+    for (const a of recent30) {
+      if (!a.coreEventNormalized) continue;
+      const otherTokens = a.coreEventNormalized.split(' ').filter((t) => t.length > 2);
+      if (otherTokens.length === 0) continue;
+      const sim = jaccard(Array.from(newTitleTokens), otherTokens);
+      if (sim >= 0.7 && (!bestEvent || sim > bestEvent.sim)) {
+        bestEvent = { sim, slug: a.slug, title: a.title };
+      }
+    }
+    if (bestEvent) {
+      return {
+        stage: 'core-event',
+        matchedSlug: bestEvent.slug,
+        matchedTitle: bestEvent.title,
+        similarity: bestEvent.sim,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Holt existierende Artikel zur gleichen Serie (letzte 7 Tage)
  */
 async function getRecentArticlesForSeries(
@@ -149,13 +297,16 @@ JSON (keine Erklärung):
 
   } catch (error) {
     console.error('Duplicate check error:', error);
-    // Bei Fehlern: Artikel durchlassen (false positive vermeiden)
+    // FAIL-CLOSED: on LLM errors we default to "assume duplicate" — better to
+    // skip a unique story than to double-publish. The pre-filter already
+    // caught the obvious cases, so this branch only fires for *new* stories
+    // whose LLM check happened to fail. Operator can retry from admin UI.
     return {
-      isDuplicate: false,
+      isDuplicate: true,
       topicCategory: 'SONSTIGES',
       coreEvent: newTitle,
       duplicateOf: null,
-      reason: `Fehler beim Duplicate-Check: ${error instanceof Error ? error.message : 'Unbekannt'}`,
+      reason: `LLM-Check fehlgeschlagen (fail-closed): ${error instanceof Error ? error.message : 'Unbekannt'}`,
       confidence: 0
     };
   }

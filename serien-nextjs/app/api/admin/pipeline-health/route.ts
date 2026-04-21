@@ -55,6 +55,16 @@ export async function GET(req: NextRequest) {
   let unknownClassification = 0;
   let classifierDurations: number[] = [];
 
+  // Duplicate-prevention breakdown (by fail-step label)
+  const duplicatesByStage: Record<string, number> = {
+    'url-duplicate': 0,
+    'url-duplicate-race': 0,
+    'duplicate-jaccard-title': 0,
+    'duplicate-core-event': 0,
+    'duplicate-fingerprint': 0,
+    'duplicate-llm': 0,
+  };
+
   function parseMeta(raw: unknown): Record<string, unknown> {
     if (!raw) return {};
     if (typeof raw === 'object') return raw as Record<string, unknown>;
@@ -68,6 +78,9 @@ export async function GET(req: NextRequest) {
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
     if (r.status === 'failed' && r.errorStep) {
       byFailStep[r.errorStep] = (byFailStep[r.errorStep] || 0) + 1;
+      if (r.errorStep in duplicatesByStage) {
+        duplicatesByStage[r.errorStep]++;
+      }
     }
     const meta = parseMeta(r.metadata);
     const reason = String((meta as any).classifierReasoning || '');
@@ -139,6 +152,10 @@ export async function GET(req: NextRequest) {
       safetyBlocks,
       safetyRatePct,
       heuristicRescues,
+    },
+    duplicates: {
+      total: Object.values(duplicatesByStage).reduce((s, v) => s + v, 0),
+      byStage: duplicatesByStage,
     },
     recentFailures,
     lastPublished: lastPublished.map(a => ({

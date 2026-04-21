@@ -154,6 +154,8 @@ model articles {
   ogImagePath               String?
   isBreaking                Boolean                     @default(false)
   isTrending                Boolean                     @default(false)
+  coreEventNormalized       String?
+  storyFingerprint          String?
   article_persons           article_persons[]
   article_qa                article_qa?
   article_series            article_series[]
@@ -167,6 +169,8 @@ model articles {
   @@index([primarySeriesId])
   @@index([publishedAt])
   @@index([slug])
+  @@index([coreEventNormalized])
+  @@index([storyFingerprint])
 }
 
 model characters {

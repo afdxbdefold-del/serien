@@ -15,6 +15,7 @@ import {
   XCircle,
   Gauge,
   Clock,
+  Shield,
 } from 'lucide-react';
 import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 
@@ -37,6 +38,10 @@ interface HealthResponse {
     safetyBlocks: number;
     safetyRatePct: number;
     heuristicRescues: number;
+  };
+  duplicates: {
+    total: number;
+    byStage: Record<string, number>;
   };
   recentFailures: Array<{
     id: string;
@@ -428,6 +433,64 @@ export default function PipelineHealthPage() {
 
         {/* Crawler stats */}
         <CrawlerStatsCard />
+
+        {/* Duplicate prevention */}
+        <section
+          className="rounded-xl border border-slate-200 bg-white p-5"
+          data-testid="duplicates-card"
+        >
+          <h2 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-cyan-500" /> Duplikate gestoppt
+            <span className="text-xs font-normal text-slate-500 ml-auto">
+              {data?.windowMinutes ?? 0}min Fenster
+            </span>
+          </h2>
+
+          <div className="mb-4 flex items-baseline gap-3">
+            <span className="text-3xl font-bold text-slate-900 tabular-nums" data-testid="duplicates-total">
+              {data?.duplicates.total ?? 0}
+            </span>
+            <span className="text-xs text-slate-500">Artikel blockiert</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              { key: 'url-duplicate', label: 'URL exakt', icon: '🔗', tier: 'A' },
+              { key: 'url-duplicate-race', label: 'URL Race', icon: '⚡', tier: 'A' },
+              { key: 'duplicate-jaccard-title', label: 'Titel ≥65%', icon: '📰', tier: 'B' },
+              { key: 'duplicate-core-event', label: 'Core-Event', icon: '🎯', tier: 'B' },
+              { key: 'duplicate-fingerprint', label: 'Fact-Fingerprint', icon: '🧬', tier: 'C' },
+              { key: 'duplicate-llm', label: 'LLM-Check', icon: '🤖', tier: 'D' },
+            ].map((stage) => {
+              const count = data?.duplicates.byStage[stage.key] ?? 0;
+              return (
+                <div
+                  key={stage.key}
+                  data-testid={`dup-stage-${stage.key}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-500 flex items-center gap-1">
+                      <span>{stage.icon}</span>
+                      {stage.label}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                      {stage.tier}
+                    </span>
+                  </div>
+                  <div className="text-xl font-semibold tabular-nums text-slate-900">
+                    {count}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 text-xs text-slate-500 leading-relaxed">
+            <strong>A</strong> Hard URL/Race &middot; <strong>B</strong> Pre-Filter (0 LLM) &middot;
+            <strong> C</strong> Facts-Fingerprint &middot; <strong>D</strong> Claude Semantic-Check
+          </div>
+        </section>
 
         {/* Recent failures */}
         <section
