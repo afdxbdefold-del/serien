@@ -618,6 +618,23 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.time('⏱️  STEP 3.5: Duplicate Check');
     logger.log('Prüfe auf Duplikate...');
 
+    // HARD URL DEDUPE: If this exact sourceUrl already exists, skip immediately.
+    // Prevents unique-constraint crash at step 8 when the same RSS item is
+    // reprocessed (e.g. cron overlap, manual retry of a published article).
+    if (source.url) {
+      const existingByUrl = await prisma.articles.findUnique({
+        where: { sourceUrl: source.url },
+        select: { slug: true, status: true },
+      });
+      if (existingByUrl) {
+        console.log(`⛔ URL-DUPLIKAT: bereits als "${existingByUrl.slug}" (${existingByUrl.status}) vorhanden`);
+        logger.log(`URL bereits als "${existingByUrl.slug}" vorhanden`);
+        await logger.fail(`URL-Duplikat: /${existingByUrl.slug}`, 'url-duplicate');
+        console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
+        return null;
+      }
+    }
+
     const duplicateResult = await checkForDuplicate(
       source.title,
       fullSourceText.substring(0, 500), // Erste 500 Zeichen als Zusammenfassung
@@ -1096,30 +1113,48 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const finalStatus = saveAsDraft ? 'draft' : 'published';
     const finalPublishedAt = saveAsDraft ? null : now;
     
-    await prisma.articles.create({
-      data: {
-        id: articleId,
-        title: finalHeadline,
-        slug,
-        contentHtml: finalContentWithVideo,
-        excerpt: finalIntro,
-        metaDescription: structuredContent.metaDescription,
-        heroImageUrl: selectedBackdrop 
-          ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
-          : getStreamerFallbackImage(dbSeries.networks || facts?.networks_platforms || []),
-        tmdbId: dbSeries.tmdbId,
-        primarySeriesId: dbSeries.tmdbId,
-        tmdbType: 'tv',
-        authorId: getRandomAuthor(),
-        status: finalStatus,
-        publishedAt: finalPublishedAt,
-        createdAt: now,
-        updatedAt: now,
-        sourceUrl: source.url,
-        // Draft reason logged in debugLog, not stored in metadata
-        confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
-      },
-    });
+    try {
+      await prisma.articles.create({
+        data: {
+          id: articleId,
+          title: finalHeadline,
+          slug,
+          contentHtml: finalContentWithVideo,
+          excerpt: finalIntro,
+          metaDescription: structuredContent.metaDescription,
+          heroImageUrl: selectedBackdrop 
+            ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
+            : getStreamerFallbackImage(dbSeries.networks || facts?.networks_platforms || []),
+          tmdbId: dbSeries.tmdbId,
+          primarySeriesId: dbSeries.tmdbId,
+          tmdbType: 'tv',
+          authorId: getRandomAuthor(),
+          status: finalStatus,
+          publishedAt: finalPublishedAt,
+          createdAt: now,
+          updatedAt: now,
+          sourceUrl: source.url,
+          // Draft reason logged in debugLog, not stored in metadata
+          confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
+        },
+      });
+    } catch (err: any) {
+      // Race condition: parallel cron runs can hit the same URL after the
+      // upfront dedupe check. Catch the unique-constraint violation gracefully.
+      const msg = err?.message || String(err);
+      const isUniqueConstraint =
+        err?.code === 'P2002' ||
+        /Unique constraint failed/i.test(msg) ||
+        /sourceUrl/.test(msg);
+      if (isUniqueConstraint) {
+        console.log(`⛔ Unique-Constraint hit at publish (race) — URL already exists, skipping`);
+        logger.log(`URL-Duplikat (race): ${source.url}`);
+        await logger.fail(`URL-Duplikat (race condition bei paralleler Pipeline)`, 'url-duplicate-race');
+        console.timeEnd('⏱️  STEP 8: Publish');
+        return null;
+      }
+      throw err;
+    }
 
     // Store headline variants with full v4 data
     if (headlineVariants.length > 0) {
