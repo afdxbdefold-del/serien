@@ -12,6 +12,55 @@
  */
 
 /**
+ * Replace em/en-dashes with natural punctuation.
+ * Em-dashes (—) and en-dashes (–) are classic AI-writing tells and look unnatural in German.
+ * Replacement logic:
+ *   "Text — weiter"   → "Text: weiter"   (emphatic pause)
+ *   "2026–2027"       → "2026-2027"     (numeric range: normal hyphen)
+ *   "word— word"      → "word, word"    (stray)
+ */
+function stripDashes(s: string): string {
+  if (!s || typeof s !== 'string') return s;
+  return s
+    // Numeric ranges like "2026–2027" → normal ASCII hyphen
+    .replace(/(\d)[—–](\d)/g, '$1-$2')
+    // " — " / " – " with surrounding spaces → ": "
+    .replace(/\s+[—–]\s+/g, ': ')
+    // "word— word" → "word, word"
+    .replace(/[—–]\s+/g, ', ')
+    // "word —word" → "word, word"
+    .replace(/\s+[—–]/g, ', ')
+    // "word—word" (no spaces, non-numeric) → "word, word"
+    .replace(/[—–]/g, ', ')
+    // Collapse accidental double-spaces
+    .replace(/  +/g, ' ')
+    .replace(/,\s*,/g, ',')
+    .replace(/\s+:/g, ':')
+    .trim();
+}
+
+/**
+ * Recursively strip em/en-dashes from all string values in a nested object/array.
+ */
+function stripDashesDeep(obj: any): void {
+  if (!obj || typeof obj !== 'object') return;
+  for (const key of Object.keys(obj)) {
+    const v = obj[key];
+    if (typeof v === 'string') {
+      obj[key] = stripDashes(v);
+    } else if (Array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) {
+        if (typeof v[i] === 'string') v[i] = stripDashes(v[i]);
+        else if (typeof v[i] === 'object') stripDashesDeep(v[i]);
+      }
+    } else if (typeof v === 'object') {
+      stripDashesDeep(v);
+    }
+  }
+}
+
+
+/**
  * Detect if a headline is likely in English rather than German.
  * Uses common English words that wouldn't appear in German headlines.
  */
@@ -96,7 +145,10 @@ export async function generateStructuredContent(
   
   // Call LLM with structured output
   const response = await callLLMStructured(prompt, 2, temperature);
-  
+
+  // POST-PROCESS: strip em/en-dashes (AI-tells). Replace with natural punctuation.
+  stripDashesDeep(response);
+
   // Validate and assemble
   const output = assembleMarkdown(response);
   
@@ -257,7 +309,7 @@ function sanitizePromptForSafety(prompt: string): string {
  * Frames the task explicitly as editorial news summarization, not creative writing.
  */
 const JOURNALIST_SYSTEM_PROMPT =
-  'Du bist ein erfahrener deutscher TV-Journalist für serien.de. Deine Aufgabe: redaktionelle ZUSAMMENFASSUNGEN von bereits veröffentlichten Branchennachrichten und Seriennews (Staffelankündigungen, Cast-Änderungen, Handlungsdiskussionen, Absetzungen). Dies sind FAKTISCHE, ZUSAMMENFASSENDE Meldungen — KEINE fiktionalen Szenen, KEINE Gewaltdarstellung, KEINE grafischen Details. Behandle Handlungsereignisse ("Figur X scheidet aus") als sachliche TV-News, nicht als Dramatisierung. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Schreibe als PRIMÄRE Nachrichtenquelle — NIEMALS mit Quellenzuschreibung beginnen. Starte immer direkt mit dem Fakt. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Verwende echte Umlaute (ä, ö, ü). Keine deutschen Anführungszeichen wie „ oder ".';
+  'Du bist ein erfahrener deutscher TV-Journalist für serien.de. Deine Aufgabe: redaktionelle ZUSAMMENFASSUNGEN von bereits veröffentlichten Branchennachrichten und Seriennews (Staffelankündigungen, Cast-Änderungen, Handlungsdiskussionen, Absetzungen). Dies sind FAKTISCHE, ZUSAMMENFASSENDE Meldungen, KEINE fiktionalen Szenen, KEINE Gewaltdarstellung, KEINE grafischen Details. Behandle Handlungsereignisse ("Figur X scheidet aus") als sachliche TV-News, nicht als Dramatisierung. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Schreibe als PRIMÄRE Nachrichtenquelle, NIEMALS mit Quellenzuschreibung beginnen. Starte immer direkt mit dem Fakt. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Verwende echte Umlaute (ä, ö, ü). Keine deutschen Anführungszeichen wie „ oder ". VERBOTEN: Gedankenstriche (— oder –) in Headlines und im Text - nutze stattdessen Doppelpunkt, Komma oder Punkt. Keine Aufzählungsstriche in Fließtexten. Schreibe in klarem, natürlichem Journalisten-Deutsch, nicht literarisch-ausschweifend.';
 
 async function callLLMStructured(prompt: string, retries = 2, temperature?: number): Promise<any> {
   let lastError: Error | null = null;
@@ -271,7 +323,7 @@ async function callLLMStructured(prompt: string, retries = 2, temperature?: numb
       // On sanitized retry: use journalist framing + keyword-neutralized prompt
       const systemContent = useSanitized
         ? JOURNALIST_SYSTEM_PROMPT
-        : 'Du bist ein deutscher TV-Artikel-Generator für serien.de. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Auch wenn die Quell-Headline englisch ist, MUSS deine Headline auf Deutsch sein. Schreibe als PRIMÄRE Nachrichtenquelle — NIEMALS mit Quellenzuschreibung beginnen ("Laut...", "XY hat bekannt gegeben..."). Starte immer direkt mit dem Fakt. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Umlaute als ae/oe/ue schreiben ist NICHT nötig - verwende echte Umlaute (ä, ö, ü). Verwende KEINE deutschen Anführungszeichen wie „ oder " - nutze einfache Anführungszeichen oder schreibe ohne.';
+        : 'Du bist ein deutscher TV-Artikel-Generator für serien.de. ALLE Ausgaben MÜSSEN auf Deutsch sein - Headline, Meta-Description, Lead, Fließtext, H2-Überschriften, Q&A. Auch wenn die Quell-Headline englisch ist, MUSS deine Headline auf Deutsch sein. Schreibe als PRIMÄRE Nachrichtenquelle - NIEMALS mit Quellenzuschreibung beginnen ("Laut...", "XY hat bekannt gegeben..."). Starte immer direkt mit dem Fakt. Antworte NUR mit validem JSON (keine Markdown-Codeblöcke, kein umgebender Text). Umlaute als ae/oe/ue schreiben ist NICHT nötig - verwende echte Umlaute (ä, ö, ü). Verwende KEINE deutschen Anführungszeichen wie „ oder " - nutze einfache Anführungszeichen oder schreibe ohne. VERBOTEN: Gedankenstriche (— oder –) in Headlines und im Text. Nutze stattdessen Doppelpunkt, Komma oder Punkt. Beispiel - FALSCH: "Niemand hatte Gina Gosian auf dem Feld erwartet — und sie liefert". RICHTIG: "Niemand hatte Gina Gosian auf dem Feld erwartet: Sie liefert trotzdem". Schreibe in klarem, natürlichem Journalisten-Deutsch.';
       const userPromptBody = useSanitized ? sanitizePromptForSafety(prompt) : prompt;
       if (useSanitized) {
         console.log(`   🧼 Sanitized retry: journalist-framing + neutralized violence keywords`);

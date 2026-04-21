@@ -406,12 +406,13 @@ Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren
 - Vermeide diese übernutzten Öffner (nur verwenden wenn der Artikel das WIRKLICH hergibt): "Offiziell:", "Endlich", "Doch noch", "Plötzlich", "Ausgerechnet".
 - Keine zwei Headlines dürfen mit demselben Wort beginnen.
 - Mindestens 6 verschiedene Angles über die 10 Headlines verteilen.
-- Kein Clickbait ohne Deckung im Artikel — jede Behauptung muss aus dem Content gestützt sein.
+- Kein Clickbait ohne Deckung im Artikel. Jede Behauptung muss aus dem Content gestützt sein.
+- VERBOTEN: Gedankenstriche (— oder –) in Headlines. Das ist ein klassisches KI-Schreibmuster. Nutze stattdessen Doppelpunkt (":"), Komma oder Punkt.
 
 ===== BEISPIEL-OUTPUT (Struktur) =====
 Topic: "Fallout reaches 100 million viewers months after finale"
 → [
-  { "angle": "success",          "text": "Fallout hört einfach nicht auf – selbst jetzt bleibt die Serie ganz vorne", "score": 86 },
+  { "angle": "success",          "text": "Fallout hört einfach nicht auf: selbst jetzt bleibt die Serie ganz vorne", "score": 86 },
   { "angle": "success",          "text": "Monate später: Fallout schlägt weiter fast alles bei Prime Video",         "score": 84 },
   { "angle": "trend_momentum",   "text": "Plötzlich reden wieder alle über Fallout",                                  "score": 78 }
 ]
@@ -456,7 +457,17 @@ async function callHeadlineLLM(prompt: string): Promise<Array<{ type: string; te
         type: String(item.angle || item.type || 'general'),
         angle: item.angle as HeadlineAngle | undefined,
         score: typeof item.score === 'number' ? item.score : undefined,
-        text: String(item.text).trim(),
+        // Strip em/en-dashes (AI-tell) → replace with natural punctuation
+        text: String(item.text).trim()
+          .replace(/(\d)[—–](\d)/g, '$1-$2')
+          .replace(/\s+[—–]\s+/g, ': ')
+          .replace(/[—–]\s+/g, ', ')
+          .replace(/\s+[—–]/g, ', ')
+          .replace(/[—–]/g, ', ')
+          .replace(/  +/g, ' ')
+          .replace(/,\s*,/g, ',')
+          .replace(/\s+:/g, ':')
+          .trim(),
       }));
   } catch (error: any) {
     console.error('Headline LLM call failed:', error.message);
