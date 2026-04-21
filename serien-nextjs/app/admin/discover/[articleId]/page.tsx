@@ -1,258 +1,323 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, XCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ExternalLink, Lightbulb, AlertTriangle } from 'lucide-react';
 import prisma from '@/lib/prisma';
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
 
 interface PageProps {
   params: Promise<{ articleId: string }>;
 }
 
+type MetricBlock = {
+  score: number;
+  verdict?: 'PASS' | 'FAIL';
+  reasons?: string[];
+  [key: string]: any;
+};
+
 export default async function DiscoverScoreDetail({ params }: PageProps) {
   const { articleId } = await params;
 
-  let audit: any = null;
-  let error: string | null = null;
+  const dashboard = await prisma.discover_score_dashboards.findFirst({
+    where: { articleId },
+    orderBy: { timestamp: 'desc' },
+  });
 
-  try {
-    // Direct database access instead of fetching localhost
-    audit = await prisma.discoverAudit.findUnique({
-      where: { articleId },
-      include: {
-        article: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            excerpt: true,
-            publishedAt: true,
-            heroLocalUrl: true,
-            primarySeries: {
-              select: {
-                name: true,
-                title: true,
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (!audit) {
-      notFound();
-    }
-  } catch (err: any) {
-    console.error('[Discover Detail] Error:', err);
-    error = err.message;
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-4xl mx-auto">
-          <Link
-            href="/admin/discover"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-red-800 font-medium">Error loading audit</p>
-            <p className="text-red-600 text-sm mt-2">{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!audit) {
+  if (!dashboard) {
     notFound();
   }
 
-  const breakdown = audit.breakdownJson || {};
-  const score = audit.discoverScore;
-  const passed = audit.passed;
+  const article = await prisma.articles.findUnique({
+    where: { id: articleId },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      publishMode: true,
+      publishedAt: true,
+      heroImageUrl: true,
+    },
+  });
 
-  // Score color
-  const scoreColor =
-    score >= 80 ? 'text-green-600' : score >= 65 ? 'text-yellow-600' : 'text-red-600';
-  const scoreBg =
-    score >= 80 ? 'bg-green-50' : score >= 65 ? 'bg-yellow-50' : 'bg-red-50';
+  const score = dashboard.discoverScore;
+  const passed = score >= 70;
+
+  const scoreColor = score >= 85 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
+  const scoreBg = score >= 85 ? 'bg-green-50' : score >= 70 ? 'bg-yellow-50' : 'bg-red-50';
+
+  const headline = (dashboard.headlineMetrics as unknown) as MetricBlock;
+  const freshness = (dashboard.freshnessMetrics as unknown) as MetricBlock;
+  const content = (dashboard.contentMetrics as unknown) as MetricBlock;
+  const image = (dashboard.imageMetrics as unknown) as MetricBlock;
+  const trust = (dashboard.trustMetrics as unknown) as MetricBlock;
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Back button */}
+      <div className="max-w-5xl mx-auto">
         <Link
-          href="/admin/discover"
+          href="/admin/discover-analytics"
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          data-testid="back-to-discover-list"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          Zurück zur Übersicht
         </Link>
 
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Discover Score Analysis
-              </h1>
-              <Link
-                href={`/${audit.article.slug}`}
-                className="text-blue-600 hover:text-blue-800 text-lg"
-                target="_blank"
-              >
-                {audit.article.title}
-              </Link>
+          <div className="flex items-start justify-between gap-6 mb-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Discover Score Breakdown</h1>
+              {article ? (
+                <a
+                  href={`/${article.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-lg inline-flex items-center gap-1"
+                  data-testid="article-title-link"
+                >
+                  {article.title}
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              ) : (
+                <p className="text-gray-500 italic">Artikel gelöscht ({articleId.slice(0, 12)}…)</p>
+              )}
             </div>
 
-            {/* Overall Status */}
-            <div className={`${scoreBg} rounded-lg p-4 text-center`}>
-              <div className={`text-4xl font-bold ${scoreColor} mb-1`}>{score}</div>
-              <div className="text-sm text-gray-600 mb-2">Score</div>
+            <div className={`${scoreBg} rounded-lg p-4 text-center min-w-[120px]`}>
+              <div className={`text-5xl font-bold ${scoreColor} mb-1`} data-testid="total-score">{score}</div>
+              <div className="text-xs text-gray-500 mb-2">von 100</div>
               {passed ? (
-                <div className="flex items-center gap-1 text-green-700 font-medium">
+                <div className="flex items-center justify-center gap-1 text-green-700 font-medium text-sm">
                   <CheckCircle2 className="h-4 w-4" />
-                  PASSED
+                  DISCOVER
                 </div>
               ) : (
-                <div className="flex items-center gap-1 text-red-700 font-medium">
+                <div className="flex items-center justify-center gap-1 text-red-700 font-medium text-sm">
                   <XCircle className="h-4 w-4" />
-                  FAILED
+                  SEARCH_ONLY
                 </div>
               )}
             </div>
           </div>
 
-          {/* Mode */}
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm pt-4 border-t">
             <div>
-              <span className="text-gray-600">Mode:</span>{' '}
-              <span className="font-medium text-gray-900">{audit.discoverMode}</span>
+              <span className="text-gray-500">Schwellenwert:</span>{' '}
+              <span className="font-medium">≥ 70 Punkte</span>
             </div>
             <div>
-              <span className="text-gray-600">Date:</span>{' '}
-              <span className="font-medium text-gray-900">
-                {new Date(audit.createdAt).toLocaleString('de-DE')}
-              </span>
+              <span className="text-gray-500">Pipeline-Version:</span>{' '}
+              <span className="font-medium">{dashboard.pipelineVersion}</span>
             </div>
+            <div>
+              <span className="text-gray-500">Bewertet:</span>{' '}
+              <span className="font-medium">{new Date(dashboard.timestamp).toLocaleString('de-DE')}</span>
+            </div>
+            {article?.publishMode && (
+              <div>
+                <span className="text-gray-500">Publish-Mode:</span>{' '}
+                <span className="font-medium">{article.publishMode}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Metrics Breakdown */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">📊 Metrics Breakdown</h2>
-
-          <div className="space-y-4">
-            {/* Word Count */}
-            <MetricCard
-              label="Word Count"
-              value={audit.wordCount}
-              status={audit.wordCount >= (breakdown.minWords || 400) ? 'pass' : 'fail'}
-              details={`Minimum: ${breakdown.minWords || 400} words`}
-            />
-
-            {/* Has Hero Image */}
-            <MetricCard
-              label="Hero Image"
-              value={audit.hasHero ? 'Yes' : 'No'}
-              status={audit.hasHero ? 'pass' : 'fail'}
-              details="Required for Google Discover"
-            />
-
-            {/* Has Byline */}
-            <MetricCard
-              label="Byline/Author"
-              value={audit.hasByline ? 'Yes' : 'No'}
-              status={audit.hasByline ? 'pass' : 'warn'}
-              details="Author attribution improves trust"
-            />
-
-            {/* Freshness */}
-            <MetricCard
-              label="Freshness"
-              value={`${audit.freshnessHours}h ago`}
-              status={audit.freshnessHours <= 48 ? 'pass' : 'warn'}
-              details="Fresh content performs better (< 48h ideal)"
-            />
-
-            {/* AI Risk Score */}
-            <MetricCard
-              label="AI Risk Score"
-              value={audit.aiRiskScore}
-              status={
-                audit.aiRiskScore <= 30 ? 'pass' : audit.aiRiskScore <= 50 ? 'warn' : 'fail'
-              }
-              details="Lower is better. > 50 indicates AI-generated patterns"
-            />
-          </div>
+        {/* 5 Kategorien */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <CategoryCard
+            emoji="📰"
+            title="Headline Quality"
+            score={headline?.score ?? 0}
+            max={30}
+            verdict={headline?.verdict}
+            checks={[
+              { label: 'Klar & spezifisch', ok: headline?.clarity_specific },
+              { label: 'Serienname in Headline', ok: headline?.series_name_present },
+              { label: 'News-Wert erkennbar', ok: headline?.news_value_clear },
+              { label: 'Keine Doppelungen', ok: !headline?.has_duplicates },
+              { label: 'Kein Clickbait', ok: !headline?.is_clickbait },
+            ]}
+            reasons={headline?.reasons}
+          />
+          <CategoryCard
+            emoji="🕐"
+            title="Freshness"
+            score={freshness?.score ?? 0}
+            max={20}
+            verdict={freshness?.verdict}
+            checks={[
+              { label: 'Von heute', ok: freshness?.is_today },
+              { label: `Alter: ${freshness?.age_hours ?? '?'}h`, ok: (freshness?.age_hours ?? 999) <= 24, neutral: true },
+              { label: 'Source-Datum passt', ok: !freshness?.source_date_mismatch },
+            ]}
+            reasons={freshness?.reasons}
+          />
+          <CategoryCard
+            emoji="📝"
+            title="Content Opening"
+            score={content?.score ?? 0}
+            max={20}
+            verdict={content?.verdict}
+            checks={[
+              { label: 'Absatz 1: WAS/WER/WO', ok: content?.paragraph_1_covers_what_who_where },
+              { label: 'Absatz 2: Kontext', ok: content?.paragraph_2_provides_context },
+              { label: 'Keine Absatz-Wüste (>80 Wörter)', ok: !content?.is_paragraph_desert },
+              { label: 'Keine Hype-Sprache', ok: !content?.has_hype_language },
+            ]}
+            reasons={content?.reasons}
+          />
+          <CategoryCard
+            emoji="🖼️"
+            title="Image / Visual"
+            score={image?.score ?? 0}
+            max={15}
+            verdict={image?.verdict}
+            checks={[
+              { label: 'TMDB Backdrop', ok: image?.is_tmdb_backdrop },
+              { label: `Breite ≥ 1200px (${image?.width_px ?? '?'}px)`, ok: image?.width_sufficient },
+              { label: 'Eindeutig zur Serie', ok: image?.clearly_series_related },
+            ]}
+            reasons={image?.reasons}
+          />
+          <CategoryCard
+            emoji="🛡️"
+            title="Trust / Clarity"
+            score={trust?.score ?? 0}
+            max={15}
+            verdict={trust?.verdict}
+            checks={[
+              { label: 'Fakten von Meinung getrennt', ok: trust?.facts_separated_from_opinion },
+              { label: 'Kein KI-Füllwort-Geschwafel', ok: trust?.no_ai_bloat },
+              { label: 'Keine Spekulation', ok: trust?.no_speculation },
+              { label: 'Keine Superlative', ok: trust?.no_superlatives },
+            ]}
+            reasons={trust?.reasons}
+          />
         </div>
 
-        {/* Detailed Breakdown JSON */}
-        {Object.keys(breakdown).length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">🔍 Detailed Breakdown</h2>
-            <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto text-xs">
-              {JSON.stringify(breakdown, null, 2)}
-            </pre>
+        {/* Primary Blockers */}
+        {dashboard.primaryBlockers && dashboard.primaryBlockers.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6" data-testid="primary-blockers">
+            <h2 className="text-lg font-bold text-red-900 mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Primary Blockers ({dashboard.primaryBlockers.length})
+            </h2>
+            <ul className="space-y-1 text-sm text-red-800">
+              {dashboard.primaryBlockers.map((blocker, idx) => (
+                <li key={idx} className="flex gap-2">
+                  <span>•</span>
+                  <span>{blocker}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
+
+        {/* Improvement Hints */}
+        {dashboard.improvementHints && dashboard.improvementHints.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6" data-testid="improvement-hints">
+            <h2 className="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
+              <Lightbulb className="h-5 w-5" />
+              Improvement Hints ({dashboard.improvementHints.length})
+            </h2>
+            <ul className="space-y-1 text-sm text-blue-800">
+              {dashboard.improvementHints.map((hint, idx) => (
+                <li key={idx} className="flex gap-2">
+                  <span>→</span>
+                  <span>{hint}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Raw JSON */}
+        <details className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+            🔍 Raw Breakdown JSON (für Debugging)
+          </summary>
+          <pre className="mt-4 bg-gray-50 p-4 rounded-lg overflow-x-auto text-xs">
+            {JSON.stringify({
+              headline: dashboard.headlineMetrics,
+              freshness: dashboard.freshnessMetrics,
+              content: dashboard.contentMetrics,
+              image: dashboard.imageMetrics,
+              trust: dashboard.trustMetrics,
+              primaryBlockers: dashboard.primaryBlockers,
+              improvementHints: dashboard.improvementHints,
+            }, null, 2)}
+          </pre>
+        </details>
       </div>
     </div>
   );
 }
 
-// Metric Card Component
-function MetricCard({
-  label,
-  value,
-  status,
-  details,
+function CategoryCard({
+  emoji,
+  title,
+  score,
+  max,
+  verdict,
+  checks,
+  reasons,
 }: {
-  label: string;
-  value: string | number;
-  status: 'pass' | 'fail' | 'warn';
-  details: string;
+  emoji: string;
+  title: string;
+  score: number;
+  max: number;
+  verdict?: 'PASS' | 'FAIL';
+  checks: { label: string; ok?: boolean; neutral?: boolean }[];
+  reasons?: string[];
 }) {
-  const statusConfig = {
-    pass: {
-      icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-700',
-    },
-    fail: {
-      icon: <XCircle className="h-5 w-5 text-red-600" />,
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-700',
-    },
-    warn: {
-      icon: <AlertCircle className="h-5 w-5 text-yellow-600" />,
-      bg: 'bg-yellow-50',
-      border: 'border-yellow-200',
-      text: 'text-yellow-700',
-    },
-  };
-
-  const config = statusConfig[status];
+  const ratio = max > 0 ? score / max : 0;
+  const barColor = ratio >= 0.8 ? 'bg-green-500' : ratio >= 0.5 ? 'bg-yellow-500' : 'bg-red-500';
+  const scoreTextColor = ratio >= 0.8 ? 'text-green-700' : ratio >= 0.5 ? 'text-yellow-700' : 'text-red-700';
 
   return (
-    <div className={`${config.bg} ${config.border} border rounded-lg p-4 flex items-center gap-4`}>
-      <div className="flex-shrink-0">{config.icon}</div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="font-semibold text-gray-900">{label}</span>
-          <span className={`font-bold ${config.text}`}>{value}</span>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5" data-testid={`category-card-${title.toLowerCase().replace(/[^a-z]/g, '-')}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <span className="text-xl">{emoji}</span>
+          {title}
+        </h3>
+        <div className={`font-bold text-lg ${scoreTextColor}`}>
+          {score}<span className="text-gray-400 text-sm">/{max}</span>
         </div>
-        <p className="text-sm text-gray-600">{details}</p>
       </div>
+
+      {/* Progress bar */}
+      <div className="w-full bg-gray-100 rounded-full h-2 mb-4 overflow-hidden">
+        <div className={`h-full ${barColor} transition-all`} style={{ width: `${ratio * 100}%` }} />
+      </div>
+
+      {/* Checks */}
+      <ul className="space-y-1.5 text-sm">
+        {checks.map((check, idx) => (
+          <li key={idx} className="flex items-center gap-2">
+            {check.neutral ? (
+              <span className="h-4 w-4 text-gray-400 text-xs">ℹ</span>
+            ) : check.ok ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+            )}
+            <span className={check.neutral ? 'text-gray-600' : check.ok ? 'text-gray-700' : 'text-gray-500'}>
+              {check.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {reasons && reasons.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+          {reasons.map((reason, idx) => (
+            <div key={idx}>· {reason}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

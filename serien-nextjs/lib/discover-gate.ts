@@ -7,7 +7,7 @@
  * D) IMAGE/VISUAL: 15 Punkte
  * E) TRUST/CLARITY: 15 Punkte
  * 
- * PASS: ≥ 65 Punkte → publishMode = "DISCOVER"
+ * PASS: ≥ 70 Punkte → publishMode = "DISCOVER"
  */
 
 import { getLLMFetchConfig } from './llm-config';
@@ -155,7 +155,7 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
     imageMetrics.score +
     trustMetrics.score;
 
-  const discover_eligible = total_score >= 65;
+  const discover_eligible = total_score >= 70;
 
   const dashboard: DiscoverDashboardMetrics = {
     headline: headlineMetrics,

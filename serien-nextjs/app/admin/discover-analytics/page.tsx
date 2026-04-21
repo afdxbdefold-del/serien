@@ -19,6 +19,13 @@ interface DiscoverMetrics {
   freshnessMetrics: any;
   imageMetrics: any;
   trustMetrics: any;
+  article?: {
+    id: string;
+    title: string;
+    slug: string;
+    publishMode: string;
+    publishedAt: string;
+  } | null;
 }
 
 export default function DiscoverAnalyticsPage() {
@@ -67,14 +74,14 @@ export default function DiscoverAnalyticsPage() {
 
   // Filter metrics
   const filteredMetrics = metrics.filter(m => {
-    if (filter === 'passed') return m.discoverScore >= 65;
-    if (filter === 'failed') return m.discoverScore < 65;
+    if (filter === 'passed') return m.discoverScore >= 70;
+    if (filter === 'failed') return m.discoverScore < 70;
     return true;
   });
 
   // Calculate stats
   const totalCount = metrics.length;
-  const passedCount = metrics.filter(m => m.discoverScore >= 65).length;
+  const passedCount = metrics.filter(m => m.discoverScore >= 70).length;
   const failedCount = totalCount - passedCount;
   const avgScore = metrics.length > 0 
     ? metrics.reduce((sum, m) => sum + m.discoverScore, 0) / metrics.length 
@@ -120,14 +127,14 @@ export default function DiscoverAnalyticsPage() {
             trend={null}
           />
           <StatCard 
-            title="Bestanden (≥65)" 
+            title="Bestanden (≥70)" 
             value={passedCount} 
             icon="✅"
             trend={totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0}
             trendLabel="%"
           />
           <StatCard 
-            title="Durchgefallen (<65)" 
+            title="Durchgefallen (<70)" 
             value={failedCount} 
             icon="❌"
             trend={totalCount > 0 ? Math.round((failedCount / totalCount) * 100) : 0}
@@ -139,6 +146,10 @@ export default function DiscoverAnalyticsPage() {
             icon="📈"
             trend={null}
           />
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900" data-testid="discover-threshold-info">
+          <strong>Schwellenwert:</strong> Artikel mit <strong>≥ 70 Punkten</strong> werden als <code className="bg-blue-100 px-1 rounded">DISCOVER</code> klassifiziert und landen in der Google News Sitemap. Alle anderen laufen als <code className="bg-blue-100 px-1 rounded">SEARCH_ONLY</code>.
         </div>
 
         {/* Filters */}
@@ -173,55 +184,74 @@ export default function DiscoverAnalyticsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Artikel ID
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Artikel
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Score
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Headline
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Headline Quality (max 30)">
+                      Head<br/><span className="text-gray-400 normal-case">/30</span>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Content
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Freshness (max 20)">
+                      Fresh<br/><span className="text-gray-400 normal-case">/20</span>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Freshness
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Content Opening (max 20)">
+                      Cont.<br/><span className="text-gray-400 normal-case">/20</span>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Image/Visual (max 15)">
+                      Img<br/><span className="text-gray-400 normal-case">/15</span>
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Trust/Clarity (max 15)">
+                      Trust<br/><span className="text-gray-400 normal-case">/15</span>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Verdict
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Datum
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredMetrics.map((metric) => (
-                    <tr key={metric.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                        {metric.articleId.slice(0, 12)}...
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <ScoreBadge score={metric.discoverScore} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {metric.headlineMetrics?.score || '-'}/30
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {metric.contentMetrics?.score || '-'}/20
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {metric.freshnessMetrics?.score || '-'}/20
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                        {metric.finalVerdict}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(metric.timestamp).toLocaleDateString('de-DE')}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredMetrics.map((metric) => {
+                    const title = metric.article?.title || `(Artikel gelöscht) ${metric.articleId.slice(0, 8)}…`;
+                    const verdictColor =
+                      metric.finalVerdict === 'DISCOVER_OK' || metric.finalVerdict === 'DISCOVER' || metric.finalVerdict === 'EXCELLENT'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800';
+                    return (
+                      <tr
+                        key={metric.id}
+                        className="hover:bg-cyan-50 cursor-pointer transition-colors"
+                        onClick={() => router.push(`/admin/discover/${metric.articleId}`)}
+                        data-testid={`discover-row-${metric.articleId}`}
+                      >
+                        <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
+                          <div className="truncate font-medium" title={title}>{title}</div>
+                          {metric.article?.slug && (
+                            <div className="text-xs text-gray-500 truncate">/{metric.article.slug}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <ScoreBadge score={metric.discoverScore} />
+                        </td>
+                        <MetricCell score={metric.headlineMetrics?.score} max={30} />
+                        <MetricCell score={metric.freshnessMetrics?.score} max={20} />
+                        <MetricCell score={metric.contentMetrics?.score} max={20} />
+                        <MetricCell score={metric.imageMetrics?.score} max={15} />
+                        <MetricCell score={metric.trustMetrics?.score} max={15} />
+                        <td className="px-4 py-3 text-xs">
+                          <span className={`inline-block px-2 py-1 rounded-full font-medium ${verdictColor}`}>
+                            {metric.finalVerdict}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                          {new Date(metric.timestamp).toLocaleDateString('de-DE')}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -235,6 +265,24 @@ export default function DiscoverAnalyticsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function MetricCell({ score, max }: { score: number | undefined; max: number }) {
+  if (score === undefined || score === null) {
+    return <td className="px-4 py-3 text-center text-xs text-gray-400">-</td>;
+  }
+  const ratio = score / max;
+  const color =
+    ratio >= 0.8 ? 'text-green-700 bg-green-50' :
+    ratio >= 0.5 ? 'text-yellow-700 bg-yellow-50' :
+    'text-red-700 bg-red-50';
+  return (
+    <td className="px-4 py-3 text-center">
+      <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${color}`}>
+        {score}
+      </span>
+    </td>
   );
 }
 
@@ -270,7 +318,7 @@ function StatCard({
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const passed = score >= 65;
+  const passed = score >= 70;
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
       passed 

@@ -11,9 +11,10 @@ export async function saveDiscoverAudit(articleId: string, breakdown: DiscoverBr
   const getSignal = (k: string) => breakdown.signals.find(s => s.key === k);
   const depth = getSignal("CONTENT_DEPTH")?.evidence?.wordCount ?? 0;
 
-  return prisma.discoverAudit.upsert({
+  return prisma.discover_audits.upsert({
     where: { articleId },
     create: {
+      id: crypto.randomUUID(),
       articleId,
       discoverScore: Math.round(breakdown.totalScore),
       discoverMode: breakdown.passed ? "DISCOVER" : "SEARCH_ONLY",
@@ -24,6 +25,7 @@ export async function saveDiscoverAudit(articleId: string, breakdown: DiscoverBr
       hasByline: Boolean(getSignal("E_E_A_T")?.evidence?.hasByline),
       freshnessHours: Number(getSignal("FRESHNESS")?.evidence?.freshnessHours) || 999,
       aiRiskScore: Math.round(Number(getSignal("AI_RISK")?.score) || 0),
+      updatedAt: new Date(),
     },
     update: {
       discoverScore: Math.round(breakdown.totalScore),
