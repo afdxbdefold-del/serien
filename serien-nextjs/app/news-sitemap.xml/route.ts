@@ -6,12 +6,19 @@ export async function GET() {
   // Get articles from last 48 hours only
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
   
+  // Google News: only real news articles, max 48h old.
+  // Discover-pipeline articles are the only true "news"; search-only drafts,
+  // ranking-listicles, and video-imports are excluded.
   const recentArticles = await prisma.articles.findMany({
     where: {
       status: 'published',
-      publishedAt: {
-        gte: fortyEightHoursAgo
-      }
+      publishedAt: { gte: fortyEightHoursAgo },
+      publishMode: 'DISCOVER',
+      isRankingArticle: { not: true },
+      OR: [
+        { category: { not: 'neue-videos' } },
+        { category: null },
+      ],
     },
     select: {
       slug: true,

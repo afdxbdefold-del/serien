@@ -11,7 +11,7 @@ export async function GET() {
     baseURL: cfg.baseURL,
     apiKeyPrefix: cfg.apiKey ? cfg.apiKey.slice(0, 14) + '…' + cfg.apiKey.slice(-4) : 'MISSING',
     apiKeyLength: cfg.apiKey?.length ?? 0,
-    buildMarker: 'v-2026-04-21-ads-save-fix',
+    buildMarker: 'v-2026-04-21-news-sitemap-filter',
     serverTime: new Date().toISOString(),
   };
 
