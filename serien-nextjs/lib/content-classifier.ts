@@ -100,6 +100,38 @@ export async function classifyContent(
   url: string,
   textHead: string
 ): Promise<ClassificationResult> {
+  // ── PRE-FILTER: Multi-topic roundups ──────────────────────────────────
+  // Weekly roundup headlines like "LL Cool J Returns to 'NCIS,' Will Trent
+  // Grieves, Bear Grylls Runs Wild..., 'Daredevil' Welcomes Back..." jam 3+
+  // different series into one headline. These are SEO-worthless (no clear
+  // primary topic for Google Discover) AND Claude safety-blocks them hard.
+  // Reject BEFORE hitting the LLM.
+  const titleOnly = (title || '').trim();
+  if (titleOnly) {
+    // Count quoted show names (single or double quotes / smart quotes)
+    const quotedShows = (titleOnly.match(/['‘'"]([A-Z][A-Za-z0-9 &\.\-]{2,40})['’'"]/g) || []);
+    // Count comma-separated clauses (each usually one show "does X")
+    const commaClauses = titleOnly.split(/[,;]/).filter(c => c.trim().length > 4).length;
+    // Count capitalized series-name-like tokens (2+ caps words in a row)
+    const seriesLikePatterns = (titleOnly.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+/g) || []).length;
+
+    // Heuristic: 3+ quoted shows OR (4+ comma clauses AND 3+ series-like patterns)
+    const isRoundup =
+      quotedShows.length >= 3 ||
+      (commaClauses >= 4 && seriesLikePatterns >= 3);
+
+    if (isRoundup) {
+      console.log(`  ↳ ROUNDUP-DETECTED: ${quotedShows.length} quoted, ${commaClauses} clauses — skipping`);
+      return {
+        content_type: 'UNKNOWN',
+        confidence: 0.95,
+        series_candidates: [],
+        signals: { title: ['roundup-pattern'], text: [] },
+        reasoning: `ROUNDUP_PREFILTER: ${quotedShows.length} quoted shows, ${commaClauses} comma-separated topics`,
+      };
+    }
+  }
+
   const client = createLLMClient();
 
   const userPrompt = `
