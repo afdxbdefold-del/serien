@@ -11,6 +11,38 @@ const DISCOVER_UA_PATTERNS = [
   'Google-Read-Aloud',   // Google Discover read-aloud
 ];
 
+// Search engine / news crawler detection.
+// First match wins — order matters (News before general Googlebot).
+const BOT_PATTERNS: Array<[string, RegExp]> = [
+  ['Googlebot-News',         /Googlebot-News/i],
+  ['Googlebot-Image',        /Googlebot-Image/i],
+  ['Googlebot-Smartphone',   /Googlebot\/[^)]*(Mobile|Android|iPhone)/i],
+  ['Googlebot',              /Googlebot/i],
+  ['Bingbot',                /bingbot/i],
+  ['YandexBot',              /YandexBot/i],
+  ['DuckDuckBot',            /DuckDuckBot/i],
+  ['Applebot',               /Applebot/i],
+  ['FacebookExternalHit',    /facebookexternalhit|facebookcatalog/i],
+  ['Twitterbot',             /Twitterbot/i],
+  ['LinkedInBot',            /LinkedInBot/i],
+  ['SeznamBot',              /SeznamBot/i],
+  ['Baiduspider',            /Baiduspider/i],
+  ['PetalBot',               /PetalBot/i],
+  ['SemrushBot',             /SemrushBot/i],
+  ['AhrefsBot',              /AhrefsBot/i],
+  ['GPTBot',                 /GPTBot/i],
+  ['ClaudeBot',              /ClaudeBot|anthropic-ai/i],
+  ['PerplexityBot',          /PerplexityBot/i],
+  ['Google-InspectionTool',  /Google-InspectionTool/i],
+];
+
+function detectBot(ua: string): string | null {
+  for (const [id, re] of BOT_PATTERNS) {
+    if (re.test(ua)) return id;
+  }
+  return null;
+}
+
 export function middleware(request: NextRequest) {
   // Serve IndexNow verification file as plain text
   if (request.nextUrl.pathname === `/${INDEXNOW_KEY}.txt`) {
@@ -27,6 +59,27 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Crawler tracking: fire-and-forget POST to internal endpoint.
+  // Middleware runs on every request (no ISR caching), so this catches every bot hit.
+  const ua = request.headers.get('user-agent') || '';
+  const bot = detectBot(ua);
+  if (bot) {
+    const origin = request.nextUrl.origin;
+    // fetch is non-blocking here; response is already routed.
+    fetch(`${origin}/api/track/crawler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot,
+        path,
+        userAgent: ua.slice(0, 500),
+        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+      }),
+      // @ts-expect-error: Node-style keepalive hint; safe on edge
+      keepalive: true,
+    }).catch(() => {});
+  }
+
   // (b) Server-side Referrer capture
   const referer = request.headers.get('referer') || '';
   if (referer) {
@@ -39,7 +92,6 @@ export function middleware(request: NextRequest) {
   }
 
   // (d) User-Agent based Discover detection
-  const ua = request.headers.get('user-agent') || '';
   const isDiscover = DISCOVER_UA_PATTERNS.some(p => ua.includes(p));
   if (isDiscover) {
     response.cookies.set('_ssrc', 'discover', {
