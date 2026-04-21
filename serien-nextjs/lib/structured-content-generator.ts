@@ -13,51 +13,9 @@
 
 /**
  * Replace em/en-dashes with natural punctuation.
- * Em-dashes (—) and en-dashes (–) are classic AI-writing tells and look unnatural in German.
- * Replacement logic:
- *   "Text — weiter"   → "Text: weiter"   (emphatic pause)
- *   "2026–2027"       → "2026-2027"     (numeric range: normal hyphen)
- *   "word— word"      → "word, word"    (stray)
+ * Moved to lib/strip-dashes.ts so it can be shared with headline-engine and intro-engine.
  */
-function stripDashes(s: string): string {
-  if (!s || typeof s !== 'string') return s;
-  return s
-    // Numeric ranges like "2026–2027" → normal ASCII hyphen
-    .replace(/(\d)[—–](\d)/g, '$1-$2')
-    // " — " / " – " with surrounding spaces → ": "
-    .replace(/\s+[—–]\s+/g, ': ')
-    // "word— word" → "word, word"
-    .replace(/[—–]\s+/g, ', ')
-    // "word —word" → "word, word"
-    .replace(/\s+[—–]/g, ', ')
-    // "word—word" (no spaces, non-numeric) → "word, word"
-    .replace(/[—–]/g, ', ')
-    // Collapse accidental double-spaces
-    .replace(/  +/g, ' ')
-    .replace(/,\s*,/g, ',')
-    .replace(/\s+:/g, ':')
-    .trim();
-}
-
-/**
- * Recursively strip em/en-dashes from all string values in a nested object/array.
- */
-function stripDashesDeep(obj: any): void {
-  if (!obj || typeof obj !== 'object') return;
-  for (const key of Object.keys(obj)) {
-    const v = obj[key];
-    if (typeof v === 'string') {
-      obj[key] = stripDashes(v);
-    } else if (Array.isArray(v)) {
-      for (let i = 0; i < v.length; i++) {
-        if (typeof v[i] === 'string') v[i] = stripDashes(v[i]);
-        else if (typeof v[i] === 'object') stripDashesDeep(v[i]);
-      }
-    } else if (typeof v === 'object') {
-      stripDashesDeep(v);
-    }
-  }
-}
+import { stripDashes, stripDashesDeep } from './strip-dashes';
 
 
 /**
@@ -147,7 +105,9 @@ export async function generateStructuredContent(
   const response = await callLLMStructured(prompt, 2, temperature);
 
   // POST-PROCESS: strip em/en-dashes (AI-tells). Replace with natural punctuation.
-  stripDashesDeep(response);
+  // But protect dashes that are part of the series name (e.g. "Verbotene Liebe – Next Generation").
+  const protectedNames = [input.seriesName].filter((n): n is string => Boolean(n));
+  stripDashesDeep(response, protectedNames);
 
   // Validate and assemble
   const output = assembleMarkdown(response);

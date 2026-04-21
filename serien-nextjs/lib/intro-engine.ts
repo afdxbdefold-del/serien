@@ -195,11 +195,15 @@ async function callIntroLLM(prompt: string): Promise<Array<{ type: string; text:
       .filter((item: any) => item.text && item.type)
       .map((item: any) => ({
         type: String(item.type),
-        // Strip em/en-dashes (AI-tell) → natural punctuation
-        text: String(item.text).trim()
-          .replace(/(\d)[—–](\d)/g, '$1-$2')
-          .replace(/\s+[—–]\s+/g, ': ')
-          .replace(/[—–]\s+/g, ', ')
+        // Strip em/en-dashes (AI-tell), preserve series names with dashes
+        text: stripDashes(String(item.text).trim(), [seriesName]),
+      }));
+  } catch (error: any) {
+    console.error('Intro LLM call failed:', error.message);
+    return [];
+  }
+}
+e(/[—–]\s+/g, ', ')
           .replace(/\s+[—–]/g, ', ')
           .replace(/[—–]/g, ', ')
           .replace(/  +/g, ' ')

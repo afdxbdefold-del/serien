@@ -26,6 +26,8 @@ import {
   type HeadlineAngle,
 } from './headline-patterns';
 import { PrismaClient } from '@prisma/client';
+import { stripDashes } from './strip-dashes';
+
 
 const prisma = new PrismaClient();
 
@@ -457,17 +459,8 @@ async function callHeadlineLLM(prompt: string): Promise<Array<{ type: string; te
         type: String(item.angle || item.type || 'general'),
         angle: item.angle as HeadlineAngle | undefined,
         score: typeof item.score === 'number' ? item.score : undefined,
-        // Strip em/en-dashes (AI-tell) → replace with natural punctuation
-        text: String(item.text).trim()
-          .replace(/(\d)[—–](\d)/g, '$1-$2')
-          .replace(/\s+[—–]\s+/g, ': ')
-          .replace(/[—–]\s+/g, ', ')
-          .replace(/\s+[—–]/g, ', ')
-          .replace(/[—–]/g, ', ')
-          .replace(/  +/g, ' ')
-          .replace(/,\s*,/g, ',')
-          .replace(/\s+:/g, ':')
-          .trim(),
+        // Strip em/en-dashes (AI-tell), but preserve series names containing a dash
+        text: stripDashes(String(item.text).trim(), [seriesName]),
       }));
   } catch (error: any) {
     console.error('Headline LLM call failed:', error.message);
