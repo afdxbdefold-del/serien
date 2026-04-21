@@ -41,7 +41,7 @@ const INTRO_TYPES = [
   },
   {
     id: 'factual',
-    instruction: 'Starte mit dem HÄRTESTEN Fakt — keine Einleitung, direkt das Wichtigste. Satz 1 = Kernfakt (Wer macht Was). Satz 2 = Details (Wann, Wo, Mit wem). Satz 3 = Was das bedeutet.',
+    instruction: 'Starte mit dem HÄRTESTEN Fakt. Keine Einleitung, direkt das Wichtigste. Satz 1 = Kernfakt (Wer macht Was). Satz 2 = Details (Wann, Wo, Mit wem). Satz 3 = Was das bedeutet.',
   },
   {
     id: 'emotional',
@@ -126,10 +126,12 @@ HARTE REGELN FÜR JEDES INTRO:
 SATZ 1 (HOOK):
 - MAXIMAL 12 Wörter. Kurz, hart, direkt.
 - MUSS einen Hook enthalten: Kontrast, Überraschung, Ranking oder Zahl.
+- VERBOTEN: Gedankenstriche (— oder –). Nutze stattdessen Doppelpunkt, Komma oder Punkt.
 - Beispiele:
-  GUT: "Platz 3 weltweit — und das nach nur einer Woche."
+  GUT: "Platz 3 weltweit, und das nach nur einer Woche."
   GUT: "Abgesetzt trotz Rekordquoten."
   GUT: "97% bei Rotten Tomatoes sprechen für sich."
+  SCHLECHT: "Platz 3 weltweit — und das nach nur einer Woche."
   SCHLECHT: "Jahrelang galt die Verfilmung als gescheitert, doch nun..."
   SCHLECHT: "Die neue Serie hat sich überraschenderweise als sehr erfolgreich erwiesen."
 
@@ -193,7 +195,17 @@ async function callIntroLLM(prompt: string): Promise<Array<{ type: string; text:
       .filter((item: any) => item.text && item.type)
       .map((item: any) => ({
         type: String(item.type),
-        text: String(item.text).trim(),
+        // Strip em/en-dashes (AI-tell) → natural punctuation
+        text: String(item.text).trim()
+          .replace(/(\d)[—–](\d)/g, '$1-$2')
+          .replace(/\s+[—–]\s+/g, ': ')
+          .replace(/[—–]\s+/g, ', ')
+          .replace(/\s+[—–]/g, ', ')
+          .replace(/[—–]/g, ', ')
+          .replace(/  +/g, ' ')
+          .replace(/,\s*,/g, ',')
+          .replace(/\s+:/g, ':')
+          .trim(),
       }));
   } catch (error: any) {
     console.error('Intro LLM call failed:', error.message);
