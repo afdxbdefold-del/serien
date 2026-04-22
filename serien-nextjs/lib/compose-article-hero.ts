@@ -128,12 +128,26 @@ export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffe
   // ---- layer 2: SVG overlay (gradient, dot pattern, text)
   // Headline sizing logic: longer headlines get smaller text
   const headlineLen = headline.length;
-  const fontSize = headlineLen <= 40 ? 105 : headlineLen <= 60 ? 82 : headlineLen <= 85 ? 64 : 54;
-  const maxChars = headlineLen <= 40 ? 24 : headlineLen <= 60 ? 32 : headlineLen <= 85 ? 40 : 46;
+  const fontSize = headlineLen <= 40 ? 105 : headlineLen <= 60 ? 82 : headlineLen <= 85 ? 64 : 52;
+  // Wrap width — stay well inside the canvas so no glyph clips at the right.
+  const maxChars = headlineLen <= 40 ? 22 : headlineLen <= 60 ? 28 : headlineLen <= 85 ? 36 : 42;
   const lines = wrap(headline, maxChars).slice(0, 4);
+  // Vertical layout — important: SVG text `y` = baseline. With an 82pt headline,
+  // the top of the first line sits ~fontSize*0.8 above its baseline, so the
+  // accent-bar / kicker above it needs fontSize worth of breathing room or they
+  // collide with the glyphs (ghost "Wa" artifact seen in QA).
+  const kickerOffset = Math.round(fontSize * 0.95) + 18; // enough space for ascenders + gap
+  const barOffset = kickerOffset + 40;
   const titleX = 120;
   const titleBlockHeight = lines.length * fontSize * 1.08;
-  const titleYStart = H - 200 - titleBlockHeight;
+  // Ensure kicker + bar fit within the canvas: if bottom-anchored layout would
+  // push the bar above the top safe area, shift the whole block down.
+  const rawTitleYStart = H - 200 - titleBlockHeight;
+  const barTopIfUnshifted = rawTitleYStart - barOffset;
+  const minBarTop = 220; // clear of brand-lockup + network badge
+  const titleYStart = barTopIfUnshifted < minBarTop
+    ? rawTitleYStart + (minBarTop - barTopIfUnshifted)
+    : rawTitleYStart;
 
   const titleSVG = lines
     .map(
@@ -196,10 +210,10 @@ export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffe
   ${networkBadge}
 
   <!-- accent bar above headline -->
-  <rect x="${titleX}" y="${titleYStart - 60}" width="100" height="4" fill="${CYAN}"/>
+  <rect x="${titleX}" y="${titleYStart - barOffset}" width="100" height="4" fill="${CYAN}"/>
 
   <!-- category kicker -->
-  <text x="${titleX}" y="${titleYStart - 22}" font-family="${FONT}" font-weight="800" font-size="26" fill="${CYAN}" letter-spacing="2">${esc(category.toUpperCase())}</text>
+  <text x="${titleX}" y="${titleYStart - kickerOffset}" font-family="${FONT}" font-weight="800" font-size="26" fill="${CYAN}" letter-spacing="2">${esc(category.toUpperCase())}</text>
 
   <!-- HEADLINE -->
   ${titleSVG}
