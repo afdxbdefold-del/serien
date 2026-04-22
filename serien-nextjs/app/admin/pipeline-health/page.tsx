@@ -448,7 +448,7 @@ export default function PipelineHealthPage() {
 
           <div className="mb-4 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-slate-900 tabular-nums" data-testid="duplicates-total">
-              {data?.duplicates.total ?? 0}
+              {data?.duplicates?.total ?? 0}
             </span>
             <span className="text-xs text-slate-500">Artikel blockiert</span>
           </div>
@@ -462,7 +462,7 @@ export default function PipelineHealthPage() {
               { key: 'duplicate-fingerprint', label: 'Fact-Fingerprint', icon: '🧬', tier: 'C' },
               { key: 'duplicate-llm', label: 'LLM-Check', icon: '🤖', tier: 'D' },
             ].map((stage) => {
-              const count = data?.duplicates.byStage[stage.key] ?? 0;
+              const count = data?.duplicates?.byStage?.[stage.key] ?? 0;
               return (
                 <div
                   key={stage.key}
