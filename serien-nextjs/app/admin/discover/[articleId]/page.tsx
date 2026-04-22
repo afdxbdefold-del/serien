@@ -40,6 +40,14 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
     },
   });
 
+  // Fetch rewrite data from latest pipeline run for this article.
+  const pipelineRun = await prisma.pipeline_runs.findFirst({
+    where: { articleId },
+    orderBy: { startedAt: 'desc' },
+    select: { metadata: true },
+  });
+  const rewrite = (pipelineRun?.metadata as any)?.headlineRewrite ?? null;
+
   const score = dashboard.discoverScore;
   const passed = score >= 91;
 
@@ -250,6 +258,52 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Rewrite Loop Outcome */}
+        {rewrite && rewrite.attempted && (
+          <div
+            className={`rounded-xl p-6 mb-6 border ${rewrite.applied ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            data-testid="rewrite-card"
+          >
+            <h2 className={`text-lg font-bold mb-3 flex items-center gap-2 ${rewrite.applied ? 'text-emerald-900' : 'text-slate-700'}`}>
+              🔄 Rewrite Loop {rewrite.applied ? `✓ +${rewrite.gain}P` : '(kein Gewinn)'}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+              <div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Original</div>
+                <div className="font-medium text-gray-800">"{rewrite.originalHeadline}"</div>
+                <div className="text-xs text-gray-500 mt-1">Performance: {rewrite.beforePerformance}/30</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                  {rewrite.applied ? 'Angewendet' : 'Bester Kandidat (nicht besser)'}
+                </div>
+                <div className={`font-medium ${rewrite.applied ? 'text-emerald-800' : 'text-gray-800'}`}>
+                  "{rewrite.finalHeadline}"
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Performance: {rewrite.afterPerformance}/30</div>
+              </div>
+            </div>
+            {Array.isArray(rewrite.candidates) && rewrite.candidates.length > 0 && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-gray-600 hover:text-gray-900">
+                  Alle {rewrite.candidates.length} Kandidaten anzeigen
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {rewrite.candidates.map((c: any, i: number) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="font-mono text-gray-400 w-8">{c.performance}P</span>
+                      <span className="text-gray-700">"{c.text}"</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <div className="mt-3 text-[11px] text-gray-500">
+              Dauer: {rewrite.durationMs}ms
+            </div>
           </div>
         )}
 

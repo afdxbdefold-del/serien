@@ -1092,6 +1092,73 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     console.timeEnd('⏱️  STEP 7.6: Headline Engine');
 
+    // ========== STEP 7.65: HEADLINE REWRITE LOOP ==========
+    // Turn Performance-scorer from gatekeeper into coach: if headline
+    // underperforms, ask Claude to fix the specific failed checks.
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.65: HEADLINE REWRITE LOOP 🎯');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7.65: Rewrite Loop');
+    let rewriteOutcome: any = null;
+    try {
+      // Cheap probe: score CURRENT headline for performance only
+      const { discoverGate } = await import('../lib/discover-gate');
+      const { rewriteHeadlineIfWeak } = await import('../lib/headline-rewrite-loop');
+
+      const probe = await discoverGate({
+        final_headline: finalHeadline,
+        article_html: structuredContent.markdown,
+        hero_image_metadata: { url: '', width: 1920, height: 1080, source: 'TMDB_BACKDROP' as const },
+        publishedAt: new Date(),
+        primary_series: dbSeries.name || dbSeries.title || '',
+      });
+
+      const perfScore = probe.dashboard.headline_performance.score;
+      const perfReasons = probe.dashboard.headline_performance.reasons;
+      console.log(`   Performance-Score vorher: ${perfScore}/30`);
+
+      const rewrite = await rewriteHeadlineIfWeak({
+        originalHeadline: finalHeadline,
+        seriesName: dbSeries.name || dbSeries.title || '',
+        articleContent: structuredContent.markdown,
+        beforeScore: perfScore,
+        beforeReasons: perfReasons,
+      });
+
+      if (rewrite.attempted) {
+        console.log(`   🔄 Rewrite versucht (${rewrite.candidates.length} Kandidaten, ${rewrite.durationMs}ms)`);
+        if (rewrite.applied) {
+          console.log(`   ✅ Verbesserung: ${rewrite.beforePerformance} → ${rewrite.afterPerformance} (+${rewrite.gain}P)`);
+          console.log(`   📝 Alt:  "${rewrite.originalHeadline}"`);
+          console.log(`   📝 Neu:  "${rewrite.finalHeadline}"`);
+          finalHeadline = rewrite.finalHeadline;
+          logger.log(`Rewrite: ${rewrite.beforePerformance}→${rewrite.afterPerformance}P, new headline: "${rewrite.finalHeadline}"`);
+        } else {
+          console.log(`   ⚠️ Keine Verbesserung möglich, behalte Original`);
+          if (rewrite.errorMessage) console.log(`   Error: ${rewrite.errorMessage}`);
+          logger.log(`Rewrite no-op (${rewrite.errorMessage || 'no gain'})`);
+        }
+        rewriteOutcome = {
+          attempted: rewrite.attempted,
+          applied: rewrite.applied,
+          beforePerformance: rewrite.beforePerformance,
+          afterPerformance: rewrite.afterPerformance,
+          gain: rewrite.gain,
+          originalHeadline: rewrite.originalHeadline,
+          finalHeadline: rewrite.finalHeadline,
+          candidates: rewrite.candidates,
+          durationMs: rewrite.durationMs,
+        };
+        logger.addMetadata('headlineRewrite', rewriteOutcome);
+      } else {
+        console.log(`   ✅ Headline bereits stark (${perfScore}/30) — kein Rewrite nötig`);
+      }
+    } catch (rewriteErr: any) {
+      console.log(`   ⚠️ Rewrite-Loop-Fehler: ${rewriteErr.message}`);
+      logger.log(`Rewrite error: ${rewriteErr.message}`);
+    }
+    console.timeEnd('⏱️  STEP 7.65: Rewrite Loop');
+
     // ========== STEP 7.7: INTRO ENGINE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7.7: INTRO ENGINE');

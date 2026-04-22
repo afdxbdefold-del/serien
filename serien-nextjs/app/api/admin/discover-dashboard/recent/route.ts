@@ -45,6 +45,25 @@ export async function GET(request: NextRequest) {
       article: articlesMap.get(d.articleId) || null
     }));
 
+    // Fetch rewrite-loop outcomes from pipeline_runs for these articles
+    const runs = await prisma.pipeline_runs.findMany({
+      where: { articleId: { in: articleIds } },
+      orderBy: { startedAt: 'desc' },
+      select: { articleId: true, metadata: true },
+      distinct: ['articleId'],
+    });
+    const rewriteByArticle = new Map<string, any>();
+    for (const r of runs) {
+      const rw = (r.metadata as any)?.headlineRewrite;
+      if (rw && r.articleId) rewriteByArticle.set(r.articleId, rw);
+    }
+
+    // Rewrite statistics
+    const rewriteAttempted = Array.from(rewriteByArticle.values()).filter((r: any) => r.attempted).length;
+    const rewriteApplied = Array.from(rewriteByArticle.values()).filter((r: any) => r.applied).length;
+    const rewriteGains = Array.from(rewriteByArticle.values()).filter((r: any) => r.applied).map((r: any) => r.gain || 0);
+    const avgRewriteGain = rewriteGains.length > 0 ? rewriteGains.reduce((a, b) => a + b, 0) / rewriteGains.length : 0;
+
     // Statistics
     const total = await prisma.discover_score_dashboards.count();
     const discoverOk = dashboardsWithArticles.filter(d => d.finalVerdict === 'DISCOVER_OK').length;
@@ -63,6 +82,11 @@ export async function GET(request: NextRequest) {
           discoverOk,
           searchOnly,
           avgDiscoverScore: avgDiscoverScore.toFixed(3),
+          rewrite: {
+            attempted: rewriteAttempted,
+            applied: rewriteApplied,
+            avgGain: Number(avgRewriteGain.toFixed(1)),
+          },
         },
       },
     });

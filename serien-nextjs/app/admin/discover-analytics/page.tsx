@@ -31,6 +31,7 @@ interface DiscoverMetrics {
 export default function DiscoverAnalyticsPage() {
   const router = useRouter();
   const [metrics, setMetrics] = useState<DiscoverMetrics[]>([]);
+  const [rewriteStats, setRewriteStats] = useState<{ attempted: number; applied: number; avgGain: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all');
 
@@ -54,6 +55,7 @@ export default function DiscoverAnalyticsPage() {
 
         const data = await response.json();
         setMetrics(data.data?.dashboards || data.data || []);
+        if (data.data?.statistics?.rewrite) setRewriteStats(data.data.statistics.rewrite);
       } catch (err) {
         console.error('Error fetching discover metrics:', err);
       } finally {
@@ -151,6 +153,31 @@ export default function DiscoverAnalyticsPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-900" data-testid="discover-threshold-info">
           <strong>Schwellenwert:</strong> Artikel mit <strong>≥ 91 Punkten</strong> werden als <code className="bg-blue-100 px-1 rounded">DISCOVER</code> klassifiziert und landen in der Google News Sitemap. Alle anderen laufen als <code className="bg-blue-100 px-1 rounded">SEARCH_ONLY</code>.
         </div>
+
+        {/* Rewrite Loop Stats */}
+        {rewriteStats && rewriteStats.attempted > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6 text-sm text-emerald-900 flex items-center gap-6 flex-wrap" data-testid="rewrite-stats">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔄</span>
+              <strong>Rewrite Loop:</strong>
+            </div>
+            <div>
+              <span className="font-bold tabular-nums">{rewriteStats.attempted}</span>
+              <span className="text-emerald-700 ml-1">versucht</span>
+            </div>
+            <div>
+              <span className="font-bold tabular-nums">{rewriteStats.applied}</span>
+              <span className="text-emerald-700 ml-1">angewendet</span>
+              {rewriteStats.attempted > 0 && (
+                <span className="ml-1 text-emerald-600">({Math.round((rewriteStats.applied / rewriteStats.attempted) * 100)}%)</span>
+              )}
+            </div>
+            <div>
+              <span className="font-bold tabular-nums">+{rewriteStats.avgGain}P</span>
+              <span className="text-emerald-700 ml-1">Ø Performance-Gewinn</span>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="mb-6 flex gap-2">
