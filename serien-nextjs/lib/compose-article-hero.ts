@@ -237,15 +237,12 @@ export async function composeAndStoreArticleHero(
   try {
     const buf = await composeArticleHero(input);
     const blobPath = `articles/${articleId}/hero.jpg`;
-    try {
-      const blob = await put(blobPath, buf, { access: 'public', addRandomSuffix: false });
-      return blob.url;
-    } catch (err: any) {
-      if (err?.message?.includes('already exists') && BLOB_BASE) {
-        return `${BLOB_BASE}/${blobPath}`;
-      }
-      throw err;
-    }
+    const blob = await put(blobPath, buf, {
+      access: 'public',
+      addRandomSuffix: false,
+      allowOverwrite: true, // deterministic path — always replace, never error on "exists"
+    });
+    return blob.url;
   } catch (err: any) {
     console.error('[composeAndStoreArticleHero] failed:', err?.message || err);
     return null;
