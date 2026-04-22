@@ -113,18 +113,18 @@ export function generateArticleSchema(data: {
       ...(data.authorSlug && { url: `${baseUrl}/autor/${data.authorSlug}` }),
     },
     publisher: {
-      '@type': 'Organization',
+      '@type': 'NewsMediaOrganization',
       name: data.publisher?.name || 'serien.de',
       url: baseUrl,
       logo: data.publisher?.logo ? generateImageObject(
         data.publisher.logo,
         `${data.publisher.name} Logo`,
-        { width: 600, height: 60 }
+        { width: 1200, height: 200 }
       ) : {
         '@type': 'ImageObject',
         url: `${baseUrl}/logo.png`,
-        width: 600,
-        height: 60,
+        width: 1200,
+        height: 200,
       },
     },
     mainEntityOfPage: {
@@ -345,8 +345,14 @@ export function generateOrganizationSchema() {
     logo: {
       '@type': 'ImageObject',
       url: `${baseUrl}/logo.png`,
-      width: 600,
-      height: 60,
+      width: 1200,
+      height: 200,
+    },
+    image: {
+      '@type': 'ImageObject',
+      url: `${baseUrl}/logo-square.png`,
+      width: 1024,
+      height: 1024,
     },
     sameAs: [],
     contactPoint: {

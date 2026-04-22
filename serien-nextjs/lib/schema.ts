@@ -1,10 +1,23 @@
 export function generateOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'NewsMediaOrganization',
     name: 'serien.de',
     url: 'https://serien.de',
-    logo: 'https://serien.de/logo.png',
+    // Horizontal logo for Google News publisher requirements (width ≥ 600px)
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://serien.de/logo.png',
+      width: 1200,
+      height: 200,
+    },
+    // Square brand image — used by Google News App feed cards + social
+    image: {
+      '@type': 'ImageObject',
+      url: 'https://serien.de/logo-square.png',
+      width: 1024,
+      height: 1024,
+    },
     description: 'Deine Quelle für TV-Serien News, Trailer und Updates',
     sameAs: [
       'https://twitter.com/serien_de',
@@ -55,13 +68,13 @@ export function generateArticleSchema(article: {
       name: article.author.name,
     },
     publisher: {
-      '@type': 'Organization',
+      '@type': 'NewsMediaOrganization',
       name: 'serien.de',
       logo: {
         '@type': 'ImageObject',
         url: 'https://serien.de/logo.png',
-        width: 600,
-        height: 60,
+        width: 1200,
+        height: 200,
       },
     },
     mainEntityOfPage: {
