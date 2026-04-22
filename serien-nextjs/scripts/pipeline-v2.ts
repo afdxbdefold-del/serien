@@ -393,8 +393,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
         return null;
       }
       multiSeriesException = { allowed: true, trigger: res.trigger, matchedPhrase: res.matchedPhrase };
+      const willForceSearch = res.trigger === 'AWARD';
       console.log(`✅ Multi-Series durchgelassen: Trigger=${res.trigger} (Phrase: "${res.matchedPhrase}")`);
-      console.log(`   → publishMode wird auf SEARCH_ONLY gezwungen (nicht in News/Discover)`);
+      if (willForceSearch) {
+        console.log(`   → AWARD-Artikel: publishMode wird auf SEARCH_ONLY gezwungen`);
+      } else {
+        console.log(`   → ${res.trigger}-Artikel: durchläuft normalen Discover-Gate (Quality entscheidet)`);
+      }
       logger.addMetadata('multiSeriesException', multiSeriesException);
     }
 
@@ -1700,9 +1705,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
             }
           });
           
-          // Update article publishMode based on score — BUT force SEARCH_ONLY
-          // for multi-series exception articles (they must never hit Discover/News).
-          const publishMode = multiSeriesException
+          // Update article publishMode based on score — with special handling
+          // for multi-series exceptions:
+          //   AWARD        → forced SEARCH_ONLY (listicle-like, too diffuse for Discover)
+          //   DEATH/PLATFORM → normal Discover-Gate (single clear event, news-worthy)
+          const forceSearchOnly = multiSeriesException?.trigger === 'AWARD';
+          const publishMode = forceSearchOnly
             ? 'SEARCH_ONLY'
             : gateResult.discover_eligible
               ? 'DISCOVER'
@@ -1712,8 +1720,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
             data: { publishMode }
           });
 
-          if (multiSeriesException) {
-            console.log(`   🔒 Multi-Series-Exception → publishMode=SEARCH_ONLY erzwungen (Score: ${gateResult.scores.total}/130, Trigger: ${multiSeriesException.trigger})`);
+          if (forceSearchOnly) {
+            console.log(`   🔒 AWARD-Multi-Series → publishMode=SEARCH_ONLY erzwungen (Score: ${gateResult.scores.total}/130, Phrase: "${multiSeriesException.matchedPhrase}")`);
+          } else if (multiSeriesException) {
+            console.log(`   ✅ Discover Gate (${multiSeriesException.trigger}-Multi): ${gateResult.scores.total}/130 → ${publishMode}`);
           } else {
             console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/130 → ${publishMode}`);
           }
