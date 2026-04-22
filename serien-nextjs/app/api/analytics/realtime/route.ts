@@ -1,13 +1,47 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+/**
+ * Compute the Date object that corresponds to midnight in Europe/Berlin
+ * for the given reference instant. Returns a UTC Date such that
+ * result <= now and reflects the current Berlin calendar day boundary.
+ */
+function berlinMidnight(ref: Date): Date {
+  // Format the instant in Berlin time, pick out Y/M/D, then parse back as a Berlin-local midnight.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(ref);
+  const y = parts.find((p) => p.type === 'year')!.value;
+  const m = parts.find((p) => p.type === 'month')!.value;
+  const d = parts.find((p) => p.type === 'day')!.value;
+  // Berlin offset from UTC for *this specific instant* — handles DST flip.
+  const tzStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Berlin',
+    timeZoneName: 'shortOffset',
+  })
+    .formatToParts(ref)
+    .find((p) => p.type === 'timeZoneName')!.value; // "GMT+2" or "GMT+1"
+  const match = tzStr.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+  const offsetH = match ? parseInt(match[1], 10) : 1;
+  const offsetM = match && match[2] ? parseInt(match[2], 10) : 0;
+  const offsetMs = (offsetH * 60 + Math.sign(offsetH) * offsetM) * 60 * 1000;
+  // Midnight in Berlin = (YMD at 00:00 as if it were UTC) - offset
+  return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)) - offsetMs);
+}
+
 // GET - Real-time analytics data
 export async function GET() {
   try {
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    // Day boundaries anchored to Europe/Berlin (DST-aware). The server runs in
+    // UTC, so naive setHours(0,0,0,0) would cut the day 1–2h too late and push
+    // early-morning Berlin traffic into "yesterday".
+    const todayStart = berlinMidnight(now);
     const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
 
     // Bot filter for all session queries (UA-based + behavior-based)
