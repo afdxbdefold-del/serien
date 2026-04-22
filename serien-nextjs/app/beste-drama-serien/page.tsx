@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   openGraph: { title: TITLE, description: DESC, url: URL, type: 'website', locale: 'de_DE', siteName: 'serien.de' },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESC },
   robots: { index: true, follow: true, 'max-image-preview': 'large' },
+  other: { 'googlebot-news': 'noindex' },
 };
 
 const FAQ = [

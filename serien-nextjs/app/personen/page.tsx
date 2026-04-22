@@ -30,6 +30,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     title: `Schauspieler & Stars - Alle Serien-Darsteller${suffix} | serien.de`,
     description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',
     robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
+    other: { 'googlebot-news': 'noindex' },
     alternates: { canonical },
   };
 }

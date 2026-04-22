@@ -65,6 +65,10 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
       'max-snippet': -1,
       'max-video-preview': -1,
     },
+    // Character pages are NOT news. Keep them out of Google News app/tab.
+    other: {
+      'googlebot-news': 'noindex',
+    },
     alternates: {
       canonical: `${baseUrl}/figur/${character.slug}`,
     },

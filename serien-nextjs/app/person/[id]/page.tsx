@@ -89,6 +89,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       follow: true,
       ...(hasContent ? { 'max-image-preview': 'large' as const, 'max-snippet': -1, 'max-video-preview': -1 } : {}),
     },
+    // Profile pages are NOT news. Keep them out of Google News app/tab.
+    // Regular Search indexing is unaffected.
+    other: {
+      'googlebot-news': 'noindex',
+    },
     openGraph: {
       title, description, type: 'profile',
       url: `${baseUrl}/person/${id}`,

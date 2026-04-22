@@ -78,6 +78,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       'max-snippet': -1,
       'max-video-preview': -1,
     },
+    // Series hub pages are NOT news. Articles about the series are.
+    other: {
+      'googlebot-news': 'noindex',
+    },
     alternates: {
       canonical: `${baseUrl}/serie/${canonicalSlug}`,
     },
