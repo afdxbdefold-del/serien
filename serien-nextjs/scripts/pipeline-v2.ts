@@ -401,33 +401,72 @@ export async function runPipelineV2(source: PipelineV2Source) {
     if (!searchResult || searchResult.confidence < DRAFT_THRESHOLD) {
       console.log('⚠️ No confident TMDB match found (confidence < 50%)');
       console.log(`   TMDB Result: ${searchResult ? `${searchResult.name} (${(searchResult.confidence * 100).toFixed(1)}%)` : 'null'}`);
-      
-      // DB FALLBACK: Nur mit exakter Übereinstimmung - KEINE Substring-Suche!
-      const candidates = extractSeriesNameCandidates(source.title, fullSourceText);
-      let dbMatch = null;
-      
-      console.log(`   📋 Trying exact DB match for candidates: ${candidates.join(', ')}`);
-      
-      for (const candidate of candidates) {
-        dbMatch = await prisma.series.findFirst({
+
+      // ═══════════════════════════════════════════════════════════════════
+      // HARD SAFETY GUARD — classifier named a specific primary_series
+      // but TMDB couldn't find it. Do NOT fall back to scanning the whole
+      // text for random series mentions — that leads to articles about
+      // brand-new shows (e.g. "Ring By Spring Break") being published under
+      // whatever popular series happens to be mentioned in a sidebar
+      // (e.g. "Wednesday"). Instead: skip the article cleanly.
+      // ═══════════════════════════════════════════════════════════════════
+      if (classification.primary_series) {
+        const primaryCandidate = classification.primary_series.trim();
+        const exactMatch = await prisma.series.findFirst({
           where: {
             OR: [
-              { title: { equals: candidate, mode: 'insensitive' } },
-              { name: { equals: candidate, mode: 'insensitive' } },
-            ]
+              { title: { equals: primaryCandidate, mode: 'insensitive' } },
+              { name: { equals: primaryCandidate, mode: 'insensitive' } },
+            ],
           },
-          select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true }
+          select: { tmdbId: true, name: true, title: true },
         });
-        
-        if (dbMatch) {
-          console.log(`✅ DB Exact Match: Found "${dbMatch.name}" for "${candidate}"`);
+        if (exactMatch) {
+          console.log(`✅ DB Exact Match (classifier primary): "${exactMatch.name}"`);
           searchResult = {
-            tmdbId: dbMatch.tmdbId,
-            name: dbMatch.name || dbMatch.title,
+            tmdbId: exactMatch.tmdbId,
+            name: exactMatch.name || exactMatch.title,
             confidence: 0.85,
-            matchMethod: 'db-exact-match'
+            matchMethod: 'db-exact-classifier-primary',
           };
-          break;
+        } else {
+          console.log(`❌ Primary series "${primaryCandidate}" not in TMDB or DB — skipping`);
+          console.log('   (No fallback to text-scanned series to avoid mis-tagging)');
+          await logger.fail(
+            `Primary series "${primaryCandidate}" unknown — no safe fallback`,
+            'primary-series-unresolvable',
+          );
+          console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+          return null;
+        }
+      } else {
+        // No primary_series hint from classifier — legacy behavior: try extracted candidates
+        const candidates = extractSeriesNameCandidates(source.title, fullSourceText);
+        let dbMatch = null;
+
+        console.log(`   📋 Trying exact DB match for candidates: ${candidates.join(', ')}`);
+
+        for (const candidate of candidates) {
+          dbMatch = await prisma.series.findFirst({
+            where: {
+              OR: [
+                { title: { equals: candidate, mode: 'insensitive' } },
+                { name: { equals: candidate, mode: 'insensitive' } },
+              ],
+            },
+            select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true },
+          });
+
+          if (dbMatch) {
+            console.log(`✅ DB Exact Match: Found "${dbMatch.name}" for "${candidate}"`);
+            searchResult = {
+              tmdbId: dbMatch.tmdbId,
+              name: dbMatch.name || dbMatch.title,
+              confidence: 0.85,
+              matchMethod: 'db-exact-match',
+            };
+            break;
+          }
         }
       }
       
@@ -478,6 +517,40 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Series: ${searchResult.name} (ID: ${searchResult.tmdbId})`);
     console.log(`   Confidence: ${(searchResult.confidence * 100).toFixed(1)}%`);
     console.log(`   Method: ${searchResult.matchMethod}`);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PRIMARY-SERIES SANITY CHECK
+    //
+    // If the classifier named a primary series (e.g. "Ring By Spring Break")
+    // but TMDB resolved to something with a completely different name (e.g.
+    // "Wednesday"), that's almost certainly wrong — a popular series name
+    // matched as a fuzzy fallback. Skip to protect the feed.
+    // ══════════════════════════════════════════════════════════════════════
+    if (classification.primary_series && searchResult.name) {
+      const primaryLc = classification.primary_series.toLowerCase().trim();
+      const resolvedLc = (searchResult.name as string).toLowerCase().trim();
+      // Share at least one 4+ letter token to consider them related
+      const primaryTokens = new Set(
+        primaryLc.split(/[^a-z0-9äöüß]+/i).filter((t) => t.length >= 4),
+      );
+      const resolvedTokens = (resolvedLc as string).split(/[^a-z0-9äöüß]+/i);
+      const overlap = resolvedTokens.some((t) => t.length >= 4 && primaryTokens.has(t));
+      // Allow if a 4+ letter token overlaps, or primary contains resolved / vice versa
+      const substringMatch =
+        primaryLc.length >= 4 &&
+        (primaryLc.includes(resolvedLc) || resolvedLc.includes(primaryLc));
+      if (!overlap && !substringMatch) {
+        console.log(
+          `⛔ PRIMARY-SERIES MISMATCH: classifier="${classification.primary_series}" vs TMDB="${searchResult.name}" — skipping to avoid mis-tagging.`,
+        );
+        await logger.fail(
+          `Primary mismatch: "${classification.primary_series}" vs "${searchResult.name}"`,
+          'primary-series-mismatch',
+        );
+        console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+        return null;
+      }
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     // BLOCKLIST SAFETY NET (post-TMDB — catches cases URL/title missed)
