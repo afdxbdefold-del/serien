@@ -21,12 +21,29 @@
  */
 import sharp from 'sharp';
 import { put } from '@vercel/blob';
+import fs from 'fs';
+import path from 'path';
 
 const CYAN = '#13bfe0';
 const NAVY = '#062344';
 const NAVY_DEEP = '#03152a';
 const WHITE = '#ffffff';
-const FONT = 'Liberation Sans, FreeSans, Arial, sans-serif';
+// Vercel's serverless runtime does not ship Liberation/FreeSans/Arial, so we
+// embed Noto Sans directly into the SVG via @font-face base64. This keeps the
+// composite reproducible and avoids tofu boxes on cold starts.
+let fontBlackB64: string | null = null;
+let fontMediumB64: string | null = null;
+function loadFonts() {
+  if (fontBlackB64 && fontMediumB64) return;
+  try {
+    const root = path.join(process.cwd(), 'assets', 'fonts');
+    fontBlackB64 = fs.readFileSync(path.join(root, 'NotoSans-Black.ttf')).toString('base64');
+    fontMediumB64 = fs.readFileSync(path.join(root, 'NotoSans-Medium.ttf')).toString('base64');
+  } catch (err) {
+    console.error('[compose-article-hero] font load failed:', (err as any)?.message);
+  }
+}
+const FONT = 'NotoSansEmbed, sans-serif';
 const BLOB_BASE = process.env.BLOB_PUBLIC_URL || process.env.NEXT_PUBLIC_BLOB_URL || '';
 
 function esc(s: string): string {
@@ -63,6 +80,7 @@ export interface ComposeHeroInput {
 }
 
 export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffer> {
+  loadFonts();
   const W = 1920;
   const H = 1080;
   const headline = (input.headline || '').trim();
@@ -132,6 +150,18 @@ export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffe
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
+    <style type="text/css"><![CDATA[
+      @font-face {
+        font-family: 'NotoSansEmbed';
+        font-weight: 900;
+        src: url(data:font/ttf;base64,${fontBlackB64 || ''}) format('truetype');
+      }
+      @font-face {
+        font-family: 'NotoSansEmbed';
+        font-weight: 500;
+        src: url(data:font/ttf;base64,${fontMediumB64 || ''}) format('truetype');
+      }
+    ]]></style>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="${NAVY}"/>
       <stop offset="1" stop-color="${NAVY_DEEP}"/>
