@@ -80,6 +80,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `window.adsbygoogle = window.adsbygoogle || [];`
           }}
         />
+
+        {/* Google Analytics 4 (G-K7T0SF14YX) */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-K7T0SF14YX"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-K7T0SF14YX');
+            `,
+          }}
+        />
         
         {/* Global Schema.org markup */}
         <script
