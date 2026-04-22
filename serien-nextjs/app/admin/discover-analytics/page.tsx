@@ -176,6 +176,13 @@ export default function DiscoverAnalyticsPage() {
               <span className="font-bold tabular-nums">+{rewriteStats.avgGain}P</span>
               <span className="text-emerald-700 ml-1">Ø Performance-Gewinn</span>
             </div>
+            <a
+              href="/admin/rewrite-leaderboard"
+              className="ml-auto text-emerald-800 hover:text-emerald-900 font-medium underline underline-offset-2"
+              data-testid="leaderboard-link"
+            >
+              Best of Rewrites →
+            </a>
           </div>
         )}
 
