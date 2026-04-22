@@ -66,11 +66,9 @@ export function SeriesHubArticles({ seriesId, limit = 7 }: SeriesHubArticlesProp
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
+    return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
-    });
+      year: 'numeric' });
   };
 
   return (

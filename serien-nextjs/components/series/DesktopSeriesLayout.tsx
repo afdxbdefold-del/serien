@@ -358,11 +358,9 @@ export default function DesktopSeriesLayout({
                         )}
                         {article.publishedAt && (
                           <span>
-                            {new Date(article.publishedAt).toLocaleDateString('de-DE', {
-                              day: 'numeric',
+                            {new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric',
                               month: 'long',
-                              year: 'numeric'
-                            })}
+                              year: 'numeric' })}
                           </span>
                         )}
                       </div>

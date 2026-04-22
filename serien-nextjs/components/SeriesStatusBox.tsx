@@ -69,11 +69,9 @@ export function SeriesStatusBox({ seriesId, seriesName, seriesSlug, posterUrl, p
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'unbekannt';
     const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
+    return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
-    });
+      year: 'numeric' });
   };
 
   return (

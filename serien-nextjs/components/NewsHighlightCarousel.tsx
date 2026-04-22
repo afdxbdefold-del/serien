@@ -91,7 +91,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   // Static date format to avoid hydration mismatch
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   // Dynamic relative time - only shown after mount

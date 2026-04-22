@@ -64,7 +64,7 @@ export default function NewsCard({
 
   // Static date format for SSR
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   // Dynamic relative time - only after mount to avoid hydration mismatch

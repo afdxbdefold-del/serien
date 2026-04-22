@@ -100,7 +100,7 @@ export default function TopListPage({
           <p className="text-lg text-slate-300 max-w-3xl">{subline}</p>
           <div className="mt-6 flex flex-wrap gap-3 text-xs text-slate-400">
             <span className="rounded-full bg-slate-800 px-3 py-1">
-              🕒 Zuletzt aktualisiert: {updatedAt.toLocaleString('de-DE', { dateStyle: 'long', timeStyle: 'short' })}
+              🕒 Zuletzt aktualisiert: {updatedAt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'long', timeStyle: 'short' })}
             </span>
             <span className="rounded-full bg-slate-800 px-3 py-1">📺 {items.length} Serien</span>
             <span className="rounded-full bg-slate-800 px-3 py-1">⚡ Hybrid-Score: 60/30/10</span>

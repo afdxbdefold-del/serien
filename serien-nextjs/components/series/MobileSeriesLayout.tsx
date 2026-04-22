@@ -174,11 +174,9 @@ export default function MobileSeriesLayout({
                           <span>{article.users.name}</span>
                         )}
                         <span>
-                          {new Date(article.publishedAt).toLocaleDateString('de-DE', {
-                            day: 'numeric',
+                          {new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric',
                             month: 'long',
-                            year: 'numeric'
-                          })}
+                            year: 'numeric' })}
                         </span>
                       </div>
                     )}

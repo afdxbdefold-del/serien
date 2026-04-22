@@ -361,11 +361,9 @@ export default async function ArticlePage({ params }: PageProps) {
 
   // Format dates - handle both Date objects and ISO strings from cache
   const publishedDate = toDate(article.publishedAt || article.createdAt);
-  const formattedDate = publishedDate.toLocaleDateString('de-DE', {
-    year: 'numeric',
+  const formattedDate = publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric',
     month: 'long',
-    day: 'numeric',
-  });
+    day: 'numeric' });
 
   const getRelativeTime = () => {
     const now = new Date();
@@ -515,7 +513,7 @@ export default async function ArticlePage({ params }: PageProps) {
               </>
             )}
             <span>
-              {publishedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}
             </span>
             <span className="mx-2">·</span>
             <span>{readingMinutes} Min</span>
@@ -628,7 +626,7 @@ export default async function ArticlePage({ params }: PageProps) {
               </span>
             )}
             <span>
-              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+              <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })} Uhr
             </span>
           </div>
 
