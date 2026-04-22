@@ -134,8 +134,36 @@ export default function PipelineHealthPage() {
         const body = await r.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${r.status}`);
       }
-      const d = (await r.json()) as HealthResponse;
-      setData(d);
+      const raw = (await r.json()) as Partial<HealthResponse>;
+      // Normalize against stale/older API shapes: guarantee every nested object exists
+      // so UI access like data.totals.runs can never throw even if the backend is a
+      // version behind (e.g. Vercel edge cache).
+      const safe: HealthResponse = {
+        generatedAt: raw.generatedAt ?? new Date().toISOString(),
+        windowMinutes: raw.windowMinutes ?? windowMin,
+        health: (raw.health as Health) ?? 'ok',
+        totals: {
+          runs: raw.totals?.runs ?? 0,
+          byStatus: raw.totals?.byStatus ?? {},
+          byFailStep: raw.totals?.byFailStep ?? {},
+          published: raw.totals?.published ?? 0,
+          publishPerHour: raw.totals?.publishPerHour ?? 0,
+          successRatePct: raw.totals?.successRatePct ?? 0,
+        },
+        classifier: {
+          unknownClassification: raw.classifier?.unknownClassification ?? 0,
+          safetyBlocks: raw.classifier?.safetyBlocks ?? 0,
+          safetyRatePct: raw.classifier?.safetyRatePct ?? 0,
+          heuristicRescues: raw.classifier?.heuristicRescues ?? 0,
+        },
+        duplicates: {
+          total: raw.duplicates?.total ?? 0,
+          byStage: raw.duplicates?.byStage ?? {},
+        },
+        recentFailures: Array.isArray(raw.recentFailures) ? raw.recentFailures : [],
+        lastPublished: Array.isArray(raw.lastPublished) ? raw.lastPublished : [],
+      };
+      setData(safe);
       setLastFetch(new Date());
     } catch (e: any) {
       setErr(e?.message || 'Fehler beim Laden');
