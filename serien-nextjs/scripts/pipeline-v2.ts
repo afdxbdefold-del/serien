@@ -1355,6 +1355,41 @@ export async function runPipelineV2(source: PipelineV2Source) {
     const finalStatus = saveAsDraft ? 'draft' : 'published';
     const finalPublishedAt = saveAsDraft ? null : now;
     
+    // ══════════════════════════════════════════════════════════════════════
+    // HERO IMAGE RESOLUTION
+    //   1) TMDB backdrop  → best case, use as-is
+    //   2) Composite hero → branded 1920×1080 with headline + series backdrop/poster
+    //                        blurred behind. Used for articles where we don't have
+    //                        a clean backdrop (new shows, movies, creator stories).
+    //                        Stored in Vercel Blob with deterministic URL.
+    //   3) Streamer fallback → last resort static Netflix/Prime/etc. logo (rare).
+    // ══════════════════════════════════════════════════════════════════════
+    let heroImageUrl: string;
+    if (selectedBackdrop) {
+      heroImageUrl = `https://image.tmdb.org/t/p/original${selectedBackdrop}`;
+    } else {
+      const { composeAndStoreArticleHero } = await import('../lib/compose-article-hero');
+      const networks = dbSeries.networks || facts?.networks_platforms || [];
+      const composed = await composeAndStoreArticleHero(articleId, {
+        headline: finalHeadline,
+        seriesName: dbSeries.name || dbSeries.title || '',
+        backdropPath: dbSeries.backdropPath || null,
+        posterPath: (dbSeries as any).posterPath || null,
+        network: networks[0] || null,
+        category: duplicateResult?.topicCategory
+          ? duplicateResult.topicCategory.charAt(0) + duplicateResult.topicCategory.slice(1).toLowerCase() + '-News'
+          : 'News',
+      });
+      heroImageUrl = composed || getStreamerFallbackImage(networks);
+      if (composed) {
+        console.log(`   🎨 Composite hero generated: ${heroImageUrl}`);
+        logger.addMetadata('heroSource', 'composite');
+      } else {
+        console.log(`   🖼️  Fallback streamer-logo hero used`);
+        logger.addMetadata('heroSource', 'streamer-fallback');
+      }
+    }
+
     try {
       await prisma.articles.create({
         data: {
@@ -1364,9 +1399,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           contentHtml: finalContentWithVideo,
           excerpt: finalIntro,
           metaDescription: structuredContent.metaDescription,
-          heroImageUrl: selectedBackdrop 
-            ? `https://image.tmdb.org/t/p/original${selectedBackdrop}`
-            : getStreamerFallbackImage(dbSeries.networks || facts?.networks_platforms || []),
+          heroImageUrl,
           tmdbId: dbSeries.tmdbId,
           primarySeriesId: dbSeries.tmdbId,
           tmdbType: 'tv',
