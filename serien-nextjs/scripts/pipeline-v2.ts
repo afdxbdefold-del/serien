@@ -370,7 +370,34 @@ export async function runPipelineV2(source: PipelineV2Source) {
       await logger.fail(`${classification.content_type} - nur Serien erlaubt`, 'classification');
       return null;
     }
-    
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MULTI-SERIES EDITORIAL FILTER
+    //
+    // Skip multi-series roundups by default (they're Discover-weak and highly
+    // prone to mis-tagging). Allow through only if one of 3 concrete single-
+    // event triggers is detected: DEATH, PLATFORM event, or AWARD ceremony.
+    // When allowed, the article is forced to SEARCH_ONLY — never news-sitemap.
+    // ══════════════════════════════════════════════════════════════════════
+    let multiSeriesException: { allowed: true; trigger: string; matchedPhrase: string } | null = null;
+    if (classification.content_type === 'MULTI_SERIES_EDITORIAL') {
+      const { detectMultiSeriesException } = await import('../lib/multi-series-exception');
+      const res = detectMultiSeriesException({
+        title: source.title || '',
+        content: fullSourceText,
+      });
+      if (!res.allowed) {
+        console.log(`⚠️  Article skipped: MULTI_SERIES_EDITORIAL ohne Ausnahme-Trigger`);
+        console.log(`   Discover-schwach + Mis-Tag-Risiko — konfigurierbar via lib/multi-series-exception.ts`);
+        await logger.fail('Multi-Series-Roundup — kein Exception-Trigger', 'multi-series-skip');
+        return null;
+      }
+      multiSeriesException = { allowed: true, trigger: res.trigger, matchedPhrase: res.matchedPhrase };
+      console.log(`✅ Multi-Series durchgelassen: Trigger=${res.trigger} (Phrase: "${res.matchedPhrase}")`);
+      console.log(`   → publishMode wird auf SEARCH_ONLY gezwungen (nicht in News/Discover)`);
+      logger.addMetadata('multiSeriesException', multiSeriesException);
+    }
+
     // Map to our internal type
     const contentType = classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
 
@@ -1673,14 +1700,23 @@ export async function runPipelineV2(source: PipelineV2Source) {
             }
           });
           
-          // Update article publishMode based on score
-          const publishMode = gateResult.discover_eligible ? 'DISCOVER' : 'SEARCH_ONLY';
+          // Update article publishMode based on score — BUT force SEARCH_ONLY
+          // for multi-series exception articles (they must never hit Discover/News).
+          const publishMode = multiSeriesException
+            ? 'SEARCH_ONLY'
+            : gateResult.discover_eligible
+              ? 'DISCOVER'
+              : 'SEARCH_ONLY';
           await prisma.articles.update({
             where: { id: articleId },
             data: { publishMode }
           });
-          
-          console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/130 → ${publishMode}`);
+
+          if (multiSeriesException) {
+            console.log(`   🔒 Multi-Series-Exception → publishMode=SEARCH_ONLY erzwungen (Score: ${gateResult.scores.total}/130, Trigger: ${multiSeriesException.trigger})`);
+          } else {
+            console.log(`   ✅ Discover Gate: ${gateResult.scores.total}/130 → ${publishMode}`);
+          }
         } catch (error: any) {
           console.log(`   ⚠️  Discover Gate failed: ${error.message}`);
         }
