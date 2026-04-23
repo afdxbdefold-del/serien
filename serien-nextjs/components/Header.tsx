@@ -137,6 +137,16 @@ export default function Header() {
                   NEWS
                 </Link>
                 
+                {/* TOP 10 */}
+                <Link 
+                  href="/top-10" 
+                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  data-testid="nav-top10-link"
+                >
+                  <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
+                  HEUTE
+                </Link>
+
                 {/* NEU HEUTE */}
                 <Link 
                   href="/neue-serien" 
@@ -184,7 +194,16 @@ export default function Header() {
                           </Link>
                         ))}
                       </div>
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                        <Link
+                          href="/top-10"
+                          onClick={() => setActiveDropdown(null)}
+                          className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 font-medium hover:underline"
+                          data-testid="megamenu-top10-link"
+                        >
+                          <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
+                          Die Top 10 auf allen Streamern →
+                        </Link>
                         <Link
                           href="/neue-serien"
                           onClick={() => setActiveDropdown(null)}
@@ -374,6 +393,15 @@ export default function Header() {
                   onClick={() => setShowMobileMenu(false)}
                 >
                   NEWS
+                </Link>
+                <Link 
+                  href="/top-10" 
+                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                  data-testid="mobile-menu-top10-link"
+                >
+                  <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
+                  TOP 10 HEUTE
                 </Link>
                 <Link 
                   href="/neue-serien" 
