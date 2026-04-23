@@ -712,3 +712,25 @@ model crawler_hits {
 }
 
 
+/// Daily Top-10 rankings per streaming platform, country, and type.
+/// Populated by cron (1×/day). We keep daily snapshots so we can compute
+/// trends (position delta week-over-week) and build "now trending" lists.
+model streamer_rankings {
+  id            String   @id @default(cuid())
+  platform      String   // "hbo-max" | "netflix" | "disney-plus" | …
+  country       String   // ISO lower-case, e.g. "germany"
+  type          String   // "tv" | "movie"
+  date          DateTime @db.Date
+  rank          Int      // 1..10
+  title         String   // exact title as listed
+  slug          String   // external slug (for reference only)
+  tmdbId        Int?     // resolved against our TMDB series table
+  tmdbMatched   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@unique([platform, country, type, date, rank])
+  @@index([platform, country, type, date])
+  @@index([tmdbId, date])
+}
+
+

@@ -15,6 +15,7 @@ import { unstable_cache } from 'next/cache';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, TrendingUp, Star, Play, ChevronRight, Flame, Sparkles } from 'lucide-react';
+import { getCurrentTop10 } from '@/lib/ranking-queries';
 
 // ISR - Revalidate every 10 minutes
 export const revalidate = 600;
@@ -194,6 +195,7 @@ function generateHBOHubSchema() {
 
 export default async function HBOSerienPage() {
   const { allHBOSeries, hboArticles, trendingArticles, recentSeries } = await getHBOData();
+  const top10 = await getCurrentTop10('hbo-max', 'germany', 'tv');
 
   const hubSchema = generateHBOHubSchema();
 
@@ -261,6 +263,80 @@ export default async function HBOSerienPage() {
 
         <div className="max-w-7xl mx-auto px-4 py-12 space-y-16">
           
+          {/* Top 10 Right Now — daily-refreshed ranking from our ingest */}
+          {top10.length > 0 && (
+            <section data-testid="hbo-top10-section">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Top 10 auf HBO Max in Deutschland — jetzt
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Tägliches Ranking der meistgesehenen Serien auf der Plattform
+                  </p>
+                </div>
+              </div>
+              <ol className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {top10.map((item) => {
+                  const posterUrl = item.posterPath
+                    ? item.posterPath.startsWith('http')
+                      ? item.posterPath
+                      : `https://image.tmdb.org/t/p/w342${item.posterPath.startsWith('/') ? '' : '/'}${item.posterPath}`
+                    : null;
+                  const delta = item.previousRank != null ? item.previousRank - item.rank : null;
+                  const href = item.slug ? `/serie/${item.slug}` : undefined;
+                  const Wrapper: any = href ? Link : 'div';
+                  return (
+                    <Wrapper
+                      key={item.rank}
+                      {...(href ? { href } : {})}
+                      className="group relative block overflow-hidden rounded-xl bg-gray-900 aspect-[2/3] shadow-md hover:shadow-xl transition-shadow"
+                      data-testid={`hbo-top10-rank-${item.rank}`}
+                    >
+                      {posterUrl ? (
+                        <Image
+                          src={posterUrl}
+                          alt={item.title}
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-800 to-indigo-900" />
+                      )}
+                      {/* Rank badge */}
+                      <div className="absolute top-0 left-0 bg-gradient-to-br from-amber-400 to-amber-600 text-black font-black text-2xl leading-none px-3 py-2 rounded-br-xl shadow-lg">
+                        {item.rank}
+                      </div>
+                      {/* Delta pill */}
+                      {delta !== null && delta !== 0 && (
+                        <div
+                          className={`absolute top-2 right-2 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            delta > 0
+                              ? 'bg-green-500/90 text-white'
+                              : 'bg-red-500/90 text-white'
+                          }`}
+                          title={`Vor 7 Tagen: Platz ${item.previousRank}`}
+                        >
+                          {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
+                        </div>
+                      )}
+                      {/* Title */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3">
+                        <div className="text-white text-sm font-semibold line-clamp-2 leading-tight">
+                          {item.title}
+                        </div>
+                      </div>
+                    </Wrapper>
+                  );
+                })}
+              </ol>
+            </section>
+          )}
+
           {/* Trending Section */}
           {trendingArticles.length > 0 && (
             <section>

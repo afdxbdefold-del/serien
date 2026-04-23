@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/tmdb-sync",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/flixpatrol",
+      "schedule": "15 4 * * *"
     }
   ]
 }
