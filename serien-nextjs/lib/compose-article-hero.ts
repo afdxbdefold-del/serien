@@ -15,35 +15,41 @@
  *
  * Output: JPEG Buffer (1920×1080, mozjpeg Q85).
  *
- * Integration: called from the pipeline's hero-resolver AFTER the TMDB
- * backdrop cascade has run and nothing was found. Result is uploaded to
- * Vercel Blob and the URL is stored as `articles.heroImageUrl`.
+ * Font-rendering strategy:
+ *   Vercel's serverless runtime has no system fonts and sharp's librsvg does
+ *   NOT honor `@font-face` with data-URL sources. So every <text> element
+ *   is converted to a precomputed <path> via opentype.js at render time.
+ *   This is fully deterministic — no fontconfig, no system dependencies.
  */
 import sharp from 'sharp';
 import { put } from '@vercel/blob';
 import fs from 'fs';
 import path from 'path';
+import opentype from 'opentype.js';
 
 const CYAN = '#13bfe0';
 const NAVY = '#062344';
 const NAVY_DEEP = '#03152a';
 const WHITE = '#ffffff';
-// Vercel's serverless runtime does not ship Liberation/FreeSans/Arial, so we
-// embed Noto Sans directly into the SVG via @font-face base64. This keeps the
-// composite reproducible and avoids tofu boxes on cold starts.
-let fontBlackB64: string | null = null;
-let fontMediumB64: string | null = null;
+
+// Cache fonts per process — loading a TTF is ~50ms, we don't want to redo
+// it per article on a warm lambda.
+let fontBlack: opentype.Font | null = null;
+let fontMedium: opentype.Font | null = null;
+
 function loadFonts() {
-  if (fontBlackB64 && fontMediumB64) return;
+  if (fontBlack && fontMedium) return;
+  const root = path.join(process.cwd(), 'assets', 'fonts');
   try {
-    const root = path.join(process.cwd(), 'assets', 'fonts');
-    fontBlackB64 = fs.readFileSync(path.join(root, 'NotoSans-Black.ttf')).toString('base64');
-    fontMediumB64 = fs.readFileSync(path.join(root, 'NotoSans-Medium.ttf')).toString('base64');
+    // opentype.loadSync expects a file path and handles the binary parsing
+    // internally. This avoids the `Buffer.buffer` offset/slicing pitfall.
+    fontBlack = opentype.loadSync(path.join(root, 'NotoSans-Black.ttf'));
+    fontMedium = opentype.loadSync(path.join(root, 'NotoSans-Medium.ttf'));
   } catch (err) {
     console.error('[compose-article-hero] font load failed:', (err as any)?.message);
   }
 }
-const FONT = 'NotoSansEmbed, sans-serif';
+
 const BLOB_BASE = process.env.BLOB_PUBLIC_URL || process.env.NEXT_PUBLIC_BLOB_URL || '';
 
 function esc(s: string): string {
@@ -64,6 +70,59 @@ function wrap(text: string, maxChars: number): string[] {
   }
   if (line) lines.push(line);
   return lines;
+}
+
+/**
+ * Render a single line of text as an SVG <path>. The `y` value is the
+ * baseline, matching how <text y=…> normally behaves, so existing layout
+ * math stays valid.
+ */
+function textPath(
+  font: opentype.Font | null,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  fill: string,
+  opts: {
+    anchor?: 'start' | 'middle' | 'end';
+    letterSpacing?: number;
+    opacity?: number;
+  } = {},
+): string {
+  if (!font) {
+    // Last-resort fallback: system font text (may show tofu, but render attempts).
+    const tw = text.length * fontSize * 0.55;
+    const ax = opts.anchor === 'middle' ? x - tw / 2 : opts.anchor === 'end' ? x - tw : x;
+    return `<text x="${ax}" y="${y}" font-family="sans-serif" font-size="${fontSize}" fill="${fill}"${opts.opacity != null ? ` fill-opacity="${opts.opacity}"` : ''}>${esc(text)}</text>`;
+  }
+  const letterSpacing = opts.letterSpacing ?? 0;
+
+  // Pre-measure to enable anchor/alignment without re-laying out per glyph.
+  // getAdvanceWidth doesn't account for our custom letter-spacing, so we
+  // add it in manually.
+  const base = font.getAdvanceWidth(text, fontSize);
+  const totalWidth = base + Math.max(0, text.length - 1) * letterSpacing;
+  const originX =
+    opts.anchor === 'middle' ? x - totalWidth / 2 : opts.anchor === 'end' ? x - totalWidth : x;
+
+  // If letter-spacing is 0, we can take the fast path — one getPath call.
+  if (letterSpacing === 0) {
+    const p = font.getPath(text, originX, y, fontSize);
+    const d = p.toPathData(2);
+    return `<path d="${d}" fill="${fill}"${opts.opacity != null ? ` fill-opacity="${opts.opacity}"` : ''}/>`;
+  }
+
+  // Otherwise, lay out glyphs manually to apply letter-spacing.
+  const glyphs = font.stringToGlyphs(text);
+  let cursor = originX;
+  const parts: string[] = [];
+  for (const g of glyphs) {
+    const p = g.getPath(cursor, y, fontSize);
+    parts.push(p.toPathData(2));
+    cursor += (g.advanceWidth ?? 0) * (fontSize / font.unitsPerEm) + letterSpacing;
+  }
+  return `<path d="${parts.join(' ')}" fill="${fill}"${opts.opacity != null ? ` fill-opacity="${opts.opacity}"` : ''}/>`;
 }
 
 export interface ComposeHeroInput {
@@ -125,57 +184,68 @@ export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffe
   }
   const hasImageBg = bgBuf !== null;
 
-  // ---- layer 2: SVG overlay (gradient, dot pattern, text)
+  // ---- layer 2: SVG overlay (gradient, dot pattern, text-as-paths)
   // Headline sizing logic: longer headlines get smaller text
   const headlineLen = headline.length;
   const fontSize = headlineLen <= 40 ? 105 : headlineLen <= 60 ? 82 : headlineLen <= 85 ? 64 : 52;
-  // Wrap width — stay well inside the canvas so no glyph clips at the right.
   const maxChars = headlineLen <= 40 ? 22 : headlineLen <= 60 ? 28 : headlineLen <= 85 ? 36 : 42;
   const lines = wrap(headline, maxChars).slice(0, 4);
-  // Vertical layout — important: SVG text `y` = baseline. With an 82pt headline,
-  // the top of the first line sits ~fontSize*0.8 above its baseline, so the
-  // accent-bar / kicker above it needs fontSize worth of breathing room or they
-  // collide with the glyphs (ghost "Wa" artifact seen in QA).
-  const kickerOffset = Math.round(fontSize * 0.95) + 18; // enough space for ascenders + gap
+  // Vertical layout — SVG path `y` = baseline (opentype origin). Kicker + bar
+  // need ~fontSize worth of clearance above the first headline line.
+  const kickerOffset = Math.round(fontSize * 0.95) + 18;
   const barOffset = kickerOffset + 40;
   const titleX = 120;
   const titleBlockHeight = lines.length * fontSize * 1.08;
-  // Ensure kicker + bar fit within the canvas: if bottom-anchored layout would
-  // push the bar above the top safe area, shift the whole block down.
   const rawTitleYStart = H - 200 - titleBlockHeight;
   const barTopIfUnshifted = rawTitleYStart - barOffset;
-  const minBarTop = 220; // clear of brand-lockup + network badge
+  const minBarTop = 220;
   const titleYStart = barTopIfUnshifted < minBarTop
     ? rawTitleYStart + (minBarTop - barTopIfUnshifted)
     : rawTitleYStart;
 
   const titleSVG = lines
-    .map(
-      (l, i) =>
-        `<text x="${titleX}" y="${titleYStart + i * fontSize * 1.08}" text-anchor="start" font-family="${FONT}" font-weight="900" font-size="${fontSize}" fill="${WHITE}" letter-spacing="-1.5">${esc(l)}</text>`,
+    .map((l, i) =>
+      textPath(fontBlack, l, titleX, titleYStart + i * fontSize * 1.08, fontSize, WHITE, {
+        letterSpacing: -1.5,
+      }),
     )
     .join('\n');
 
+  // Top-right network badge
+  const badgeText = network.toUpperCase();
+  const badgeFontSize = 22;
+  const badgeWidth = fontBlack
+    ? fontBlack.getAdvanceWidth(badgeText, badgeFontSize) + Math.max(0, badgeText.length - 1) * 0.5 + 40
+    : badgeText.length * 13 + 40;
+  const badgeX = W - 60 - badgeWidth;
   const networkBadge = network
-    ? `<rect x="${W - 60 - (network.length * 13 + 40)}" y="64" width="${network.length * 13 + 40}" height="52" rx="26" fill="${CYAN}"/>
-       <text x="${W - 60 - (network.length * 13 + 40) / 2}" y="98" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="22" fill="${NAVY}" letter-spacing="0.5">${esc(network.toUpperCase())}</text>`
+    ? `<rect x="${badgeX}" y="64" width="${badgeWidth}" height="52" rx="26" fill="${CYAN}"/>
+       ${textPath(fontBlack, badgeText, badgeX + badgeWidth / 2, 98, badgeFontSize, NAVY, { anchor: 'middle', letterSpacing: 0.5 })}`
+    : '';
+
+  // Brand lockup
+  const brandS = textPath(fontBlack, 's', 90, 106, 50, NAVY, { anchor: 'middle' });
+  const brandWordmark = textPath(fontBlack, 'serien.de', 148, 104, 44, WHITE, { letterSpacing: -1 });
+
+  // Category kicker
+  const kickerPath = textPath(
+    fontBlack,
+    category.toUpperCase(),
+    titleX,
+    titleYStart - kickerOffset,
+    26,
+    CYAN,
+    { letterSpacing: 2 },
+  );
+
+  // Series subline
+  const sublinePath = seriesName
+    ? textPath(fontMedium, seriesName, titleX, H - 130, 30, WHITE, { opacity: 0.75 })
     : '';
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
-    <style type="text/css"><![CDATA[
-      @font-face {
-        font-family: 'NotoSansEmbed';
-        font-weight: 900;
-        src: url(data:font/ttf;base64,${fontBlackB64 || ''}) format('truetype');
-      }
-      @font-face {
-        font-family: 'NotoSansEmbed';
-        font-weight: 500;
-        src: url(data:font/ttf;base64,${fontMediumB64 || ''}) format('truetype');
-      }
-    ]]></style>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="${NAVY}"/>
       <stop offset="1" stop-color="${NAVY_DEEP}"/>
@@ -197,35 +267,24 @@ export async function composeArticleHero(input: ComposeHeroInput): Promise<Buffe
 
   ${hasImageBg ? '' : `<rect width="${W}" height="${H}" fill="url(#bg)"/>`}
 
-  <!-- bottom-to-top dark gradient for headline legibility -->
   <rect width="${W}" height="${H}" fill="url(#readShade)"/>
   <rect width="${W}" height="${H}" fill="url(#accent)"/>
   ${hasImageBg ? '' : `<rect width="${W}" height="${H}" fill="url(#dots)"/>`}
 
-  <!-- brand lockup top-left -->
   <circle cx="90" cy="90" r="36" fill="${CYAN}"/>
-  <text x="90" y="106" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="50" fill="${NAVY}">s</text>
-  <text x="148" y="104" font-family="${FONT}" font-weight="800" font-size="44" fill="${WHITE}" letter-spacing="-1">serien.de</text>
+  ${brandS}
+  ${brandWordmark}
 
   ${networkBadge}
 
-  <!-- accent bar above headline -->
   <rect x="${titleX}" y="${titleYStart - barOffset}" width="100" height="4" fill="${CYAN}"/>
 
-  <!-- category kicker -->
-  <text x="${titleX}" y="${titleYStart - kickerOffset}" font-family="${FONT}" font-weight="800" font-size="26" fill="${CYAN}" letter-spacing="2">${esc(category.toUpperCase())}</text>
+  ${kickerPath}
 
-  <!-- HEADLINE -->
   ${titleSVG}
 
-  <!-- series subline -->
-  ${
-    seriesName
-      ? `<text x="${titleX}" y="${H - 130}" font-family="${FONT}" font-weight="500" font-size="30" fill="${WHITE}" fill-opacity="0.75">${esc(seriesName)}</text>`
-      : ''
-  }
+  ${sublinePath}
 
-  <!-- bottom accent bar -->
   <rect x="0" y="${H - 6}" width="${W}" height="6" fill="${CYAN}"/>
 </svg>`;
 
@@ -254,7 +313,7 @@ export async function composeAndStoreArticleHero(
     const blob = await put(blobPath, buf, {
       access: 'public',
       addRandomSuffix: false,
-      allowOverwrite: true, // deterministic path — always replace, never error on "exists"
+      allowOverwrite: true,
     });
     return blob.url;
   } catch (err: any) {
@@ -262,3 +321,5 @@ export async function composeAndStoreArticleHero(
     return null;
   }
 }
+// Re-export BLOB_BASE usage so the constant stays in scope for potential external consumers
+export const __BLOB_BASE = BLOB_BASE;
