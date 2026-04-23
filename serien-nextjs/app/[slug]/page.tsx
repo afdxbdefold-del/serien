@@ -461,11 +461,6 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
-      {/* Google Web Story alternate — picked up by Google Discover's Web
-         Stories carousel. Next.js App Router auto-hoists <link> tags into
-         <head>, so this one becomes a proper rel="amphtml" link. */}
-      <link rel="amphtml" href={`${baseUrl}/web-stories/${slug}`} />
-
       {/* Google AdSense Script - Only on article pages */}
       <Script
         async

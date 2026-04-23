@@ -67,6 +67,11 @@ export async function GET(
       'content-type': 'text/html; charset=utf-8',
       // Cache 10 min at the edge, allow stale for 1 hour while revalidating
       'cache-control': 'public, s-maxage=600, stale-while-revalidate=3600',
+      // Deindex: we don't want Google News turning every article into a
+      // web-story card. Keep the route reachable (200) so existing index
+      // entries resolve cleanly while Google drops them over the next
+      // few crawls.
+      'x-robots-tag': 'noindex, nofollow',
     },
   });
 }
