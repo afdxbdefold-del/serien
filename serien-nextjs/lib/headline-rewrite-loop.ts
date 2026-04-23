@@ -76,10 +76,18 @@ WINNING-HEADLINE-REGELN — jeder Kandidat muss alle diese erfüllen:
    bricht, überrascht, verliert, triumphiert — NICHT ist/hat/gibt/kommt.
 5. NATÜRLICHE SPRACHE: NIE "offiziell bestätigt", "im Überblick",
    "verständlich erklärt", "alles was ihr wissen müsst".
-6. KEIN COLON-LABEL: Nicht "Serie: Detail bestätigt" — Aussagesatz.
-7. Länge 40–65 Zeichen.
-8. Serienname "${input.seriesName}" MUSS enthalten sein.
-9. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
+6. KEINE SCORE-REVEALS: Zahlen oder Namen von Bewertungsplattformen
+   gehören NICHT in die Headline. Sie verraten alles und killen den Klick.
+   VERBOTEN: "Rotten Tomatoes", "Metacritic", "IMDb", "NN %", "NN Prozent",
+             "N,N/10", "Kritiker-Score", "triumphiert mit NN".
+   ERLAUBT als Ersatz: Open Loop über den Grund warum die Serie gefeiert wird
+     → "Darum sind sich Kritiker bei X diesmal einig"
+     → "Warum X gerade einen Nerv trifft"
+     → "X macht sofort, was wenigen Serien gelingt"
+7. KEIN COLON-LABEL: Nicht "Serie: Detail bestätigt" — Aussagesatz.
+8. Länge 40–65 Zeichen.
+9. Serienname "${input.seriesName}" MUSS enthalten sein.
+10. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
 
 ====================================================================
 AUFGABE

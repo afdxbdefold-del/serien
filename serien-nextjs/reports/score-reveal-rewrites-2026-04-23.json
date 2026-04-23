@@ -1,0 +1,846 @@
+[
+  {
+    "slug": "83-prozent-stranger-things-tales-from-85-triumphiert-beim-start",
+    "currentTitle": "83 Prozent: Stranger Things: Tales from '85 triumphiert beim Start",
+    "proposedTitle": "83 Prozent: Stranger Things: Tales from '85 triumphiert beim Start",
+    "before": {
+      "score": 23,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 23
+    },
+    "candidates": [],
+    "skipped": "already at/above threshold"
+  },
+  {
+    "slug": "the-pitt-triumphiert-mit-rekordfinale-doch-warum-jetzt",
+    "currentTitle": "The Pitt triumphiert mit Rekordfinale. Doch warum jetzt?",
+    "proposedTitle": "The Pitt triumphiert mit Rekordfinale. Doch warum jetzt?",
+    "before": {
+      "score": 29,
+      "penalties": 0,
+      "reasons": []
+    },
+    "after": {
+      "score": 29
+    },
+    "candidates": [],
+    "skipped": "already at/above threshold"
+  },
+  {
+    "slug": "the-witcher-s5-netflix-spart-90-treibstoff",
+    "currentTitle": "The Witcher S5: Netflix spart 90% Treibstoff",
+    "proposedTitle": "Darum überrascht The Witcher S5 noch vor dem Starttermin",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 30
+    },
+    "candidates": [
+      {
+        "text": "Darum überrascht The Witcher S5 noch vor dem Starttermin",
+        "performance": 30
+      },
+      {
+        "text": "The Witcher S5 dreht Geschichte um und nähert sich dem Finale",
+        "performance": 25
+      },
+      {
+        "text": "The Witcher S5 bricht einen Rekord, den kaum jemand erwartet hat",
+        "performance": 20
+      },
+      {
+        "text": "Warum The Witcher S5 Netflix für immer verändert hat",
+        "performance": 20
+      },
+      {
+        "text": "The Witcher S5 schafft, woran andere Großproduktionen scheitern",
+        "performance": 15
+      }
+    ]
+  },
+  {
+    "slug": "95-prozent-bei-rotten-tomatoes-bait-trifft-den-nerv",
+    "currentTitle": "95 Prozent bei Rotten Tomatoes: Bait trifft den Nerv",
+    "proposedTitle": "Darum bricht Bait gerade alle Kritiker-Widerstände",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Darum bricht Bait gerade alle Kritiker-Widerstände",
+        "performance": 24
+      },
+      {
+        "text": "Warum Bait jetzt 21 Emmy-Kategorien aufmischt",
+        "performance": 20
+      },
+      {
+        "text": "Bait zeigt, warum Riz Ahmed diese Rolle riskiert hat",
+        "performance": 19
+      },
+      {
+        "text": "Bait trifft einen Nerv, den kaum eine Serie wagt",
+        "performance": 14
+      },
+      {
+        "text": "Riz Ahmed kämpft in Bait um mehr als einen Preis",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "99-prozent-bei-rotten-tomatoes-the-leftovers-haelt-stand",
+    "currentTitle": "99 Prozent bei Rotten Tomatoes: The Leftovers hält Stand",
+    "proposedTitle": "Warum The Leftovers Kritiker noch immer fesselt",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 19
+    },
+    "candidates": [
+      {
+        "text": "Warum The Leftovers Kritiker noch immer fesselt",
+        "performance": 19
+      },
+      {
+        "text": "Darum sind sich Kritiker bei The Leftovers diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "The Leftovers trifft einen Nerv, den andere Serien verfehlen",
+        "performance": 14
+      },
+      {
+        "text": "The Leftovers schlägt jede neue Serie, die es versucht",
+        "performance": 14
+      },
+      {
+        "text": "Was The Leftovers von anderen Kultserien trennt",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "96-kritiker-score-only-margo-schockt-apple-tv",
+    "currentTitle": "96% Kritiker-Score: Only Margo schockt Apple TV+",
+    "proposedTitle": "Warum Only Margo gerade alles auf Apple TV+ überholt",
+    "before": {
+      "score": 18,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Warum Only Margo gerade alles auf Apple TV+ überholt",
+        "performance": 24
+      },
+      {
+        "text": "Darum sind sich Kritiker bei Only Margo diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Only Margo schlägt Apple TV+ Favoriten aus den Charts",
+        "performance": 19
+      },
+      {
+        "text": "Only Margo trifft einen Nerv, den kaum eine Serie trifft",
+        "performance": 14
+      },
+      {
+        "text": "Only Margo verdrängt Sci-Fi-Hits und das hat einen Grund",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "ploetzlich-hat-teheran-100-bei-rotten-tomatoes",
+    "currentTitle": "Plötzlich hat Teheran 100% bei Rotten Tomatoes",
+    "proposedTitle": "Warum Teheran zwei Monate nach dem Finale noch dominiert",
+    "before": {
+      "score": 15,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Warum Teheran zwei Monate nach dem Finale noch dominiert",
+        "performance": 24
+      },
+      {
+        "text": "Teheran triumphiert still, während andere Thriller scheitern",
+        "performance": 24
+      },
+      {
+        "text": "Darum sind sich Kritiker bei Teheran diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Teheran fesselt Kritiker und Zuschauer, doch warum jetzt erst?",
+        "performance": 19
+      },
+      {
+        "text": "Teheran trifft gerade einen Nerv, den kaum eine Serie trifft",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "100-bei-rotten-tomatoes-maigret-kehrt-zurueck",
+    "currentTitle": "100% bei Rotten Tomatoes: Maigret kehrt zurück",
+    "proposedTitle": "Warum Kommissar Maigret gerade alle anderen Krimis alt aussehen lässt",
+    "before": {
+      "score": 18,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Warum Kommissar Maigret gerade alle anderen Krimis alt aussehen lässt",
+        "performance": 24
+      },
+      {
+        "text": "Darum sind sich Kritiker bei Kommissar Maigret diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Kommissar Maigret kehrt zurück, und diesmal lässt er niemanden kalt",
+        "performance": 19
+      },
+      {
+        "text": "Kommissar Maigret trifft einen Nerv, den kaum eine Krimiserie trifft",
+        "performance": 14
+      },
+      {
+        "text": "Kommissar Maigret macht sofort, was wenigen Serien gelingt",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "beef-staffel-2-startet-mit-83-bei-kritikern",
+    "currentTitle": "BEEF Staffel 2 startet mit 83% bei Kritikern",
+    "proposedTitle": "Darum spaltet BEEF Staffel 2 Kritiker und begeistert trotzdem",
+    "before": {
+      "score": 10,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Schwacher Einstieg: \"beef\" — lieber mit Name, Zahl oder Verb starten",
+        "Kein starkes Handlungs-Verb"
+      ]
+    },
+    "after": {
+      "score": 20
+    },
+    "candidates": [
+      {
+        "text": "Darum spaltet BEEF Staffel 2 Kritiker und begeistert trotzdem",
+        "performance": 20
+      },
+      {
+        "text": "Carey Mulligan eskaliert in BEEF Staffel 2 auf unerwartete Weise",
+        "performance": 20
+      },
+      {
+        "text": "BEEF kehrt zurück und macht sofort klar, warum das riskant war",
+        "performance": 19
+      },
+      {
+        "text": "Oscar Isaac zündet in BEEF Staffel 2 sofort durch",
+        "performance": 15
+      },
+      {
+        "text": "BEEF Staffel 2 trifft einen Nerv, den Kritiker kaum erwartet haben",
+        "performance": 10
+      }
+    ]
+  },
+  {
+    "slug": "100-bei-rotten-tomatoes-one-piece-staffel-2-ueberzeugt-alle",
+    "currentTitle": "100% bei Rotten Tomatoes: One Piece Staffel 2 überzeugt alle",
+    "proposedTitle": "Warum ONE PIECE plötzlich die Messlatte für Adaptionen setzt",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Warum ONE PIECE plötzlich die Messlatte für Adaptionen setzt",
+        "performance": 24
+      },
+      {
+        "text": "Darum sind sich Kritiker bei ONE PIECE diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "ONE PIECE triumphiert dort, wo andere Manga-Serien versagen",
+        "performance": 19
+      },
+      {
+        "text": "ONE PIECE Staffel 2 schafft, woran Staffel 1 noch scheiterte",
+        "performance": 15
+      },
+      {
+        "text": "ONE PIECE trifft gerade einen Nerv, den kaum eine Serie trifft",
+        "performance": 9
+      }
+    ]
+  },
+  {
+    "slug": "from-staffel-4-startet-mit-100-bei-rotten-tomatoes",
+    "currentTitle": "FROM Staffel 4 startet mit 100% bei Rotten Tomatoes",
+    "proposedTitle": "Triumphiert FROM vor dem Finale noch einmal komplett?",
+    "before": {
+      "score": 10,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Schwacher Einstieg: \"from\" — lieber mit Name, Zahl oder Verb starten",
+        "Kein starkes Handlungs-Verb"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Triumphiert FROM vor dem Finale noch einmal komplett?",
+        "performance": 24
+      },
+      {
+        "text": "Warum FROM Staffel 4 sofort begeistert, was wenige schaffen",
+        "performance": 20
+      },
+      {
+        "text": "Darum sind sich Kritiker bei FROM diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "FROM trifft kurz vorm Finale einen Nerv bei Kritikern",
+        "performance": 14
+      },
+      {
+        "text": "FROM überzeugt Kritiker erneut: Was steckt dahinter?",
+        "performance": 12
+      }
+    ]
+  },
+  {
+    "slug": "95-bei-rotten-tomatoes-only-margo-startet-morgen",
+    "currentTitle": "95% bei Rotten Tomatoes: Only Margo startet morgen",
+    "proposedTitle": "Darum sind sich Kritiker bei Only Margo diesmal einig",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 19
+    },
+    "candidates": [
+      {
+        "text": "Darum sind sich Kritiker bei Only Margo diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Elle Fanning bricht in Only Margo auf eine Weise, die bleibt",
+        "performance": 19
+      },
+      {
+        "text": "Only Margo zeigt, warum Familiengeheimnisse eskalieren müssen",
+        "performance": 19
+      },
+      {
+        "text": "Only Margo trifft einen Nerv, den wenige Serien treffen",
+        "performance": 14
+      },
+      {
+        "text": "Only Margo reißt Familienwunden auf, die nie verheilt sind",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "92-prozent-black-doves-kehrt-fuer-staffel-2-zurueck",
+    "currentTitle": "92 Prozent: Black Doves kehrt für Staffel 2 zurück",
+    "proposedTitle": "Keira Knightley verrät wieder, und Black Doves zeigt warum",
+    "before": {
+      "score": 18,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Keira Knightley verrät wieder, und Black Doves zeigt warum",
+        "performance": 24
+      },
+      {
+        "text": "Black Doves kommt wieder, und Staffel 2 erhöht den Verrat",
+        "performance": 20
+      },
+      {
+        "text": "Black Doves kehrt zurück, und diesmal eskaliert alles",
+        "performance": 19
+      },
+      {
+        "text": "Darum lässt Black Doves Kritiker diesmal keine Wahl",
+        "performance": 19
+      },
+      {
+        "text": "Black Doves trifft einen Nerv, den kaum eine Serie trifft",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "reggie-dinkins-zweiteiliges-staffelfinale-mit-100-bei-rt",
+    "currentTitle": "Reggie Dinkins: Zweiteiliges Staffelfinale mit 100% bei RT",
+    "proposedTitle": "The Fall and Rise of Reggie Dinkins beendet Staffel 1 mit einem Triumph",
+    "before": {
+      "score": 18,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 23
+    },
+    "candidates": [
+      {
+        "text": "The Fall and Rise of Reggie Dinkins beendet Staffel 1 mit einem Triumph",
+        "performance": 23
+      },
+      {
+        "text": "Tracy Morgan triumphiert: The Fall and Rise of Reggie Dinkins feiert Finale",
+        "performance": 20
+      },
+      {
+        "text": "Darum sind sich Kritiker bei The Fall and Rise of Reggie Dinkins einig",
+        "performance": 19
+      },
+      {
+        "text": "Warum The Fall and Rise of Reggie Dinkins gerade einen Nerv trifft",
+        "performance": 19
+      },
+      {
+        "text": "The Fall and Rise of Reggie Dinkins trifft Kritiker dort, wo es wehtut",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "for-all-mankind-94-kritikerlob-aber-zuschauer-rebellieren",
+    "currentTitle": "For All Mankind: 94% Kritikerlob, aber Zuschauer rebellieren",
+    "proposedTitle": "For All Mankind verliert sein Publikum, aber warum?",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "For All Mankind verliert sein Publikum, aber warum?",
+        "performance": 24
+      },
+      {
+        "text": "Darum lässt For All Mankind seine Zuschauer kalt",
+        "performance": 19
+      },
+      {
+        "text": "Warum For All Mankind Kritiker begeistert, Fans zögern",
+        "performance": 19
+      },
+      {
+        "text": "For All Mankind enttäuscht dort, wo es am meisten zählt",
+        "performance": 19
+      },
+      {
+        "text": "For All Mankind spaltet gerade sein Publikum tief",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "73-bei-rotten-tomatoes-the-audacity-ueberzeugt-kritiker",
+    "currentTitle": "73% bei Rotten Tomatoes: The Audacity überzeugt Kritiker",
+    "proposedTitle": "Darum sind sich Kritiker bei The Audacity diesmal einig",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 19
+    },
+    "candidates": [
+      {
+        "text": "Darum sind sich Kritiker bei The Audacity diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "The Audacity zeigt, wovor Silicon Valley Angst hat",
+        "performance": 19
+      },
+      {
+        "text": "Warum The Audacity Helberg neu definiert",
+        "performance": 19
+      },
+      {
+        "text": "Simon Helberg trifft mit The Audacity einen Nerv",
+        "performance": 14
+      },
+      {
+        "text": "The Audacity macht sofort, was wenigen Serien gelingt",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "100-bei-rotten-tomatoes-star-wars-maul-shadow-lord-dominiert",
+    "currentTitle": "100% bei Rotten Tomatoes: Star Wars: Maul: Shadow Lord dominiert",
+    "proposedTitle": "Maul triumphiert: Warum Star Wars: Maul - Shadow Lord Kritiker vereint",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 27
+    },
+    "candidates": [
+      {
+        "text": "Maul triumphiert: Warum Star Wars: Maul - Shadow Lord Kritiker vereint",
+        "performance": 27
+      },
+      {
+        "text": "Darum feiern Kritiker Star Wars: Maul - Shadow Lord so geschlossen",
+        "performance": 19
+      },
+      {
+        "text": "Wie Star Wars: Maul - Shadow Lord sofort schafft, was wenigen gelingt",
+        "performance": 17
+      },
+      {
+        "text": "Star Wars: Maul - Shadow Lord reißt Charts um, bevor es jeder erwartet",
+        "performance": 12
+      },
+      {
+        "text": "Star Wars: Maul - Shadow Lord trifft einen Nerv, den kaum eine Serie trifft",
+        "performance": 10
+      }
+    ]
+  },
+  {
+    "slug": "98-und-9-1-bei-imdb-the-boys-staffel-5-triumphiert",
+    "currentTitle": "98% und 9,1 bei IMDb: The Boys Staffel 5 triumphiert",
+    "proposedTitle": "98% und 9,1 bei IMDb: The Boys Staffel 5 triumphiert",
+    "before": {
+      "score": 23,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 23
+    },
+    "candidates": [],
+    "skipped": "already at/above threshold"
+  },
+  {
+    "slug": "nach-20-jahren-malcolm-mittendrin-kehrt-mit-79-zurueck",
+    "currentTitle": "Nach 20 Jahren: Malcolm Mittendrin kehrt mit 79% zurück",
+    "proposedTitle": "Frankie Muniz überrascht alle: Darum feiern Kritiker Malcolm Mittendrin: Unfair wie immer",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Schwacher Einstieg: \"nach\" — lieber mit Name, Zahl oder Verb starten",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 25
+    },
+    "candidates": [
+      {
+        "text": "Frankie Muniz überrascht alle: Darum feiern Kritiker Malcolm Mittendrin: Unfair wie immer",
+        "performance": 25
+      },
+      {
+        "text": "Cranston kehrt zurück und trifft einen Nerv: Malcolm Mittendrin: Unfair wie immer",
+        "performance": 17
+      },
+      {
+        "text": "Cranston und Muniz vereint: Warum Malcolm Mittendrin: Unfair wie immer so einen Nerv trifft",
+        "performance": 15
+      },
+      {
+        "text": "Comeback mit Wucht: Malcolm Mittendrin: Unfair wie immer lässt Kritiker nicht kalt",
+        "performance": 15
+      },
+      {
+        "text": "20 Jahre später macht Malcolm Mittendrin: Unfair wie immer sofort süchtig",
+        "performance": 13
+      }
+    ]
+  },
+  {
+    "slug": "big-mistakes-netflix-serie-startet-mit-100-bei-rotten-tomatoes",
+    "currentTitle": "Big Mistakes: Netflix-Serie startet mit 100% bei Rotten Tomatoes",
+    "proposedTitle": "Big Mistakes überrascht, und das gleich zum Auftakt",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "Big Mistakes überrascht, und das gleich zum Auftakt",
+        "performance": 24
+      },
+      {
+        "text": "Darum sind sich Kritiker bei Big Mistakes diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Warum Big Mistakes gerade einen Nerv trifft",
+        "performance": 19
+      },
+      {
+        "text": "Big Mistakes feiert Triumph, den kaum eine Serie schafft",
+        "performance": 19
+      },
+      {
+        "text": "Big Mistakes trifft sofort, was wenigen Serien gelingt",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "the-boys-staffel-5-raeumt-auf-rotten-tomatoes-ab",
+    "currentTitle": "The Boys Staffel 5 räumt auf Rotten Tomatoes ab",
+    "proposedTitle": "The Boys kehrt zurück und erinnert, warum alles begann",
+    "before": {
+      "score": 15,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb"
+      ]
+    },
+    "after": {
+      "score": 24
+    },
+    "candidates": [
+      {
+        "text": "The Boys kehrt zurück und erinnert, warum alles begann",
+        "performance": 24
+      },
+      {
+        "text": "The Boys liefert zum Finale, was Staffel 4 verweigerte",
+        "performance": 20
+      },
+      {
+        "text": "The Boys trifft zum Abschied genau den richtigen Nerv",
+        "performance": 19
+      },
+      {
+        "text": "Darum sind sich Kritiker bei The Boys diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "The Boys beweist zum Abschied, was wenige Serien schaffen",
+        "performance": 19
+      }
+    ]
+  },
+  {
+    "slug": "netflix-serie-detective-hole-erreicht-100-bei-rotten-tomatoes",
+    "currentTitle": "Netflix-Serie 'Detective Hole' erreicht 100% bei Rotten Tomatoes",
+    "proposedTitle": "Darum sind sich Kritiker bei Harry Hole diesmal einig",
+    "before": {
+      "score": 15,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb"
+      ]
+    },
+    "after": {
+      "score": 19
+    },
+    "candidates": [
+      {
+        "text": "Darum sind sich Kritiker bei Harry Hole diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Warum Harry Hole gerade einen Nerv trifft",
+        "performance": 19
+      },
+      {
+        "text": "Harry Hole schafft, woran The Snowman kläglich scheiterte",
+        "performance": 19
+      },
+      {
+        "text": "Harry Hole trifft, wo andere Krimis scheitern",
+        "performance": 14
+      },
+      {
+        "text": "Harry Hole reißt Kritiker mit, und das hat einen Grund",
+        "performance": 14
+      }
+    ]
+  },
+  {
+    "slug": "deadloch-staffel-2-feiert-start-mit-100-bei-rotten-tomatoes",
+    "currentTitle": "Deadloch: Staffel 2 feiert Start mit 100% bei Rotten Tomatoes",
+    "proposedTitle": "Deadloch triumphiert in Staffel 2, aber warum gerade jetzt?",
+    "before": {
+      "score": 13,
+      "penalties": 0,
+      "reasons": [
+        "Kein Open-Loop / Neugier-Trigger",
+        "Keine emotionale Verankerung",
+        "Kein starkes Handlungs-Verb",
+        "Colon-Title-Muster drückt CTR (lieber Aussagesatz)"
+      ]
+    },
+    "after": {
+      "score": 30
+    },
+    "candidates": [
+      {
+        "text": "Deadloch triumphiert in Staffel 2, aber warum gerade jetzt?",
+        "performance": 30
+      },
+      {
+        "text": "Deadloch überrascht erneut, und das hat einen Grund",
+        "performance": 24
+      },
+      {
+        "text": "Deadloch feiert Comeback, das Kritiker sprachlos lässt",
+        "performance": 19
+      },
+      {
+        "text": "Darum sind sich Kritiker bei Deadloch diesmal einig",
+        "performance": 19
+      },
+      {
+        "text": "Deadloch trifft einen Nerv, den kaum eine Serie trifft",
+        "performance": 14
+      }
+    ]
+  }
+]
