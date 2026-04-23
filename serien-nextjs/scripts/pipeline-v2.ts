@@ -37,6 +37,7 @@ import { getStreamerFallbackImage } from '../lib/streamer-fallback-images';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
+import { shouldSkipByGenre } from '../lib/genre-filter';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
 import { computeStoryFingerprint } from '../lib/story-fingerprint';
@@ -599,7 +600,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
-      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true }
+      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true, genres: true, numberOfSeasons: true }
     });
     
     if (!dbSeries) {
@@ -716,6 +717,35 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
     console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+
+    // ══════════════════════════════════════════════════════════════════════
+    // GENRE SAFETY NET — skip US late-night / talk / game / reality shows
+    // BEFORE any LLM spend. Source: TVInsider/Variety/Deadline RSS-noise.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      // Prefer DB genres; fall back to an on-the-fly TMDB fetch so we
+      // still catch shows whose DB record is stale (e.g. empty genres[]).
+      let genresForCheck: string[] = dbSeries.genres || [];
+      let seasonsForCheck: number | null | undefined = dbSeries.numberOfSeasons;
+      if (!genresForCheck || genresForCheck.length === 0) {
+        try {
+          const details = await getTvDetailsComplete(searchResult.tmdbId, 'en-US');
+          if (details) {
+            const g = (details as any).genres;
+            genresForCheck = Array.isArray(g)
+              ? g.map((x: any) => (typeof x === 'string' ? x : x?.name)).filter(Boolean)
+              : [];
+            seasonsForCheck = (details as any).numberOfSeasons ?? seasonsForCheck;
+          }
+        } catch {}
+      }
+      const skipCheck = shouldSkipByGenre(genresForCheck, seasonsForCheck);
+      if (skipCheck.skip) {
+        console.log(`⛔ GENRE SKIP: ${skipCheck.reason}`);
+        await logger.fail(`Genre out-of-scope: ${skipCheck.reason}`, 'genre-out-of-scope');
+        return null;
+      }
+    }
 
     // ========== STEP 3.5: DUPLICATE CHECK ==========
     console.log('\n' + '━'.repeat(70));
