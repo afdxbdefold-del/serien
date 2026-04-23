@@ -35,7 +35,9 @@ export interface RewriteOutput {
   errorMessage?: string;
 }
 
-const PERFORMANCE_THRESHOLD = 18; // >=18/30 is PASS — mirrors discover-gate
+const PERFORMANCE_THRESHOLD = 22; // Rewrite trigger. Headlines with score < 22/30 enter the rewrite loop.
+                                  // Gate verdict in discover-gate.ts remains 18/30 (PASS).
+                                  // Gap 18–21 = "passes publication bar, but still coached for CTR uplift".
 
 /**
  * Build a focused rewrite prompt from the failed checks.
