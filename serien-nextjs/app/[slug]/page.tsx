@@ -380,6 +380,19 @@ export default async function ArticlePage({ params }: PageProps) {
   const wordCount = plainText.trim().split(/\s+/).filter(Boolean).length;
   const readingMinutes = Math.max(1, Math.round(wordCount / 200));
 
+  // Cache-bust blob-hosted composite heroes: Vercel Blob serves `max-age=2592000`
+  // (30 days), and the blob URL is deterministic per articleId, so browsers
+  // never re-fetch after a hero regeneration unless the URL changes.
+  // We append `?v=<updatedAtMs>` only when the URL points at our own blob
+  // storage — TMDB CDN URLs are content-addressed and don't need busting.
+  const cacheBustHero = (url: string | null | undefined): string | null | undefined => {
+    if (!url) return url;
+    if (!url.includes('.blob.vercel-storage.com/articles/')) return url;
+    const v = toDate(article.updatedAt || article.publishedAt).getTime();
+    return url.includes('?') ? `${url}&v=${v}` : `${url}?v=${v}`;
+  };
+  const heroImageUrlCB = cacheBustHero(article.heroImageUrl);
+
   // Determine image URL
   const imageUrl = article.heroImagePath || 
     article.ogImageUrl || 
@@ -536,14 +549,14 @@ export default async function ArticlePage({ params }: PageProps) {
                         controls
                         playsInline
                         preload="metadata"
-                        poster={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
+                        poster={heroImageUrlCB || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : undefined)}
                       >
                         <source src={article.heroVideoUrl} type="video/mp4" />
                         Dein Browser unterstützt HTML5 Video nicht.
                       </video>
                     ) : (
                       <Image
-                        src={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                        src={heroImageUrlCB || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
                         alt={article.title}
                         fill
                         className="object-cover"
@@ -553,7 +566,7 @@ export default async function ArticlePage({ params }: PageProps) {
                   </div>
                 ) : (
                   <InlineVideoPlayer
-                    heroImageUrl={article.heroImageUrl || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
+                    heroImageUrl={heroImageUrlCB || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
                     trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
                     title={article.title}
                     fullWidth={false}
