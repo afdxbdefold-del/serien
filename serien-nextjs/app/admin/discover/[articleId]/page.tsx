@@ -123,7 +123,7 @@ export default async function DiscoverScoreDetail({ params }: PageProps) {
             </div>
             <div>
               <span className="text-gray-500">Bewertet:</span>{' '}
-              <span className="font-medium">{new Date(dashboard.timestamp).toLocaleString('de-DE')}</span>
+              <span className="font-medium">{new Date(dashboard.timestamp).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</span>
             </div>
             {article?.publishMode && (
               <div>

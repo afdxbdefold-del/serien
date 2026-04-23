@@ -138,11 +138,9 @@ function generateRelatedArticlesHtml(
 ): string {
   const links = articles.map(article => {
     const dateStr = article.publishedAt
-      ? new Date(article.publishedAt).toLocaleDateString('de-DE', {
-          day: '2-digit',
+      ? new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit',
           month: '2-digit',
-          year: 'numeric',
-        })
+          year: 'numeric', })
       : '';
     
     return `<li><a href="/${article.slug}" rel="follow">${article.title}</a> ${dateStr ? `(${dateStr})` : ''}</li>`;

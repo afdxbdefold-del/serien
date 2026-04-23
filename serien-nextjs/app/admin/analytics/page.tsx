@@ -272,7 +272,7 @@ export default function AnalyticsPage() {
             </button>
             {lastUpdate && (
               <span className="text-xs text-gray-500" data-testid="last-update">
-                {lastUpdate.toLocaleTimeString()}
+                {lastUpdate.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' })}
               </span>
             )}
           </div>

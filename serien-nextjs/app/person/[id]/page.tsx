@@ -29,7 +29,7 @@ function parsePersonId(id: string): number | null {
 function formatDate(date: Date | string | null): string {
   if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function calculateAge(birthDate: Date | string | null, deathDate?: Date | string | null): number | null {
@@ -202,12 +202,12 @@ export default async function PersonPage({ params }: PageProps) {
               <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
                 {birthday && (
                   <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
-                    * {new Date(birthday).toLocaleDateString('de-DE', { year: 'numeric' })}{age ? ` (${age} Jahre)` : ''}
+                    * {new Date(birthday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}{age ? ` (${age} Jahre)` : ''}
                   </span>
                 )}
                 {deathday && (
                   <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
-                    † {new Date(deathday).toLocaleDateString('de-DE', { year: 'numeric' })}
+                    † {new Date(deathday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}
                   </span>
                 )}
                 {birthPlace && (
@@ -360,7 +360,7 @@ export default async function PersonPage({ params }: PageProps) {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm md:text-lg mb-1 line-clamp-2 dark:text-white">{article.title}</h3>
                         <time className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                          {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('de-DE') : ''}
+                          {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }) : ''}
                         </time>
                       </div>
                     </a>

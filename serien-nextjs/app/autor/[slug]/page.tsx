@@ -279,11 +279,9 @@ export default async function AuthorPage({ params }: PageProps) {
                   '/og-image.png';
 
                 const publishedDate = new Date(article.publishedAt || article.createdAt);
-                const formattedDate = publishedDate.toLocaleDateString('de-DE', {
-                  year: 'numeric',
+                const formattedDate = publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric',
                   month: 'long',
-                  day: 'numeric',
-                });
+                  day: 'numeric', });
 
                 return (
                   <Link

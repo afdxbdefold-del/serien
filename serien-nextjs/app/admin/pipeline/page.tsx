@@ -426,9 +426,7 @@ export default function AdminPipelinePage() {
   const formatTime = (dateStr?: string | null) => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleString('de-DE', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-      });
+      return new Date(dateStr).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     } catch {
       return '-';
     }
@@ -1677,7 +1675,7 @@ export default function AdminPipelinePage() {
                           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                             <span>{video.channel.name}</span>
                             <span>•</span>
-                            <span>{new Date(video.publishedAt).toLocaleDateString('de-DE')}</span>
+                            <span>{new Date(video.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -1941,7 +1939,7 @@ function VideoQueueTab({ token }: { token: string }) {
                   <p className="text-sm text-gray-500">{item.resultPath}</p>
                 </div>
                 <span className="text-sm text-green-600">
-                  {item.completedAt ? new Date(item.completedAt).toLocaleString('de-DE') : '-'}
+                  {item.completedAt ? new Date(item.completedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }) : '-'}
                 </span>
               </div>
             ))}

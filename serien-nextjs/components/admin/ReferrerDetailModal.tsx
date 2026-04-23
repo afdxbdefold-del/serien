@@ -60,7 +60,7 @@ function fmtDuration(s: number | null): string {
 }
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(iso).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 export default function ReferrerDetailModal({

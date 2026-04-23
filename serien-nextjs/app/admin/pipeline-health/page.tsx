@@ -275,7 +275,7 @@ export default function PipelineHealthPage() {
                 {data?.totals.runs ?? '–'}
                 {lastFetch && (
                   <span className="ml-2">
-                    • Aktualisiert: {lastFetch.toLocaleTimeString('de-DE')}
+                    • Aktualisiert: {lastFetch.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' })}
                   </span>
                 )}
               </div>
@@ -441,7 +441,7 @@ export default function PipelineHealthPage() {
                         {a.title}
                       </div>
                       <div className="text-xs text-slate-500">
-                        {new Date(a.publishedAt).toLocaleString('de-DE')}
+                        {new Date(a.publishedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}
                       </div>
                     </div>
                     <Link
@@ -550,7 +550,7 @@ export default function PipelineHealthPage() {
                       data-testid={`failure-${f.id}`}
                     >
                       <td className="py-2 pr-3 text-slate-500 whitespace-nowrap text-xs">
-                        {new Date(f.at).toLocaleString('de-DE')}
+                        {new Date(f.at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}
                       </td>
                       <td className="py-2 pr-3">
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">

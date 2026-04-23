@@ -153,7 +153,7 @@ export default function RewriteLeaderboardPage() {
                         {entry.article?.slug && <span>/{entry.article.slug}</span>}
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {new Date(entry.startedAt).toLocaleDateString('de-DE')}
+                          {new Date(entry.startedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
                         </span>
                         {entry.article?.publishMode && (
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${

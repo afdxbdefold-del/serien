@@ -188,7 +188,7 @@ function NewsCard({ article }: { article: any }) {
           )}
           {article.publishedAt && (
             <span className="text-xs text-zinc-500">
-              {new Date(article.publishedAt).toLocaleDateString('de-DE')}
+              {new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
             </span>
           )}
         </div>

@@ -200,11 +200,9 @@ export default async function RTLPlusSerienPage() {
   // Format date helper
   const formatDate = (date: Date | null) => {
     if (!date) return 'TBA';
-    return new Date(date).toLocaleDateString('de-DE', { 
-      day: 'numeric', 
+    return new Date(date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', 
       month: 'short', 
-      year: 'numeric' 
-    });
+      year: 'numeric' });
   };
 
   // Get top series by rating

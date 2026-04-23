@@ -273,7 +273,7 @@ export default function HeadlineAnglesPage() {
                       <Link href={`/${s.slug}`} target="_blank" className="text-slate-800 hover:underline truncate block">
                         {s.title}
                       </Link>
-                      <span className="text-xs text-slate-400">{new Date(s.publishedAt).toLocaleString('de-DE')}</span>
+                      <span className="text-xs text-slate-400">{new Date(s.publishedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</span>
                     </div>
                     <div className="flex items-center gap-3 whitespace-nowrap">
                       <span

@@ -238,7 +238,7 @@ export default function HeadlineAnalyticsPage() {
                         <StatusBadge status={metric.status} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(metric.timestamp).toLocaleDateString('de-DE')}
+                        {new Date(metric.timestamp).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
                       </td>
                     </tr>
                   ))}

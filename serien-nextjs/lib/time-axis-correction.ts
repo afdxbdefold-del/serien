@@ -40,7 +40,7 @@ export function classifyContentAge(input: TimeAxisInput): TimeAxisResult {
   const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
 
   console.log(`⏰ Time Axis Check:`);
-  console.log(`   Source Date: ${sourceDate.toLocaleDateString()}`);
+  console.log(`   Source Date: ${sourceDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}`);
   console.log(`   Content Age: ${ageDays} days`);
 
   let contentAgeClass: ContentAgeClass;
@@ -88,7 +88,7 @@ export function classifyContentAge(input: TimeAxisInput): TimeAxisResult {
     console.log(`   🚫 Class: BACKGROUND (>${ageDays} days old)`);
     console.log(`   → Publish Mode: BACKGROUND ONLY`);
     console.log(`   → Discover: DISABLED`);
-    console.log(`   → PublishedAt: ${sourceDate.toLocaleDateString()} (original)`);
+    console.log(`   → PublishedAt: ${sourceDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })} (original)`);
     
     reasons.push(`Content is ${ageDays} days old - BACKGROUND only`);
     reasons.push('No Discover eligibility for old content');

@@ -189,7 +189,7 @@ export default function BrandingAdminPage() {
 
                     <div className="text-xs text-slate-400 pt-1">
                       Akzeptierte Formate: <code>{s.acceptedExts.join(', ')}</code> · max. {Math.round(s.maxSizeBytes/1024)} KB
-                      {s.current?.mtime && ` · zuletzt geändert: ${new Date(s.current.mtime).toLocaleString('de-DE')}`}
+                      {s.current?.mtime && ` · zuletzt geändert: ${new Date(s.current.mtime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}`}
                     </div>
 
                     {msgForSlot && (

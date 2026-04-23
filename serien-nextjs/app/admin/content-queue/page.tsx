@@ -216,7 +216,7 @@ export default function ContentQueuePage() {
                           </div>
                         </td>
                         <td style={{ padding: 12, verticalAlign: 'top', color: '#64748b', fontSize: 11 }}>
-                          {new Date(item.createdAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(item.createdAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td style={{ padding: 12, verticalAlign: 'top' }}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

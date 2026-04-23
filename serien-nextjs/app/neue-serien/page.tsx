@@ -177,19 +177,15 @@ export default async function NeueSerienPage() {
   // Format date helper
   const formatDate = (date: Date | null) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString('de-DE', { 
-      day: 'numeric', 
+    return new Date(date).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', 
       month: 'short', 
-      year: 'numeric' 
-    });
+      year: 'numeric' });
   };
 
   const formatTime = (date: Date | null) => {
     if (!date) return '';
-    return new Date(date).toLocaleTimeString('de-DE', { 
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return new Date(date).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit',
+      minute: '2-digit' });
   };
 
   // Sort providers by their order

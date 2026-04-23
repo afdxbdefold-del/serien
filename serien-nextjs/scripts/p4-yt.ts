@@ -839,7 +839,7 @@ ${tmdbData.firstAirDate ? `ERSTAUSSTRAHLUNG: ${tmdbData.firstAirDate}` : ''}
     const sourceText = `
 VIDEO-TITEL: ${video.title}
 KANAL: ${video.channelName}
-VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE')}
+VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
 
 VIDEO-BESCHREIBUNG:
 ${video.description || 'Keine Beschreibung verfügbar.'}

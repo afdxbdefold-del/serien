@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
       });
       
       chartData.push({
-        date: dayStart.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric' }),
+        date: dayStart.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: 'numeric' }),
         success: dayRuns.filter((r: any) => r.status === 'success').length,
         failed: dayRuns.filter((r: any) => r.status === 'failed').length,
         partial: dayRuns.filter((r: any) => r.status === 'partial').length,

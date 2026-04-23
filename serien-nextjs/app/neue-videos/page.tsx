@@ -119,7 +119,7 @@ function formatDate(dateInput: Date | string): string {
   if (hours < 1) return 'Gerade eben';
   if (hours < 24) return `vor ${hours} Stunde${hours > 1 ? 'n' : ''}`;
   if (days < 7) return `vor ${days} Tag${days > 1 ? 'en' : ''}`;
-  return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'short' });
 }
 
 // Channel logo colors

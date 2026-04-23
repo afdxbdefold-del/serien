@@ -49,11 +49,9 @@ function getNetworkStyle(network: string | null) {
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('de-DE', {
-    weekday: 'short',
+  return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short',
     day: '2-digit',
-    month: '2-digit'
-  });
+    month: '2-digit' });
 }
 
 function getWeekDates(offset: number = 0) {
@@ -259,11 +257,11 @@ export default async function KalenderPage({
                         <div className={`font-medium ${
                           isToday ? 'text-blue-300' : 'text-gray-300'
                         }`}>
-                          {date.toLocaleDateString('de-DE', { weekday: 'long' })}
+                          {date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'long' })}
                           {isToday && <span className="ml-2 text-blue-400 text-sm">(Heute)</span>}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                          {date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', month: 'long', year: 'numeric' })}
                         </div>
                       </div>
                     </div>

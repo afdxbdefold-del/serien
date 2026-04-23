@@ -281,7 +281,7 @@ export default function DiscoverAnalyticsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                          {new Date(metric.timestamp).toLocaleDateString('de-DE')}
+                          {new Date(metric.timestamp).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
                         </td>
                       </tr>
                     );

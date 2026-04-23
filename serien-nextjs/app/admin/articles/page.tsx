@@ -113,13 +113,11 @@ export default function AdminArticlesPage() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('de-DE', {
-      day: '2-digit',
+    return new Date(dateStr).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit' });
   };
 
   const getContentTypeBadge = (type: string) => {

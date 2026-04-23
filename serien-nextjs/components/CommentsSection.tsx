@@ -145,11 +145,9 @@ export default function CommentsSection({ articleSlug }: CommentsProps) {
                   <div className="flex items-center gap-3 mb-2">
                     <span className="font-semibold">{comment.user.name}</span>
                     <span className="text-sm text-gray-500">
-                      {new Date(comment.createdAt).toLocaleDateString('de-DE', {
-                        day: 'numeric',
+                      {new Date(comment.createdAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric',
                         month: 'long',
-                        year: 'numeric'
-                      })}
+                        year: 'numeric' })}
                     </span>
                   </div>
                   <p className="text-gray-700 leading-relaxed mb-3">
@@ -180,7 +178,7 @@ export default function CommentsSection({ articleSlug }: CommentsProps) {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-sm">{reply.user.name}</span>
                               <span className="text-xs text-gray-500">
-                                {new Date(reply.createdAt).toLocaleDateString('de-DE')}
+                                {new Date(reply.createdAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
                               </span>
                             </div>
                             <p className="text-gray-700 text-sm">{reply.content}</p>

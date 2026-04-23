@@ -159,7 +159,7 @@ function buildPrompt(input: StructuredContentInput): string {
   const sectionsNeeded = Math.ceil(wordCountTarget / 150); // ~150 words per section
   const targetSections = Math.max(3, Math.min(sectionsNeeded, 5)); // 3-5 sections
   
-  const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const today = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: 'long', year: 'numeric' });
   
   const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
 

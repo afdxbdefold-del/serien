@@ -419,7 +419,7 @@ export default function SeoAuditPage() {
                     {crawlRun.healthScore >= 80 ? 'Guter Zustand' : crawlRun.healthScore >= 60 ? 'Verbesserungsbedarf' : 'Kritisch'}
                   </p>
                   <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {new Date(crawlRun.startedAt).toLocaleString('de-DE')}
+                    <Clock className="w-3 h-3" /> {new Date(crawlRun.startedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}
                   </p>
                   <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                     Trigger: {crawlRun.trigger}
@@ -437,7 +437,7 @@ export default function SeoAuditPage() {
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-indigo-500" /> Vergleich zum letzten Audit
                   <span className="text-xs text-gray-400 font-normal ml-1">
-                    ({new Date(comparison.previousRun.startedAt).toLocaleDateString('de-DE')})
+                    ({new Date(comparison.previousRun.startedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })})
                   </span>
                 </h3>
                 <div className="flex flex-wrap gap-4">
@@ -537,7 +537,7 @@ export default function SeoAuditPage() {
                           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left text-sm transition ${selectedRunId === h.id ? 'ring-1 ring-cyan-300 bg-cyan-50 dark:bg-cyan-900/20' : ''}`}>
                           <span className={`text-lg font-bold w-8 ${scoreColor(h.healthScore)}`}>{h.healthScore}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500">{new Date(h.startedAt).toLocaleDateString('de-DE')}</p>
+                            <p className="text-xs text-gray-500">{new Date(h.startedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</p>
                             <p className="text-xs text-gray-400">{h.criticalCount}K / {h.warningCount}W / {h.infoCount}I</p>
                           </div>
                           <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{h.trigger}</span>

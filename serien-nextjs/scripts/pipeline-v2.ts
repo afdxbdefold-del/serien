@@ -213,7 +213,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       });
 
       if (recentRun) {
-        console.log(`⏭️  URL bereits erfolgreich verarbeitet (${new Date(recentRun.startedAt).toLocaleTimeString('de-DE')})`);
+        console.log(`⏭️  URL bereits erfolgreich verarbeitet (${new Date(recentRun.startedAt).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' })})`);
         console.log(`   → Überspringe. Manuelle Trigger umgehen diesen Check.`);
         await logger.fail('URL bereits verarbeitet (Dedup)', 'url-dedup');
         return null;

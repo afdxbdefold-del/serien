@@ -135,7 +135,7 @@ export default function BlocklistAdminPage() {
                   <div className="w-44 flex flex-col items-end text-right">
                     <div className="text-2xl font-bold text-slate-900 tabular-nums">{e.hits}</div>
                     <div className="text-xs text-slate-500 uppercase tracking-wider">Treffer</div>
-                    {e.lastHitAt && <div className="text-xs text-slate-400 mt-1">zuletzt: {new Date(e.lastHitAt).toLocaleString('de-DE')}</div>}
+                    {e.lastHitAt && <div className="text-xs text-slate-400 mt-1">zuletzt: {new Date(e.lastHitAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div>}
                     <div className="flex gap-1 mt-3">
                       <button onClick={() => toggle(e)} data-testid={`toggle-${e.id}`} title={e.enabled ? 'Deaktivieren' : 'Aktivieren'} className="p-2 rounded border border-slate-200 hover:bg-slate-50">
                         {e.enabled ? <ShieldCheck className="w-4 h-4 text-emerald-600"/> : <ShieldBan className="w-4 h-4 text-rose-600"/>}

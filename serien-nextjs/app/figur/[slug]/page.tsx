@@ -483,7 +483,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                       )}
                       <p className="text-xs text-gray-500 mt-1">
                         {article.publishedAt
-                          ? new Date(article.publishedAt).toLocaleDateString('de-DE')
+                          ? new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })
                           : ''}
                       </p>
                     </Link>

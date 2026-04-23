@@ -90,13 +90,13 @@ async function cleanupOldTrailers(options: CleanupOptions) {
       const toClean = sortedArticles.slice(1);
 
       console.log(`\n📺 Series ID ${seriesId}:`);
-      console.log(`   Keeping: "${toKeep.title}" (${toKeep.publishedAt?.toLocaleDateString()})`);
+      console.log(`   Keeping: "${toKeep.title}" (${toKeep.publishedAt?.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })})`);
       
       if (toClean.length > 0) {
         console.log(`   Cleaning: ${toClean.length} older trailer(s)`);
         
         for (const article of toClean) {
-          console.log(`     - "${article.title}" (${article.publishedAt?.toLocaleDateString()})`);
+          console.log(`     - "${article.title}" (${article.publishedAt?.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })})`);
         }
 
         if (!options.dryRun) {

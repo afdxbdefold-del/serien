@@ -142,11 +142,9 @@ export default function AdminSeriesPage() {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'Unbekannt';
-    return new Date(dateStr).toLocaleDateString('de-DE', {
-      year: 'numeric',
+    return new Date(dateStr).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric',
       month: 'long',
-      day: 'numeric'
-    });
+      day: 'numeric' });
   };
 
   return (

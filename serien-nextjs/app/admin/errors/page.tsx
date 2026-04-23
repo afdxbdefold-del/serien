@@ -141,7 +141,7 @@ export default async function ErrorsPage() {
                       {item.count}x
                     </span>
                     <span className="text-xs text-gray-400">
-                      {new Date(item.lastSeen).toLocaleDateString('de-DE')}
+                      {new Date(item.lastSeen).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}
                     </span>
                   </div>
                 </div>
@@ -175,12 +175,10 @@ export default async function ErrorsPage() {
                 {data.recent.map((error) => (
                   <tr key={error.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
-                      {new Date(error.createdAt).toLocaleString('de-DE', { 
-                        day: '2-digit', 
+                      {new Date(error.createdAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', 
                         month: '2-digit',
                         hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                        minute: '2-digit' })}
                     </td>
                     <td className="px-4 py-2">
                       <code className="text-xs font-mono text-gray-900 dark:text-white">
