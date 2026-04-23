@@ -4,6 +4,8 @@ import { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import { unstable_cache } from 'next/cache';
+import { getCurrentTop10 } from '@/lib/ranking-queries';
+import type { FlixpatrolPlatform } from '@/lib/flixpatrol-scraper';
 
 // ISR - Revalidate every 60 seconds for fresh content
 export const revalidate = 60;
@@ -256,6 +258,33 @@ export default async function Page() {
     network: Array.isArray(s.networks) ? s.networks[0] : s.networks,
   }));
 
+  // Top-10 rankings per streamer for the homepage carousel. Runs in parallel
+  // across platforms so the extra fetch latency is bounded by the slowest
+  // single query (~20ms typical). Silently degrades to `[]` if the
+  // ranking tables aren't populated yet.
+  const platforms: Array<{ id: FlixpatrolPlatform; label: string; accent: string }> = [
+    { id: 'hbo-max', label: 'HBO Max', accent: 'bg-gradient-to-r from-purple-600 to-indigo-600' },
+    { id: 'netflix', label: 'Netflix', accent: 'bg-gradient-to-r from-red-600 to-red-700' },
+    { id: 'disney-plus', label: 'Disney+', accent: 'bg-gradient-to-r from-blue-600 to-blue-800' },
+    { id: 'prime-video', label: 'Prime Video', accent: 'bg-gradient-to-r from-sky-500 to-cyan-600' },
+    { id: 'apple-tv', label: 'Apple TV+', accent: 'bg-gradient-to-r from-gray-700 to-gray-900' },
+    { id: 'paramount', label: 'Paramount+', accent: 'bg-gradient-to-r from-blue-500 to-sky-700' },
+  ];
+
+  let top10Blocks: Array<{ id: string; label: string; accent: string; items: any[] }> = [];
+  try {
+    const fetched = await Promise.all(
+      platforms.map(async (p) => ({
+        ...p,
+        items: await getCurrentTop10(p.id, 'germany', 'tv'),
+      })),
+    );
+    top10Blocks = fetched;
+  } catch (err) {
+    console.error('top10 fetch failed on home:', err);
+    top10Blocks = [];
+  }
+
   // Get the first article's hero image for preload
   const firstArticle = serializedArticles[0];
   const heroPreloadUrl = firstArticle?.tmdbId && firstArticle?.tmdbType 
@@ -278,6 +307,7 @@ export default async function Page() {
         stats={stats}
         isAuthenticated={isAuthenticated}
         streamingSeries={formattedStreamingSeries}
+        top10Blocks={top10Blocks}
       />
     </>
   );

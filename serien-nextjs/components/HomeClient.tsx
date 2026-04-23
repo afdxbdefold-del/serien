@@ -6,6 +6,7 @@ import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
 import AdUnit from './AdUnit';
+import StreamerTop10Carousel, { type PlatformBlock } from './StreamerTop10Carousel';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -29,9 +30,10 @@ interface HomeClientProps {
   stats: { series_total: number; news_total: number; series_german: number };
   isAuthenticated: boolean;
   streamingSeries?: any[];
+  top10Blocks?: PlatformBlock[];
 }
 
-export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [] }: HomeClientProps) {
+export default function HomeClient({ initialNews, initialSeries, stats, isAuthenticated, streamingSeries = [], top10Blocks = [] }: HomeClientProps) {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedStreamers, setSelectedStreamers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'feed'>('all');
@@ -344,6 +346,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           </div>
         </div>
+
+      {/* Top-10 Streamer Carousel — directly after news feed */}
+      {top10Blocks.length > 0 && <StreamerTop10Carousel platforms={top10Blocks} />}
 
     </main>
   );
