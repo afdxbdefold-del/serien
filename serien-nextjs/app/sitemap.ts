@@ -78,6 +78,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
+  // Web Story pages — one per published article. These feed Google Discover's
+  // dedicated Web Stories carousel (a separate surface from the feed), and
+  // must be listed in the sitemap for reliable discovery.
+  const webStoryPages: MetadataRoute.Sitemap = articles
+    .filter(a => !seriesSlugs.has(a.slug))
+    .map(a => ({
+      url: `${baseUrl}/web-stories/${a.slug}`,
+      lastModified: a.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
+
   // Series pages (exclude broken slugs like "-2661" from non-Latin titles)
   const seriesPages: MetadataRoute.Sitemap = series
     .filter(s => s.slug && !s.slug.startsWith('-'))
@@ -104,5 +116,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticPages, ...articlePages, ...seriesPages, ...personPages, ...characterPages];
+  return [...staticPages, ...articlePages, ...webStoryPages, ...seriesPages, ...personPages, ...characterPages];
 }
