@@ -434,6 +434,18 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
    ❌ VERBOTEN: "offiziell bestätigt", "im Überblick", "verständlich erklärt", "alles was ihr wissen müsst", "mit wichtigen Details".
    ✅ So schreibt ein Mensch: "Brooks verrät seine Romanze mit Rae" statt "Brooks erklärt offiziell die Beziehung zu Rae".
 
+5a) KEINE SCORE-REVEALS IN DER HEADLINE — das ist das Todes-Pattern für Discover.
+   Score-Zahlen (Rotten Tomatoes, Metacritic, IMDb-Rating) gehören in die Lead, NICHT in den Titel.
+   Sie verraten die komplette Story vorne weg und lassen keinen Grund zu klicken.
+   ❌ VERBOTEN: "100 Prozent bei Rotten Tomatoes", "98 % Rotten Tomatoes", "Rotten Tomatoes Score von X",
+                "IMDb-Wertung 9,2", "Metacritic 95", "Kritiker-Score von X %", "X % triumphiert",
+                "perfekt bei Rotten Tomatoes", "Topwertung bei Rotten Tomatoes".
+   ✅ Statt Score nennen → Score IMPLIZIEREN über Emotion:
+      "Warum Criminal Record Staffel 2 gerade einen Nerv trifft"        (Score wird in Lead genannt)
+      "Darum sind sich Kritiker bei Criminal Record diesmal einig"      (Open Loop zum Score)
+      "Criminal Record macht sofort, was wenigen Serien gelingt"        (Prestige ohne Zahl)
+   Faustregel: Wenn "Rotten Tomatoes", "Metacritic" oder "%" in der Headline auftaucht → DISQUALIFIZIERT.
+
 6) KEINE LABEL-TITEL (Colon-Pattern) — "Serie: Staffel X bestätigt" performt 20% schlechter als Aussagesatz.
    ✅ "Warum Wednesday Staffel 3 alles verändert"
    ❌ "Wednesday: Staffel 3 bei Netflix bestätigt"

@@ -220,6 +220,18 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'fans dürfen gespannt sein', penalty: -15 },
   { phrase: 'das erwartet uns', penalty: -15 },
   { phrase: 'das erwartet dich', penalty: -15 },
+  // --- SCORE-REVEAL KILLERS (Rotten Tomatoes / Metacritic / IMDb) ---
+  // Fatal for Discover: reveals the full payoff in the headline and leaves
+  // no reason to click. Score numbers belong in the lead, never the title.
+  { phrase: 'rotten tomatoes', penalty: -22 },
+  { phrase: 'metacritic', penalty: -22 },
+  { phrase: 'imdb-score', penalty: -20 },
+  { phrase: 'imdb-wertung', penalty: -20 },
+  { phrase: 'imdb rating', penalty: -18 },
+  { phrase: 'kritiker-score', penalty: -18 },
+  { phrase: 'kritikerwertung von', penalty: -15 },
+  { phrase: 'triumphiert mit', penalty: -15 }, // co-occurs with score reveals
+  { phrase: 'punkten bei', penalty: -15 },     // "mit X Punkten bei ..."
 ];
 
 // --- SOFT KILLERS (-6 to -12) ---
@@ -381,6 +393,21 @@ export function detectHardKillers(headline: string): Array<{ type: string; phras
   for (const k of HARD_KILLERS) {
     if (lower.includes(k.phrase)) {
       hits.push({ type: 'hard_killer', phrase: k.phrase, value: k.penalty });
+    }
+  }
+
+  // Numeric score-reveal patterns — fatal for Discover (full payoff in title).
+  // Matches: "100 %", "98%", "100 Prozent", "9,2/10", "9.2/10", "Score: 95"
+  const SCORE_PATTERNS: Array<{ re: RegExp; phrase: string }> = [
+    { re: /\b\d{1,3}\s*%/, phrase: '<score>%' },
+    { re: /\b\d{1,3}\s*prozent/i, phrase: '<score> Prozent' },
+    { re: /\b\d{1,2}[,.]\d\/10\b/, phrase: '<x>/10' },
+    { re: /\bscore[\s:]+\d/i, phrase: 'score: <n>' },
+  ];
+  for (const p of SCORE_PATTERNS) {
+    if (p.re.test(headline)) {
+      hits.push({ type: 'hard_killer', phrase: `score_reveal:${p.phrase}`, value: -20 });
+      break; // one pattern is enough — don't stack the penalty
     }
   }
 
