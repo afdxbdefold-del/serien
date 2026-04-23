@@ -78,8 +78,11 @@ export async function getCurrentTop10(
       title: r.title,
       tmdbId: r.tmdbId,
       slug: meta?.slug ?? null,
-      posterPath: meta?.posterLocalUrl || meta?.posterPath || null,
-      backdropPath: meta?.backdropPath ?? null,
+      // Prefer a fully-onboarded series poster; fall back to the opportunistic
+      // TMDB poster captured at ingest time (handles shows that aren't in our
+      // local series table yet).
+      posterPath: meta?.posterLocalUrl || meta?.posterPath || r.posterPath || null,
+      backdropPath: meta?.backdropPath ?? r.backdropPath ?? null,
       previousRank: prev,
     };
   });

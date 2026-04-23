@@ -15,6 +15,7 @@
  */
 
 import prisma from './prisma';
+import { searchTv, getTvDetails } from './tmdb';
 import {
   scrapeFlixpatrolTop10,
   FLIXPATROL_PLATFORMS,
@@ -25,6 +26,11 @@ import {
 interface MatchResult {
   tmdbId: number | null;
   matched: boolean;
+  /** When we did a live TMDB fallback, we can opportunistically keep the
+   *  fetched poster/backdrop so the UI has something even if we didn't
+   *  yet persist the series to our local table. */
+  posterPath?: string | null;
+  backdropPath?: string | null;
 }
 
 /** Normalize for comparison: lowercase, strip punctuation, collapse spaces. */
@@ -57,7 +63,7 @@ async function matchTmdbByTitle(title: string): Promise<MatchResult> {
         { originalName: { in: candidates, mode: 'insensitive' } },
       ],
     },
-    select: { tmdbId: true, name: true, title: true, originalName: true, popularity: true },
+    select: { tmdbId: true, name: true, title: true, originalName: true, popularity: true, posterPath: true, posterLocalUrl: true, backdropPath: true },
     orderBy: { popularity: 'desc' },
     take: 5,
   });
@@ -66,7 +72,23 @@ async function matchTmdbByTitle(title: string): Promise<MatchResult> {
     const winner = rows.find((r) =>
       [r.name, r.title, r.originalName].some((v) => v && normalized.includes(norm(v))),
     );
-    if (winner) return { tmdbId: winner.tmdbId, matched: true };
+    if (winner) {
+      // If the series exists locally but has no poster, fetch it now so the
+      // Top-10 UI doesn't render placeholders.
+      const hasPoster = winner.posterLocalUrl || winner.posterPath;
+      if (!hasPoster) {
+        try {
+          const details = await getTvDetails(winner.tmdbId, 'de-DE');
+          return {
+            tmdbId: winner.tmdbId,
+            matched: true,
+            posterPath: (details as any)?.poster_path || null,
+            backdropPath: (details as any)?.backdrop_path || null,
+          };
+        } catch {}
+      }
+      return { tmdbId: winner.tmdbId, matched: true };
+    }
   }
 
   // Fuzzy: LIKE on base title (covers cases like "Paradise (2025)" vs
@@ -79,18 +101,70 @@ async function matchTmdbByTitle(title: string): Promise<MatchResult> {
         { title: { contains: base, mode: 'insensitive' } },
       ],
     },
-    select: { tmdbId: true, name: true, popularity: true },
+    select: { tmdbId: true, name: true, popularity: true, posterPath: true, posterLocalUrl: true, backdropPath: true },
     orderBy: { popularity: 'desc' },
     take: 3,
   });
   if (likeRows.length > 0 && likeRows[0].name) {
-    // Only accept if normalized names share a hefty overlap to avoid
-    // false positives on common words
     const candidate = norm(likeRows[0].name);
     const target = norm(base);
     if (candidate.includes(target) || target.includes(candidate)) {
-      return { tmdbId: likeRows[0].tmdbId, matched: true };
+      const hit = likeRows[0];
+      const hasPoster = hit.posterLocalUrl || hit.posterPath;
+      if (!hasPoster) {
+        try {
+          const details = await getTvDetails(hit.tmdbId, 'de-DE');
+          return {
+            tmdbId: hit.tmdbId,
+            matched: true,
+            posterPath: (details as any)?.poster_path || null,
+            backdropPath: (details as any)?.backdrop_path || null,
+          };
+        } catch {}
+      }
+      return { tmdbId: hit.tmdbId, matched: true };
     }
+  }
+
+  // Live TMDB search fallback — covers shows that exist on TMDB but aren't
+  // in our local `series` table yet (e.g. ingest-day-new imports, non-German
+  // titles). Accept path:
+  //   1. TMDB result name matches our input title exactly (case+punct-insensitive)
+  //   2. OR confidence ≥ 0.6 (string match + popularity, not too strict)
+  try {
+    const tmdbResult = await searchTv(title);
+    if (tmdbResult) {
+      const resultName = norm(tmdbResult.name);
+      const inputName = norm(title);
+      const exactMatch = resultName === inputName || resultName.includes(inputName) || inputName.includes(resultName);
+      if (exactMatch || tmdbResult.confidence >= 0.6) {
+        return {
+          tmdbId: tmdbResult.tmdbId,
+          matched: true,
+          posterPath: tmdbResult.posterPath,
+          backdropPath: tmdbResult.backdropPath,
+        };
+      }
+    }
+    // second attempt with stripped base title ("Y: Marshals" → "Y")
+    if (base !== title) {
+      const alt = await searchTv(base);
+      if (alt) {
+        const altName = norm(alt.name);
+        const baseNorm = norm(base);
+        const exactMatch = altName === baseNorm || altName.includes(baseNorm) || baseNorm.includes(altName);
+        if (exactMatch || alt.confidence >= 0.7) {
+          return {
+            tmdbId: alt.tmdbId,
+            matched: true,
+            posterPath: alt.posterPath,
+            backdropPath: alt.backdropPath,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    // TMDB outage → silently fall through to unmatched
   }
 
   return { tmdbId: null, matched: false };
@@ -119,7 +193,26 @@ export async function ingestFlixpatrolPlatform(
 
   const upsert = async (entry: FlixpatrolEntry, type: 'tv' | 'movie') => {
     // Only TMDB-match TV shows — movies are out of scope for this product
-    const match = type === 'tv' ? await matchTmdbByTitle(entry.title) : { tmdbId: null, matched: false };
+    let match = type === 'tv' ? await matchTmdbByTitle(entry.title) : { tmdbId: null, matched: false };
+
+    // Last-resort poster backfill: if we still don't have a poster after all
+    // matching paths, do one more TMDB search and accept any non-empty result
+    // with a poster. This handles shows whose TMDB name differs substantially
+    // from the FlixPatrol title (e.g. Korean / Spanish / German originals).
+    if (type === 'tv' && !match.posterPath) {
+      try {
+        const last = await searchTv(entry.title);
+        if (last?.posterPath) {
+          match = {
+            tmdbId: match.tmdbId ?? last.tmdbId,
+            matched: true,
+            posterPath: last.posterPath,
+            backdropPath: last.backdropPath,
+          };
+        }
+      } catch {}
+    }
+
     if (match.matched) matched++; else if (type === 'tv') unmatched++;
 
     await prisma.streamer_rankings.upsert({
@@ -137,6 +230,8 @@ export async function ingestFlixpatrolPlatform(
         slug: entry.slug,
         tmdbId: match.tmdbId,
         tmdbMatched: match.matched,
+        posterPath: match.posterPath ?? null,
+        backdropPath: match.backdropPath ?? null,
       },
       create: {
         platform,
@@ -148,6 +243,8 @@ export async function ingestFlixpatrolPlatform(
         slug: entry.slug,
         tmdbId: match.tmdbId,
         tmdbMatched: match.matched,
+        posterPath: match.posterPath ?? null,
+        backdropPath: match.backdropPath ?? null,
       },
     });
   };

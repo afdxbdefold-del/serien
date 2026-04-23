@@ -726,6 +726,11 @@ model streamer_rankings {
   slug          String   // external slug (for reference only)
   tmdbId        Int?     // resolved against our TMDB series table
   tmdbMatched   Boolean  @default(false)
+  // Opportunistic poster/backdrop cache: set at ingest time when the series
+  // isn't in our local `series` table but TMDB returned a match. Lets the
+  // UI render covers even before the main pipeline onboards the series.
+  posterPath    String?
+  backdropPath  String?
   createdAt     DateTime @default(now())
 
   @@unique([platform, country, type, date, rank])
