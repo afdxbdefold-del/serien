@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { ingestAllPlatforms } from '@/lib/flixpatrol-ingest';
 
 export const maxDuration = 300;
@@ -36,6 +37,16 @@ export async function GET(request: NextRequest) {
     const totalMovies = results.reduce((a, r) => a + r.moviesInserted, 0);
     const totalMatched = results.reduce((a, r) => a + r.matched, 0);
     const totalUnmatched = results.reduce((a, r) => a + r.unmatched, 0);
+
+    // Purge ISR / edge cache for pages driven by streamer_rankings so the
+    // fresh Top-10 data is visible immediately, not after the 30 min TTL.
+    try {
+      revalidatePath('/top-10', 'page');
+      revalidatePath('/', 'page'); // home-page Top-10 carousel
+    } catch (e: any) {
+      console.warn('[flixpatrol cron] revalidatePath failed:', e?.message);
+    }
+
     return NextResponse.json({
       ok: true,
       durationMs: Date.now() - start,
