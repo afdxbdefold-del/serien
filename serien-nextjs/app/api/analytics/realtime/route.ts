@@ -145,28 +145,27 @@ export async function GET() {
       data: { isActive: false },
     });
 
-    // Active users right now (last 5 minutes) — exclude bots + suspicious behavior
+    // Active users right now — sessions with recent heartbeat (last 5 min).
+    // Previously we also required `totalDuration > 0 OR startedAt < 10s ago`,
+    // but `totalDuration` is only filled on `page_exit` (beacon). A user who
+    // landed 30s ago and is still reading has totalDuration=0, so that filter
+    // dropped 90% of real live users after 10 seconds. Use pageViews instead —
+    // it gets incremented on every tracked page_view, so any real session has
+    // pageViews ≥ 1 from its first heartbeat.
     const activeUsers = await prisma.analytics_sessions.count({
-      where: { 
-        isActive: true, 
+      where: {
+        isActive: true,
         ...notBot,
-        // Exclude sessions with no heartbeat (bots don't send heartbeats)
-        OR: [
-          { totalDuration: { gt: 0 } },
-          { startedAt: { gte: new Date(now.getTime() - 10 * 1000) } }, // Allow brand new sessions
-        ],
+        pageViews: { gt: 0 },
       },
     });
 
-    // Get active sessions with details — exclude bots + suspicious
+    // Get active sessions with details — same relaxed filter as above
     const activeSessions = await prisma.analytics_sessions.findMany({
-      where: { 
-        isActive: true, 
+      where: {
+        isActive: true,
         ...notBot,
-        OR: [
-          { totalDuration: { gt: 0 } },
-          { startedAt: { gte: new Date(now.getTime() - 10 * 1000) } },
-        ],
+        pageViews: { gt: 0 },
       },
       orderBy: { lastSeenAt: 'desc' },
       take: 50,
@@ -353,13 +352,16 @@ export async function GET() {
       _count: { sessionId: true },
     });
 
-    // Average session duration today (exclude bots)
+    // Average session duration today (exclude bots).
+    // Filter `totalDuration > 0` so sessions that never fired a page_exit
+    // beacon (ad-blockers, browser crashes, tab-close mid-navigation) don't
+    // drag the average to zero.
     const avgDurationToday = await prisma.analytics_sessions.aggregate({
-      where: { startedAt: { gte: todayStart }, totalDuration: { not: null }, ...notBot },
+      where: { startedAt: { gte: todayStart }, totalDuration: { gt: 0 }, ...notBot },
       _avg: { totalDuration: true },
     });
     const avgDurationYesterday = await prisma.analytics_sessions.aggregate({
-      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, totalDuration: { not: null }, ...notBot },
+      where: { startedAt: { gte: yesterdayStart, lt: todayStart }, totalDuration: { gt: 0 }, ...notBot },
       _avg: { totalDuration: true },
     });
 

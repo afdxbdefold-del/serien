@@ -116,7 +116,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // On page_exit, update engagement data
+    // On page_exit, update engagement data.
+    // IMPORTANT: `totalDuration` gets INCREMENTED (not set) because a single
+    // session has multiple page_exit events (one per page). Previously we
+    // overwrote it, so a 3-page session reported only the LAST page's time
+    // — dragged the Verweildauer metric down by 2–4× on the dashboard.
     if (event === 'page_exit' && duration !== undefined) {
       const engagement = metadata?.engagement || 'low';
       // If user stayed > 10s and scrolled > 25%, not a bounce even with 1 pageview
@@ -125,7 +129,7 @@ export async function POST(request: NextRequest) {
       await prisma.analytics_sessions.update({
         where: { sessionId },
         data: {
-          totalDuration: duration,
+          totalDuration: { increment: duration },
           avgScrollDepth: scrollDepth || 0,
           engagementScore: engagement,
           ...(notBounce ? { isBounce: false } : {}),

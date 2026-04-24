@@ -340,6 +340,11 @@ function AnalyticsTrackerInner() {
     if (scroll >= 75 && duration >= 60) engagement = 'high';
     else if (scroll >= 25 && duration >= 15) engagement = 'medium';
 
+    // CRITICAL: include `_ht` human-token. The track endpoint filters every
+    // payload without a valid `_ht` as a bot. Without it, every page_exit
+    // got silently dropped → `totalDuration` stayed 0 for every real
+    // session → Verweildauer was broken AND Live-User filter (which
+    // required totalDuration > 0) rejected every reader after 10s.
     navigator.sendBeacon('/api/analytics/track', JSON.stringify({
       visitorId: getVisitorId(),
       sessionId: getSessionId(),
@@ -348,6 +353,7 @@ function AnalyticsTrackerInner() {
       duration,
       scrollDepth: scroll,
       metadata: { engagement },
+      _ht: generateHumanToken(),
     }));
   }, [pathname]);
 
