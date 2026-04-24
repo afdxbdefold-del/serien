@@ -95,4 +95,50 @@ export async function indexNewArticle(slug: string): Promise<void> {
   } else {
     console.log(`   Google Indexing: Fehler bei "${slug}" - ${result.error}`);
   }
+
+  // Prewarm News-Sitemap: purge Vercel Edge Cache so the next Googlebot fetch
+  // sees the new <url> entry + refreshed Last-Modified immediately instead of
+  // waiting for the 60s CDN TTL to expire.
+  await prewarmNewsSitemap();
+}
+
+/**
+ * Triggers revalidation of /news-sitemap.xml via an internal server-to-server
+ * call to /api/internal/revalidate-sitemap. Authenticated with JWT_SECRET.
+ * Silent no-op if prerequisites are missing (e.g. local script context without
+ * a reachable baseUrl). Safe to call from anywhere, including standalone
+ * Node.js scripts.
+ */
+export async function prewarmNewsSitemap(): Promise<{ success: boolean; error?: string }> {
+  const baseUrl = process.env.GOOGLE_INDEXING_BASE_URL || 'https://serien.de';
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    console.log('   Sitemap-Prewarm: JWT_SECRET fehlt - übersprungen');
+    return { success: false, error: 'JWT_SECRET missing' };
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/internal/revalidate-sitemap`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      // Don't let a stalled edge hang the pipeline
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (response.ok) {
+      console.log(`   Sitemap-Prewarm: OK (${response.status})`);
+      return { success: true };
+    }
+
+    const text = await response.text().catch(() => '');
+    console.log(`   Sitemap-Prewarm: ${response.status} - ${text.substring(0, 100)}`);
+    return { success: false, error: `${response.status}: ${text.substring(0, 100)}` };
+  } catch (error: any) {
+    console.log(`   Sitemap-Prewarm Fehler: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 }
