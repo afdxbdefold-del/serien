@@ -23,9 +23,9 @@
  */
 import sharp from 'sharp';
 import { put } from '@vercel/blob';
-import fs from 'fs';
-import path from 'path';
 import opentype from 'opentype.js';
+import fontBlackB64 from './fonts/NotoSans-Black.base64';
+import fontMediumB64 from './fonts/NotoSans-Medium.base64';
 
 const CYAN = '#13bfe0';
 const NAVY = '#062344';
@@ -37,14 +37,23 @@ const WHITE = '#ffffff';
 let fontBlack: opentype.Font | null = null;
 let fontMedium: opentype.Font | null = null;
 
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const buf = Buffer.from(b64, 'base64');
+  // Return a fresh ArrayBuffer, not a view on pooled Buffer memory.
+  const ab = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(ab).set(buf);
+  return ab;
+}
+
 function loadFonts() {
   if (fontBlack && fontMedium) return;
-  const root = path.join(process.cwd(), 'assets', 'fonts');
   try {
-    // opentype.loadSync expects a file path and handles the binary parsing
-    // internally. This avoids the `Buffer.buffer` offset/slicing pitfall.
-    fontBlack = opentype.loadSync(path.join(root, 'NotoSans-Black.ttf'));
-    fontMedium = opentype.loadSync(path.join(root, 'NotoSans-Medium.ttf'));
+    // Parse from bundled base64 data — works identically on every runtime
+    // (Vercel serverless, Node dev, edge). Previously we tried loadSync()
+    // against assets/fonts/ which is NOT shipped in the Vercel lambda
+    // filesystem → fonts silently missing → tofu-boxes in the hero.
+    fontBlack = opentype.parse(base64ToArrayBuffer(fontBlackB64));
+    fontMedium = opentype.parse(base64ToArrayBuffer(fontMediumB64));
   } catch (err) {
     console.error('[compose-article-hero] font load failed:', (err as any)?.message);
   }
