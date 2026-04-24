@@ -76,77 +76,23 @@ export async function notifyGoogleIndexing(
  * Benachrichtigt Google über einen neuen Artikel
  * Wird nach der Veröffentlichung in der Pipeline aufgerufen
  * Nutzt immer die Production-Domain (nicht Preview/Vercel URLs)
+ *
+ * Historisch gab es hier zusätzliche Sitemap-Pings an
+ *   - https://www.google.com/ping?sitemap=…
+ *   - https://pubsubhubbub.appspot.com/publish
+ * Beide wurden von Google 2023 offiziell abgeschaltet und geben nur noch
+ * 404/410 zurück. Sitemap-Updates werden jetzt rein über HTTP
+ * Last-Modified / If-Modified-Since auf /news-sitemap.xml signalisiert.
  */
 export async function indexNewArticle(slug: string): Promise<void> {
   const baseUrl = process.env.GOOGLE_INDEXING_BASE_URL || 'https://serien.de';
   const articleUrl = `${baseUrl}/${slug}`;
-  
-  // 1. Google Indexing API (URL-spezifisch)
+
   const result = await notifyGoogleIndexing(articleUrl, 'URL_UPDATED');
-  
+
   if (result.success) {
     console.log(`   Google Indexing: Artikel "${slug}" erfolgreich gemeldet`);
   } else {
     console.log(`   Google Indexing: Fehler bei "${slug}" - ${result.error}`);
-  }
-  
-  // 2. Google Sitemap Ping (direkter GET-Ping)
-  await pingGoogleSitemap();
-  
-  // 3. Google PubSubHubbub Sitemap-Ping
-  await pingSitemapToGoogle();
-}
-
-/**
- * Pingt Google direkt via /ping?sitemap= Endpoint.
- * https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap#addsitemap
- */
-export async function pingGoogleSitemap(): Promise<{ success: boolean; error?: string }> {
-  const sitemapUrl = 'https://serien.de/news-sitemap.xml';
-  const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-  
-  try {
-    const response = await fetch(pingUrl);
-    
-    if (response.ok) {
-      console.log(`   Google Ping: OK (${response.status})`);
-      return { success: true };
-    }
-    
-    console.log(`   Google Ping: ${response.status}`);
-    return { success: false, error: `${response.status}` };
-  } catch (error: any) {
-    console.log(`   Google Ping Fehler: ${error.message}`);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Pingt Google via PubSubHubbub/WebSub dass die News-Sitemap aktualisiert wurde.
- * Dies ist der offiziell empfohlene Weg um Google ueber Sitemap-Aenderungen zu informieren.
- * https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap#addsitemap
- */
-export async function pingSitemapToGoogle(): Promise<{ success: boolean; error?: string }> {
-  const sitemapUrl = 'https://serien.de/news-sitemap.xml';
-  
-  try {
-    // PubSubHubbub/WebSub Ping
-    const response = await fetch('https://pubsubhubbub.appspot.com/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `hub.mode=publish&hub.url=${encodeURIComponent(sitemapUrl)}`,
-    });
-    
-    if (response.ok || response.status === 204) {
-      console.log(`   Sitemap-Ping: Google PubSubHubbub OK (${response.status})`);
-      return { success: true };
-    }
-    
-    const text = await response.text().catch(() => '');
-    console.log(`   Sitemap-Ping: PubSubHubbub ${response.status} - ${text.substring(0, 100)}`);
-    return { success: false, error: `${response.status}: ${text.substring(0, 100)}` };
-  } catch (error: any) {
-    console.log(`   Sitemap-Ping Fehler: ${error.message}`);
-    return { success: false, error: error.message };
   }
 }
