@@ -1,5 +1,50 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+/**
+ * Shared bot-filter SQL fragment. MUST stay in lock-step with the Prisma
+ * `notBot` object below — every pattern here is also there, and vice versa.
+ * Raw SQL ILIKE is case-insensitive so we don't need separate casings.
+ *
+ * Why this exists: we had a drift bug where raw-SQL counters (pageViews,
+ * uniqueVisitors, topPages, trafficSources) filtered a subset of what
+ * Prisma queries filtered. Result: ~15 % of bot traffic (Applebot, GPTBot,
+ * ClaudeBot, CCBot, Twitterbot, facebookexternalhit, Amazonbot, Bytespider,
+ * PetalBot, DataForSeoBot, Puppeteer, axios, python-requests, node-fetch,
+ * null/empty UAs) was counted as real DACH users.
+ */
+const BOT_FILTER_SQL = Prisma.sql`
+  AND s."userAgent" IS NOT NULL
+  AND s."userAgent" <> ''
+  AND s."userAgent" NOT ILIKE '%bot%'
+  AND s."userAgent" NOT ILIKE '%crawl%'
+  AND s."userAgent" NOT ILIKE '%spider%'
+  AND s."userAgent" NOT ILIKE '%Cookiebot%'
+  AND s."userAgent" NOT ILIKE '%Mediapartners%'
+  AND s."userAgent" NOT ILIKE '%Lighthouse%'
+  AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+  AND s."userAgent" NOT ILIKE '%Puppeteer%'
+  AND s."userAgent" NOT ILIKE '%Go-http-client%'
+  AND s."userAgent" NOT ILIKE '%python-requests%'
+  AND s."userAgent" NOT ILIKE '%axios/%'
+  AND s."userAgent" NOT ILIKE '%node-fetch%'
+  AND s."userAgent" NOT ILIKE '%Applebot%'
+  AND s."userAgent" NOT ILIKE '%Bytespider%'
+  AND s."userAgent" NOT ILIKE '%PetalBot%'
+  AND s."userAgent" NOT ILIKE '%Amazonbot%'
+  AND s."userAgent" NOT ILIKE '%facebookexternalhit%'
+  AND s."userAgent" NOT ILIKE '%Twitterbot%'
+  AND s."userAgent" NOT ILIKE '%WhatsApp%'
+  AND s."userAgent" NOT ILIKE '%Discordbot%'
+  AND s."userAgent" NOT ILIKE '%TelegramBot%'
+  AND s."userAgent" NOT ILIKE '%DataForSeoBot%'
+  AND s."userAgent" NOT ILIKE '%ClaudeBot%'
+  AND s."userAgent" NOT ILIKE '%GPTBot%'
+  AND s."userAgent" NOT ILIKE '%CCBot%'
+`;
+
+const DACH_SQL = Prisma.sql`AND s.country IN ('DE', 'AT', 'CH')`;
 
 /**
  * Compute the Date object that corresponds to midnight in Europe/Berlin
@@ -88,8 +133,8 @@ export async function GET() {
       ],
     };
 
-    // DACH SQL filter for raw queries
-    const DACH_SQL = `AND s.country IN ('DE', 'AT', 'CH')`;
+    // DACH SQL filter for raw queries — see BOT_FILTER_SQL comment for the
+    // rationale. Using Prisma.sql lets us compose these into $queryRaw.
 
     // Mark old sessions as inactive
     await prisma.analytics_sessions.updateMany({
@@ -140,114 +185,76 @@ export async function GET() {
     });
 
     // Page views last hour (DACH only + exclude bots)
-    const [pvLastHour] = await prisma.$queryRaw`
+    const [pvLastHour] = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${oneHourAgo}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-    ` as { count: bigint }[];
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
+    `;
     const pageViewsLastHour = Number(pvLastHour?.count || 0);
 
     // Page views today (exclude bot sessions via JOIN + DACH only)
-    const [pvToday] = await prisma.$queryRaw`
+    const [pvToday] = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%'
-        AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%'
-        AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%'
-        AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-    ` as { count: bigint }[];
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
+    `;
     const pageViewsToday = Number(pvToday?.count || 0);
 
     // Unique visitors today (exclude bots + DACH only)
-    const uvToday = await prisma.$queryRaw`
+    const uvToday = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(DISTINCT e."visitorId") as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%'
-        AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%'
-        AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%'
-        AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-    ` as { count: bigint }[];
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
+    `;
     const uniqueVisitorsTodayCount = Number(uvToday[0]?.count || 0);
 
     // Page views yesterday (exclude bots + DACH only)
-    const [pvYesterday] = await prisma.$queryRaw`
+    const [pvYesterday] = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%'
-        AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%'
-        AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%'
-        AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-    ` as { count: bigint }[];
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
+    `;
     const pageViewsYesterday = Number(pvYesterday?.count || 0);
 
-    // Bot filter SQL clause (reusable)
-    const BOT_FILTER = `
-        AND s."userAgent" NOT ILIKE '%bot%'
-        AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%'
-        AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%'
-        AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'`;
+    // Bot filter SQL clause — centralized in BOT_FILTER_SQL (see top of file).
 
     // Top pages right now (exclude bots + DACH only)
-    const topPagesNow = await prisma.$queryRaw`
+    const topPagesNow = await prisma.$queryRaw<{ path: string; count: bigint }[]>`
       SELECT e.path, COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${fiveMinutesAgo}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY e.path ORDER BY count DESC LIMIT 10
-    ` as { path: string; count: bigint }[];
+    `;
 
     // Top pages today (exclude bots + DACH only)
-    const topPagesToday = await prisma.$queryRaw`
+    const topPagesToday = await prisma.$queryRaw<{ path: string; count: bigint }[]>`
       SELECT e.path, COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY e.path ORDER BY count DESC LIMIT 10
-    ` as { path: string; count: bigint }[];
+    `;
 
     // Traffic sources (exclude bots + DACH only)
-    const trafficSources = await prisma.$queryRaw`
+    const trafficSources = await prisma.$queryRaw<{ source: string; count: bigint }[]>`
       SELECT e.referrer as source, COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${todayStart} AND e.referrer IS NOT NULL
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY e.referrer HAVING COUNT(*) >= 1 ORDER BY count DESC LIMIT 500
-    ` as { source: string; count: bigint }[];
+    `;
 
     // Device breakdown (from sessions, not events — more accurate)
     const devices = await prisma.analytics_sessions.groupBy({
@@ -265,23 +272,24 @@ export async function GET() {
       take: 10,
     });
 
-    // Page views per hour (last 24h, exclude bots + DACH only)
-    const hourlyData = await prisma.$queryRaw`
+    // Page views per hour — today only (Berlin midnight → now), exclude bots.
+    // Fix: previously used `NOW() - INTERVAL '24 hours'` (rolling 24h), which
+    // did not align with `todayStart` used elsewhere → the hourly chart and
+    // the "today" total could disagree by whole hours. Locked to the same
+    // Berlin-midnight anchor now.
+    const hourlyData = await prisma.$queryRaw<{ hour: Date; views: bigint }[]>`
       SELECT 
         DATE_TRUNC('hour', e."createdAt") as hour,
         COUNT(*) as views
       FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' 
-        AND e."createdAt" >= NOW() - INTERVAL '24 hours'
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        AND e."createdAt" >= ${todayStart}
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY DATE_TRUNC('hour', e."createdAt")
       ORDER BY hour ASC
-    ` as { hour: Date; views: bigint }[];
+    `;
 
     // ========== NEW METRICS ==========
 
@@ -384,44 +392,35 @@ export async function GET() {
     // ========== YESTERDAY DATA ==========
     
     // Unique visitors yesterday (exclude bots + DACH only)
-    const uvYesterday = await prisma.$queryRaw`
+    const uvYesterday = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(DISTINCT e."visitorId") as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
-    ` as { count: bigint }[];
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
+    `;
     const uniqueVisitorsYesterdayCount = Number(uvYesterday[0]?.count || 0);
 
     // Top pages yesterday (exclude bots + DACH only)
-    const topPagesYesterday = await prisma.$queryRaw`
+    const topPagesYesterday = await prisma.$queryRaw<{ path: string; count: bigint }[]>`
       SELECT e.path, COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY e.path ORDER BY count DESC LIMIT 10
-    ` as { path: string; count: bigint }[];
+    `;
 
     // Traffic sources yesterday (exclude bots + DACH only)
-    const trafficSourcesYesterday = await prisma.$queryRaw`
+    const trafficSourcesYesterday = await prisma.$queryRaw<{ source: string; count: bigint }[]>`
       SELECT e.referrer as source, COUNT(*) as count FROM analytics_events e
       JOIN analytics_sessions s ON e."sessionId" = s."sessionId"
       WHERE e.event = 'page_view' AND e."createdAt" >= ${yesterdayStart} AND e."createdAt" < ${todayStart}
         AND e.referrer IS NOT NULL
-        AND s.country IN ('DE', 'AT', 'CH')
-        AND s."userAgent" NOT ILIKE '%bot%' AND s."userAgent" NOT ILIKE '%crawl%'
-        AND s."userAgent" NOT ILIKE '%spider%' AND s."userAgent" NOT ILIKE '%Cookiebot%'
-        AND s."userAgent" NOT ILIKE '%Mediapartners%' AND s."userAgent" NOT ILIKE '%Lighthouse%'
-        AND s."userAgent" NOT ILIKE '%HeadlessChrome%'
+        ${DACH_SQL}
+        ${BOT_FILTER_SQL}
       GROUP BY e.referrer HAVING COUNT(*) >= 1 ORDER BY count DESC LIMIT 500
-    ` as { source: string; count: bigint }[];
+    `;
 
     // Devices yesterday (from sessions — exclude bots)
     const devicesYesterday = await prisma.analytics_sessions.groupBy({
