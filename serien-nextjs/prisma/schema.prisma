@@ -739,3 +739,21 @@ model streamer_rankings {
 }
 
 
+
+/// Sitemap-Prewarm Audit-Log.
+/// Jede Pipeline ruft nach Publish /api/internal/revalidate-sitemap auf, um den
+/// Vercel Edge Cache für /news-sitemap.xml zu invalidieren. Wir persistieren
+/// das Ergebnis hier, damit das Admin-"Sitemap Health"-Widget zeigen kann, ob
+/// der letzte Prewarm erfolgreich war und wie schnell er reagiert hat.
+model sitemap_prewarm_log {
+  id           String   @id @default(cuid())
+  articleSlug  String?
+  success      Boolean
+  statusCode   Int?
+  errorMessage String?  @db.Text
+  durationMs   Int?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+

@@ -18,6 +18,7 @@ import {
   Shield,
 } from 'lucide-react';
 import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
+import SitemapHealthCard from '@/components/admin/SitemapHealthCard';
 
 type Health = 'ok' | 'warn' | 'critical';
 
@@ -461,6 +462,9 @@ export default function PipelineHealthPage() {
 
         {/* Crawler stats */}
         <CrawlerStatsCard />
+
+        {/* Sitemap health (Googlebot cadence + prewarm log) */}
+        <SitemapHealthCard />
 
         {/* Duplicate prevention */}
         <section

@@ -99,22 +99,46 @@ export async function indexNewArticle(slug: string): Promise<void> {
   // Prewarm News-Sitemap: purge Vercel Edge Cache so the next Googlebot fetch
   // sees the new <url> entry + refreshed Last-Modified immediately instead of
   // waiting for the 60s CDN TTL to expire.
-  await prewarmNewsSitemap();
+  await prewarmNewsSitemap(slug);
 }
 
 /**
  * Triggers revalidation of /news-sitemap.xml via an internal server-to-server
  * call to /api/internal/revalidate-sitemap. Authenticated with JWT_SECRET.
- * Silent no-op if prerequisites are missing (e.g. local script context without
- * a reachable baseUrl). Safe to call from anywhere, including standalone
- * Node.js scripts.
+ * Persists the outcome to sitemap_prewarm_log for the admin "Sitemap Health"
+ * widget. Safe to call from anywhere, including standalone Node.js scripts.
  */
-export async function prewarmNewsSitemap(): Promise<{ success: boolean; error?: string }> {
+export async function prewarmNewsSitemap(
+  articleSlug: string | null = null,
+): Promise<{ success: boolean; error?: string }> {
   const baseUrl = process.env.GOOGLE_INDEXING_BASE_URL || 'https://serien.de';
   const secret = process.env.JWT_SECRET;
+  const start = Date.now();
+
+  const persist = async (
+    success: boolean,
+    statusCode: number | null,
+    errorMessage: string | null,
+  ) => {
+    try {
+      const { default: prisma } = await import('./prisma');
+      await prisma.sitemap_prewarm_log.create({
+        data: {
+          articleSlug,
+          success,
+          statusCode: statusCode ?? undefined,
+          errorMessage: errorMessage ?? undefined,
+          durationMs: Date.now() - start,
+        },
+      });
+    } catch (e: any) {
+      console.log(`   Sitemap-Prewarm Log DB-Fehler: ${e.message}`);
+    }
+  };
 
   if (!secret) {
     console.log('   Sitemap-Prewarm: JWT_SECRET fehlt - übersprungen');
+    await persist(false, null, 'JWT_SECRET missing');
     return { success: false, error: 'JWT_SECRET missing' };
   }
 
@@ -131,14 +155,17 @@ export async function prewarmNewsSitemap(): Promise<{ success: boolean; error?: 
 
     if (response.ok) {
       console.log(`   Sitemap-Prewarm: OK (${response.status})`);
+      await persist(true, response.status, null);
       return { success: true };
     }
 
     const text = await response.text().catch(() => '');
     console.log(`   Sitemap-Prewarm: ${response.status} - ${text.substring(0, 100)}`);
+    await persist(false, response.status, text.substring(0, 200));
     return { success: false, error: `${response.status}: ${text.substring(0, 100)}` };
   } catch (error: any) {
     console.log(`   Sitemap-Prewarm Fehler: ${error.message}`);
+    await persist(false, null, error.message);
     return { success: false, error: error.message };
   }
 }
