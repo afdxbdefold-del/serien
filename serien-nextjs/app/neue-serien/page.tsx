@@ -192,12 +192,34 @@ const getNewReleasesData = unstable_cache(
       ? Math.max(...dedupedReleases.map((r) => r.fetchedAt.getTime()))
       : null;
 
+    // Pick a Top Highlight: best-rated fresh release with a backdrop, so we can
+    // build a hero card. Falls back to best-rated release of the whole window
+    // when no fresh + backdrop combo is available.
+    const candidates = dedupedReleases.filter(
+      (r) => r.backdropPath && (r.voteAverage ?? 0) >= 6.5,
+    );
+    const fresh = candidates.filter((r) => r.isFreshRelease);
+    const pool = fresh.length > 0 ? fresh : candidates;
+    const topHighlight = pool.length > 0
+      ? pool.reduce((best, r) =>
+          (r.voteAverage ?? 0) > (best.voteAverage ?? 0) ? r : best,
+        )
+      : null;
+
     return {
       releasesByProvider,
       totalCount: dedupedReleases.length,
       todayCount: todayReleases.length,
       providerCount: Object.keys(releasesByProvider).length,
       lastUpdated: latestFetch ? new Date(latestFetch) : null,
+      topHighlight,
+      // Top 30 deduped releases for ItemList schema (already date-DESC,
+      // voteAverage-DESC ordered by the SQL query)
+      schemaItems: dedupedReleases.slice(0, 30).map((r) => ({
+        name: r.name,
+        slug: r.slug,
+        posterPath: r.posterPath,
+      })),
     };
   },
   ['new-releases-data-v2'],
@@ -205,7 +227,10 @@ const getNewReleasesData = unstable_cache(
 );
 
 // Schema.org structured data
-function generateNewReleasesSchema(totalCount: number) {
+function generateNewReleasesSchema(
+  totalCount: number,
+  items: Array<{ name: string; slug: string; posterPath: string | null }>,
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
@@ -215,12 +240,20 @@ function generateNewReleasesSchema(totalCount: number) {
     mainEntity: {
       '@type': 'ItemList',
       numberOfItems: totalCount,
-      itemListElement: []
+      itemListElement: items.map((it, idx) => ({
+        '@type': 'ListItem',
+        position: idx + 1,
+        url: `https://serien.de/serie/${it.slug}`,
+        name: it.name,
+        ...(it.posterPath
+          ? { image: `https://image.tmdb.org/t/p/w500${it.posterPath}` }
+          : {}),
+      })),
     },
     publisher: {
       '@type': 'Organization',
       name: 'serien.de',
-      url: 'https://serien.de'
+      url: 'https://serien.de',
     },
     breadcrumb: {
       '@type': 'BreadcrumbList',
@@ -229,16 +262,16 @@ function generateNewReleasesSchema(totalCount: number) {
           '@type': 'ListItem',
           position: 1,
           name: 'Home',
-          item: 'https://serien.de'
+          item: 'https://serien.de',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Neue Serien',
-          item: 'https://serien.de/neue-serien'
-        }
-      ]
-    }
+          item: 'https://serien.de/neue-serien',
+        },
+      ],
+    },
   };
 }
 
@@ -249,10 +282,17 @@ export default async function NeueSerienPage({
 }) {
   const sp = await searchParams;
   const range = parseRange(sp.range);
-  const { releasesByProvider, totalCount, todayCount, providerCount, lastUpdated } =
-    await getNewReleasesData(range);
+  const {
+    releasesByProvider,
+    totalCount,
+    todayCount,
+    providerCount,
+    lastUpdated,
+    topHighlight,
+    schemaItems,
+  } = await getNewReleasesData(range);
 
-  const schema = generateNewReleasesSchema(totalCount);
+  const schema = generateNewReleasesSchema(totalCount, schemaItems);
 
   // Format date helper
   const formatDate = (date: Date | null) => {
@@ -385,6 +425,69 @@ export default async function NeueSerienPage({
             </div>
           </div>
 
+          {/* Top Highlight Hero – best-rated fresh release with backdrop */}
+          {topHighlight && (
+            <Link
+              href={`/serie/${topHighlight.slug}`}
+              data-testid="neue-serien-top-highlight"
+              className="group relative block mb-10 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+            >
+              <div className="relative aspect-[21/9] w-full">
+                {topHighlight.backdropPath && (
+                  <Image
+                    src={`/img/tmdb/w1280${topHighlight.backdropPath}`}
+                    alt={topHighlight.name}
+                    fill
+                    priority
+                    sizes="(max-width: 1280px) 100vw, 1280px"
+                    className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    {topHighlight.isFreshRelease && (
+                      <span className="bg-emerald-500 text-white text-[10px] font-bold tracking-wide uppercase px-2.5 py-1 rounded animate-pulse">
+                        Heute neu
+                      </span>
+                    )}
+                    <span
+                      className={`${
+                        PROVIDER_STYLES[topHighlight.provider]?.bg || 'bg-gray-700'
+                      } text-white text-[10px] font-bold tracking-wide uppercase px-2.5 py-1 rounded`}
+                    >
+                      {topHighlight.provider}
+                    </span>
+                    {topHighlight.voteAverage && topHighlight.voteAverage > 0 && (
+                      <span className="inline-flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-1 rounded">
+                        <Star className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" />
+                        {topHighlight.voteAverage.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-lg max-w-3xl line-clamp-2">
+                    {topHighlight.name}
+                  </h2>
+
+                  {topHighlight.overview && (
+                    <p className="hidden sm:block mt-3 text-white/85 text-sm sm:text-base max-w-2xl line-clamp-2 drop-shadow">
+                      {topHighlight.overview}
+                    </p>
+                  )}
+
+                  <div className="mt-4 inline-flex items-center gap-2 text-white text-sm font-semibold">
+                    <span className="bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 group-hover:bg-white group-hover:text-gray-900 transition-colors">
+                      Jetzt entdecken →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+
           {/* No Data Message */}
           {sortedProviders.length === 0 && (
             <div className="text-center py-20">
@@ -502,12 +605,15 @@ export default async function NeueSerienPage({
                           <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                             {release.name}
                           </h3>
-                          {release.firstAirDate && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(release.firstAirDate)}
-                            </p>
-                          )}
+                          <p
+                            className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1"
+                            title="Datum, an dem dieser Eintrag in der Streaming-Datenbank registriert wurde"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            {release.isFreshRelease
+                              ? `verfügbar seit ${formatDate(release.date)}`
+                              : formatDate(release.date)}
+                          </p>
                         </div>
                       </Link>
                     ))}
