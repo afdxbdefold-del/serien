@@ -34,9 +34,16 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   // React has a known bug where the `muted` JSX prop doesn't apply to the DOM.
   // We must set it imperatively via ref to guarantee autoplay works.
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = true;
-    }
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+
+    // Sync local `isMuted` state with whatever the native player says.
+    // The user can unmute via the built-in <video controls> speaker icon,
+    // bypassing our cyan button, so we must hide the button in that case too.
+    const sync = () => setIsMuted(v.muted || v.volume === 0);
+    v.addEventListener('volumechange', sync);
+    return () => v.removeEventListener('volumechange', sync);
   }, []);
 
   // If no trailer, just show the image
