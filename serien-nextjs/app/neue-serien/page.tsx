@@ -67,64 +67,116 @@ const getNewReleasesData = unstable_cache(
   async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Get 7 days ago for wider range
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
+    // "Truly new" cutoff for the NEU badge: only releases within the last 3 days.
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
     // Get releases for last 7 days grouped by provider
     const releases = await prisma.streaming_releases.findMany({
       where: {
-        date: { gte: sevenDaysAgo }
+        date: { gte: sevenDaysAgo },
       },
       orderBy: [
         { date: 'desc' },
-        { voteAverage: 'desc' }
-      ]
+        { voteAverage: 'desc' },
+      ],
     });
-    
-    // Get slugs from series table for all releases
-    const tmdbIds = [...new Set(releases.map(r => r.tmdbId))];
-    const seriesSlugs = await prisma.series.findMany({
+
+    // Get slug + display titles from series table for all releases.
+    // We fetch German title + English name so we can fall back when the
+    // streaming_releases.name is in a non-Latin script (Korean / Japanese / Chinese).
+    const tmdbIds = [...new Set(releases.map((r) => r.tmdbId))];
+    const seriesMeta = await prisma.series.findMany({
       where: { tmdbId: { in: tmdbIds } },
-      select: { tmdbId: true, slug: true },
+      select: { tmdbId: true, slug: true, title: true, name: true, originalName: true },
     });
-    const slugMap = new Map(seriesSlugs.map(s => [s.tmdbId, s.slug]));
-    
-    // Enrich releases with slugs
-    const enrichedReleases = releases.map(release => ({
-      ...release,
-      slug: slugMap.get(release.tmdbId) || generateSeriesSlug(release.name, release.tmdbId),
-    }));
-    
+    const metaByTmdb = new Map(seriesMeta.map((s) => [s.tmdbId, s]));
+
+    // Detect CJK / Hangul / Kana characters – these names are unhelpful for German users.
+    const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff66-\uff9f]/;
+    const isCjk = (s: string | null | undefined) => !!s && CJK.test(s);
+
+    /**
+     * Pick the best display title:
+     *   1. release.name if it's Latin script
+     *   2. series.title (German)
+     *   3. series.name (English / TMDB display)
+     *   4. series.originalName as last resort
+     * If none are usable (all CJK / null), the release will be filtered out.
+     */
+    function pickTitle(release: typeof releases[number], meta: typeof seriesMeta[number] | undefined): string | null {
+      if (!isCjk(release.name)) return release.name;
+      if (meta?.title && !isCjk(meta.title)) return meta.title;
+      if (meta?.name && !isCjk(meta.name)) return meta.name;
+      if (meta?.originalName && !isCjk(meta.originalName)) return meta.originalName;
+      return null;
+    }
+
+    // Enrich releases with slugs + chosen display title; drop entries with no
+    // usable Latin title at all.
+    const enrichedReleases = releases.flatMap((release) => {
+      const meta = metaByTmdb.get(release.tmdbId);
+      const displayName = pickTitle(release, meta);
+      if (!displayName) return [];
+      return [
+        {
+          ...release,
+          name: displayName,
+          slug: meta?.slug || generateSeriesSlug(release.name, release.tmdbId),
+          isFreshRelease: release.date >= threeDaysAgo,
+        },
+      ];
+    });
+
+    // De-duplicate per (provider, tmdbId): keep only the most recent date
+    // (releases are already ordered by date DESC). This collapses the
+    // "Only Margo 3x / Navy CIS 5x" duplicates seen on the live site.
+    const seenPerProvider = new Map<string, Set<number>>();
+    const dedupedReleases: typeof enrichedReleases = [];
+    for (const r of enrichedReleases) {
+      let seen = seenPerProvider.get(r.provider);
+      if (!seen) {
+        seen = new Set<number>();
+        seenPerProvider.set(r.provider, seen);
+      }
+      if (seen.has(r.tmdbId)) continue;
+      seen.add(r.tmdbId);
+      dedupedReleases.push(r);
+    }
+
     // Group by provider using a plain object (Maps don't serialize in unstable_cache)
-    const releasesByProvider: Record<string, typeof enrichedReleases> = {};
-    
-    for (const release of enrichedReleases) {
+    const releasesByProvider: Record<string, typeof dedupedReleases> = {};
+
+    for (const release of dedupedReleases) {
       if (!releasesByProvider[release.provider]) {
         releasesByProvider[release.provider] = [];
       }
       releasesByProvider[release.provider].push(release);
     }
-    
-    // Get today's releases count
-    const todayReleases = enrichedReleases.filter(r => {
+
+    // Get today's releases count (using deduped list so the stat matches what's displayed)
+    const todayReleases = dedupedReleases.filter((r) => {
       const releaseDate = new Date(r.date);
       releaseDate.setHours(0, 0, 0, 0);
       return releaseDate.getTime() === today.getTime();
     });
-    
+
     // Get most recent fetch timestamp
-    const latestFetch = enrichedReleases.length > 0 
-      ? Math.max(...enrichedReleases.map(r => r.fetchedAt.getTime()))
+    const latestFetch = dedupedReleases.length > 0
+      ? Math.max(...dedupedReleases.map((r) => r.fetchedAt.getTime()))
       : null;
-    
+
     return {
       releasesByProvider,
-      totalCount: enrichedReleases.length,
+      totalCount: dedupedReleases.length,
       todayCount: todayReleases.length,
       providerCount: Object.keys(releasesByProvider).length,
-      lastUpdated: latestFetch ? new Date(latestFetch) : null
+      lastUpdated: latestFetch ? new Date(latestFetch) : null,
     };
   },
   ['new-releases-data'],
@@ -362,8 +414,9 @@ export default async function NeueSerienPage() {
                             {provider.split(' ')[0]}
                           </div>
                           
-                          {/* NEW Badge for today's releases */}
-                          {release.releaseType === 'new_episode' && (
+                          {/* NEU-Badge nur für echte Neuzugänge der letzten 3 Tage,
+                              nicht für Katalog-Einträge wie Outlander/Family Guy etc. */}
+                          {release.isFreshRelease && (
                             <div className="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow animate-pulse">
                               NEU
                             </div>
