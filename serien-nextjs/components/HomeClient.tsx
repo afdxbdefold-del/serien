@@ -5,7 +5,6 @@ import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
-import AdUnit from './AdUnit';
 import StreamerTop10Carousel, { type PlatformBlock } from './StreamerTop10Carousel';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
@@ -290,12 +289,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 ))}
               </div>
 
-              {/* Ad Unit after first 6 cards */}
-              {filteredGridNews.length > 6 && (
-                <div className="my-8">
-                  <AdUnit slot="1234567890" format="horizontal" className="max-w-4xl mx-auto" />
-                </div>
-              )}
+              {/* Ads are restricted to article pages — no AdUnit on the homepage */}
 
               {/* Remaining News Cards */}
               {filteredGridNews.length > 6 && (
