@@ -527,6 +527,8 @@ export default async function ArticlePage({ params }: PageProps) {
             )}
             <span>
               {publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {', '}
+              {publishedDate.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })} Uhr
             </span>
             <span className="mx-2">·</span>
             <span>{readingMinutes} Min</span>
