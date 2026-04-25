@@ -62,24 +62,45 @@ const PROVIDER_ORDER = [
   'CHILI', 'Rakuten TV', 'maxdome', 'freenet Video'
 ];
 
-// Cached data fetching
+// Date range options for the "Heute / Woche / Monat" toggle
+type DateRange = 'today' | 'week' | 'month';
+
+const RANGE_DAYS: Record<DateRange, number> = {
+  today: 1,
+  week: 7,
+  month: 30,
+};
+
+const RANGE_LABEL: Record<DateRange, string> = {
+  today: 'Heute',
+  week: 'Diese Woche',
+  month: 'Diesen Monat',
+};
+
+function parseRange(value: string | string[] | undefined): DateRange {
+  const v = Array.isArray(value) ? value[0] : value;
+  if (v === 'today' || v === 'week' || v === 'month') return v;
+  return 'week';
+}
+
+// Cached data fetching (per-range cache via parameterized key)
 const getNewReleasesData = unstable_cache(
-  async () => {
+  async (range: DateRange) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get 7 days ago for wider range
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Lookup window for the selected range
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - (RANGE_DAYS[range] - 1));
 
     // "Truly new" cutoff for the NEU badge: only releases within the last 3 days.
     const threeDaysAgo = new Date(today);
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-    // Get releases for last 7 days grouped by provider
+    // Get releases for the selected window
     const releases = await prisma.streaming_releases.findMany({
       where: {
-        date: { gte: sevenDaysAgo },
+        date: { gte: rangeStart },
       },
       orderBy: [
         { date: 'desc' },
@@ -179,7 +200,7 @@ const getNewReleasesData = unstable_cache(
       lastUpdated: latestFetch ? new Date(latestFetch) : null,
     };
   },
-  ['new-releases-data'],
+  ['new-releases-data-v2'],
   { revalidate: 3600, tags: ['new-releases'] }
 );
 
@@ -221,8 +242,15 @@ function generateNewReleasesSchema(totalCount: number) {
   };
 }
 
-export default async function NeueSerienPage() {
-  const { releasesByProvider, totalCount, todayCount, providerCount, lastUpdated } = await getNewReleasesData();
+export default async function NeueSerienPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const sp = await searchParams;
+  const range = parseRange(sp.range);
+  const { releasesByProvider, totalCount, todayCount, providerCount, lastUpdated } =
+    await getNewReleasesData(range);
 
   const schema = generateNewReleasesSchema(totalCount);
 
@@ -279,6 +307,34 @@ export default async function NeueSerienPage() {
                 Episoden heute bei Netflix, Prime, Disney+ und anderen Diensten starten.
               </p>
 
+              {/* Range Toggle: Heute / Diese Woche / Diesen Monat */}
+              <div
+                className="mt-8 inline-flex items-center gap-1 bg-white/10 backdrop-blur-sm rounded-full p-1"
+                role="tablist"
+                aria-label="Zeitraum"
+                data-testid="neue-serien-range-toggle"
+              >
+                {(['today', 'week', 'month'] as DateRange[]).map((r) => {
+                  const active = r === range;
+                  return (
+                    <Link
+                      key={r}
+                      href={`/neue-serien${r === 'week' ? '' : `?range=${r}`}`}
+                      role="tab"
+                      aria-selected={active}
+                      data-testid={`neue-serien-range-${r}`}
+                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                        active
+                          ? 'bg-white text-emerald-700 shadow'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {RANGE_LABEL[r]}
+                    </Link>
+                  );
+                })}
+              </div>
+
               {/* Stats */}
               <div className="flex flex-wrap justify-center gap-8 mt-10">
                 <div className="text-center">
@@ -287,7 +343,7 @@ export default async function NeueSerienPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-3xl sm:text-4xl font-bold text-white">{totalCount}</div>
-                  <div className="text-sm text-white/60 mt-1">Diese Woche</div>
+                  <div className="text-sm text-white/60 mt-1">{RANGE_LABEL[range]}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-3xl sm:text-4xl font-bold text-white">{providerCount}</div>
