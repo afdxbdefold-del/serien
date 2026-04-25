@@ -17,6 +17,7 @@ import { resolveSingleSeries } from './tmdb-resolver';
 import { extractFacts } from './fact-extractor';
 import { generateMetaDescription } from './meta-description-generator';
 import { storeHeroImage } from './image-storage';
+import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailerViaAPI } from './trailer-downloader';
 import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
@@ -441,7 +442,7 @@ ${generatedItems.join('\n\n')}
     let trailerLocalPath: string | null = null;
     
     try {
-      // Check if we already have a trailer for this series in DB
+      // Step A: re-use any existing per-article trailer for this series
       const existingTrailer = await prisma.articles.findFirst({
         where: {
           primarySeriesId: primarySeries.tmdbId,
@@ -459,11 +460,56 @@ ${generatedItems.join('\n\n')}
         console.log(`   Path: ${existingTrailer.trailerLocalUrl}`);
         trailerLocalPath = existingTrailer.trailerLocalUrl;
       } else {
-        console.log('⊘  No existing trailer in DB for this series');
-        console.log('   → Continuing without trailer (can be added later)');
+        // Step B: re-use the series-level localTrailerPath if we have one already
+        const seriesRow = await prisma.series.findUnique({
+          where: { tmdbId: primarySeries.tmdbId },
+          select: { localTrailerPath: true, trailers: true, name: true, title: true },
+        });
+
+        const usableSeriesPath =
+          seriesRow?.localTrailerPath &&
+          seriesRow.localTrailerPath !== 'unavailable' &&
+          seriesRow.localTrailerPath !== 'SKIP' &&
+          seriesRow.localTrailerPath.startsWith('http')
+            ? seriesRow.localTrailerPath
+            : null;
+
+        if (usableSeriesPath) {
+          console.log(`✅ Reusing series-level trailer: ${usableSeriesPath}`);
+          trailerLocalPath = usableSeriesPath;
+        } else {
+          // Step C: actively try to fetch & download (TMDB → YouTube search → yt-dlp → R2)
+          console.log('⊘  No existing trailer in DB or series, attempting fresh download...');
+          const seriesName = seriesRow?.title || seriesRow?.name || primarySeries.name || '';
+
+          let trailerId = findTrailerYouTubeId(seriesRow?.trailers ?? null);
+          if (!trailerId && seriesName) {
+            console.log(`   🔍 Searching YouTube for "${seriesName}"...`);
+            trailerId = await searchYouTubeTrailerViaAPI(seriesName, 'de');
+            if (!trailerId) trailerId = await searchYouTubeTrailerViaAPI(seriesName, 'en');
+          }
+
+          if (trailerId && seriesName) {
+            console.log(`   📥 Downloading trailer ${trailerId}...`);
+            const downloadResult = await downloadYouTubeTrailer(trailerId, seriesName);
+            if (downloadResult.success && downloadResult.localPath) {
+              trailerLocalPath = downloadResult.localPath;
+              // Persist on series so subsequent articles inherit it
+              await prisma.series.update({
+                where: { tmdbId: primarySeries.tmdbId },
+                data: { localTrailerPath: downloadResult.localPath },
+              });
+              console.log(`   ✅ Trailer saved: ${downloadResult.localPath}`);
+            } else {
+              console.log(`   ⚠️  Trailer download failed: ${downloadResult.error}`);
+            }
+          } else {
+            console.log('   ⚠️  No trailer source found (TMDB + YouTube)');
+          }
+        }
       }
     } catch (error: any) {
-      console.log(`⚠️  Trailer check error: ${error.message}`);
+      console.log(`⚠️  Trailer step error: ${error.message}`);
       console.log('   → Continuing without trailer');
     }
     
