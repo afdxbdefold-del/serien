@@ -11,6 +11,7 @@ interface Category {
   firstAt: string | null;
   lastAt: string | null;
   shared?: boolean;
+  legacyUaHits?: number;
 }
 
 interface CrawlerStats {
@@ -20,9 +21,11 @@ interface CrawlerStats {
   categories: Category[];
   googleNews: {
     totalHits: number;
+    legacyUaHits: number;
     lastHitAt: string | null;
     avgIntervalMinutes: number | null;
     hourlyBuckets: Array<{ hour: string; count: number }>;
+    topPaths: Array<{ path: string; hits: number }>;
   };
   recent: Array<{ bot: string; path: string; at: string }>;
 }
@@ -123,7 +126,7 @@ export default function CrawlerStatsCard() {
 
       {data && (
         <>
-          {/* Googlebot-News spotlight */}
+          {/* Google News spotlight (path-based, post UA-consolidation) */}
           <div
             className="rounded-lg border border-cyan-200 bg-gradient-to-r from-cyan-50 to-white p-4 mb-4"
             data-testid="googlenews-spotlight"
@@ -131,7 +134,7 @@ export default function CrawlerStatsCard() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs uppercase tracking-wider text-cyan-700">
-                  Googlebot-News
+                  Google News (pfadbasiert)
                 </div>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-3xl font-bold text-slate-900 tabular-nums">
@@ -150,6 +153,13 @@ export default function CrawlerStatsCard() {
                     <TrendingUp className="w-3 h-3" />
                     Takt: <b>{fmtInterval(data.googleNews.avgIntervalMinutes)}</b>
                   </span>
+                  <span
+                    className="flex items-center gap-1"
+                    title="Anteil mit klassischem Googlebot-News User-Agent. Niedrig = Google nutzt nur noch generischen Googlebot."
+                  >
+                    <Info className="w-3 h-3" />
+                    legacy UA: <b>{data.googleNews.legacyUaHits}</b>
+                  </span>
                 </div>
               </div>
             </div>
@@ -167,6 +177,28 @@ export default function CrawlerStatsCard() {
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Top paths breakdown */}
+            {data.googleNews.topPaths.length > 0 && (
+              <div className="mt-3" data-testid="googlenews-top-paths">
+                <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">
+                  Top News-Pfade
+                </div>
+                <ul className="space-y-1 text-xs">
+                  {data.googleNews.topPaths.map((p) => (
+                    <li
+                      key={p.path}
+                      className="flex items-center justify-between gap-2 text-slate-700"
+                    >
+                      <span className="font-mono truncate">{p.path}</span>
+                      <span className="tabular-nums text-slate-500 shrink-0">
+                        {p.hits.toLocaleString('de-DE')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
