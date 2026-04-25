@@ -446,18 +446,21 @@ model series {
 }
 
 model streaming_releases {
-  id           String    @id
-  tmdbId       Int
-  provider     String
-  date         DateTime  @db.Date
-  name         String
-  overview     String?
-  posterPath   String?
-  backdropPath String?
-  firstAirDate DateTime?
-  voteAverage  Float?
-  releaseType  String    @default("new_episode")
-  fetchedAt    DateTime  @default(now())
+  id            String    @id
+  tmdbId        Int
+  provider      String
+  date          DateTime  @db.Date
+  name          String
+  overview      String?
+  posterPath    String?
+  backdropPath  String?
+  firstAirDate  DateTime?
+  voteAverage   Float?
+  releaseType   String    @default("new_episode")
+  seasonNumber  Int?
+  episodeNumber Int?
+  episodeName   String?
+  fetchedAt     DateTime  @default(now())
 
   @@unique([tmdbId, provider, date])
   @@index([date])
