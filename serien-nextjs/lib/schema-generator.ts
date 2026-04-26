@@ -3,7 +3,14 @@
  * Generates structured data markup for SEO
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+// Canonical production URL — JSON-LD must always reference the public domain,
+// even when this code runs on a Vercel preview (`NEXT_PUBLIC_BASE_URL`
+// can point to `*.vercel.app` there).
+const CANONICAL_SITE_URL = 'https://serien.de';
+
+/** Stable @id for the publisher entity — referenced by NewsArticle.publisher */
+export const ORG_ID = `${CANONICAL_SITE_URL}#organization`;
+export const SITE_ID = `${CANONICAL_SITE_URL}#website`;
 
 /**
  * Image dimensions for different image types
@@ -81,13 +88,13 @@ export function generateArticleSchema(data: {
     logo?: string;
   };
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
-  
+  const baseUrl = CANONICAL_SITE_URL;
+
   // Ensure image URL is absolute
-  const absoluteImageUrl = data.imageUrl.startsWith('http') 
-    ? data.imageUrl 
+  const absoluteImageUrl = data.imageUrl.startsWith('http')
+    ? data.imageUrl
     : `${baseUrl}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
-  
+
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -99,7 +106,7 @@ export function generateArticleSchema(data: {
       data.imageDimensions,
       {
         caption: data.title,
-        author: data.publisher?.name,
+        author: data.publisher?.name || 'serien.de',
         representativeOfPage: true,
       }
     ),
@@ -112,21 +119,9 @@ export function generateArticleSchema(data: {
       name: data.author || 'serien.de Redaktion',
       ...(data.authorSlug && { url: `${baseUrl}/autor/${data.authorSlug}` }),
     },
-    publisher: {
-      '@type': 'NewsMediaOrganization',
-      name: data.publisher?.name || 'serien.de',
-      url: baseUrl,
-      logo: data.publisher?.logo ? generateImageObject(
-        data.publisher.logo,
-        `${data.publisher.name} Logo`,
-        { width: 1200, height: 200 }
-      ) : {
-        '@type': 'ImageObject',
-        url: `${baseUrl}/logo.png`,
-        width: 1200,
-        height: 200,
-      },
-    },
+    // Reference the publisher entity defined in the global Organization schema
+    // (see generateOrganizationSchema). Single source of truth, no duplication.
+    publisher: { '@id': ORG_ID },
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': `${baseUrl}/${data.slug}`,
@@ -166,7 +161,7 @@ export function getImageDimensions(imageUrl: string): { width: number; height: n
  * Generate BreadcrumbList schema for better navigation
  */
 export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = CANONICAL_SITE_URL;
   
   return {
     '@context': 'https://schema.org',
@@ -193,7 +188,7 @@ export function generateSeriesSchema(data: {
   endYear?: number;
   genres?: string[];
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = CANONICAL_SITE_URL;
   
   return {
     '@context': 'https://schema.org',
@@ -224,7 +219,7 @@ export function generatePersonSchema(data: {
   seriesName?: string;
   url: string;
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = CANONICAL_SITE_URL;
   
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
@@ -261,7 +256,7 @@ export function generatePersonSchema(data: {
 export function generateFAQSchema(questions: Array<{ question: string; answer: string }>) {
   if (!questions || questions.length === 0) return null;
   
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = CANONICAL_SITE_URL;
   
   return {
     '@context': 'https://schema.org',
@@ -307,17 +302,22 @@ export function generateVideoSchema(data: {
 }
 
 /**
- * Generate WebSite schema with SearchAction for Sitelinks Searchbox
+ * Generate WebSite schema with SearchAction for Sitelinks Searchbox.
+ *
+ * Uses the canonical URL so the WebSite + Organization graph is consistent
+ * regardless of preview origin. Linked to the publisher entity via `publisher`.
  */
 export function generateWebSiteSchema() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
-  
+  const baseUrl = CANONICAL_SITE_URL;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': SITE_ID,
     name: 'serien.de',
-    alternateName: 'Serien.de - Streaming News & Reviews',
     url: baseUrl,
+    inLanguage: 'de-DE',
+    publisher: { '@id': ORG_ID },
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -330,18 +330,29 @@ export function generateWebSiteSchema() {
 }
 
 /**
- * Generate Organization schema for the publisher
+ * Generate Organization (NewsMediaOrganization) schema for the publisher.
+ *
+ * Uses CANONICAL_SITE_URL — never the preview origin — so all schema URLs are
+ * consistent with the canonical tags Google sees in search.
+ *
+ * Includes the full set of E-E-A-T / Google News Publisher signals:
+ *   – stable @id (referenced by NewsArticle.publisher via {@id: …})
+ *   – sameAs profiles
+ *   – address, foundingDate, knowsAbout
+ *   – ethics/corrections/diversity/actionableFeedback/masthead policies
  */
 export function generateOrganizationSchema() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
-  
+  const baseUrl = CANONICAL_SITE_URL;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'NewsMediaOrganization',
+    '@id': ORG_ID,
     name: 'serien.de',
-    alternateName: 'Serien.de - Streaming News & Reviews',
-    description: 'serien.de ist ein deutschsprachiges Online-Magazin für Serien-News, Trailer, Reviews und Streaming-Updates.',
     url: baseUrl,
+    description:
+      'serien.de ist ein deutschsprachiges Online-Magazin für Serien-News, Trailer, Reviews und Streaming-Updates.',
+    inLanguage: 'de-DE',
     logo: {
       '@type': 'ImageObject',
       url: `${baseUrl}/logo.png`,
@@ -354,13 +365,30 @@ export function generateOrganizationSchema() {
       width: 1024,
       height: 1024,
     },
-    sameAs: [],
+    sameAs: [
+      'https://twitter.com/serien_de',
+      'https://x.com/serien_de',
+      'https://facebook.com/serien.de',
+      'https://www.instagram.com/serien.de',
+    ],
+    address: {
+      '@type': 'PostalAddress',
+      addressCountry: 'DE',
+    },
+    foundingDate: '2024',
+    knowsAbout: ['TV-Serien', 'Streaming', 'Film', 'Trailer', 'Reviews'],
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer service',
       email: 'kontakt@serien.de',
+      availableLanguage: ['de', 'en'],
     },
     publishingPrinciples: `${baseUrl}/redaktionelle-richtlinien`,
+    ethicsPolicy: `${baseUrl}/redaktionelle-richtlinien`,
+    correctionsPolicy: `${baseUrl}/redaktionelle-richtlinien`,
+    diversityPolicy: `${baseUrl}/redaktionelle-richtlinien`,
+    actionableFeedbackPolicy: `${baseUrl}/redaktionelle-richtlinien`,
+    masthead: `${baseUrl}/autoren`,
   };
 }
 
@@ -395,10 +423,7 @@ export function generateReviewSchema(data: {
       '@type': 'Person',
       name: data.authorName,
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-    },
+    publisher: { '@id': ORG_ID },
     datePublished: data.datePublished,
   };
 }
@@ -467,7 +492,7 @@ export function generateAuthorSchema(data: {
   expertise?: string[];
   url: string;
 }) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = CANONICAL_SITE_URL;
   
   return {
     '@context': 'https://schema.org',
@@ -485,11 +510,7 @@ export function generateAuthorSchema(data: {
     ...(data.expertise && data.expertise.length > 0 && { 
       knowsAbout: data.expertise 
     }),
-    worksFor: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: baseUrl,
-    },
+    worksFor: { '@id': ORG_ID },
   };
 }
 

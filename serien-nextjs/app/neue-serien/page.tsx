@@ -250,11 +250,7 @@ function generateNewReleasesSchema(
           : {}),
       })),
     },
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de',
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

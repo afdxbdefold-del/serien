@@ -167,11 +167,7 @@ function generateDisneyHubSchema() {
     name: 'Disney+ Serien 2026',
     description: 'Vollständiger Guide zu allen Disney+ Serien - Marvel, Star Wars, Pixar und mehr',
     url: 'https://serien.de/disney-plus-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

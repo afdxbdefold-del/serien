@@ -1,49 +1,30 @@
-export function generateOrganizationSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'NewsMediaOrganization',
-    name: 'serien.de',
-    url: 'https://serien.de',
-    // Horizontal logo for Google News publisher requirements (width ≥ 600px)
-    logo: {
-      '@type': 'ImageObject',
-      url: 'https://serien.de/logo.png',
-      width: 1200,
-      height: 200,
-    },
-    // Square brand image — used by Google News App feed cards + social
-    image: {
-      '@type': 'ImageObject',
-      url: 'https://serien.de/logo-square.png',
-      width: 1024,
-      height: 1024,
-    },
-    description: 'Deine Quelle für TV-Serien News, Trailer und Updates',
-    sameAs: [
-      'https://twitter.com/serien_de',
-      'https://facebook.com/serien.de',
-    ],
-  };
-}
+/**
+ * Compatibility shim — schema definitions consolidated into `schema-generator.ts`.
+ *
+ * Old imports (`@/lib/schema`) keep working; the canonical source of truth is
+ * `lib/schema-generator.ts`. Both `generateOrganizationSchema` and
+ * `generateWebsiteSchema` (note the lower-case 's') are re-exported with the
+ * names used historically.
+ */
 
-export function generateWebsiteSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'serien.de',
-    url: 'https://serien.de',
-    description: 'Aktuelle News, Trailer und Updates zu deinen Lieblingsserien',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: 'https://serien.de/search?q={search_term_string}',
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
-}
+import {
+  generateOrganizationSchema as orgSchema,
+  generateWebSiteSchema,
+  generateBreadcrumbSchema as breadcrumbSchema,
+  ORG_ID,
+} from './schema-generator';
 
+const CANONICAL_SITE_URL = 'https://serien.de';
+
+export const generateOrganizationSchema = orgSchema;
+export const generateWebsiteSchema = generateWebSiteSchema; // legacy name
+export const generateBreadcrumbSchema = breadcrumbSchema;
+
+/**
+ * Legacy article-schema entrypoint — minimal wrapper around the canonical
+ * generator. Keeps the old caller-shape working but uses the central
+ * publisher entity via @id reference.
+ */
 export function generateArticleSchema(article: {
   title: string;
   excerpt: string;
@@ -51,35 +32,27 @@ export function generateArticleSchema(article: {
   updatedAt: Date;
   slug: string;
   heroLocalUrl?: string;
-  author: {
-    name: string;
-  };
+  author: { name: string };
 }) {
+  const baseUrl = CANONICAL_SITE_URL;
   return {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
     headline: article.title,
     description: article.excerpt,
-    image: article.heroLocalUrl || 'https://serien.de/og-image.png',
+    image: article.heroLocalUrl || `${baseUrl}/og-image.png`,
     datePublished: article.publishedAt.toISOString(),
     dateModified: article.updatedAt.toISOString(),
+    inLanguage: 'de-DE',
+    isAccessibleForFree: true,
     author: {
       '@type': 'Person',
       name: article.author.name,
     },
-    publisher: {
-      '@type': 'NewsMediaOrganization',
-      name: 'serien.de',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://serien.de/logo.png',
-        width: 1200,
-        height: 200,
-      },
-    },
+    publisher: { '@id': ORG_ID },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://serien.de/artikel/${article.slug}`,
+      '@id': `${baseUrl}/${article.slug}`,
     },
   };
 }
@@ -111,18 +84,5 @@ export function generateTVSeriesSchema(series: {
         }
       : undefined,
     genre: series.genres,
-  };
-}
-
-export function generateBreadcrumbSchema(items: { name: string; url: string }[]) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: item.url,
-    })),
   };
 }

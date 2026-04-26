@@ -167,11 +167,7 @@ function generateJoynHubSchema() {
     name: 'Joyn Serien 2026',
     description: 'Vollständiger Guide zu allen Joyn Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/joyn-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

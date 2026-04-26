@@ -452,11 +452,7 @@ export default async function ArticlePage({ params }: PageProps) {
     contentUrl: videoUrl,
     embedUrl: videoUrl,
     inLanguage: 'de',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: baseUrl,
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
   } : null;
 
   return (

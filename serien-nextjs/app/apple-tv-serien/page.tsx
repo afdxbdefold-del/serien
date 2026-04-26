@@ -167,11 +167,7 @@ function generateAppleTVHubSchema() {
     name: 'Apple TV+ Serien 2026',
     description: 'Vollständiger Guide zu allen Apple TV+ Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/apple-tv-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

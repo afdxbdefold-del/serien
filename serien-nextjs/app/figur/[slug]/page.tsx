@@ -195,8 +195,8 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     headline: character.metaTitle || `${character.name} (${seriesName})`,
     description: character.metaDescription || character.shortDescription || '',
     url: `${baseUrl}/figur/${character.slug}`,
-    author: { '@type': 'Organization', name: 'serien.de' },
-    publisher: { '@type': 'Organization', name: 'serien.de', url: baseUrl },
+    author: { '@id': 'https://serien.de#organization' },
+    publisher: { '@id': 'https://serien.de#organization' },
     about: {
       '@type': 'FictionalCharacter',
       name: character.name,

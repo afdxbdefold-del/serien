@@ -168,11 +168,7 @@ function generateHBOHubSchema() {
     name: 'HBO Max Serien 2026',
     description: 'Vollständiger Guide zu allen HBO Max Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/hbo-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

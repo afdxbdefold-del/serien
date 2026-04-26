@@ -211,9 +211,11 @@ export function renderWebStory(input: WebStoryInput): string {
     dateModified: updatedIso,
     author: input.authorName ? { '@type': 'Person', name: input.authorName } : undefined,
     publisher: {
-      '@type': 'Organization',
+      '@type': 'NewsMediaOrganization',
+      '@id': 'https://serien.de#organization',
       name: PUBLISHER,
-      logo: { '@type': 'ImageObject', url: PUBLISHER_LOGO },
+      url: 'https://serien.de',
+      logo: { '@type': 'ImageObject', url: PUBLISHER_LOGO, width: 1200, height: 200 },
     },
     mainEntityOfPage: articleUrl,
     isPartOf: articleUrl,

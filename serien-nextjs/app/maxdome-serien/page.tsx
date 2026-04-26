@@ -167,11 +167,7 @@ function generateMaxdomeHubSchema() {
     name: 'Maxdome Serien 2026',
     description: 'Vollständiger Guide zu allen Maxdome Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/maxdome-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

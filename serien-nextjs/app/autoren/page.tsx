@@ -232,7 +232,7 @@ export default async function AutorenPage() {
         name: a.name,
         jobTitle: 'Serien-Redakteurin',
         url: `${baseUrl}${getAuthorUrl(a.name!)}`,
-        worksFor: { '@type': 'NewsMediaOrganization', name: 'serien.de', url: baseUrl },
+        worksFor: { '@id': 'https://serien.de#organization' },
         knowsAbout: a.expertise || [],
       },
     })),

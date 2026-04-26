@@ -167,11 +167,7 @@ function generateMagentaTVHubSchema() {
     name: 'MagentaTV Serien 2026',
     description: 'Vollständiger Guide zu allen MagentaTV Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/magenta-tv-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

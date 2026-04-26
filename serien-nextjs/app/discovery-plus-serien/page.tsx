@@ -167,11 +167,7 @@ function generateDiscoveryPlusHubSchema() {
     name: 'Discovery+ Serien 2026',
     description: 'Vollständiger Guide zu allen Discovery+ Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/discovery-plus-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

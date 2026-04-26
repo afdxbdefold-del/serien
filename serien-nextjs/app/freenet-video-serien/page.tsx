@@ -167,11 +167,7 @@ function generateFreenetVideoHubSchema() {
     name: 'freenet Video Serien 2026',
     description: 'Vollständiger Guide zu allen freenet Video Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/freenet-video-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [

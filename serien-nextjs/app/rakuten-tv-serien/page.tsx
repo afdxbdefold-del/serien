@@ -167,11 +167,7 @@ function generateRakutenTVHubSchema() {
     name: 'Rakuten TV Serien 2026',
     description: 'Vollständiger Guide zu allen Rakuten TV Serien - Neue Releases, Trends und Reviews',
     url: 'https://serien.de/rakuten-tv-serien',
-    publisher: {
-      '@type': 'Organization',
-      name: 'serien.de',
-      url: 'https://serien.de'
-    },
+    publisher: { '@id': 'https://serien.de#organization' },
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [
