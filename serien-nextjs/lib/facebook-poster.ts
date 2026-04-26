@@ -77,9 +77,11 @@ export async function postArticleToFacebook(
   }
 
   const url = `${SITE_BASE}/${slug}`;
+  const trackedUrl = `${url}?utm_source=facebookblue`;
   const teaser = (article.metaDescription || article.excerpt || '').trim();
-  // Format: Intro + URL im Text + zusätzlich automatische FB-Preview-Card
-  const message = teaser ? `${teaser}\n\n${url}` : `${article.title}\n\n${url}`;
+  // Format: Intro + getrackte URL im Text. UTM-Trick verhindert FB-URL-Stripping,
+  // Card lädt trotzdem (FB normalisiert auf Basis-URL).
+  const message = teaser ? `${teaser}\n\n${trackedUrl}` : `${article.title}\n\n${trackedUrl}`;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
