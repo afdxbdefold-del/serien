@@ -5,6 +5,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { smartTruncate } from '../smart-truncate';
+import { softenLargeNumbers } from '../soften-numbers';
 
 export interface ArticleCreationData {
   title: string;
@@ -114,7 +115,7 @@ export async function createArticle(
       data: {
         id: `pipeline-${Date.now()}`,
         slug: data.slug,
-        title: data.title,
+        title: softenLargeNumbers(data.title), // strip concrete viewer numbers ("26,5 Mio …" → "Mio …")
         excerpt: data.excerpt, // Use provided distinct lead
         contentHtml: data.content,
         contentType: data.contentType,

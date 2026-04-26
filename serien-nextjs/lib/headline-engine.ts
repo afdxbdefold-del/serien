@@ -27,6 +27,7 @@ import {
 } from './headline-patterns';
 import { PrismaClient } from '@prisma/client';
 import { stripDashes } from './strip-dashes';
+import { softenLargeNumbers } from './soften-numbers';
 
 
 const prisma = new PrismaClient();
@@ -291,6 +292,12 @@ export async function generateHeadlines(input: {
   const top3   = scoredVariants.filter(v => v.passedMinimum).slice(0, 3);
   const selectedRank = scoredVariants.findIndex(v => v.selected) + 1;
 
+  // Soften concrete viewership / audience figures ("26,5 Millionen schauen …"
+  // → "Millionen schauen …") so headlines stay evergreen.
+  if (winner) winner.text = softenLargeNumbers(winner.text);
+  for (const v of scoredVariants) v.text = softenLargeNumbers(v.text);
+  for (const v of top3) v.text = softenLargeNumbers(v.text);
+
   // 9) Logging — same format as v5 for dashboard compatibility + angle line
   console.log(`\n   🏆 HEADLINE ENGINE v5.1 (angle=${detectedAngle}) ${explorationMode ? '(EXPLORATION)' : '(CONSERVATIVE)'}`);
   if (banned.length) console.log(`   🚫 Cooldown-Bans: ${banned.join(', ')}   (24h-tally: ${JSON.stringify(tally)})`);
@@ -445,6 +452,14 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
       "Darum sind sich Kritiker bei Criminal Record diesmal einig"      (Open Loop zum Score)
       "Criminal Record macht sofort, was wenigen Serien gelingt"        (Prestige ohne Zahl)
    Faustregel: Wenn "Rotten Tomatoes", "Metacritic" oder "%" in der Headline auftaucht → DISQUALIFIZIERT.
+
+5b) KEINE KONKRETEN ZUSCHAUER- / VIEWER-ZAHLEN IN DER HEADLINE.
+   Spezifische Zahlen ("26,5 Millionen schauen X", "150.000 Aufrufe", "1,2 Mio Fans") wirken
+   maschinell und veralten über Nacht. Abstrahiere sie:
+   ❌ VERBOTEN: "26,5 Millionen schauen Marshals", "150.000 Klicks für Trailer", "8 Mio Zuschauer".
+   ✅ Statt dessen: "Millionen schauen Marshals — doch warum?", "Hunderttausende klicken den Trailer",
+                    "Millionen Fans warten auf Severance".
+   AUSNAHME erlaubt: Staffel-/Folgen-/Top-X-/Jahres-Zahlen ("Staffel 3", "Top 10", "2026").
 
 6) KEINE LABEL-TITEL (Colon-Pattern) — "Serie: Staffel X bestätigt" performt 20% schlechter als Aussagesatz.
    ✅ "Warum Wednesday Staffel 3 alles verändert"
