@@ -250,9 +250,11 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   // Extract year information
   const startYear = series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : undefined;
   const endYear = series.lastAirDate ? new Date(series.lastAirDate).getFullYear() : undefined;
-  
-  // Extract genres
-  const genres = series.genres ? (series.genres as any[]).map(g => g.name) : [];
+  // `series.genres` is already a `string[]` in DB; the previous `.map(g => g.name)`
+  // produced `[null, null, null]` because the items aren't objects.
+  const genres: string[] = Array.isArray(series.genres)
+    ? series.genres.filter((g: unknown): g is string => typeof g === 'string' && g.length > 0)
+    : [];
   
   // MODUL 0: "Warum relevant"-Context (kulturelle Relevanz, KEIN News-Ton)
   // Use cached data if available
@@ -285,15 +287,42 @@ export default async function SeriesDetailPage({ params }: PageProps) {
   }
   
   // Generate structured data
+  const tmdbData = (series.tmdbData as any) || {};
+  const created_by = Array.isArray(tmdbData.created_by) ? tmdbData.created_by : [];
+  const usableTrailerUrl =
+    series.localTrailerPath
+    && series.localTrailerPath !== 'unavailable'
+    && series.localTrailerPath !== 'SKIP'
+    && series.localTrailerPath.startsWith('http')
+      ? series.localTrailerPath
+      : null;
+
   const seriesSchema = generateSeriesSchema({
     name: series.name || series.title || '',
     description: series.overview || '',
     posterUrl: `/img/poster/${series.tmdbType}/${tmdbId}`,
     tmdbId,
-    slug: series.slug || slug, // Use clean slug for canonical URL
+    slug: series.slug || slug,
+    firstAirDate: series.firstAirDate,
+    lastAirDate: series.lastAirDate,
+    status: series.status,
     startYear,
     endYear,
     genres,
+    numberOfSeasons: series.numberOfSeasons,
+    numberOfEpisodes: series.numberOfEpisodes,
+    voteAverage: series.voteAverage,
+    voteCount: series.voteCount,
+    networks: Array.isArray(series.networks) ? series.networks : [],
+    cast: cast.slice(0, 12).map((c: any) => ({
+      name: c.name,
+      characterName: c.character || undefined,
+    })),
+    creators: created_by.map((c: any) => c?.name).filter(Boolean),
+    productionCompanies: Array.isArray(series.productionCompanies)
+      ? series.productionCompanies.filter((c: unknown): c is string => typeof c === 'string' && c.length > 0)
+      : [],
+    trailerUrl: usableTrailerUrl,
   });
 
   // ──────────────────────────────────────────────────────────────────────
@@ -366,7 +395,7 @@ export default async function SeriesDetailPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(generateBreadcrumbSchema([
-            { name: 'Serien', url: '/trending' },
+            { name: 'Serien', url: '/serienfinder' },
             { name: series.name || series.title || '', url: `/serie/${series.slug}` },
           ])),
         }}

@@ -66,6 +66,8 @@ const getArticle = (slug: string) => unstable_cache(
         wasBedeutetDasText: true,
         darumRelevantText: true,
         bisherigerStandText: true,
+        metaDescription: true,
+        tags: true,
         users: {
           select: { id: true, name: true, image: true, bio: true, expertise: true }
         },
@@ -412,7 +414,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
   const articleSchema = generateArticleSchema({
     title: article.title,
-    description: article.excerpt || '',
+    description: article.metaDescription || article.excerpt || '',
     imageUrl,
     imageDimensions: getImageDimensions(imageUrl),
     datePublished: toDate(article.publishedAt || article.createdAt).toISOString(),
@@ -420,7 +422,12 @@ export default async function ArticlePage({ params }: PageProps) {
     slug,
     author: article.users?.name,
     authorSlug,
-    category: article.category || article.contentType || 'Serien News',
+    category: article.category || article.contentType || 'Serien-News',
+    aboutSeriesSlug: article.series?.slug,
+    wordCount: article.contentHtml
+      ? article.contentHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
+      : undefined,
+    keywords: article.tags && article.tags.length > 0 ? article.tags : undefined,
   });
 
   // Generate BreadcrumbList schema
@@ -442,16 +449,19 @@ export default async function ArticlePage({ params }: PageProps) {
       ? article.series.localTrailerPath 
       : null);
 
+  // Schema URLs must always be canonical (production), even when running on a
+  // Vercel preview deployment.
+  const SCHEMA_BASE = 'https://serien.de';
   const videoSchema = videoUrl ? {
     '@context': 'https://schema.org',
     '@type': 'VideoObject',
     name: `${article.title} - Trailer`,
-    description: article.excerpt || `Trailer zu ${article.title}`,
-    thumbnailUrl: imageUrl.startsWith('http') ? imageUrl : `${baseUrl}${imageUrl}`,
+    description: article.metaDescription || article.excerpt || `Trailer zu ${article.title}`,
+    thumbnailUrl: imageUrl.startsWith('http') ? imageUrl : `${SCHEMA_BASE}${imageUrl}`,
     uploadDate: toDate(article.publishedAt || article.createdAt).toISOString(),
     contentUrl: videoUrl,
     embedUrl: videoUrl,
-    inLanguage: 'de',
+    inLanguage: 'de-DE',
     publisher: { '@id': 'https://serien.de#organization' },
   } : null;
 

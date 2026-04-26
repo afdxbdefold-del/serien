@@ -50,12 +50,9 @@ export function generateImageObject(
     caption: options?.caption || title,
   };
 
-  // Add optional fields
+  // Image author resolves to the publisher entity by reference (single source of truth).
   if (options?.author) {
-    imageObject.author = {
-      '@type': 'Organization',
-      name: options.author,
-    };
+    imageObject.author = { '@id': ORG_ID };
   }
 
   if (options?.license) {
@@ -83,6 +80,12 @@ export function generateArticleSchema(data: {
   author?: string;
   authorSlug?: string;
   category?: string;
+  /** Optional: TVSeries entity to link via `about` (deep Knowledge-Graph signal). */
+  aboutSeriesSlug?: string;
+  /** Optional: HTML word count, surfaced as `wordCount`. */
+  wordCount?: number;
+  /** Optional: tag array, surfaced as comma-separated `keywords`. */
+  keywords?: string[];
   publisher?: {
     name: string;
     logo?: string;
@@ -94,6 +97,12 @@ export function generateArticleSchema(data: {
   const absoluteImageUrl = data.imageUrl.startsWith('http')
     ? data.imageUrl
     : `${baseUrl}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+
+  // Map vague defaults to "Serien-News" (better Discover signal than "Allgemein").
+  const articleSection =
+    !data.category || /^allgemein$/i.test(data.category)
+      ? 'Serien-News'
+      : data.category;
 
   const schema: Record<string, any> = {
     '@context': 'https://schema.org',
@@ -122,15 +131,23 @@ export function generateArticleSchema(data: {
     // Reference the publisher entity defined in the global Organization schema
     // (see generateOrganizationSchema). Single source of truth, no duplication.
     publisher: { '@id': ORG_ID },
+    isPartOf: { '@id': SITE_ID },
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': `${baseUrl}/${data.slug}`,
     },
+    articleSection,
     speakable: {
       '@type': 'SpeakableSpecification',
       cssSelector: ['[data-speakable="headline"]', '[data-speakable="summary"]'],
     },
-    ...(data.category && { articleSection: data.category }),
+    ...(data.wordCount && { wordCount: data.wordCount }),
+    ...(data.keywords && data.keywords.length > 0 && {
+      keywords: data.keywords.join(', '),
+    }),
+    ...(data.aboutSeriesSlug && {
+      about: { '@id': `${baseUrl}/serie/${data.aboutSeriesSlug}#tvseries` },
+    }),
   };
 
   return schema;
@@ -162,50 +179,177 @@ export function getImageDimensions(imageUrl: string): { width: number; height: n
  */
 export function generateBreadcrumbSchema(items: Array<{ name: string; url: string }>) {
   const baseUrl = CANONICAL_SITE_URL;
-  
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: `${baseUrl}${item.url}`,
-    })),
+    itemListElement: items.map((item, index) => {
+      // Normalise paths: keep root as `/`, strip trailing slash everywhere else.
+      let path = item.url;
+      if (path !== '/' && path.endsWith('/')) path = path.slice(0, -1);
+      const fullUrl = path === '/' ? baseUrl : `${baseUrl}${path}`;
+      return {
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.name,
+        item: fullUrl,
+      };
+    }),
   };
 }
 
 /**
- * Generate Series schema with poster image
+ * Generate TVSeries schema with poster image, ratings, cast, trailer, etc.
+ *
+ * Includes the full set of Rich-Result-eligible signals:
+ *   – stable @id (so NewsArticle.about can reference it)
+ *   – publisher reference (#organization)
+ *   – aggregateRating (Sternchen in SERPs)
+ *   – numberOfSeasons / numberOfEpisodes
+ *   – trailer (VideoObject) when localTrailerPath is available
+ *   – inLanguage, sameAs (TMDB / Wikidata)
+ *   – endDate ONLY when the show is actually ended
  */
 export function generateSeriesSchema(data: {
   name: string;
   description: string;
   posterUrl: string;
   tmdbId: number;
-  slug: string; // NEW: Use clean slug for URL
+  slug: string;
+  /** Real ISO date (YYYY-MM-DD) — preferred over `startYear` */
+  firstAirDate?: Date | string | null;
+  /** Real ISO date (YYYY-MM-DD) of the last aired episode */
+  lastAirDate?: Date | string | null;
+  /** Free-form TMDB status string ("Returning Series", "Ended", "Canceled", …). */
+  status?: string | null;
   startYear?: number;
   endYear?: number;
   genres?: string[];
+  numberOfSeasons?: number | null;
+  numberOfEpisodes?: number | null;
+  /** TMDB voteAverage on the 0–10 scale */
+  voteAverage?: number | null;
+  voteCount?: number | null;
+  /** Optional list of broadcast networks / streaming providers. */
+  networks?: string[];
+  /** Optional list of cast: `{ name, characterName? }` */
+  cast?: Array<{ name: string; characterName?: string }>;
+  /** Optional list of creators (showrunner / created_by). */
+  creators?: string[];
+  /** Optional production companies. */
+  productionCompanies?: string[];
+  /** Local trailer URL (Cloudflare R2 mp4). */
+  trailerUrl?: string | null;
+  /** Optional explicit poster URL (absolute) — overrides `posterUrl` for image. */
+  absolutePosterUrl?: string;
 }) {
   const baseUrl = CANONICAL_SITE_URL;
-  
-  return {
+  const slug = data.slug;
+  const seriesId = `${baseUrl}/serie/${slug}#tvseries`;
+
+  // Image: must be absolute for Schema.org rich results.
+  const posterAbsolute = data.absolutePosterUrl
+    || (data.posterUrl.startsWith('http')
+      ? data.posterUrl
+      : `${baseUrl}${data.posterUrl.startsWith('/') ? '' : '/'}${data.posterUrl}`);
+
+  // Real ISO dates win over Year-only fallbacks.
+  const startDate = data.firstAirDate
+    ? (typeof data.firstAirDate === 'string'
+        ? data.firstAirDate.slice(0, 10)
+        : data.firstAirDate.toISOString().slice(0, 10))
+    : (data.startYear ? `${data.startYear}-01-01` : undefined);
+
+  const isEnded = (data.status || '').toLowerCase() === 'ended'
+    || (data.status || '').toLowerCase() === 'canceled';
+  const endDate = isEnded
+    ? (data.lastAirDate
+        ? (typeof data.lastAirDate === 'string'
+            ? data.lastAirDate.slice(0, 10)
+            : data.lastAirDate.toISOString().slice(0, 10))
+        : (data.endYear ? `${data.endYear}-12-31` : undefined))
+    : undefined;
+
+  const cleanedGenres = (data.genres ?? []).filter((g): g is string => typeof g === 'string' && g.length > 0);
+
+  const schema: Record<string, any> = {
     '@context': 'https://schema.org',
     '@type': 'TVSeries',
+    '@id': seriesId,
     name: data.name,
     description: data.description,
     image: generateImageObject(
-      data.posterUrl,
+      posterAbsolute,
       data.name,
-      { width: 500, height: 750 }, // TMDB poster dimensions
-      { representativeOfPage: true }
+      { width: 500, height: 750 },
+      { caption: data.name, representativeOfPage: true },
     ),
-    url: `${baseUrl}/serie/${data.slug}`, // Use clean slug instead of tmdbId
-    ...(data.startYear && { startDate: `${data.startYear}-01-01` }),
-    ...(data.endYear && { endDate: `${data.endYear}-12-31` }),
-    ...(data.genres && data.genres.length > 0 && { genre: data.genres }),
+    url: `${baseUrl}/serie/${slug}`,
+    inLanguage: 'de-DE',
+    publisher: { '@id': ORG_ID },
+    isPartOf: { '@id': SITE_ID },
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
+    ...(cleanedGenres.length > 0 && { genre: cleanedGenres }),
+    ...(data.numberOfSeasons && data.numberOfSeasons > 0 && { numberOfSeasons: data.numberOfSeasons }),
+    ...(data.numberOfEpisodes && data.numberOfEpisodes > 0 && { numberOfEpisodes: data.numberOfEpisodes }),
   };
+
+  // AggregateRating from TMDB voteAverage → Stars in SERPs
+  if (typeof data.voteAverage === 'number' && data.voteAverage > 0) {
+    schema.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: Math.round(data.voteAverage * 10) / 10,
+      bestRating: 10,
+      worstRating: 0,
+      ...(data.voteCount && data.voteCount > 0 && { ratingCount: data.voteCount }),
+    };
+  }
+
+  // Cast as Person array
+  if (Array.isArray(data.cast) && data.cast.length > 0) {
+    schema.actor = data.cast.slice(0, 12).map((c) => ({
+      '@type': 'Person',
+      name: c.name,
+      ...(c.characterName && {
+        characterName: c.characterName,
+      }),
+    }));
+  }
+
+  if (Array.isArray(data.creators) && data.creators.length > 0) {
+    schema.creator = data.creators.map((n) => ({ '@type': 'Person', name: n }));
+  }
+
+  if (Array.isArray(data.productionCompanies) && data.productionCompanies.length > 0) {
+    schema.productionCompany = data.productionCompanies.map((n) => ({
+      '@type': 'Organization',
+      name: n,
+    }));
+  }
+
+  // Trailer (R2-hosted MP4 — never YouTube iframe)
+  if (data.trailerUrl && data.trailerUrl.startsWith('http')) {
+    schema.trailer = {
+      '@type': 'VideoObject',
+      name: `${data.name} – Trailer`,
+      description: `Trailer zur Serie ${data.name}`,
+      thumbnailUrl: posterAbsolute,
+      uploadDate: startDate || `${new Date().getFullYear()}-01-01`,
+      contentUrl: data.trailerUrl,
+      embedUrl: data.trailerUrl,
+      inLanguage: 'de-DE',
+      publisher: { '@id': ORG_ID },
+    };
+  }
+
+  // sameAs — link to TMDB authority record (Wikidata can be added later when
+  // we sync that mapping).
+  schema.sameAs = [
+    `https://www.themoviedb.org/tv/${data.tmdbId}`,
+  ];
+
+  return schema;
 }
 
 /**
