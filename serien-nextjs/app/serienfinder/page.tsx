@@ -41,7 +41,7 @@ export default async function SerienfinderPage() {
       updatedAt: true,
     },
     orderBy: [
-      { popularity: 'desc' },
+      { popularity: { sort: 'desc', nulls: 'last' } },
       { updatedAt: 'desc' },
     ],
     take: 200,
