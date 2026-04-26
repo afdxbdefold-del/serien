@@ -78,7 +78,9 @@ export async function postArticleToFacebook(
 
   const url = `${SITE_BASE}/${slug}`;
   const teaser = (article.metaDescription || article.excerpt || '').trim();
-  const message = teaser ? `${article.title}\n\n${teaser}\n\n${url}` : `${article.title}\n\n${url}`;
+  const message = teaser
+    ? `${article.title}\n\n${teaser}\n\n👉 Mehr auf serien.de: ${url}`
+    : `${article.title}\n\n👉 Mehr auf serien.de: ${url}`;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
