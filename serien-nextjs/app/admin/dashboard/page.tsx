@@ -100,6 +100,7 @@ export default function AdminDashboardPage() {
               { id: 'question-radar', label: '🎯 Question Radar', href: '/admin/question-radar' },
               { id: 'content-queue', label: '📋 Content Queue', href: '/admin/content-queue' },
               { id: 'ads', label: '📢 Werbung', href: '/admin/ads' },
+              { id: 'facebook', label: '📘 Facebook', href: '/admin/facebook' },
               { id: 'seo', label: '🔍 SEO Audit', href: '/admin/seo' },
               { id: 'branding', label: '🎨 Branding', href: '/admin/branding' },
               { id: 'blocklist', label: '🚫 Blocklist', href: '/admin/blocklist' },

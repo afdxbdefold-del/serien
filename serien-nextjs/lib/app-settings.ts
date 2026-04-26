@@ -30,4 +30,5 @@ export async function getBoolSetting(key: string, defaultValue = false): Promise
 /** Key constants */
 export const SETTINGS = {
   PIPELINE_CRON_PAUSED: 'pipeline.cron.paused',
+  FACEBOOK_AUTOPOST_ENABLED: 'facebook.autopost.enabled',
 } as const;

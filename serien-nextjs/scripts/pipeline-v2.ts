@@ -43,6 +43,8 @@ import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, norma
 import { computeStoryFingerprint } from '../lib/story-fingerprint';
 import { indexNewArticle } from '../lib/google-indexing';
 import { indexNowArticle } from '../lib/indexnow';
+import { postArticleToFacebook } from '../lib/facebook-poster';
+import { getBoolSetting, SETTINGS } from '../lib/app-settings';
 
 const prisma = new PrismaClient();
 
@@ -1812,6 +1814,19 @@ export async function runPipelineV2(source: PipelineV2Source) {
             await indexNowArticle(slug);
           } catch (error: any) {
             console.log(`   ⚠️  IndexNow failed: ${error.message}`);
+          }
+        }
+      })(),
+      // Facebook Auto-Posting auf Page (nur wenn Toggle aktiv)
+      (async () => {
+        if (!saveAsDraft) {
+          try {
+            const enabled = await getBoolSetting(SETTINGS.FACEBOOK_AUTOPOST_ENABLED, false);
+            if (enabled) {
+              await postArticleToFacebook(slug, 'auto');
+            }
+          } catch (error: any) {
+            console.log(`   ⚠️  Facebook Auto-Post failed: ${error.message}`);
           }
         }
       })(),

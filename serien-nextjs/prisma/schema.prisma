@@ -760,3 +760,19 @@ model sitemap_prewarm_log {
   @@index([createdAt])
 }
 
+model facebook_post_log {
+  id           String   @id @default(cuid())
+  articleSlug  String
+  fbPostId     String?
+  success      Boolean
+  statusCode   Int?
+  message      String?  @db.Text
+  errorMessage String?  @db.Text
+  trigger      String   @default("auto") // "auto" | "manual"
+  createdAt    DateTime @default(now())
+
+  @@index([articleSlug])
+  @@index([createdAt])
+}
+
+
