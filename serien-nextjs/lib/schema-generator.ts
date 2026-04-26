@@ -366,12 +366,13 @@ export function generateOrganizationSchema() {
       height: 1024,
     },
     sameAs: [
-      'https://twitter.com/serien_de',
       'https://x.com/serien_de',
-      'https://facebook.com/serien.de',
+      'https://twitter.com/serien_de',
+      'https://www.facebook.com/serien.de',
       'https://www.instagram.com/serien_de',
       'https://www.tiktok.com/@serien_de',
       'https://www.youtube.com/@serien189',
+      'https://discord.gg/4f6pdexwpY',
     ],
     address: {
       '@type': 'PostalAddress',
