@@ -27,7 +27,7 @@ export const NEWS_SOURCES = {
   },
   cinemaholic: {
     name: 'Cinemaholic',
-    url: 'https://thecinemaholic.com/category/home/news/tv-news/',
+    url: 'https://thecinemaholic.com/',
     domain: 'thecinemaholic.com',
     type: 'wordpress',
   },
