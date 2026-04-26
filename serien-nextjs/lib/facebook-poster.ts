@@ -78,8 +78,8 @@ export async function postArticleToFacebook(
 
   const url = `${SITE_BASE}/${slug}`;
   const teaser = (article.metaDescription || article.excerpt || '').trim();
-  // Format: Intro + direkter Link auf nächster Zeile (Titel kommt aus FB-OG-Preview-Card)
-  const message = teaser ? `${teaser}\n\n${url}` : `${article.title}\n\n${url}`;
+  // Format: NUR Intro im Text — die URL kommt allein über die Preview-Card (link-Parameter)
+  const message = teaser || article.title;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
