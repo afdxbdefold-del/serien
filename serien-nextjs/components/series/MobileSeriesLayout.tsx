@@ -267,53 +267,6 @@ export default function MobileSeriesLayout({
         )}
       </div>
 
-      <div className="mb-6">
-        {characters && characters.length > 0 && (
-          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-              Fiktive Charaktere aus {series.name || series.title}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {characters.map((character: any) => (
-                <Link
-                  key={character.slug}
-                  href={`/figur/${character.slug}`}
-                  className="group"
-                >
-                  <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
-                    {character.imageUrl ? (
-                      <Image
-                        src={character.imageUrl}
-                        alt={character.name}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm">
-                    <p className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {character.name}
-                    </p>
-                    {character.actor && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
-                        gespielt von {character.actor.name}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-
       {/* Topical Cluster: Characters Section - Links to Character Pages */}
       {characters && characters.length > 0 && (
         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md p-5 mb-6">
