@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { storeAllImagesForItem } from '@/lib/image-storage';
+import { storeAllImagesForItem, getTMDBImagePaths } from '@/lib/image-storage';
 import prisma from '@/lib/prisma';
 
 const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
@@ -125,6 +125,15 @@ export async function GET(request: NextRequest, context: RouteParams) {
     const results = await storeAllImagesForItem(type as 'tv' | 'movie', tmdbId);
     
     if (!results.og) {
+      // Storage broken / no image stored — fall back directly to TMDB CDN
+      const { backdrop, poster } = await getTMDBImagePaths(type as 'tv' | 'movie', tmdbId);
+      const fallbackPath = backdrop || poster;
+      if (fallbackPath) {
+        return NextResponse.redirect(
+          `https://image.tmdb.org/t/p/w1280${fallbackPath}`,
+          { status: 307 }
+        );
+      }
       return NextResponse.redirect(new URL('/placeholders/og.webp', request.url));
     }
 
@@ -148,6 +157,19 @@ export async function GET(request: NextRequest, context: RouteParams) {
 
   } catch (error) {
     console.error('OG image error:', error);
+    // Last-resort fallback: try TMDB CDN directly
+    try {
+      const { backdrop, poster } = await getTMDBImagePaths(type as 'tv' | 'movie', tmdbId);
+      const fallbackPath = backdrop || poster;
+      if (fallbackPath) {
+        return NextResponse.redirect(
+          `https://image.tmdb.org/t/p/w1280${fallbackPath}`,
+          { status: 307 }
+        );
+      }
+    } catch {
+      // ignore
+    }
     return NextResponse.redirect(new URL('/placeholders/og.webp', request.url));
   }
 }
