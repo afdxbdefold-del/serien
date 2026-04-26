@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import TrendingClient from '@/components/TrendingClient';
+import { normalizeStreamerList } from '@/lib/streamer-names';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -47,9 +48,10 @@ export default async function SerienfinderPage() {
     take: 200,
   });
 
-  // Serialize dates for client component
+  // Serialize dates for client component + normalize streamer names
   const serializedSeries = series.map(s => ({
     ...s,
+    networks: normalizeStreamerList(s.networks ?? []),
     firstAirDate: s.firstAirDate ? s.firstAirDate : null,
     updatedAt: s.updatedAt,
   }));
