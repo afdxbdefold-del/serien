@@ -300,61 +300,69 @@ export default function DesktopSeriesLayout({
           </div>
 
           {series.articles && series.articles.length > 0 ? (
-            <div className="space-y-6">
-              {series.articles.map((article, index) => (
-                <Link
-                  key={article.slug}
-                  href={`/${article.slug}`}
-                  className="block group"
-                >
-                  <article className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all ${
-                    index === 0 ? 'lg:flex lg:gap-6' : ''
-                  }`}>
-                    {(article.heroLocalUrl || article.cardImageUrl) && (
-                      <div className={`relative overflow-hidden bg-gray-100 dark:bg-gray-700 ${
-                        index === 0 
-                          ? 'lg:w-2/5 h-64 lg:h-auto' 
-                          : 'h-48'
-                      }`}>
-                        <Image
-                          src={article.heroLocalUrl || article.cardImageUrl || ''}
-                          alt={article.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                    )}
-                    
-                    <div className={`p-6 ${index === 0 ? 'lg:flex-1' : ''}`}>
-                      <p className={`font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 ${
-                        index === 0 ? 'text-2xl mb-3' : 'text-lg mb-2'
-                      }`}>
-                        {article.title}
-                      </p>
-                      
-                      {article.excerpt && (
-                        <p className={`text-gray-600 dark:text-gray-400 line-clamp-${index === 0 ? '3' : '2'} mb-3`}>
-                          {article.excerpt}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        {article.users?.name && (
-                          <span className="font-medium">{article.users.name}</span>
-                        )}
-                        {article.publishedAt && (
-                          <span>
-                            {new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric',
-                              month: 'long',
-                              year: 'numeric' })}
-                          </span>
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <span className="text-2xl">📰</span>
+                <span>Aktuelle News zu {series.name || series.title}</span>
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
+                Bestätigte Updates, Einordnungen und zentrale Fakten rund um {series.name || series.title}.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {series.articles.map((article) => {
+                  const img = article.heroLocalUrl || article.cardImageUrl || article.heroImageUrl;
+                  return (
+                    <Link
+                      key={article.slug}
+                      href={`/${article.slug}`}
+                      className="group block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-cyan-300 dark:hover:border-cyan-600 hover:shadow-lg dark:hover:shadow-gray-900/50 transition-all"
+                    >
+                      <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                        {img ? (
+                          <Image
+                            src={img}
+                            alt={article.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <span className="text-5xl">📰</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </article>
-                </Link>
-              ))}
-            </div>
+                      <div className="p-5">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 mb-2">
+                          {article.title}
+                        </h3>
+                        {article.excerpt && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                            {article.excerpt}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          {article.users?.name && (
+                            <span className="font-medium">{article.users.name}</span>
+                          )}
+                          {article.users?.name && article.publishedAt && <span>·</span>}
+                          {article.publishedAt && (
+                            <span>
+                              {new Date(article.publishedAt).toLocaleDateString('de-DE', {
+                                timeZone: 'Europe/Berlin',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
               <p className="text-gray-500 dark:text-gray-400">Aktuell liegen noch keine eigenen Artikel zu dieser Serie vor.</p>

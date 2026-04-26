@@ -116,56 +116,65 @@ export default function MobileSeriesLayout({
 
       {series.articles && series.articles.length > 0 && (
         <div className="lg:hidden mb-6">
-          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md p-5">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <span className="text-2xl">📰</span>
               <span>Aktuelle News zu {series.name || series.title}</span>
             </h2>
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-              In diesem Bereich werden relevante Meldungen und neue Entwicklungen rund um {series.name || series.title} gebündelt. 
-              Dazu zählen bestätigte Updates zur Serie, Einordnungen zu Veröffentlichungen sowie zentrale Fakten, sobald sie offiziell vorliegen.
+              Bestätigte Updates, Einordnungen und zentrale Fakten rund um {series.name || series.title}.
             </p>
-            <div className="space-y-4">
-              {series.articles.slice(0, 3).map((article: any) => (
-                <Link
-                  key={article.slug}
-                  href={`/${article.slug}`}
-                  className="block group"
-                >
-                  <div className="border border-gray-100 dark:border-gray-700 rounded-lg p-4 hover:border-cyan-300 dark:hover:border-cyan-600 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/30 transition-all">
-                    {article.cardImageUrl && (
-                      <div className="relative h-40 mb-3 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+            <div className="grid grid-cols-1 gap-4">
+              {series.articles.slice(0, 4).map((article: any) => {
+                const img = article.heroLocalUrl || article.cardImageUrl || article.heroImageUrl;
+                return (
+                  <Link
+                    key={article.slug}
+                    href={`/${article.slug}`}
+                    className="group block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-cyan-300 dark:hover:border-cyan-600 hover:shadow-lg transition-all"
+                  >
+                    <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      {img ? (
                         <Image
-                          src={article.cardImageUrl}
+                          src={img}
                           alt={article.title}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                      </div>
-                    )}
-                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 mb-2">
-                      {article.title}
-                    </h3>
-                    {article.excerpt && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-                        {article.excerpt}
-                      </p>
-                    )}
-                    {article.publishedAt && (
-                      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        {article.users?.name && (
-                          <span>{article.users.name}</span>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <span className="text-4xl">📰</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors line-clamp-2 mb-1.5">
+                        {article.title}
+                      </h3>
+                      {article.excerpt && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                          {article.excerpt}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {article.users?.name && <span className="font-medium">{article.users.name}</span>}
+                        {article.users?.name && article.publishedAt && <span>·</span>}
+                        {article.publishedAt && (
+                          <span>
+                            {new Date(article.publishedAt).toLocaleDateString('de-DE', {
+                              timeZone: 'Europe/Berlin',
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </span>
                         )}
-                        <span>
-                          {new Date(article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric',
-                            month: 'long',
-                            year: 'numeric' })}
-                        </span>
                       </div>
-                    )}
-                  </div>
-                </Link>
-              ))}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         </div>
