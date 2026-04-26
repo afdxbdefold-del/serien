@@ -370,6 +370,7 @@ export function generateOrganizationSchema() {
       'https://x.com/serien_de',
       'https://facebook.com/serien.de',
       'https://www.instagram.com/serien.de',
+      'https://www.tiktok.com/@serien_de',
     ],
     address: {
       '@type': 'PostalAddress',
