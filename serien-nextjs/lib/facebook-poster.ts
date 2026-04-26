@@ -77,11 +77,12 @@ export async function postArticleToFacebook(
   }
 
   const url = `${SITE_BASE}/${slug}`;
-  const trackedUrl = `${url}?utm_source=facebookblue`;
+  // Trailing-Slash-Trick: differs from canonical URL → FB strippt nicht aus Text-Body.
+  // Beim Klick führt Next.js einen 308-Redirect auf die saubere URL durch.
+  // Tracking läuft über GA4-Referrer-Attribution (facebook.com) — keine sichtbare UTM nötig.
+  const displayUrl = `${url}/`;
   const teaser = (article.metaDescription || article.excerpt || '').trim();
-  // Format: Intro + getrackte URL im Text. UTM-Trick verhindert FB-URL-Stripping,
-  // Card lädt trotzdem (FB normalisiert auf Basis-URL).
-  const message = teaser ? `${teaser}\n${trackedUrl}` : `${article.title}\n${trackedUrl}`;
+  const message = teaser ? `${teaser}\n${displayUrl}` : `${article.title}\n${displayUrl}`;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
