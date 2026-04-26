@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Tv } from 'lucide-react';
-import FollowButtonLocal from '@/components/FollowButtonLocal';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesOverview from '@/components/SeriesOverview';
 import { DiscoverIntro, DiscoverStatus, DiscoverNewsContext, MiniQA } from '@/components/DiscoverContent';
@@ -131,12 +130,6 @@ export default function DesktopSeriesLayout({
                     {series.overview}
                   </p>
                 )}
-                <div className="mt-4">
-                  <FollowButtonLocal 
-                    tmdbId={series.tmdbId} 
-                    seriesName={series.name || ''} 
-                  />
-                </div>
               </div>
             </div>
           </div>
@@ -306,13 +299,6 @@ export default function DesktopSeriesLayout({
             />
           </div>
 
-          {topSeriesAuthor && (
-            <SeriesAuthorBox
-              author={topSeriesAuthor}
-              seriesName={series.name || series.title}
-            />
-          )}
-
           {series.articles && series.articles.length > 0 ? (
             <div className="space-y-6">
               {series.articles.map((article, index) => (
@@ -395,6 +381,15 @@ export default function DesktopSeriesLayout({
           />
 
           <MiniQA qa={series.discoverQA as any || []} />
+
+          {topSeriesAuthor && (
+            <div className="mt-8">
+              <SeriesAuthorBox
+                author={topSeriesAuthor}
+                seriesName={series.name || series.title}
+              />
+            </div>
+          )}
         </div>
 
         {/* Rechte Sidebar */}

@@ -1,6 +1,5 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import FollowButtonLocal from '@/components/FollowButtonLocal';
 import MobileHeroWithVideo from '@/components/MobileHeroWithVideo';
 import WhereToStreamBox from '@/components/WhereToStreamBox';
 import SeriesOverview from '@/components/SeriesOverview';
@@ -100,13 +99,6 @@ export default function MobileSeriesLayout({
               {series.overview}
             </p>
           )}
-
-          <div>
-            <FollowButtonLocal 
-              tmdbId={series.tmdbId} 
-              seriesName={series.name || ''} 
-            />
-          </div>
         </div>
       </div>
 
@@ -120,15 +112,6 @@ export default function MobileSeriesLayout({
             {relevanceContext.text}
           </p>
         </section>
-      )}
-
-      {topSeriesAuthor && (
-        <div className="lg:hidden mb-6">
-          <SeriesAuthorBox
-            author={topSeriesAuthor}
-            seriesName={series.name || series.title}
-          />
-        </div>
       )}
 
       {series.articles && series.articles.length > 0 && (
@@ -407,6 +390,15 @@ export default function MobileSeriesLayout({
       />
 
       <MiniQA qa={series.discoverQA as any || []} />
+
+      {topSeriesAuthor && (
+        <div className="mt-8">
+          <SeriesAuthorBox
+            author={topSeriesAuthor}
+            seriesName={series.name || series.title}
+          />
+        </div>
+      )}
     </section>
   );
 }
