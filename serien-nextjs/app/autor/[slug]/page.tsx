@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     notFound();
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   const articleCount = author._count.articles;
 
   const rawTitle = `${author.name} – Autor`;

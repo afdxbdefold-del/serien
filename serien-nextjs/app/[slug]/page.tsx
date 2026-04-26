@@ -235,6 +235,8 @@ const getArticleMetadata = (slug: string) => unstable_cache(
       select: {
         title: true,
         excerpt: true,
+        metaDescription: true,
+        category: true,
         heroLocalUrl: true,
         ogImageUrl: true,
         tmdbId: true,
@@ -261,22 +263,43 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     notFound();
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
-  
+  // Schema/metadata URLs are always canonical (https://serien.de), even on
+  // Vercel preview deployments — the social-card platforms must never see
+  // a `*.vercel.app` URL.
+  const baseUrl = 'https://serien.de';
+
   // Build absolute OG image URL
   // Use TMDB image pipeline if available, fallback to local URL
-  const ogImagePath = article.ogImageUrl || 
+  const ogImagePath = article.ogImageUrl ||
     (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
-  
+
   // Make sure OG image is absolute URL
-  const ogImage = ogImagePath?.startsWith('http') 
-    ? ogImagePath 
-    : ogImagePath 
+  const ogImage = ogImagePath?.startsWith('http')
+    ? ogImagePath
+    : ogImagePath
       ? `${baseUrl}${ogImagePath.startsWith('/') ? '' : '/'}${ogImagePath}`
       : null;
 
   const finalTitle = seoTitle(article.title);
-  const finalDescription = seoDescription(article.excerpt || '');
+  const finalDescription = seoDescription(article.metaDescription || article.excerpt || '');
+
+  // Map internal contentType / category to a public-facing section label.
+  const PUBLIC_SECTION_LABEL: Record<string, string> = {
+    'imported_with_series': 'Serien-News',
+    'serien_news': 'Serien-News',
+    'series_news': 'Serien-News',
+    'streaming_news': 'Streaming-News',
+    'trailer_news': 'Trailer-News',
+    'review': 'Review',
+    'erklaerartikel': 'Erklärartikel',
+    'erklär': 'Erklärartikel',
+    'erklarartikel': 'Erklärartikel',
+    'ranking': 'Ranking',
+    'allgemein': 'Serien-News',
+  };
+  const rawSection = (article.category || article.contentType || '').toString().trim().toLowerCase();
+  const publicSection = PUBLIC_SECTION_LABEL[rawSection]
+    || (article.category && !/_/.test(article.category) ? article.category : 'Serien-News');
 
   return {
     title: finalTitle,
@@ -302,7 +325,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       publishedTime: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
       modifiedTime: article.updatedAt ? new Date(article.updatedAt).toISOString() : undefined,
       authors: article.users?.name ? [article.users.name] : undefined,
-      section: article.contentType || 'Serien News',
+      section: publicSection,
       images: ogImage ? [
         {
           url: ogImage,
@@ -615,9 +638,9 @@ export default async function ArticlePage({ params }: PageProps) {
           {/* Mehr zu <Serie> - Cards from same series */}
           {seriesArticles.length > 0 && article.series && (
             <section aria-labelledby="series-more" className="mt-10 mb-10">
-              <h3 id="series-more" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 id="series-more" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                 Mehr zu „{article.series.title || article.series.name}"
-              </h3>
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {seriesArticles.map((news) => (
                   <NewsCard

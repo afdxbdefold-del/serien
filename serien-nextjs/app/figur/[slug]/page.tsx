@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
     };
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   const seriesName = character.series?.name || character.series?.title || '';
   const title = character.metaTitle || `${character.name} (${seriesName}) - Serienfigur | serien.de`;
   const description = character.metaDescription || character.shortDescription || `Alles zur Serienfigur ${character.name} aus ${seriesName}.`;
@@ -186,7 +186,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
   }
   
   const seriesName = character.series.name || character.series.title;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
 
   // JSON-LD Structured Data
   const jsonLd = {

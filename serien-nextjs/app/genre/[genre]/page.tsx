@@ -16,7 +16,7 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { genre } = await params;
   const genreName = genre.charAt(0).toUpperCase() + genre.slice(1);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   
   return {
     title: `${genreName} Serien – News & Empfehlungen | serien.de`,

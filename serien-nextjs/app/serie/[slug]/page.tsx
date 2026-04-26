@@ -45,7 +45,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   
   const tmdbId = series.tmdbId;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  // Schema/metadata URLs are always canonical (https://serien.de) — never the
+  // Vercel preview origin, so social cards and search engines see the public
+  // domain regardless of the build environment.
+  const baseUrl = 'https://serien.de';
   const seriesName = series.name || series.title;
   const ogImage = `/img/og/${series.tmdbType}/${tmdbId}`;
   

@@ -218,7 +218,7 @@ export default async function AutorenPage() {
   const genreSections90 = buildGenreSections(genreRows90Days);
 
   // JSON-LD: list of Person schemas
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   const itemListSchema = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

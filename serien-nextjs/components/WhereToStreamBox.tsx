@@ -75,9 +75,9 @@ export default async function WhereToStreamBox({ seriesId, seriesName, networks,
         <div className="p-2 bg-blue-500 rounded-lg">
           <Tv className="h-5 w-5 text-white" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-1">
           Wo wird die Serie gestreamt?
-        </h3>
+        </h2>
       </div>
 
       <div className="space-y-3">

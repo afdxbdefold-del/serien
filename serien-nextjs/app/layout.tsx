@@ -12,13 +12,24 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-// Use environment variable for base URL (set in Vercel)
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+// Public canonical URL — must always be the production domain in OG/Twitter/Schema,
+// even when the build runs on a Vercel preview (`NEXT_PUBLIC_BASE_URL` may then
+// point to `*.vercel.app`). The OG URL Next.js composes from `metadataBase` is
+// what social platforms display, so pinning this to `https://serien.de`
+// prevents preview-domain leakage on every page.
+const CANONICAL_BASE_URL = 'https://serien.de';
+const baseUrl = CANONICAL_BASE_URL;
 
 export const metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien.',
-  metadataBase: new URL(baseUrl),
+  metadataBase: new URL(CANONICAL_BASE_URL),
+  alternates: {
+    canonical: '/',
+    languages: {
+      'de-DE': '/',
+    },
+  },
   icons: {
     icon: [
       { url: '/favicon-v2.ico?v=2', sizes: 'any' },
@@ -31,6 +42,7 @@ export const metadata = {
     type: 'website',
     locale: 'de_DE',
     siteName: 'serien.de',
+    url: CANONICAL_BASE_URL,
     images: [
       {
         url: '/og-image.png?v=3',
@@ -42,6 +54,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@serien_de',
+    creator: '@serien_de',
     images: ['/twitter-card.png?v=3'],
   },
 };
@@ -68,6 +82,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="theme-color" content="#ffffff" />
         <link rel="manifest" href="/manifest.json" />
+        {/* hreflang — single-language German site; emitted globally so every
+            page (including ones that override `alternates`) carries the signal. */}
+        <link rel="alternate" hrefLang="de-DE" href="https://serien.de" />
+        <link rel="alternate" hrefLang="x-default" href="https://serien.de" />
         
         {/* AdSense - NEVER REMOVE. Hardcoded publisher ID, must always be in <head>. */}
         <script

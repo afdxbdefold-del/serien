@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description = dbPerson.biography
     ? `${dbPerson.biography.slice(0, 150)}...`
     : `Alle Serien und Filme mit ${dbPerson.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const baseUrl = 'https://serien.de';
   const blobBase = process.env.NEXT_PUBLIC_BLOB_URL || process.env.BLOB_PUBLIC_URL || 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
 
   // Use Vercel Blob URL (self-hosted) instead of TMDB direct URL
