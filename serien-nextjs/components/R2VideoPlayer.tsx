@@ -13,9 +13,35 @@ export default function R2VideoPlayer({ src, poster }: R2VideoPlayerProps) {
   const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
+    const v = videoRef.current;
+    if (!v) return;
+    v.play().catch(() => {});
+
+    // Sync local mute state with native player (e.g. when the user toggles the speaker
+    // icon from the built-in <video controls> bar).
+    const sync = () => setIsMuted(v.muted || v.volume === 0);
+    v.addEventListener('volumechange', sync);
+
+    // Pause when the page is hidden (handles bfcache / back-forward).
+    const stop = () => {
+      try {
+        v.pause();
+      } catch {}
+    };
+    window.addEventListener('pagehide', stop);
+
+    return () => {
+      v.removeEventListener('volumechange', sync);
+      window.removeEventListener('pagehide', stop);
+      // Hard-stop on unmount — Chrome occasionally keeps the audio track alive
+      // across SPA navigations otherwise.
+      try {
+        v.pause();
+        v.removeAttribute('src');
+        while (v.firstChild) v.removeChild(v.firstChild);
+        v.load();
+      } catch {}
+    };
   }, []);
 
   const handleUnmute = () => {

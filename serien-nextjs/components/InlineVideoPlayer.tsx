@@ -43,7 +43,28 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
     // bypassing our cyan button, so we must hide the button in that case too.
     const sync = () => setIsMuted(v.muted || v.volume === 0);
     v.addEventListener('volumechange', sync);
-    return () => v.removeEventListener('volumechange', sync);
+
+    // Stop the video on tab/page hide as well (covers bfcache / back-forward navigation).
+    const stop = () => {
+      try {
+        v.pause();
+      } catch {}
+    };
+    window.addEventListener('pagehide', stop);
+
+    return () => {
+      v.removeEventListener('volumechange', sync);
+      window.removeEventListener('pagehide', stop);
+      // Hard-stop on unmount — Next.js client-side route changes unmount this
+      // component, but Chrome occasionally keeps the audio track alive otherwise.
+      try {
+        v.pause();
+        v.removeAttribute('src');
+        // Detach <source> children too, then trigger the browser to release the file.
+        while (v.firstChild) v.removeChild(v.firstChild);
+        v.load();
+      } catch {}
+    };
   }, []);
 
   // If no trailer, just show the image
