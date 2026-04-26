@@ -31,8 +31,7 @@ type SortOption = 'popularity' | 'rating' | 'newest' | 'alphabetical';
 
 function TrendingClientInner({ series }: TrendingClientProps) {
   const searchParams = useSearchParams();
-  const [showFilters, setShowFilters] = useState(false);
-  
+
   // Filter states
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -45,22 +44,13 @@ function TrendingClientInner({ series }: TrendingClientProps) {
   // Initialize filters from URL parameters
   useEffect(() => {
     const networkParam = searchParams?.get('network');
-    if (networkParam) {
-      setSelectedNetworks([networkParam]);
-      setShowFilters(true);
-    }
-    
+    if (networkParam) setSelectedNetworks([networkParam]);
+
     const genreParam = searchParams?.get('genre');
-    if (genreParam) {
-      setSelectedGenres([genreParam]);
-      setShowFilters(true);
-    }
-    
+    if (genreParam) setSelectedGenres([genreParam]);
+
     const statusParam = searchParams?.get('status');
-    if (statusParam) {
-      setSelectedStatuses([statusParam]);
-      setShowFilters(true);
-    }
+    if (statusParam) setSelectedStatuses([statusParam]);
   }, [searchParams]);
 
   // Streaming services available in Germany
@@ -215,13 +205,183 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                 Serienfinder
               </h1>
             </div>
-            <p className="text-lg text-gray-600 mb-3">
+            <p className="text-lg text-gray-600 mb-6">
               Finde deine nächste Lieblingsserie mit umfangreichen Filtern
             </p>
-            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-lg p-4">
-              <p className="text-sm text-gray-700">
-                💡 <strong>Tipp:</strong> Folge deinen Lieblingsserien, um personalisierte News und Serien-Vorschläge zu erhalten!
-              </p>
+
+            {/* Inline Filter Panel (replaces the old Tipp box) */}
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 md:p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                  <Filter className="h-5 w-5 text-cyan-500" />
+                  Filter & Sortierung
+                </h2>
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    className="text-sm text-gray-500 hover:text-gray-900 underline-offset-2 hover:underline"
+                  >
+                    Zurücksetzen
+                  </button>
+                )}
+              </div>
+
+              {/* Sortierung */}
+              <div className="mb-5">
+                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Sortierung</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'popularity', label: 'Popularität' },
+                    { value: 'rating', label: 'Bewertung' },
+                    { value: 'newest', label: 'Neueste' },
+                    { value: 'alphabetical', label: 'A–Z' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSortBy(opt.value as SortOption)}
+                      className={`px-4 py-1.5 rounded-full border-2 text-sm transition-all ${
+                        sortBy === opt.value
+                          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
+                          : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Streamer */}
+              {filterOptions.networks.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Streamer</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.networks.map(network => (
+                      <button
+                        key={network}
+                        onClick={() => toggleArrayFilter(network, selectedNetworks, setSelectedNetworks)}
+                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                          selectedNetworks.includes(network)
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 font-semibold'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {network}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Genres */}
+              {filterOptions.genres.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Genres</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.genres.map(genre => (
+                      <button
+                        key={genre}
+                        onClick={() => toggleArrayFilter(genre, selectedGenres, setSelectedGenres)}
+                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                          selectedGenres.includes(genre)
+                            ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Status */}
+              {filterOptions.statuses.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Status</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {filterOptions.statuses.map(status => (
+                      <button
+                        key={status}
+                        onClick={() => toggleArrayFilter(status, selectedStatuses, setSelectedStatuses)}
+                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                          selectedStatuses.includes(status)
+                            ? 'border-green-500 bg-green-50 text-green-700 font-semibold'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Erweitert: Rating, Jahr, Staffeln */}
+              <details className="group">
+                <summary className="cursor-pointer list-none text-sm text-cyan-700 hover:text-cyan-800 font-medium select-none">
+                  <span className="group-open:hidden">Erweiterte Filter anzeigen ▾</span>
+                  <span className="hidden group-open:inline">Erweiterte Filter ausblenden ▴</span>
+                </summary>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div>
+                    <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
+                      Mindest-Bewertung: {minRating > 0 ? minRating.toFixed(1) : 'Alle'}
+                    </h3>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={minRating}
+                      onChange={(e) => setMinRating(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
+                      Jahr: {yearRange[0]}–{yearRange[1]}
+                    </h3>
+                    <input
+                      type="range"
+                      min="1990"
+                      max="2025"
+                      value={yearRange[0]}
+                      onChange={(e) => setYearRange([parseInt(e.target.value), yearRange[1]])}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500 mb-2"
+                    />
+                    <input
+                      type="range"
+                      min="1990"
+                      max="2025"
+                      value={yearRange[1]}
+                      onChange={(e) => setYearRange([yearRange[0], parseInt(e.target.value)])}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
+                      Staffeln: {seasonRange[0]}–{seasonRange[1]}
+                    </h3>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={seasonRange[0]}
+                      onChange={(e) => setSeasonRange([parseInt(e.target.value), seasonRange[1]])}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500 mb-2"
+                    />
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={seasonRange[1]}
+                      onChange={(e) => setSeasonRange([seasonRange[0], parseInt(e.target.value)])}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -375,221 +535,6 @@ function TrendingClientInner({ series }: TrendingClientProps) {
           </div>
         </div>
       </main>
-
-      {/* Floating Filter Button */}
-      <button
-        onClick={() => setShowFilters(true)}
-        className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 z-40"
-      >
-        <Filter className="h-5 w-5" />
-        <span className="font-semibold">Serienfilter</span>
-        {hasActiveFilters && (
-          <span className="bg-white text-cyan-600 px-2 py-0.5 rounded-full text-xs font-bold">
-            {selectedGenres.length + selectedStatuses.length + selectedNetworks.length + (minRating > 0 ? 1 : 0)}
-          </span>
-        )}
-      </button>
-
-      {/* Filter Modal */}
-      {showFilters && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowFilters(false)}>
-          <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between z-10">
-              <h2 className="text-2xl font-bold text-gray-900">Filter & Sortierung</h2>
-              <button 
-                onClick={() => setShowFilters(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* Filter Content */}
-            <div className="p-6 space-y-8">
-              {/* Sortierung */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">🔥 Sortierung</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { value: 'popularity', label: 'Popularität' },
-                    { value: 'rating', label: 'Bewertung' },
-                    { value: 'newest', label: 'Neueste' },
-                    { value: 'alphabetical', label: 'A-Z' },
-                  ].map(option => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSortBy(option.value as SortOption)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                        sortBy === option.value
-                          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Networks / Sender/Plattform - NOW SECOND */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">🎬 Sender/Plattform</h3>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.networks.map(network => (
-                    <button
-                      key={network}
-                      onClick={() => toggleArrayFilter(network, selectedNetworks, setSelectedNetworks)}
-                      className={`px-4 py-2 rounded-full border-2 transition-all ${
-                        selectedNetworks.includes(network)
-                          ? 'border-purple-500 bg-purple-50 text-purple-700 font-semibold'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {network}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Genres - NOW THIRD */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">📺 Genres</h3>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.genres.map(genre => (
-                    <button
-                      key={genre}
-                      onClick={() => toggleArrayFilter(genre, selectedGenres, setSelectedGenres)}
-                      className={`px-4 py-2 rounded-full border-2 transition-all ${
-                        selectedGenres.includes(genre)
-                          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {genre}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">📊 Status</h3>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.statuses.map(status => (
-                    <button
-                      key={status}
-                      onClick={() => toggleArrayFilter(status, selectedStatuses, setSelectedStatuses)}
-                      className={`px-4 py-2 rounded-full border-2 transition-all ${
-                        selectedStatuses.includes(status)
-                          ? 'border-green-500 bg-green-50 text-green-700 font-semibold'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rating Slider */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">⭐ Mindest-Bewertung: {minRating > 0 ? minRating.toFixed(1) : 'Alle'}</h3>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="0.5"
-                  value={minRating}
-                  onChange={(e) => setMinRating(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                />
-                <div className="flex justify-between text-sm text-gray-500 mt-2">
-                  <span>0</span>
-                  <span>10</span>
-                </div>
-              </div>
-
-              {/* Year Range */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">📅 Jahr: {yearRange[0]} - {yearRange[1]}</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Von</label>
-                    <input
-                      type="range"
-                      min="1990"
-                      max="2025"
-                      value={yearRange[0]}
-                      onChange={(e) => setYearRange([parseInt(e.target.value), yearRange[1]])}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Bis</label>
-                    <input
-                      type="range"
-                      min="1990"
-                      max="2025"
-                      value={yearRange[1]}
-                      onChange={(e) => setYearRange([yearRange[0], parseInt(e.target.value)])}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Season Range */}
-              <div>
-                <h3 className="font-bold text-lg mb-4">🎭 Anzahl Staffeln: {seasonRange[0]} - {seasonRange[1]}</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Minimum</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={seasonRange[0]}
-                      onChange={(e) => setSeasonRange([parseInt(e.target.value), seasonRange[1]])}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Maximum</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={seasonRange[1]}
-                      onChange={(e) => setSeasonRange([seasonRange[0], parseInt(e.target.value)])}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="sticky bottom-0 bg-white border-t p-6 flex gap-4">
-              <button
-                onClick={resetFilters}
-                className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors"
-              >
-                Zurücksetzen
-              </button>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
-              >
-                Anwenden ({filteredSeries.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
