@@ -81,7 +81,7 @@ export async function postArticleToFacebook(
   const teaser = (article.metaDescription || article.excerpt || '').trim();
   // Format: Intro + getrackte URL im Text. UTM-Trick verhindert FB-URL-Stripping,
   // Card lädt trotzdem (FB normalisiert auf Basis-URL).
-  const message = teaser ? `${teaser}\n\n${trackedUrl}` : `${article.title}\n\n${trackedUrl}`;
+  const message = teaser ? `${teaser}\n${trackedUrl}` : `${article.title}\n${trackedUrl}`;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
