@@ -78,8 +78,10 @@ export async function postArticleToFacebook(
 
   const url = `${SITE_BASE}/${slug}`;
   const teaser = (article.metaDescription || article.excerpt || '').trim();
-  // Format: nur Intro + Link in nächster Zeile (Titel kommt aus FB-Preview-Card vom OG-Tag)
-  const message = teaser ? `${teaser}\n${url}` : `${article.title}\n${url}`;
+  // Format: Intro + CTA-Link + URL (URL erzeugt zusätzlich Preview-Card mit OG-Image)
+  const message = teaser
+    ? `${teaser}\n\n👉 Mehr auf serien.de\n${url}`
+    : `${article.title}\n\n👉 Mehr auf serien.de\n${url}`;
 
   try {
     const endpoint = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/feed`;
