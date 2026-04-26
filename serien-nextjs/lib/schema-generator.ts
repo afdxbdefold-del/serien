@@ -369,7 +369,7 @@ export function generateOrganizationSchema() {
       'https://twitter.com/serien_de',
       'https://x.com/serien_de',
       'https://facebook.com/serien.de',
-      'https://www.instagram.com/serien.de',
+      'https://www.instagram.com/serien_de',
       'https://www.tiktok.com/@serien_de',
     ],
     address: {
