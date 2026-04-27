@@ -206,20 +206,25 @@ async function PlatformSection({ p }: { p: (typeof PLATFORMS)[number] }) {
         <div className="lg:col-span-2">
           <HeroOneCard item={first} accentClass={p.accentClass} />
         </div>
-        <div className="grid grid-cols-3 lg:grid-cols-2 gap-3">
+        {/* Desktop only: positions 2-5 in side column */}
+        <div className="hidden lg:grid grid-cols-2 gap-3">
           {rest.slice(0, 4).map((it) => (
             <PosterCard key={it.rank} item={it} platformId={p.id} />
           ))}
         </div>
       </div>
 
-      {rest.length > 4 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-3">
-          {rest.slice(4).map((it) => (
-            <PosterCard key={it.rank} item={it} platformId={p.id} />
-          ))}
-        </div>
-      )}
+      {/* Mobile/Tablet: positions 2-10 (9 items, 3x3) — Desktop: only 6-10 (1x5) */}
+      <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 mt-3">
+        {rest.slice(0, 4).map((it) => (
+          <div key={`mobile-${it.rank}`} className="lg:hidden">
+            <PosterCard item={it} platformId={p.id} />
+          </div>
+        ))}
+        {rest.slice(4).map((it) => (
+          <PosterCard key={it.rank} item={it} platformId={p.id} />
+        ))}
+      </div>
     </section>
   );
 }
