@@ -18,6 +18,7 @@ const STATIC_PAGES: StaticEntry[] = [
   // Flagship hubs — derive lastmod from the latest article so they reflect real freshness.
   { loc: '/',                          changefreq: 'daily',   priority: 1.0,  derive: latestArticle },
   { loc: '/top-10',                    changefreq: 'daily',   priority: 0.95, derive: latestSeries },
+  { loc: '/serien',                    changefreq: 'daily',   priority: 0.92, derive: latestSeries },
   { loc: '/top-100-serien',            changefreq: 'daily',   priority: 0.9,  derive: latestSeries },
   { loc: '/top-100-netflix',           changefreq: 'daily',   priority: 0.85, derive: latestSeries },
   { loc: '/top-100-amazon-prime',      changefreq: 'daily',   priority: 0.85, derive: latestSeries },
