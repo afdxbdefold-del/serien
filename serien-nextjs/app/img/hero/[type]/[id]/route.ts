@@ -120,6 +120,21 @@ export async function GET(request: NextRequest, context: RouteParams) {
     return new NextResponse('Invalid ID', { status: 400 });
   }
 
+  // PRIORITY 1: Custom local backdrop (manually uploaded or AI-generated for series
+  // without a TMDB backdrop). Stored in /public/series-backdrops/ and referenced via
+  // series.backdropLocalUrl. Redirect so Next.js serves it as a static asset.
+  try {
+    const seriesLocal = await prisma.series.findUnique({
+      where: { tmdbId },
+      select: { backdropLocalUrl: true },
+    });
+    if (seriesLocal?.backdropLocalUrl) {
+      return NextResponse.redirect(new URL(seriesLocal.backdropLocalUrl, request.url), { status: 307 });
+    }
+  } catch {
+    // ignore – fall through to storage/TMDB pipeline
+  }
+
   try {
     const storagePath = `serien-nextjs/images/hero/${type}/${id}.webp`;
     const key = await initStorage();
