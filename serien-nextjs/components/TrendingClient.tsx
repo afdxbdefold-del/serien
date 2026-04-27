@@ -53,7 +53,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
     if (statusParam) setSelectedStatuses([statusParam]);
   }, [searchParams]);
 
-  // Streaming services available in Germany
+  // Streaming services available in Germany (full list — used for filter logic)
   const GERMAN_STREAMERS = [
     'Netflix',
     'Amazon Prime Video',
@@ -87,6 +87,21 @@ function TrendingClientInner({ series }: TrendingClientProps) {
     'Discovery+',
   ];
 
+  // Top 10 most-relevant streamers (DE market) — only these appear as filter pills.
+  // Order matters: pills render in this exact priority.
+  const TOP_10_STREAMERS = [
+    'Netflix',
+    'Prime Video',
+    'Disney+',
+    'Apple TV+',
+    'WOW',
+    'Sky',
+    'Paramount+',
+    'RTL+',
+    'Joyn',
+    'ARD',
+  ];
+
   // Get unique filter options from data
   const filterOptions = useMemo(() => {
     const genres = new Set<string>();
@@ -107,7 +122,12 @@ function TrendingClientInner({ series }: TrendingClientProps) {
     return {
       genres: Array.from(genres).sort(),
       statuses: Array.from(statuses).sort(),
-      networks: Array.from(networks).sort(),
+      // Network filter pills: only show TOP 10 streamers, in priority order, that are present in the dataset
+      networks: TOP_10_STREAMERS.filter(top =>
+        Array.from(networks).some(n =>
+          n.toLowerCase().includes(top.toLowerCase()) || top.toLowerCase().includes(n.toLowerCase())
+        )
+      ),
     };
   }, [series]);
 
@@ -125,9 +145,13 @@ function TrendingClientInner({ series }: TrendingClientProps) {
         return false;
       }
 
-      // Network filter
+      // Network filter (fuzzy match: pill "Disney+" matches show network "Disney Plus" etc.)
       if (selectedNetworks.length > 0) {
-        const hasNetwork = selectedNetworks.some(n => show.networks?.includes(n));
+        const hasNetwork = selectedNetworks.some(sel =>
+          show.networks?.some(n =>
+            n.toLowerCase().includes(sel.toLowerCase()) || sel.toLowerCase().includes(n.toLowerCase())
+          )
+        );
         if (!hasNetwork) return false;
       }
 
@@ -198,28 +222,28 @@ function TrendingClientInner({ series }: TrendingClientProps) {
       <main className="container mx-auto px-6 md:px-12 py-12">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Sparkles className="h-8 w-8 text-cyan-500" />
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Sparkles className="h-7 w-7 text-cyan-500" />
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Serienfinder
               </h1>
             </div>
-            <p className="text-lg text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 mb-4">
               Finde deine nächste Lieblingsserie mit umfangreichen Filtern
             </p>
 
             {/* Inline Filter Panel (replaces the old Tipp box) */}
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 md:p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                  <Filter className="h-5 w-5 text-cyan-500" />
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <Filter className="h-4 w-4 text-cyan-500" />
                   Filter & Sortierung
                 </h2>
                 {hasActiveFilters && (
                   <button
                     onClick={resetFilters}
-                    className="text-sm text-gray-500 hover:text-gray-900 underline-offset-2 hover:underline"
+                    className="text-xs text-gray-500 hover:text-gray-900 underline-offset-2 hover:underline"
                   >
                     Zurücksetzen
                   </button>
@@ -227,9 +251,9 @@ function TrendingClientInner({ series }: TrendingClientProps) {
               </div>
 
               {/* Sortierung */}
-              <div className="mb-5">
-                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Sortierung</h3>
-                <div className="flex flex-wrap gap-2">
+              <div className="mb-3">
+                <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Sortierung</h3>
+                <div className="flex flex-wrap gap-1.5">
                   {[
                     { value: 'popularity', label: 'Popularität' },
                     { value: 'rating', label: 'Bewertung' },
@@ -239,7 +263,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
                     <button
                       key={opt.value}
                       onClick={() => setSortBy(opt.value as SortOption)}
-                      className={`px-4 py-1.5 rounded-full border-2 text-sm transition-all ${
+                      className={`px-3 py-1 rounded-full border text-xs transition-all ${
                         sortBy === opt.value
                           ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
                           : 'border-gray-200 text-gray-700 hover:border-gray-300'
@@ -253,14 +277,14 @@ function TrendingClientInner({ series }: TrendingClientProps) {
 
               {/* Streamer */}
               {filterOptions.networks.length > 0 && (
-                <div className="mb-5">
-                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Streamer</h3>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3">
+                  <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Streamer</h3>
+                  <div className="flex flex-wrap gap-1.5">
                     {filterOptions.networks.map(network => (
                       <button
                         key={network}
                         onClick={() => toggleArrayFilter(network, selectedNetworks, setSelectedNetworks)}
-                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                        className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
                           selectedNetworks.includes(network)
                             ? 'border-purple-500 bg-purple-50 text-purple-700 font-semibold'
                             : 'border-gray-200 text-gray-700 hover:border-gray-300'
@@ -275,14 +299,14 @@ function TrendingClientInner({ series }: TrendingClientProps) {
 
               {/* Genres */}
               {filterOptions.genres.length > 0 && (
-                <div className="mb-5">
-                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Genres</h3>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3">
+                  <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Genres</h3>
+                  <div className="flex flex-wrap gap-1.5">
                     {filterOptions.genres.map(genre => (
                       <button
                         key={genre}
                         onClick={() => toggleArrayFilter(genre, selectedGenres, setSelectedGenres)}
-                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                        className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
                           selectedGenres.includes(genre)
                             ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
                             : 'border-gray-200 text-gray-700 hover:border-gray-300'
@@ -297,14 +321,14 @@ function TrendingClientInner({ series }: TrendingClientProps) {
 
               {/* Status */}
               {filterOptions.statuses.length > 0 && (
-                <div className="mb-5">
-                  <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Status</h3>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3">
+                  <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">Status</h3>
+                  <div className="flex flex-wrap gap-1.5">
                     {filterOptions.statuses.map(status => (
                       <button
                         key={status}
                         onClick={() => toggleArrayFilter(status, selectedStatuses, setSelectedStatuses)}
-                        className={`px-3 py-1.5 rounded-full border-2 text-sm transition-all ${
+                        className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
                           selectedStatuses.includes(status)
                             ? 'border-green-500 bg-green-50 text-green-700 font-semibold'
                             : 'border-gray-200 text-gray-700 hover:border-gray-300'
