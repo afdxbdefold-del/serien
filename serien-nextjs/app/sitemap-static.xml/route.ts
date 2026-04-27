@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { GENRES, STREAMERS, DECADES } from '@/app/serien/_lib';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
@@ -39,6 +40,17 @@ const STATIC_PAGES: StaticEntry[] = [
   { loc: '/impressum',                 changefreq: 'yearly',  priority: 0.3 },
   { loc: '/datenschutz',               changefreq: 'yearly',  priority: 0.3 },
 ];
+
+// Append /serien/{genre|streamer|jahrzehnt}/* sub-routes for SEO indexing.
+GENRES.forEach((g) =>
+  STATIC_PAGES.push({ loc: `/serien/genre/${g.slug}`, changefreq: 'daily', priority: 0.78, derive: latestSeries })
+);
+STREAMERS.forEach((s) =>
+  STATIC_PAGES.push({ loc: `/serien/streamer/${s.slug}`, changefreq: 'daily', priority: 0.78, derive: latestSeries })
+);
+DECADES.forEach((d) =>
+  STATIC_PAGES.push({ loc: `/serien/jahrzehnt/${d}er`, changefreq: 'weekly', priority: 0.7, derive: latestSeries })
+);
 
 async function latestArticle(): Promise<Date | null> {
   const r = await prisma.articles.findFirst({ where: { status: 'published' }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } });

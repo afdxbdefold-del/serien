@@ -31,6 +31,7 @@ const STREAMING_PROVIDERS = [
 
 // More menu items
 const MORE_ITEMS = [
+  { name: 'Alle Serien (A–Z)', href: '/serien', icon: Tv, description: 'Komplettes Serien-Verzeichnis mit Filtern' },
   { name: 'Top 100 Serien', href: '/top-100-serien', icon: Flame, description: 'Täglich aktualisiertes Ranking' },
   { name: 'Top 100 Netflix', href: '/top-100-netflix', icon: Flame, description: 'Die besten Netflix-Serien' },
   { name: 'Top 100 Prime Video', href: '/top-100-amazon-prime', icon: Flame, description: 'Die besten Prime-Serien' },
