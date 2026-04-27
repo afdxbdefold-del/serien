@@ -338,18 +338,52 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
   
+  // Cinemaholic-specific URL pre-filter — saves expensive LLM classifier calls
+  // for URLs that are obviously movies, listicles, or non-actionable cast guides.
+  // Only applied to Cinemaholic source; other sources use full keyword fallback.
+  function passesCinemaholicUrlFilter(url: string, title: string): boolean {
+    if (source.name !== 'Cinemaholic') return true;
+    const path = url.toLowerCase().replace('https://thecinemaholic.com/', '').split('?')[0];
+    const t = title.toLowerCase();
+
+    // 1. Hard skip: listicles ("best/top X on Y") — never produce single-series articles
+    if (/^(best|top|all|every|the-best|the-top)-/.test(path)) return false;
+    if (/\b(best|top)\s+\d?\s*(anime|series|shows|movies|reality)\s+on\b/.test(t)) return false;
+
+    // 2. Hard skip: cast/character guides — usually movie-focused, low article-yield
+    if (/cast-and-character-guide|character-guide|cast-guide/.test(path)) return false;
+
+    // 3. "Ending Explained" without season/episode marker → usually a movie
+    if (/ending-explained/.test(path)) {
+      const hasSeriesMarker =
+        /season-\d|episode-\d|staffel|s0?\d-?e?0?\d|finale-recap/i.test(path) ||
+        /\bseason\s*\d|\bepisode\s*\d|\bs\d+e\d+|\bstaffel\b/i.test(t);
+      if (!hasSeriesMarker) return false;
+    }
+
+    // 4. "Recap" without episode marker → likely a movie recap
+    if (/^[^/]*-recap\/?$/.test(path) && !/season-\d|episode-\d|finale/i.test(path)) {
+      return false;
+    }
+
+    return true;
+  }
+
   // WordPress pattern: Find article links with titles
   $('a[href*="thecinemaholic.com/"]').each((_, element) => {
     const $link = $(element);
     const href = $link.attr('href') || '';
     const title = $link.attr('title') || $link.text().trim();
-    
+
     // Skip navigation and utility links
     if (!href || !title || title.length < 20) return;
     if (href.includes('/category/') || href.includes('/about') || href.includes('/contact') ||
         href.includes('/privacy') || href.includes('/terms') || href.includes('/policy')) return;
     if (seenUrls.has(href)) return;
-    
+
+    // Strict URL/title pre-filter (saves LLM calls for obvious non-TV content)
+    if (!passesCinemaholicUrlFilter(href, title)) return;
+
     seenUrls.add(href);
     results.push({
       title: title.trim(),
