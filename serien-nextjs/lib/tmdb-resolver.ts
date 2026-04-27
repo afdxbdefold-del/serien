@@ -31,6 +31,90 @@ function generateSlug(title: string): string {
 }
 
 /**
+ * Import a series directly by TMDB ID with COMPLETE data (cast, crew, networks,
+ * episodes, trailers, keywords). Skips search/confidence step — used by automated
+ * cron jobs that already have IDs from discover/trending endpoints.
+ *
+ * Returns null if already in DB or if TMDB fetch fails.
+ */
+export async function importSeriesById(
+  tmdbId: number,
+  language: string = 'de-DE'
+): Promise<ResolvedSeries | null> {
+  const existing = await prisma.series.findUnique({
+    where: { tmdbId },
+    select: { tmdbId: true, name: true, title: true },
+  });
+  if (existing) {
+    return {
+      tmdbId,
+      name: existing.name || existing.title,
+      confidence: 1,
+      alreadyInDb: true,
+    };
+  }
+
+  const completeDetails = await getTvDetailsComplete(tmdbId, language);
+  if (!completeDetails || !completeDetails.name) return null;
+
+  let slug = generateSlug(completeDetails.name);
+  const slugExists = await prisma.series.findFirst({ where: { slug } });
+  if (slugExists) slug = `${slug}-${tmdbId}`;
+
+  const topBackdrops = await fetchTopBackdrops('tv', tmdbId, 10).catch(() => []);
+
+  await prisma.series.create({
+    data: {
+      tmdbId,
+      tmdbType: 'tv',
+      title: completeDetails.name,
+      slug,
+      name: completeDetails.name,
+      originalName: completeDetails.originalName,
+      overview: completeDetails.overview,
+      tagline: completeDetails.tagline,
+      posterPath: completeDetails.posterPath,
+      backdropPath: completeDetails.backdropPath,
+      backdrops: topBackdrops.length > 0 ? topBackdrops : null,
+      status: completeDetails.status,
+      type: completeDetails.type,
+      firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+      lastAirDate: completeDetails.lastAirDate ? new Date(completeDetails.lastAirDate) : null,
+      numberOfSeasons: completeDetails.numberOfSeasons,
+      numberOfEpisodes: completeDetails.numberOfEpisodes,
+      episodeRunTime: completeDetails.episodeRunTime,
+      inProduction: completeDetails.inProduction,
+      voteAverage: completeDetails.voteAverage,
+      voteCount: completeDetails.voteCount,
+      popularity: completeDetails.popularity,
+      genres: completeDetails.genres.map((g: { name: string }) => g.name),
+      genresJson: completeDetails.genres,
+      networks: completeDetails.networks.map((n: { name: string }) => n.name),
+      networksJson: completeDetails.networks,
+      productionCompanies: completeDetails.productionCompanies.map((c: { name: string }) => c.name),
+      productionCountries: completeDetails.productionCountries.map((c: { name: string }) => c.name),
+      spokenLanguages: completeDetails.spokenLanguages.map((l: { name: string }) => l.name),
+      originalLanguage: completeDetails.originalLanguage,
+      cast: completeDetails.cast,
+      crew: completeDetails.crew,
+      seasons: completeDetails.seasons,
+      trailers: completeDetails.trailers,
+      keywords: completeDetails.keywords,
+      tmdbData: completeDetails.tmdbData,
+      updatedAt: new Date(),
+    },
+  });
+
+  return {
+    tmdbId,
+    name: completeDetails.name,
+    confidence: 1,
+    alreadyInDb: false,
+  };
+}
+
+
+/**
  * Resolve a single series (for SINGLE_SERIES_NEWS)
  */
 export async function resolveSingleSeries(

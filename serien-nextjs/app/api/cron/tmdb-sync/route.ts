@@ -1,14 +1,28 @@
 /**
- * TMDB SYNC CRON — Automatic import of new/trending series
- * 
- * Runs daily via Vercel Cron. Fetches airing_today, on_the_air,
- * and popular series from TMDB. Only imports series not yet in DB.
- * 
- * GET /api/cron/tmdb-sync
+ * TMDB SYNC CRON — Daily auto-import of new/trending series
+ *
+ * Runs daily via Vercel Cron (5:00 UTC). Pulls series from multiple TMDB endpoints,
+ * deduplicates, filters by quality threshold, and imports new ones with FULL data
+ * (cast, crew, episodes, networks, trailers, keywords) via importSeriesById().
+ *
+ * Sources (in priority order):
+ *   1. trending/tv/week              — what's hot worldwide
+ *   2. on_the_air                    — currently airing (next 7 days)
+ *   3. airing_today                  — airing today
+ *   4. popular                       — global top popular
+ *   5. discover (DE region, recent)  — series with German watch providers
+ *   6. discover (newest with votes)  — recent premieres with at least some votes
+ *
+ * Caps:
+ *   MAX_PER_RUN = 30 — protects DB from runaway imports if TMDB has a busy day
+ *   MIN_VOTE_COUNT = 5 — filter out totally unrated series (likely spam/test data)
+ *
+ * GET /api/cron/tmdb-sync?secret=<CRON_SECRET>
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { importSeriesById } from '@/lib/tmdb-resolver';
 
 const prisma = new PrismaClient();
 
@@ -17,20 +31,21 @@ export const dynamic = 'force-dynamic';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-const GENRE_MAP: Record<number, string> = {
-  10759: 'Action & Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
-  99: 'Documentary', 18: 'Drama', 10751: 'Family', 10762: 'Kids',
-  9648: 'Mystery', 10763: 'News', 10764: 'Reality', 10765: 'Sci-Fi & Fantasy',
-  10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics', 37: 'Western',
-};
+const MAX_PER_RUN = 30;
+const MIN_VOTE_COUNT = 5;
 
-function generateSlug(name: string, tmdbId: number): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[äÄ]/g, 'ae').replace(/[öÖ]/g, 'oe').replace(/[üÜ]/g, 'ue').replace(/ß/g, 'ss')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return base || `${tmdbId}`;
-}
+// German-relevant streaming providers (TMDB watch_providers IDs)
+const DE_PROVIDERS = [
+  8,   // Netflix
+  119, // Amazon Prime Video
+  337, // Disney Plus
+  350, // Apple TV+
+  531, // Paramount+
+  385, // Sky / WOW
+  283, // Crunchyroll (anime)
+  29,  // Sky Go
+  1899, // Max (HBO)
+];
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
@@ -39,10 +54,22 @@ function isAuthorized(request: NextRequest): boolean {
   return secret === process.env.CRON_SECRET || secret === 'serien-news-import-2024';
 }
 
-async function tmdbFetch(url: string): Promise<any> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB ${res.status}`);
-  return res.json();
+interface TmdbSeriesSummary {
+  id: number;
+  name: string;
+  vote_count?: number;
+  popularity?: number;
+  first_air_date?: string;
+}
+
+async function tmdbFetch<T = unknown>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -60,72 +87,68 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[CRON] TMDB sync starting...');
 
-    // Fetch from multiple endpoints (2 pages each to stay fast)
-    const sources = [
-      { name: 'airing_today', url: (p: number) => `${TMDB_BASE}/tv/airing_today?api_key=${apiKey}&language=de-DE&page=${p}` },
-      { name: 'on_the_air', url: (p: number) => `${TMDB_BASE}/tv/on_the_air?api_key=${apiKey}&language=de-DE&page=${p}` },
-      { name: 'popular', url: (p: number) => `${TMDB_BASE}/tv/popular?api_key=${apiKey}&language=de-DE&page=${p}` },
-      { name: 'newest', url: (p: number) => `${TMDB_BASE}/discover/tv?api_key=${apiKey}&language=de-DE&sort_by=first_air_date.desc&first_air_date.lte=${new Date().toISOString().slice(0, 10)}&vote_count.gte=1&page=${p}` },
+    const today = new Date().toISOString().slice(0, 10);
+    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const providerStr = DE_PROVIDERS.join('|');
+
+    const sources: { name: string; pages: number; url: (p: number) => string }[] = [
+      { name: 'trending_week',  pages: 2, url: (p) => `${TMDB_BASE}/trending/tv/week?api_key=${apiKey}&language=de-DE&page=${p}` },
+      { name: 'on_the_air',     pages: 2, url: (p) => `${TMDB_BASE}/tv/on_the_air?api_key=${apiKey}&language=de-DE&page=${p}` },
+      { name: 'airing_today',   pages: 1, url: (p) => `${TMDB_BASE}/tv/airing_today?api_key=${apiKey}&language=de-DE&page=${p}` },
+      { name: 'popular',        pages: 2, url: (p) => `${TMDB_BASE}/tv/popular?api_key=${apiKey}&language=de-DE&page=${p}` },
+      { name: 'de_providers',   pages: 3, url: (p) => `${TMDB_BASE}/discover/tv?api_key=${apiKey}&language=de-DE&watch_region=DE&with_watch_providers=${providerStr}&sort_by=popularity.desc&first_air_date.gte=${oneYearAgo}&page=${p}` },
+      { name: 'newest',         pages: 2, url: (p) => `${TMDB_BASE}/discover/tv?api_key=${apiKey}&language=de-DE&sort_by=first_air_date.desc&first_air_date.lte=${today}&vote_count.gte=${MIN_VOTE_COUNT}&page=${p}` },
     ];
 
     const seen = new Set<number>();
-    const allSeries: any[] = [];
+    const candidates: TmdbSeriesSummary[] = [];
 
     for (const src of sources) {
-      for (let p = 1; p <= 3; p++) {
-        try {
-          const data = await tmdbFetch(src.url(p));
-          for (const s of data.results || []) {
-            if (!seen.has(s.id)) {
-              seen.add(s.id);
-              allSeries.push(s);
-            }
-          }
-        } catch {}
+      for (let p = 1; p <= src.pages; p++) {
+        const data = await tmdbFetch<{ results: TmdbSeriesSummary[] }>(src.url(p));
+        if (!data?.results) continue;
+        for (const s of data.results) {
+          if (seen.has(s.id)) continue;
+          seen.add(s.id);
+          // quality filter: skip un-rated junk except for very-recent premieres
+          const voteCount = s.vote_count ?? 0;
+          const isFreshPremiere = s.first_air_date && s.first_air_date >= today.slice(0, 4) + '-01-01';
+          if (voteCount < MIN_VOTE_COUNT && !isFreshPremiere) continue;
+          candidates.push(s);
+        }
       }
     }
 
-    console.log(`[CRON] Fetched ${allSeries.length} unique series from TMDB`);
+    console.log(`[CRON] Fetched ${candidates.length} unique candidates from TMDB`);
 
-    // Import only new series
     let imported = 0;
     let skipped = 0;
+    let failed = 0;
+    const importedNames: string[] = [];
 
-    for (const s of allSeries) {
-      const exists = await prisma.series.findUnique({ where: { tmdbId: s.id }, select: { tmdbId: true } });
-      if (exists) { skipped++; continue; }
-
-      let slug = generateSlug(s.name, s.id);
-      const slugExists = await prisma.series.findFirst({ where: { slug } });
-      if (slugExists) slug = `${slug}-${s.id}`;
-
+    for (const s of candidates) {
+      if (imported >= MAX_PER_RUN) break;
       try {
-        await prisma.series.create({
-          data: {
-            tmdbId: s.id,
-            title: s.name,
-            name: s.name,
-            originalName: s.original_name || null,
-            slug,
-            overview: s.overview || null,
-            posterPath: s.poster_path || null,
-            backdropPath: s.backdrop_path || null,
-            firstAirDate: s.first_air_date ? new Date(s.first_air_date) : null,
-            popularity: s.popularity || 0,
-            genres: (s.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-            networks: [],
-            updatedAt: new Date(),
-          },
-        });
+        const result = await importSeriesById(s.id, 'de-DE');
+        if (!result) {
+          failed++;
+          continue;
+        }
+        if (result.alreadyInDb) {
+          skipped++;
+          continue;
+        }
         imported++;
-        console.log(`[CRON] NEW: ${s.name} (${s.first_air_date || '?'})`);
-      } catch (e: any) {
-        if (e.code !== 'P2002') console.error(`[CRON] Error importing ${s.name}:`, e.message);
+        importedNames.push(result.name);
+        console.log(`[CRON] ✅ Imported: ${result.name} (tmdb:${s.id})`);
+      } catch (e) {
+        failed++;
+        console.error(`[CRON] ❌ Import failed for ${s.name} (tmdb:${s.id}):`, (e as Error).message);
       }
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[CRON] TMDB sync done: ${imported} new, ${skipped} existing (${Math.round(duration / 1000)}s)`);
+    console.log(`[CRON] TMDB sync done: ${imported} new, ${skipped} existing, ${failed} failed (${Math.round(duration / 1000)}s)`);
 
     await prisma.pipeline_runs.create({
       data: {
@@ -135,7 +158,14 @@ export async function GET(request: NextRequest) {
         status: 'success',
         startedAt: new Date(startTime),
         completedAt: new Date(),
-        metadata: JSON.stringify({ imported, skipped, checked: allSeries.length, duration }),
+        metadata: JSON.stringify({
+          imported,
+          skipped,
+          failed,
+          checked: candidates.length,
+          duration,
+          importedNames: importedNames.slice(0, 30),
+        }),
       },
     });
 
@@ -143,11 +173,11 @@ export async function GET(request: NextRequest) {
       success: true,
       timestamp: new Date().toISOString(),
       duration: `${Math.round(duration / 1000)}s`,
-      result: { imported, skipped, checked: allSeries.length },
+      result: { imported, skipped, failed, checked: candidates.length, importedNames },
     });
-  } catch (error: any) {
-    console.error('[CRON] TMDB sync error:', error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[CRON] TMDB sync error:', (error as Error).message);
+    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
