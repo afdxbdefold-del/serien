@@ -92,6 +92,12 @@ const SKIP_KEYWORDS = [
   'real housewives', 'bachelor', 'bachelorette', 'survivor', 'big brother',
   'american idol', 'the voice', 'dancing with the stars',
   'late night', 'talk show', 'snl', 'saturday night live',
+  // Specific late-night / talk-show hosts and shows (skip all coverage)
+  'jimmy kimmel', 'jimmy fallon', 'stephen colbert', 'seth meyers',
+  'conan obrien', 'conan o\'brien', 'trevor noah', 'jon stewart',
+  'kimmel live', 'fallon live', 'tonight show', 'late show',
+  'daily show', 'last week tonight', 'late night with',
+  'after midnight', 'graham norton',
   'news anchor', 'cable news', 'fox news', 'cnn', 'msnbc',
   // Skip movies - only series!
   'movie', 'film', 'mcu movie', 'dceu', 'box office',
