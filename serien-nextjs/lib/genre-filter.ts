@@ -44,7 +44,6 @@ const REALITY_WHITELIST_PATTERNS: RegExp[] = [
   /\blove\s*is\s*blind\b/i,             // Love Is Blind
   /\btraitors\b|\bdie\s*verr[aä]ter\b/i,// The Traitors / Die Verräter
   /\bdrag\s*race\b/i,                   // RuPaul's Drag Race + franchise
-  /\bqueer\s*eye\b/i,                   // Queer Eye
   /\bselling\s*sunset\b/i,              // Selling Sunset
   /\btoo\s*hot\s*to\s*handle\b/i,       // Too Hot to Handle
   /\bperfect\s*match\b/i,               // Perfect Match (Netflix)
