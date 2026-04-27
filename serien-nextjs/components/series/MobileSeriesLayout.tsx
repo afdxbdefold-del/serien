@@ -49,7 +49,7 @@ export default function MobileSeriesLayout({
 }: MobileSeriesLayoutProps) {
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
-      <Breadcrumb items={[{ label: 'Serien', href: '/trending' }, { label: series.name || series.title }]} className="mb-4" />
+      <Breadcrumb items={[{ label: 'Serien', href: '/serien' }, { label: series.name || series.title }]} className="mb-4" />
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden mb-6">
         <MobileHeroWithVideo
           backdropPath={series.backdropPath}

@@ -138,7 +138,7 @@ export default function DesktopSeriesLayout({
       
       {/* CONTENT SECTION - Grid darunter */}
       <div className="container mx-auto px-6 py-8">
-        <Breadcrumb items={[{ label: 'Serien', href: '/trending' }, { label: series.name || series.title }]} className="mb-6" />
+        <Breadcrumb items={[{ label: 'Serien', href: '/serien' }, { label: series.name || series.title }]} className="mb-6" />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             
