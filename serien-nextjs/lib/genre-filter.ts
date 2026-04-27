@@ -33,6 +33,39 @@ const OUT_OF_SCOPE_GENRES = new Set([
 ]);
 
 /**
+ * Whitelist — popular reality / docu-series that DO resonate with a German
+ * audience and should pass the genre filter even though TMDB tags them as
+ * "Reality". Matched case-insensitively against the series title and
+ * original name. Add new titles here as they become relevant.
+ */
+const REALITY_WHITELIST_PATTERNS: RegExp[] = [
+  /\b90\s*day\s*fianc/i,                // 90 Day Fiancé + all spinoffs (Happily Ever After, The Other Way, Pillow Talk, Before the 90 Days)
+  /\bin\s*90\s*tagen\s*zum\s*altar/i,   // German title
+  /\blove\s*is\s*blind\b/i,             // Love Is Blind
+  /\btraitors\b|\bdie\s*verr[aä]ter\b/i,// The Traitors / Die Verräter
+  /\bdrag\s*race\b/i,                   // RuPaul's Drag Race + franchise
+  /\bqueer\s*eye\b/i,                   // Queer Eye
+  /\bselling\s*sunset\b/i,              // Selling Sunset
+  /\btoo\s*hot\s*to\s*handle\b/i,       // Too Hot to Handle
+  /\bperfect\s*match\b/i,               // Perfect Match (Netflix)
+  /\bthe\s*ultimatum\b/i,               // The Ultimatum
+  /\bthe\s*circle\b/i,                  // The Circle
+  /\bmarried\s*at\s*first\s*sight\b|\bhochzeit\s*auf\s*den\s*ersten\s*blick\b/i,
+  /\bthe\s*bear\b/i,                    // (keep available if ever mis-tagged Reality)
+];
+
+export function isWhitelistedReality(
+  title: string | null | undefined,
+  originalName?: string | null,
+): boolean {
+  const candidates = [title, originalName].filter(Boolean).map((s) => String(s));
+  for (const pattern of REALITY_WHITELIST_PATTERNS) {
+    if (candidates.some((c) => pattern.test(c))) return true;
+  }
+  return false;
+}
+
+/**
  * A genre is "in-scope" for serien.de if it signals scripted narrative
  * content (Drama, Comedy, Sci-Fi, Mystery, Crime, Action, Adventure,
  * Fantasy, Animation, Kids, Family, War, Western, etc.). Anything NOT
@@ -51,8 +84,15 @@ export interface GenreSkipCheck {
 export function shouldSkipByGenre(
   genres: string[] | null | undefined,
   seasons?: number | null,
+  titleContext?: { title?: string | null; originalName?: string | null },
 ): GenreSkipCheck {
   const list = (genres || []).map((g) => String(g || '').trim()).filter(Boolean);
+
+  // Whitelist override: popular reality/docu-series that DO earn German
+  // search traffic. Short-circuit all downstream genre checks.
+  if (titleContext && isWhitelistedReality(titleContext.title, titleContext.originalName)) {
+    return { skip: false, genres: list };
+  }
 
   // Fallback heuristic: no genres known but ≥ 30 seasons = long-running
   // stripped US format (Wheel of Fortune has genres=[] in our DB but 43

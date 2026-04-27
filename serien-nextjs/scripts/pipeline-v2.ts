@@ -741,7 +741,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
           }
         } catch {}
       }
-      const skipCheck = shouldSkipByGenre(genresForCheck, seasonsForCheck);
+      const skipCheck = shouldSkipByGenre(genresForCheck, seasonsForCheck, {
+        title: dbSeries.title,
+        originalName: dbSeries.originalName,
+      });
       if (skipCheck.skip) {
         console.log(`⛔ GENRE SKIP: ${skipCheck.reason}`);
         await logger.fail(`Genre out-of-scope: ${skipCheck.reason}`, 'genre-out-of-scope');
