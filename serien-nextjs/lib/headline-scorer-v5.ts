@@ -396,6 +396,34 @@ export function detectHardKillers(headline: string): Array<{ type: string; phras
     }
   }
 
+  // German grammar incompleteness — fatal because broken sentences confuse readers and damage trust.
+  // Pattern A: Reflexive verb followed by clause break ("sichert sich, warum…", "lässt sich, ob…")
+  //            → reflexive verb is missing its object/predicate.
+  const REFLEXIVE_BROKEN = /\b(sichert|lässt|stellt|fragt|fühlt|gibt|wendet|nimmt|fügt|hält|setzt)\s+sich\s*[,–—]/i;
+  if (REFLEXIVE_BROKEN.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'grammar:reflexive_no_object', value: -25 });
+  }
+
+  // Pattern B: Transitive verb at very end of headline without object.
+  //            "warum X verändert" / "wie das alles bricht" — verb wants an object that's missing.
+  const TRANSITIVE_DANGLING = /\b(verändert|verlässt|bricht|kippt|zerstört|verliert|beendet|rettet|zwingt|verrät|ändert|stoppt|hält|verbietet|ergreift|schickt)\.?\s*$/i;
+  if (TRANSITIVE_DANGLING.test(headline.trim())) {
+    // Allow only when the verb has a clear object earlier in the same clause.
+    const lastClause = headline.split(/[,–—]/).pop() || '';
+    const hasObjectMarker = /\b(den|die|das|dem|einen|eine|einem|seinen|ihre|alle|alles|nichts)\b/i.test(lastClause);
+    if (!hasObjectMarker) {
+      hits.push({ type: 'hard_killer', phrase: 'grammar:transitive_no_object', value: -25 });
+    }
+  }
+
+  // Pattern C: "warum/wie/weshalb …" sub-clause without explicit subject — common AI failure mode.
+  //            "Chad Powers sichert sich, warum das Waldrons Comeback verändert" — second clause's
+  //            "verändert" has no subject anchor and "warum" implies a question that's never answered.
+  const ORPHAN_WHY = /[,–—]\s*(warum|wie|weshalb)\s+das\s+\w+\s+\w+\s*$/i;
+  if (ORPHAN_WHY.test(headline.trim())) {
+    hits.push({ type: 'hard_killer', phrase: 'grammar:orphan_why_clause', value: -20 });
+  }
+
   // Numeric score-reveal patterns — fatal for Discover (full payoff in title).
   // Matches: "100 %", "98%", "100 Prozent", "9,2/10", "9.2/10", "Score: 95"
   const SCORE_PATTERNS: Array<{ re: RegExp; phrase: string }> = [

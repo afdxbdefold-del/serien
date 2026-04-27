@@ -212,6 +212,42 @@ const AI_GENERIC_PATTERNS: RegExp[] = [
   /zusammengefasst/i,
 ];
 
+/**
+ * German grammar incompleteness detector.
+ * Used by both the headline rewriter (via discoverGate) and the V5 scorer to
+ * penalize headlines that are grammatically broken — typically reflexive verbs
+ * without object, transitive verbs at the end of a clause without object, or
+ * "warum/wie"-subclauses that never resolve their question.
+ */
+function detectGrammarFailures(headline: string): Array<{ label: string; penalty: number }> {
+  const out: Array<{ label: string; penalty: number }> = [];
+  const trimmed = headline.trim();
+
+  // A) Reflexive verb followed by clause break — verb missing its object/predicate.
+  //    "Chad Powers sichert sich, warum…"  → broken
+  if (/\b(sichert|lässt|stellt|fragt|fühlt|gibt|wendet|nimmt|fügt|hält|setzt|zeigt|holt|spielt|treibt|schiebt|bringt)\s+sich\s*[,–—]/i.test(trimmed)) {
+    out.push({ label: 'reflexives Verb ohne Objekt', penalty: -25 });
+  }
+
+  // B) Transitive verb at sentence end without object marker in last clause.
+  //    "warum X verändert" / "wie das alles bricht" — verb wants an object.
+  if (/\b(verändert|verlässt|bricht|kippt|zerstört|verliert|beendet|rettet|zwingt|verrät|ändert|stoppt|verbietet|ergreift|schickt|öffnet|schliesst|schließt)\.?\s*$/i.test(trimmed)) {
+    const lastClause = trimmed.split(/[,–—]/).pop() || '';
+    const hasObjectMarker = /\b(den|die|das|dem|einen|eine|einem|seinen|seiner|ihre|ihren|alle|alles|nichts|sich)\b/i.test(lastClause);
+    if (!hasObjectMarker) {
+      out.push({ label: 'transitives Verb ohne Objekt am Satzende', penalty: -25 });
+    }
+  }
+
+  // C) Orphan "warum/wie/weshalb"-subclause that doesn't resolve.
+  //    "Chad Powers sichert sich, warum das Waldrons Comeback verändert"
+  if (/[,–—]\s*(warum|wie|weshalb|weil)\s+(das|der|die)\s+\w+\s+\w+\s*$/i.test(trimmed)) {
+    out.push({ label: 'unaufgelöster warum/wie-Nebensatz', penalty: -20 });
+  }
+
+  return out;
+}
+
 function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   const reasons: string[] = [];
   let score = 0;
@@ -289,6 +325,17 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   if (has_number) ctr_score += 1;
 
   score += ctr_score;
+
+  // 7. GERMAN GRAMMAR INTEGRITY (penalty up to -25) — fatal because broken sentences
+  // confuse readers and damage trust on the SERP. The rewriter previously chose grammatically
+  // incomplete candidates because surface CTR patterns (Brand + "warum" hook + Possessiv)
+  // were rewarded without checking that the sentence is actually finished.
+  const grammarPenalties = detectGrammarFailures(safe);
+  if (grammarPenalties.length > 0) {
+    const totalPenalty = grammarPenalties.reduce((sum, p) => sum + p.penalty, 0);
+    score += totalPenalty; // negative
+    grammarPenalties.forEach((p) => reasons.push(`Grammatik: ${p.label}`));
+  }
 
   const verdict: 'PASS' | 'FAIL' = score >= 18 ? 'PASS' : 'FAIL';
   if (verdict === 'FAIL') {
