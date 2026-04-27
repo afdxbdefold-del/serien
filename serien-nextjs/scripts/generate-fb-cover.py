@@ -20,33 +20,40 @@ if not api_key:
     print("EMERGENT_LLM_KEY not set", file=sys.stderr)
     sys.exit(1)
 
-PROMPT = """Create a high-quality Facebook cover photo for a German TV-series news website called "serien.de".
+PROMPT = """Create a Facebook cover photo for "serien.de" (German TV-series news site).
 
-Style: Cinematic collage of popular TV series stills/posters arranged in a dynamic mosaic.
-Show partial glimpses of recognizable streaming-era series imagery: dark moody scenes, vibrant action shots,
-character close-ups, neon-lit cityscapes — evoking shows like Stranger Things, The Last of Us, House of the Dragon,
-Wednesday, Squid Game style aesthetic. Cinematic color grading, deep blacks, accent highlights.
+CRITICAL BACKGROUND REQUIREMENT:
+The ENTIRE background must be filled with VIBRANT CYAN color #06B6D4 (hsl 189, 94%, 43%).
+This cyan dominates 60-70% of the visible area. Think: bright turquoise/cyan canvas
+like a brand poster. NOT a black background. NOT just a thin cyan border.
 
-Composition: Wide horizontal cover banner format (about 2.6:1 ratio, like a Facebook cover photo).
-The collage must have a subtle gradient overlay (dark, semi-transparent) so the text stays legible.
+LAYOUT:
+On top of the cyan background, place a partial collage strip (centered horizontally,
+medium height, like a ribbon) of cinematic TV-style imagery: dramatic dark scenes,
+silhouetted characters, abstract neon cityscapes, atmospheric forest scenes,
+moody close-ups. The collage is SMALLER than the cyan area and acts as visual texture.
+Apply a subtle dark overlay on the collage strip.
 
-Text overlay (center-left or center, large, bold, sans-serif, white):
-- Headline (large): "serien.de"
-- Tagline (medium, below headline): "Täglich neue Seriennews"
+NO recognizable show titles, NO logos, NO brand names, NO real actors' faces close-up.
+Use ABSTRACT cinematic moods only — silhouettes, lighting, atmosphere.
 
-The text must be sharp, readable, and properly spelled in German. No typos.
-Add a subtle cyan accent line under the logo as a brand signature.
+TEXT (centered, large, bold sans-serif, white):
+- "serien.de" (very large, hero font weight)
+- "Täglich neue Seriennews" (medium, below)
+- White underline accent between them
 
-Avoid: any actual visible logos of streaming services (Netflix, Prime, Disney+ logos).
-Avoid: any real text from existing shows. Avoid: blurry text, AI-typical artifacts, distorted faces.
+The text sits ON the cyan background area (not on the collage), so it's crisp and readable.
 
-Aspect ratio: 21:8 (wide cinematic banner). Final usage: Facebook page cover."""
+Style references: Modern brand banner, Spotify Wrapped poster vibe, Netflix-news landing page.
+Aspect ratio: 21:8 wide cinematic banner.
+Colors: Cyan #06B6D4 dominant, white text, dark accent strip with imagery.
+NO BLACK BACKGROUND. The cyan must be unmistakably dominant."""
 
 
 async def main():
     chat = LlmChat(
         api_key=api_key,
-        session_id="fb-cover-serien-de",
+        session_id=f"fb-cover-serien-de-cyan-{int(asyncio.get_event_loop().time() * 1000)}",
         system_message="You are an expert visual designer creating brand cover banners.",
     )
     chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
@@ -64,7 +71,7 @@ async def main():
     os.makedirs(out_dir, exist_ok=True)
     for i, img in enumerate(images):
         ext = "png" if "png" in img.get("mime_type", "") else "jpg"
-        path = f"{out_dir}/fb-cover-v{i + 1}.{ext}"
+        path = f"{out_dir}/fb-cover-cyan-v2.{ext}"
         with open(path, "wb") as f:
             f.write(base64.b64decode(img["data"]))
         print(f"✓ Saved: {path}")
