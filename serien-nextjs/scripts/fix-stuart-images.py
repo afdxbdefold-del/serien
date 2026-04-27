@@ -21,14 +21,21 @@ TMDB_ID = 287620
 SLUG = "stuart-fails-to-save-the-universe"
 POSTER_PATH = "/5fM1PWx8ncFSVTUMJ4WhvRPLBPp.jpg"
 
-PROMPT = """Create a wide cinematic backdrop image for a sci-fi comedy TV series titled "Stuart Fails to Save the Universe".
+PROMPT = """Pure cinematic backdrop image — completely abstract, no text whatsoever.
 
-Style: Cosmic, vibrant nebula in deep space, swirling galaxies, pastel pinks and electric blues mixed with deep cosmic purples. Stars scattered like glitter. A small silhouette of a tiny lone astronaut floating off-center, looking slightly lost or comically overwhelmed by the scale. Mood: humorous yet awe-inspiring, like a Pixar-meets-Wes-Anderson space scene.
+Subject: Cosmic deep-space nebula. Swirling galaxies in pastel pinks and electric cyan-blues, mixed with deep cosmic purples and warm orange highlights. Stars scattered like glitter. A small silhouetted astronaut figure floating off-center, slightly comical scale (tiny against the vast universe). No face details visible — only silhouette.
 
-NO text, NO logos, NO recognizable characters from existing media.
-Aspect ratio: 16:9 wide cinematic backdrop.
-Lighting: dramatic with soft glow on the astronaut figure.
-Final usage: TV series hero/backdrop image for a streaming detail page."""
+Style: Pixar-meets-Wes-Anderson space scene. Awe-inspiring yet whimsical. Painterly, soft, cinematic.
+
+CRITICAL — ABSOLUTELY FORBIDDEN ELEMENTS:
+- NO text, NO letters, NO numbers, NO logos, NO writing of any kind anywhere in the image.
+- NO captions, NO titles, NO subtitles, NO watermarks.
+- NO English or German words. NO scribbles or symbols that look like text.
+- NO UI elements, NO frames, NO borders, NO chyrons, NO speech bubbles.
+
+If you accidentally generate any text-like elements, replace them with cosmic textures, stars, or nebula clouds.
+
+Aspect ratio: 16:9 wide cinematic backdrop. Final usage: TV series detail page hero image."""
 
 
 def get_db_url():

@@ -123,13 +123,18 @@ export async function GET(request: NextRequest, context: RouteParams) {
   // PRIORITY 1: Custom local backdrop (manually uploaded or AI-generated for series
   // without a TMDB backdrop). Stored in /public/series-backdrops/ and referenced via
   // series.backdropLocalUrl. Redirect so Next.js serves it as a static asset.
+  // Soft cache: we may overwrite the local file (e.g. backdrop regeneration) — do not
+  // use `immutable` here, otherwise browsers will hold the redirect for a year.
   try {
     const seriesLocal = await prisma.series.findUnique({
       where: { tmdbId },
       select: { backdropLocalUrl: true },
     });
     if (seriesLocal?.backdropLocalUrl) {
-      return NextResponse.redirect(new URL(seriesLocal.backdropLocalUrl, request.url), { status: 307 });
+      return NextResponse.redirect(new URL(seriesLocal.backdropLocalUrl, request.url), {
+        status: 307,
+        headers: { 'Cache-Control': 'public, max-age=300, s-maxage=600' },
+      });
     }
   } catch {
     // ignore – fall through to storage/TMDB pipeline
