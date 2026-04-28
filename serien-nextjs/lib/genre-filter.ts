@@ -118,16 +118,19 @@ export function shouldSkipByGenre(
     };
   }
 
-  // Special case: SNL/Colbert are "Comedy, News" / "Comedy, Talk" — "Comedy"
-  // alone would be in-scope, but paired with a topical-TV genre it is the
-  // same US late-night format problem. If the ONLY in-scope genre is
-  // Comedy and it is paired with News or Talk, treat as out-of-scope.
+  // Special case: SNL/Colbert/Kimmel are "Comedy, News" / "Comedy, Talk"
+  // (or in German TMDB locale: "Komödie, Talk"). "Comedy" alone would be
+  // in-scope, but paired with a topical-TV genre it is the same US
+  // late-night format problem. If the ONLY in-scope genre is Comedy
+  // (English or German "Komödie") and it is paired with News or Talk,
+  // treat as out-of-scope.
+  const COMEDY_LABELS = new Set(['comedy', 'komödie', 'komoedie', 'comédie']);
   const nonSkip = list.filter((g) => !isOutOfScope(g));
   const pairedWithTopical = list.some((g) => {
     const n = g.toLowerCase();
     return n === 'news' || n === 'talk' || n === 'talk show';
   });
-  if (pairedWithTopical && nonSkip.length === 1 && nonSkip[0].toLowerCase() === 'comedy') {
+  if (pairedWithTopical && nonSkip.length === 1 && COMEDY_LABELS.has(nonSkip[0].toLowerCase())) {
     return {
       skip: true,
       reason: `late-night/topical signature: ${list.join(', ')}`,
