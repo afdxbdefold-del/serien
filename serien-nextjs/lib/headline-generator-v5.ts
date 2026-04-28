@@ -106,6 +106,14 @@ const BANNED_PHRASES = [
   'das erwartet uns', 'das erwartet dich', 'alles was du wissen musst',
   'alles was wir wissen', 'kommt gut an', 'es ist soweit',
   'sorgt jetzt für diskussionen', 'lässt fans hoffen',
+  // v5.3: AI-slop hyperbole + reveal formulas
+  'verändert alles', 'ändert alles', 'stellt alles auf den kopf',
+  'alles wird anders', 'alles kippt',
+  'enthüllt, warum', 'enthüllt, wie', 'enthüllt, weshalb', 'enthüllt, was',
+  'verrät, warum', 'verrät, wie', 'verrät, weshalb', 'verrät, was',
+  'zeigt, warum', 'zeigt, wie genau', 'zeigt, weshalb',
+  'erklärt, warum', 'erklärt, wie', 'erklärt, weshalb',
+  'offenbart, warum', 'offenbart, wie', 'beweist, warum',
 ];
 
 // ============================================================

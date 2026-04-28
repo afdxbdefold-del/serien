@@ -24,7 +24,7 @@
  * Umschaltbar via HEADLINE_SCORER_VERSION.
  */
 
-export const HEADLINE_SCORER_VERSION = 'v5.1';
+export const HEADLINE_SCORER_VERSION = 'v5.3';
 
 // ============================================================
 // TYPES
@@ -232,6 +232,19 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'kritikerwertung von', penalty: -15 },
   { phrase: 'triumphiert mit', penalty: -15 }, // co-occurs with score reveals
   { phrase: 'punkten bei', penalty: -15 },     // "mit X Punkten bei ..."
+  // --- v5.3 AI-SLOP HYPERBOLE / FORMULA KILLERS ---
+  // Catches the two most common Claude/GPT failure modes for German Discover:
+  //   a) "X verändert alles" / "ändert alles"  (empty hyperbole)
+  //   b) "X enthüllt, warum Y"                  (pure LLM formula reveal)
+  { phrase: 'verändert alles', penalty: -25 },
+  { phrase: 'veraendert alles', penalty: -25 },
+  { phrase: 'ändert alles', penalty: -22 },
+  { phrase: 'aendert alles', penalty: -22 },
+  { phrase: 'stellt alles auf den kopf', penalty: -22 },
+  { phrase: 'alles wird anders', penalty: -18 },
+  { phrase: 'alles kippt', penalty: -18 },
+  { phrase: 'alles auf den prüfstand', penalty: -15 },
+  { phrase: 'alles auf den pruefstand', penalty: -15 },
 ];
 
 // --- SOFT KILLERS (-6 to -12) ---
@@ -437,6 +450,27 @@ export function detectHardKillers(headline: string): Array<{ type: string; phras
       hits.push({ type: 'hard_killer', phrase: `score_reveal:${p.phrase}`, value: -20 });
       break; // one pattern is enough — don't stack the penalty
     }
+  }
+
+  // v5.3 AI-FORMULA: "X enthüllt|verrät|zeigt|erklärt|offenbart|verkündet, warum|wie|weshalb|was Y"
+  // Single most common LLM tell in German feature-news headlines. Comma right after
+  // the reveal verb is the giveaway. Also catch the no-comma variant for safety.
+  const FORMULA_REVEAL_COMMA = /\b(enth[üu]llt|verr[äa]t|verraet|zeigt|erkl[äa]rt|verk[üu]ndet|offenbart|beweist|best[äa]tigt|bestätigt)\s*,\s*(warum|wieso|weshalb|wie|was|woran|wann|wo)\b/i;
+  if (FORMULA_REVEAL_COMMA.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'ai_formula:reveal_comma_why', value: -22 });
+  } else {
+    const FORMULA_REVEAL_TIGHT = /\b(enth[üu]llt|verr[äa]t|zeigt|erkl[äa]rt|offenbart)\s+(warum|wieso|weshalb|wie\s+(genau|wirklich)|was\s+(wirklich|genau))\b/i;
+    if (FORMULA_REVEAL_TIGHT.test(headline)) {
+      hits.push({ type: 'hard_killer', phrase: 'ai_formula:reveal_tight_why', value: -18 });
+    }
+  }
+
+  // v5.3 AI-FORMULA #2: ", und {X} verändert/ändert alles" / "und Staffel X verändert alles"
+  // Caught above by the phrase list, but add a regex variant that catches obfuscation:
+  // "verändert alles", "ändert alles" anywhere; AND the "Staffel N + verändert" co-occurrence.
+  const STAFFEL_VERAENDERT = /\b(staffel|serie|season)\s*\d*\s+(ver[äa]ndert|[äa]ndert)\s+(alles|das spiel)\b/i;
+  if (STAFFEL_VERAENDERT.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'ai_formula:staffel_veraendert_alles', value: -25 });
   }
 
   return hits;

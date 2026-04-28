@@ -73,6 +73,15 @@ const AI_SLOP_PATTERNS = [
   /hier (sind|ist|kommt) (die|der|das)/i,
   /was wir bisher wissen/i,
   /das gibt es zu (sagen|berichten)/i,
+  // v5.3: hyperbolic-vague — "verändert alles", "ändert alles", "stellt alles auf den Kopf"
+  /\b(ver[äa]ndert|[äa]ndert)\s+alles\b/i,
+  /stellt\s+alles\s+auf\s+den\s+kopf/i,
+  /\balles\s+(ver[äa]ndert|[äa]ndert|kippt|wird\s+anders)\b/i,
+  // v5.3: AI-formula reveal — "X enthüllt/verrät/zeigt/erklärt/offenbart, warum/wie/wieso/weshalb/was Y"
+  // Single most common AI tell. Comma right after the verb is the giveaway.
+  /\b(enth[üu]llt|verr[äa]t|verraet|zeigt|erkl[äa]rt|verk[üu]ndet|offenbart|beweist|bestätigt|best[äa]tigt)\s*,\s*(warum|wieso|weshalb|wie|was|woran|wann|wo)\b/i,
+  // v5.3: weaker variant without comma but same structure mid-sentence
+  /\b(enth[üu]llt|verr[äa]t|zeigt|erkl[äa]rt|offenbart)\s+(warum|wieso|weshalb|wie\s+(genau|wirklich)|was\s+(wirklich|genau))\b/i,
 ];
 const isAISlop = (h: string) => AI_SLOP_PATTERNS.some(p => p.test(h));
 
@@ -434,11 +443,21 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
    ❌ "Mega", "Unglaublich", "Spektakulär", "Fans dürfen sich freuen" — das ist Boulevard-Müll.
 
 4) STARKES HANDLUNGS-VERB — nicht "ist/hat/gibt/kommt".
-   ✅ kippt, streicht, verlässt, enthüllt, feuert, stoppt, bricht, überrascht, verliert, triumphiert.
+   ✅ kippt, streicht, verlässt, feuert, stoppt, bricht, überrascht, verliert, triumphiert, dreht, kehrt zurück, scheitert, trennt sich.
    ❌ "ist offiziell", "gibt bekannt", "kommt zurück" — flach und template-haft.
+   ⚠️ "enthüllt", "verrät", "zeigt", "erklärt", "offenbart" sind erlaubt, aber NIEMALS gefolgt von einem Komma + "warum/wie/weshalb/was".
+       Das ist die häufigste KI-Formel und sofort als Maschine erkennbar.
 
 5) NATÜRLICHE SPRACHE — kein KI-Smell.
    ❌ VERBOTEN: "offiziell bestätigt", "im Überblick", "verständlich erklärt", "alles was ihr wissen müsst", "mit wichtigen Details".
+   ❌ TODES-PATTERN (NIE verwenden):
+      • "verändert alles", "ändert alles", "stellt alles auf den Kopf", "alles wird anders", "und alles kippt"
+        → leere Hyperbel, signalisiert Maschine.
+      • "X enthüllt, warum Y" / "X verrät, wie Y" / "X zeigt, weshalb Y" / "X erklärt, warum Y"
+        → reine LLM-Formel. Wenn du diese Struktur brauchst, formuliere sie um:
+          ❌ "The Testaments enthüllt, warum Agnes ihre Mutter vergisst"
+          ✅ "Warum Agnes in The Testaments ihre Mutter vergisst"
+          ✅ "The Testaments löst das Rätsel um Agnes' Mutter"
    ✅ So schreibt ein Mensch: "Brooks verrät seine Romanze mit Rae" statt "Brooks erklärt offiziell die Beziehung zu Rae".
 
 5a) KEINE SCORE-REVEALS IN DER HEADLINE — das ist das Todes-Pattern für Discover.
@@ -462,8 +481,10 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
    AUSNAHME erlaubt: Staffel-/Folgen-/Top-X-/Jahres-Zahlen ("Staffel 3", "Top 10", "2026").
 
 6) KEINE LABEL-TITEL (Colon-Pattern) — "Serie: Staffel X bestätigt" performt 20% schlechter als Aussagesatz.
-   ✅ "Warum Wednesday Staffel 3 alles verändert"
+   ✅ "Wednesday dreht Staffel 3 in Dublin: Was Fans in Paris erwartet"
+   ✅ "Warum Wednesday Nevermore verlässt"
    ❌ "Wednesday: Staffel 3 bei Netflix bestätigt"
+   ❌ "Warum Wednesday Staffel 3 alles verändert"  ← „alles verändert" ist verboten (Hyperbel)
    (Ausnahme: Nostalgia-Angle darf Doppelpunkt nach Star-Name.)
 
 7) FEED-CTR SANITY — kurz genug, konkret, mind. ein Anker (Zahl, Name, Ort, Zeitangabe).
