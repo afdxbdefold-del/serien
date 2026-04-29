@@ -891,12 +891,37 @@ export function pickWinnerV5(
   // Sort descending
   scored.sort((a, b) => b.finalScore - a.finalScore);
 
+  // v5.3: HARD-KILL any headline that hit the AI-formula / hyperbole killers
+  // (ai_formula:*, score_reveal:*, grammar:*). These are never acceptable even
+  // if they score highest. If ALL variants are hard-killed, we log loudly and
+  // still pick the least-bad one — but that path should be near-zero after the
+  // v5.3 prompt update.
+  const isHardBanned = (s: HeadlineScoreV5Result) =>
+    s.penalties.some((p) =>
+      p.type === 'hard_killer' && (
+        p.phrase.startsWith('ai_formula:') ||
+        p.phrase.startsWith('score_reveal:') ||
+        p.phrase.startsWith('grammar:') ||
+        p.phrase === 'verändert alles' ||
+        p.phrase === 'veraendert alles' ||
+        p.phrase === 'ändert alles' ||
+        p.phrase === 'aendert alles' ||
+        p.phrase === 'stellt alles auf den kopf'
+      )
+    );
+  const clean = scored.filter((s) => !isHardBanned(s));
+  if (clean.length === 0) {
+    console.warn('[headline-engine] ⚠️  ALL variants hit hard-killers — falling back to least-bad slop:',
+      scored.slice(0, 3).map((s) => s.headline));
+  }
+  const nonSlopScored = clean.length > 0 ? clean : scored;
+
   // Filter based on configured minimum
-  const eligible = scored.filter(s => s.finalScore >= minScore);
+  const eligible = nonSlopScored.filter(s => s.finalScore >= minScore);
   const filteredOut = scored.length - eligible.length;
 
-  // If nothing passes, take best anyway
-  const pool = eligible.length > 0 ? eligible : scored;
+  // If nothing passes, take best anyway (from the non-slop pool)
+  const pool = eligible.length > 0 ? eligible : nonSlopScored;
 
   // Tiebreaker for close scores: prefer Topic-Clarity > Specificity > less generic
   if (pool.length >= 3) {
