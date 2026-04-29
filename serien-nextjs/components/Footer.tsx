@@ -28,7 +28,6 @@ const socialLinks = [
 // Podcast Links
 const podcastLinks = [
   { name: 'Spotify', href: 'https://open.spotify.com/show/31qSuSLYbArv4q4bCzaCVR' },
-  { name: 'Apple', href: 'https://podcasts.apple.com/us/podcast/serien-de-podcast/id1579184715' },
   { name: 'Amazon', href: 'https://music.amazon.de/podcasts/98e4c1c9-15a2-41e8-aa77-2c94b8d59345/SERIENDE-PODCAST' },
 ];
 
