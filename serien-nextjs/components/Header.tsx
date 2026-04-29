@@ -406,6 +406,24 @@ export default function Header() {
                 >
                   NEWS
                 </Link>
+                <Link
+                  href="/news"
+                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                  data-testid="mobile-menu-news-az-link"
+                >
+                  <Newspaper className="w-5 h-5 text-gray-400" />
+                  ALLE NEWS A–Z
+                </Link>
+                <Link
+                  href="/serien"
+                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                  data-testid="mobile-menu-serien-az-link"
+                >
+                  <Tv className="w-5 h-5 text-gray-400" />
+                  ALLE SERIEN A–Z
+                </Link>
                 <Link 
                   href="/top-10" 
                   className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
