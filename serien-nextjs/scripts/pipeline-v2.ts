@@ -1255,7 +1255,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
       const perfScore = probe.dashboard.headline_performance.score;
       const perfReasons = probe.dashboard.headline_performance.reasons;
-      console.log(`   Performance-Score vorher: ${perfScore}/30`);
+      const hygScore = probe.dashboard.headline.score;
+      const hygReasons = probe.dashboard.headline.reasons;
+      console.log(`   Score vorher: Hygiene ${hygScore}/30 + Performance ${perfScore}/30 = ${hygScore + perfScore}/60`);
 
       const rewrite = await rewriteHeadlineIfWeak({
         originalHeadline: finalHeadline,
@@ -1263,16 +1265,21 @@ export async function runPipelineV2(source: PipelineV2Source) {
         articleContent: structuredContent.markdown,
         beforeScore: perfScore,
         beforeReasons: perfReasons,
+        beforeHygieneScore: hygScore,
+        beforeHygieneReasons: hygReasons,
+        beforePerformanceScore: perfScore,
+        beforePerformanceReasons: perfReasons,
       });
 
       if (rewrite.attempted) {
-        console.log(`   🔄 Rewrite versucht (${rewrite.candidates.length} Kandidaten, ${rewrite.durationMs}ms)`);
+        const iters = rewrite.iterations?.length || 0;
+        console.log(`   🔄 Rewrite versucht (${iters} Iteration${iters === 1 ? '' : 'en'}, ${rewrite.durationMs}ms)`);
         if (rewrite.applied) {
-          console.log(`   ✅ Verbesserung: ${rewrite.beforePerformance} → ${rewrite.afterPerformance} (+${rewrite.gain}P)`);
+          console.log(`   ✅ Verbesserung: ${rewrite.beforeCombined ?? rewrite.beforePerformance} → ${rewrite.afterCombined ?? rewrite.afterPerformance} (+${rewrite.gain}P)`);
           console.log(`   📝 Alt:  "${rewrite.originalHeadline}"`);
           console.log(`   📝 Neu:  "${rewrite.finalHeadline}"`);
           finalHeadline = rewrite.finalHeadline;
-          logger.log(`Rewrite: ${rewrite.beforePerformance}→${rewrite.afterPerformance}P, new headline: "${rewrite.finalHeadline}"`);
+          logger.log(`Rewrite: ${rewrite.beforeCombined ?? rewrite.beforePerformance}→${rewrite.afterCombined ?? rewrite.afterPerformance}P, new headline: "${rewrite.finalHeadline}"`);
         } else {
           console.log(`   ⚠️ Keine Verbesserung möglich, behalte Original`);
           if (rewrite.errorMessage) console.log(`   Error: ${rewrite.errorMessage}`);
@@ -1283,15 +1290,20 @@ export async function runPipelineV2(source: PipelineV2Source) {
           applied: rewrite.applied,
           beforePerformance: rewrite.beforePerformance,
           afterPerformance: rewrite.afterPerformance,
+          beforeHygiene: rewrite.beforeHygiene,
+          afterHygiene: rewrite.afterHygiene,
+          beforeCombined: rewrite.beforeCombined,
+          afterCombined: rewrite.afterCombined,
           gain: rewrite.gain,
           originalHeadline: rewrite.originalHeadline,
           finalHeadline: rewrite.finalHeadline,
           candidates: rewrite.candidates,
+          iterations: rewrite.iterations,
           durationMs: rewrite.durationMs,
         };
         logger.addMetadata('headlineRewrite', rewriteOutcome);
       } else {
-        console.log(`   ✅ Headline bereits stark (${perfScore}/30) — kein Rewrite nötig`);
+        console.log(`   ✅ Headline bereits stark (${hygScore + perfScore}/60) — kein Rewrite nötig`);
       }
     } catch (rewriteErr: any) {
       console.log(`   ⚠️ Rewrite-Loop-Fehler: ${rewriteErr.message}`);

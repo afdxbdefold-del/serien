@@ -462,7 +462,22 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   }
   
   // 3. News-Wert erkennbar (10 Punkte)
-  const newsWords = ['bestätigt', 'startet', 'endet', 'angekündigt', 'veröffentlicht', 'beendet', 'erhält'];
+  // v5.3-Erweiterung: deckt auch Feature/Cliffhanger/Status-News ab, nicht nur
+  // nackte Promo-Verben wie "bestätigt". 28 Verben statt 7.
+  const newsWords = [
+    // Promo / Status
+    'bestätigt', 'bestätig', 'startet', 'endet', 'angekündigt', 'veröffentlicht',
+    'beendet', 'erhält',
+    // Cast / Figur-Ereignisse
+    'kehrt zurück', 'verlässt', 'feuert', 'streicht', 'überrascht', 'stirbt',
+    'triumphiert', 'scheitert', 'trennt sich', 'kippt', 'dreht',
+    // Produktions-Ereignisse
+    'startet dreh', 'setzt ab', 'abgesetzt', 'verschoben', 'verlängert',
+    // Cliffhanger / Reveal
+    'schockt', 'bricht', 'eskaliert',
+    // Spotlight / Feature (Discover-kompatibel)
+    'warum ', 'darum ', 'was ', 'wie ',
+  ];
   const news_value_clear = newsWords.some(word => safeHeadline.toLowerCase().includes(word));
   if (news_value_clear) {
     score += 10;

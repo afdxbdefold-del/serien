@@ -1,15 +1,17 @@
 /**
- * HEADLINE REWRITE LOOP
+ * HEADLINE REWRITE LOOP (v5.3 — combined Hygiene + Performance, iterative)
  *
- * Turns the Discover-Gate scorer from pure gatekeeper into a coach.
- * When a headline scores below the Performance threshold, we hand the
- * specific failed checks back to Claude as fix-instructions and ask for
- * 5 new variants that address exactly those blockers.
+ * Goal: push every headline toward the joint 60/60 Discover-Gate ceiling
+ * (30 Hygiene + 30 Performance).
  *
- * - Max 1 retry per article (keeps LLM cost bounded).
- * - Only rewrites PERFORMANCE weaknesses. Hygiene failures (clickbait,
- *   missing series name, duplicates) are hard blockers and not rewritten.
- * - Returns both scores so the Admin dashboard can A/B the gains.
+ * Design:
+ *  - ONE scorer call per iteration measures BOTH dimensions.
+ *  - If combined < TARGET and gap > 0, we hand the failed checks to Claude
+ *    as a focused fix-list + require ALL "Winning Rules".
+ *  - We pick the best of 5 candidates and repeat up to MAX_ATTEMPTS times.
+ *  - Stop early when combined >= TARGET or no gain vs. previous round.
+ *  - Pipeline metadata (rewriteOutcome) reports per-iteration scores so the
+ *    admin dashboard can audit the climb.
  */
 import { discoverGate } from './discover-gate';
 import { stripDashes } from './strip-dashes';
@@ -18,8 +20,21 @@ export interface RewriteInput {
   originalHeadline: string;
   seriesName: string;
   articleContent: string; // markdown or plain text, first ~2000 chars used
-  beforeScore: number; // Performance score of original (0-30)
-  beforeReasons: string[]; // Performance reasons from gate
+  beforeScore: number; // DEPRECATED: kept for backwards compat (= performance only)
+  beforeReasons: string[]; // DEPRECATED: kept for backwards compat (= performance only)
+  beforeHygieneScore?: number;       // v5.3: 0–30
+  beforeHygieneReasons?: string[];   // v5.3
+  beforePerformanceScore?: number;   // v5.3: 0–30 (same number as beforeScore when supplied)
+  beforePerformanceReasons?: string[]; // v5.3 (same array as beforeReasons when supplied)
+}
+
+interface IterationResult {
+  attempt: number;
+  picked: string;
+  hygiene: number;
+  performance: number;
+  combined: number;
+  candidates: Array<{ text: string; hygiene: number; performance: number; combined: number }>;
 }
 
 export interface RewriteOutput {
@@ -29,79 +44,97 @@ export interface RewriteOutput {
   finalHeadline: string;
   beforePerformance: number;
   afterPerformance: number;
-  gain: number;
-  candidates: Array<{ text: string; performance: number }>;
+  beforeHygiene?: number;            // v5.3
+  afterHygiene?: number;             // v5.3
+  beforeCombined?: number;           // v5.3
+  afterCombined?: number;            // v5.3
+  gain: number;                      // combined gain after all iterations
+  candidates: Array<{ text: string; performance: number; hygiene?: number; combined?: number }>;
+  iterations?: IterationResult[];    // v5.3: every attempt for audit
   durationMs: number;
   errorMessage?: string;
 }
 
-const PERFORMANCE_THRESHOLD = 22; // Rewrite trigger. Headlines with score < 22/30 enter the rewrite loop.
-                                  // Gate verdict in discover-gate.ts remains 18/30 (PASS).
-                                  // Gap 18–21 = "passes publication bar, but still coached for CTR uplift".
+// v5.3: Fire iff combined < TRIGGER_COMBINED. 55/60 target ≈ "both sides well in the green".
+const TRIGGER_COMBINED = 55;   // combined < 55 → rewrite kicks in
+const TARGET_COMBINED  = 55;   // combined >= 55 → stop iterating
+const MAX_ATTEMPTS     = 3;    // LLM budget cap
 
 /**
- * Build a focused rewrite prompt from the failed checks.
+ * Build a focused rewrite prompt from the failed Hygiene + Performance checks.
  */
-function buildRewritePrompt(input: RewriteInput): string {
-  const issues = input.beforeReasons.map((r) => `• ${r}`).join('\n');
+function buildRewritePrompt(opts: {
+  originalHeadline: string;
+  seriesName: string;
+  articleContent: string;
+  hygieneReasons: string[];
+  performanceReasons: string[];
+  attemptNumber: number;
+}): string {
+  const allIssues = [
+    ...opts.hygieneReasons.map((r) => `• [Hygiene] ${r}`),
+    ...opts.performanceReasons.map((r) => `• [Performance] ${r}`),
+  ].join('\n');
+  const attemptHint = opts.attemptNumber > 1
+    ? `\n(Vorherige ${opts.attemptNumber - 1} Versuche haben die Probleme noch nicht voll gelöst. Beseitige ALLE aufgelisteten Blocker diesmal.)`
+    : '';
 
   return `Du bist Chef-vom-Dienst bei einem deutschen Serien-Magazin. Schreibe für Google Discover.
 
-Deine aktuelle Headline hat Schwächen und muss neu geschrieben werden.
+Deine aktuelle Headline hat Schwächen und muss neu geschrieben werden.${attemptHint}
 
 ORIGINAL-HEADLINE:
-"${input.originalHeadline}"
+"${opts.originalHeadline}"
 
-KONKRETE PROBLEME (die du JEDES fixen musst):
-${issues}
+KONKRETE PROBLEME (JEDES muss fix sein):
+${allIssues || '• Combined Score unter Ziel — verbessere Klarheit, News-Wert und Hook'}
 
 SERIE:
-"${input.seriesName}"
+"${opts.seriesName}"
 
 ARTIKEL-KONTEXT (die ersten Absätze):
-${input.articleContent.slice(0, 1500)}
+${opts.articleContent.slice(0, 1500)}
 
 ====================================================================
-WINNING-HEADLINE-REGELN — jeder Kandidat muss alle diese erfüllen:
+HYGIENE-PFLICHT (Hard Requirements — keine Ausnahmen):
 ====================================================================
-1. SCROLL-STOP START: Beginne mit Eigenname, Zahl oder starkem Verb.
-   VERBOTEN am Anfang: Die, Der, Das, In, Auf, Nach, Mit, Ist.
-2. OPEN LOOP: Lass etwas offen. Nutze "Warum ...", "Darum ...",
-   "Was hinter ... steckt", "Deshalb ...", "Wie ..." — NICHT alles verraten.
-3. EMOTION: Konkrete Emotion, KEINE Hype-Wörter.
-   ERLAUBT: Abschied, Rückkehr, Krise, Schock, Wende, Comeback, Verrat,
-   Triumph, Trauer, Eskalation, Aus.
-   VERBOTEN: mega, unglaublich, spektakulär, sensationell, "Fans freuen sich".
-4. STARKES VERB: kippt, streicht, verlässt, enthüllt, feuert, stoppt,
-   bricht, überrascht, verliert, triumphiert — NICHT ist/hat/gibt/kommt.
-5. NATÜRLICHE SPRACHE: NIE "offiziell bestätigt", "im Überblick",
-   "verständlich erklärt", "alles was ihr wissen müsst".
-6. KEINE SCORE-REVEALS: Zahlen oder Namen von Bewertungsplattformen
-   gehören NICHT in die Headline. Sie verraten alles und killen den Klick.
-   VERBOTEN: "Rotten Tomatoes", "Metacritic", "IMDb", "NN %", "NN Prozent",
-             "N,N/10", "Kritiker-Score", "triumphiert mit NN".
-   ERLAUBT als Ersatz: Open Loop über den Grund warum die Serie gefeiert wird
-     → "Darum sind sich Kritiker bei X diesmal einig"
-     → "Warum X gerade einen Nerv trifft"
-     → "X macht sofort, was wenigen Serien gelingt"
-7. KEIN COLON-LABEL: Nicht "Serie: Detail bestätigt" — Aussagesatz.
-8. Länge 40–65 Zeichen.
-9. Serienname "${input.seriesName}" MUSS enthalten sein.
-10. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
+H1. Serienname "${opts.seriesName}" MUSS wörtlich enthalten sein
+    (klein-/groß-Schreibung egal, kein Alias).
+H2. News-Wert-Signal MUSS enthalten sein — mindestens EINES von:
+    Promo: bestätigt, startet, endet, angekündigt, veröffentlicht, beendet, erhält, verlängert, abgesetzt, verschoben
+    Ereignis: kehrt zurück, verlässt, feuert, streicht, überrascht, triumphiert, scheitert, trennt sich, kippt, dreht, stirbt, schockt, bricht, eskaliert
+    Feature-Lead: Warum, Darum, Was, Wie
+H3. Länge 40–65 Zeichen.
+H4. Kein Clickbait ohne Fakt, keine doppelten Wörter, kein "offiziell bestätigt", "im Überblick", "alles was ihr wissen müsst".
+
+====================================================================
+PERFORMANCE-REGELN — jeder Kandidat muss alle erfüllen:
+====================================================================
+P1. SCROLL-STOP START: Beginne mit Eigenname, Zahl, "Warum/Darum/Was/Wie", oder starkem Verb.
+    VERBOTEN am Anfang: Die, Der, Das, In, Auf, Nach, Mit, Ist.
+P2. OPEN LOOP: Lass etwas offen ("Warum …", "Darum …", "Was hinter …", "Wie …") — aber OHNE Komma-Formel.
+P3. EMOTION: Konkrete Emotion, keine Hype-Wörter. Erlaubt: Abschied, Rückkehr, Krise, Schock, Wende, Comeback, Verrat, Triumph, Trauer, Eskalation.
+P4. STARKES VERB — nicht ist/hat/gibt/kommt.
+P5. NATÜRLICHE SPRACHE: nie "offiziell bestätigt", "im Überblick", "verständlich erklärt".
+P6. KEINE SCORE-REVEALS: Rotten Tomatoes, Metacritic, IMDb, NN %, NN Prozent, N,N/10 sind verboten.
+P7. KEIN COLON-LABEL: kein "Serie: Staffel X bestätigt" — Aussagesatz.
+P8. KEINE AI-SLOP-FORMEL: NIE "X enthüllt, warum Y" / "X verrät, was Y" / "X zeigt, weshalb Y".
+    NIE "verändert alles" / "stellt alles auf den Kopf".
+P9. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
 
 ====================================================================
 AUFGABE
 ====================================================================
-Gib 5 komplett neue Varianten zurück, die ALLE genannten Probleme
-beheben und ALLE Winning-Regeln erfüllen.
+Gib 5 komplett neue Varianten zurück, die ALLE Probleme beheben
+und ALLE Hygiene- + Performance-Regeln erfüllen.
 
 Antworte NUR mit validem JSON-Array (kein Markdown, kein Kommentar):
 [
-  { "text": "Erste Variante ..." },
-  { "text": "Zweite Variante ..." },
-  { "text": "Dritte Variante ..." },
-  { "text": "Vierte Variante ..." },
-  { "text": "Fünfte Variante ..." }
+  { "text": "Erste Variante …" },
+  { "text": "Zweite Variante …" },
+  { "text": "Dritte Variante …" },
+  { "text": "Vierte Variante …" },
+  { "text": "Fünfte Variante …" }
 ]`;
 }
 
@@ -132,11 +165,15 @@ async function callLLMForRewrite(prompt: string, seriesName: string): Promise<st
 }
 
 /**
- * Score a single headline against the Performance dimension only.
- * Uses discoverGate() internally with minimal inputs; only the
- * headline_performance slice is read out.
+ * Score a single headline against BOTH Hygiene + Performance in ONE gate call.
  */
-async function scorePerformanceOnly(headline: string, seriesName: string, content: string): Promise<{ score: number; reasons: string[] }> {
+async function scoreBoth(headline: string, seriesName: string, content: string): Promise<{
+  hygiene: number;
+  hygieneReasons: string[];
+  performance: number;
+  performanceReasons: string[];
+  combined: number;
+}> {
   const result = await discoverGate({
     final_headline: headline,
     article_html: `<p>${content.slice(0, 800)}</p>`,
@@ -144,86 +181,128 @@ async function scorePerformanceOnly(headline: string, seriesName: string, conten
     publishedAt: new Date(),
     primary_series: seriesName,
   });
+  const h = result.dashboard.headline.score;
+  const p = result.dashboard.headline_performance.score;
   return {
-    score: result.dashboard.headline_performance.score,
-    reasons: result.dashboard.headline_performance.reasons,
+    hygiene: h,
+    hygieneReasons: result.dashboard.headline.reasons,
+    performance: p,
+    performanceReasons: result.dashboard.headline_performance.reasons,
+    combined: h + p,
   };
 }
 
 export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<RewriteOutput> {
   const start = Date.now();
 
-  // Short-circuit: headline already meets performance threshold.
-  if (input.beforeScore >= PERFORMANCE_THRESHOLD) {
+  // --- Prepare baseline scores (use supplied values if caller already scored, else score now)
+  const beforeHygieneScore =
+    input.beforeHygieneScore ??
+    (await scoreBoth(input.originalHeadline, input.seriesName, input.articleContent)).hygiene;
+  const beforeHygieneReasons = input.beforeHygieneReasons ?? [];
+  const beforePerformanceScore = input.beforePerformanceScore ?? input.beforeScore;
+  const beforePerformanceReasons = input.beforePerformanceReasons ?? input.beforeReasons;
+  const beforeCombined = beforeHygieneScore + beforePerformanceScore;
+
+  // Short-circuit: already above target.
+  if (beforeCombined >= TRIGGER_COMBINED) {
     return {
       attempted: false,
       applied: false,
       originalHeadline: input.originalHeadline,
       finalHeadline: input.originalHeadline,
-      beforePerformance: input.beforeScore,
-      afterPerformance: input.beforeScore,
+      beforePerformance: beforePerformanceScore,
+      afterPerformance: beforePerformanceScore,
+      beforeHygiene: beforeHygieneScore,
+      afterHygiene: beforeHygieneScore,
+      beforeCombined,
+      afterCombined: beforeCombined,
       gain: 0,
       candidates: [],
+      iterations: [],
       durationMs: 0,
     };
   }
 
+  const iterations: IterationResult[] = [];
+  let bestHeadline = input.originalHeadline;
+  let bestHygiene = beforeHygieneScore;
+  let bestPerformance = beforePerformanceScore;
+  let bestCombined = beforeCombined;
+  let currentHygieneReasons = beforeHygieneReasons;
+  let currentPerformanceReasons = beforePerformanceReasons;
+  let lastAppliedError: string | undefined;
+
   try {
-    const prompt = buildRewritePrompt(input);
-    const rawCandidates = await callLLMForRewrite(prompt, input.seriesName);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (bestCombined >= TARGET_COMBINED) break;
 
-    if (rawCandidates.length === 0) {
-      return {
-        attempted: true,
-        applied: false,
-        originalHeadline: input.originalHeadline,
-        finalHeadline: input.originalHeadline,
-        beforePerformance: input.beforeScore,
-        afterPerformance: input.beforeScore,
-        gain: 0,
-        candidates: [],
-        durationMs: Date.now() - start,
-        errorMessage: 'LLM returned no candidates',
-      };
+      const prompt = buildRewritePrompt({
+        originalHeadline: bestHeadline,
+        seriesName: input.seriesName,
+        articleContent: input.articleContent,
+        hygieneReasons: currentHygieneReasons,
+        performanceReasons: currentPerformanceReasons,
+        attemptNumber: attempt,
+      });
+
+      const rawCandidates = await callLLMForRewrite(prompt, input.seriesName);
+      if (rawCandidates.length === 0) {
+        lastAppliedError = 'LLM returned no candidates';
+        break;
+      }
+
+      const scored = await Promise.all(
+        rawCandidates.map(async (text) => {
+          const s = await scoreBoth(text, input.seriesName, input.articleContent);
+          return { text, hygiene: s.hygiene, performance: s.performance, combined: s.combined, hygieneReasons: s.hygieneReasons, performanceReasons: s.performanceReasons };
+        })
+      );
+      scored.sort((a, b) => b.combined - a.combined);
+      const top = scored[0];
+
+      iterations.push({
+        attempt,
+        picked: top.text,
+        hygiene: top.hygiene,
+        performance: top.performance,
+        combined: top.combined,
+        candidates: scored.map((c) => ({ text: c.text, hygiene: c.hygiene, performance: c.performance, combined: c.combined })),
+      });
+
+      // Apply only if strictly better than the current best
+      if (top.combined > bestCombined) {
+        bestHeadline = top.text;
+        bestHygiene = top.hygiene;
+        bestPerformance = top.performance;
+        bestCombined = top.combined;
+        currentHygieneReasons = top.hygieneReasons;
+        currentPerformanceReasons = top.performanceReasons;
+      } else {
+        // No gain this round → further iterations unlikely to help.
+        break;
+      }
     }
-
-    // Score all rewritten candidates and pick the best.
-    const scored = await Promise.all(
-      rawCandidates.map(async (text) => ({
-        text,
-        performance: (await scorePerformanceOnly(text, input.seriesName, input.articleContent)).score,
-      })),
-    );
-
-    scored.sort((a, b) => b.performance - a.performance);
-    const best = scored[0];
-
-    const applied = best.performance > input.beforeScore;
-    const finalHeadline = applied ? best.text : input.originalHeadline;
-
-    return {
-      attempted: true,
-      applied,
-      originalHeadline: input.originalHeadline,
-      finalHeadline,
-      beforePerformance: input.beforeScore,
-      afterPerformance: applied ? best.performance : input.beforeScore,
-      gain: applied ? best.performance - input.beforeScore : 0,
-      candidates: scored,
-      durationMs: Date.now() - start,
-    };
   } catch (error: any) {
-    return {
-      attempted: true,
-      applied: false,
-      originalHeadline: input.originalHeadline,
-      finalHeadline: input.originalHeadline,
-      beforePerformance: input.beforeScore,
-      afterPerformance: input.beforeScore,
-      gain: 0,
-      candidates: [],
-      durationMs: Date.now() - start,
-      errorMessage: error?.message || 'Unknown error',
-    };
+    lastAppliedError = error?.message || 'Unknown error';
   }
+
+  const applied = bestHeadline !== input.originalHeadline && bestCombined > beforeCombined;
+  return {
+    attempted: iterations.length > 0 || !!lastAppliedError,
+    applied,
+    originalHeadline: input.originalHeadline,
+    finalHeadline: applied ? bestHeadline : input.originalHeadline,
+    beforePerformance: beforePerformanceScore,
+    afterPerformance: applied ? bestPerformance : beforePerformanceScore,
+    beforeHygiene: beforeHygieneScore,
+    afterHygiene: applied ? bestHygiene : beforeHygieneScore,
+    beforeCombined,
+    afterCombined: applied ? bestCombined : beforeCombined,
+    gain: applied ? bestCombined - beforeCombined : 0,
+    candidates: iterations.flatMap((it) => it.candidates.map((c) => ({ text: c.text, performance: c.performance, hygiene: c.hygiene, combined: c.combined }))),
+    iterations,
+    durationMs: Date.now() - start,
+    errorMessage: lastAppliedError,
+  };
 }
