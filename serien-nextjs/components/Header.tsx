@@ -217,14 +217,6 @@ export default function Header() {
                   )}
                 </div>
 
-                {/* SERIENFINDER */}
-                <Link 
-                  href="/serienfinder" 
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-                >
-                  SERIENFINDER
-                </Link>
-
                 {/* MEHR Dropdown */}
                 <div className="relative">
                   <button
