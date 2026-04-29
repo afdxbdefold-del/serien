@@ -273,7 +273,7 @@ export async function runFullAudit(trigger: string = 'manual'): Promise<string> 
     validPaths.add('/');
     for (const p of ['trending', 'about', 'impressum', 'datenschutz', 'autoren',
       'neue-serien', 'kalender', 'nutzungsbedingungen', 'redaktionelle-richtlinien',
-      'serienfinder', 'serie', 'neue-videos', 'onboarding', 'einstellungen',
+      'serienfinder', 'serie', 'onboarding', 'einstellungen',
       'netflix-serien', 'disney-plus-serien', 'prime-video-serien',
       'apple-tv-serien', 'paramount-plus-serien', 'wow-serien',
       'rtl-plus-serien', 'joyn-serien', 'magenta-tv-serien',

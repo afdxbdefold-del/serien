@@ -42,7 +42,6 @@ const MORE_ITEMS = [
   { name: 'Beste Mystery-Serien', href: '/beste-mystery-serien', icon: Flame, description: 'Rätsel & Twists' },
   { name: 'Beste Sci-Fi-Serien', href: '/beste-sci-fi-serien', icon: Flame, description: 'Sci-Fi & Fantasy' },
   { name: 'Trending', href: '/trending', icon: Flame, description: 'Was Deutschland gerade schaut' },
-  { name: 'Neue Videos', href: '/neue-videos', icon: Play, description: 'Trailer & Ankündigungen' },
   { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
   { name: '90 Day Fiancé', href: '/in-90-tagen-zum-altar', icon: Tv, description: 'Franchise Hub' },
   { name: 'Walking Dead', href: '/the-walking-dead', icon: Tv, description: 'Franchise Hub' },

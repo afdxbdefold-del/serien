@@ -59,6 +59,12 @@ const nextConfig: NextConfig = {
         destination: 'https://serien.de/:path*',
         permanent: true,
       },
+      // /neue-videos was deprecated Feb 2026 — 301 to homepage so Google can drop the indexed URL.
+      {
+        source: '/neue-videos',
+        destination: '/',
+        permanent: true,
+      },
     ];
   },
   
