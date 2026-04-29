@@ -62,12 +62,12 @@ export async function GET(request: NextRequest) {
     
     console.log('[CRON] Starting news import...');
     
-    // Scrape from all 7 configured sources: 3 valnet/wp sites + 4 premium RSS feeds.
-    // Premium sources (Deadline, Variety, HR, TVInsider) bring journalistic industry
-    // news — not the "10/10 streaming success" listicles Collider/ScreenRant prefer.
+    // Scrape from all 9 configured sources: 3 HTML sites + 4 premium RSS feeds + Netflix Tudum + TVLine.
+    // Premium sources (Deadline, Variety, HR, TVInsider, TVLine) bring journalistic industry
+    // news; Netflix Tudum delivers canonical first-party Netflix headlines.
     const result = await processAllNews({
-      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
-      limit: 4, // 4 per source × 7 = up to 28 candidates per cron run
+      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline'],
+      limit: 4, // 4 per source × 9 = up to 36 candidates per cron run
       dryRun: false,
       onlyNew: true,
     });

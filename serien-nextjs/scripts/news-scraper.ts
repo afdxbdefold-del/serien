@@ -61,6 +61,12 @@ export const NEWS_SOURCES = {
     domain: 'netflix.com',
     type: 'tudum',
   },
+  tvline: {
+    name: 'TVLine',
+    url: 'https://www.tvline.com/category/streaming/',
+    domain: 'tvline.com',
+    type: 'tvline',
+  },
 } as const;
 
 type SourceKey = keyof typeof NEWS_SOURCES;
@@ -583,6 +589,44 @@ async function scrapeTudumNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
 }
 
 /**
+ * Scrape TVLine (HTML, cheerio). Mirrors legacy `scripts/tvline-scraper.ts`
+ * but plugged into the unified NEWS_SOURCES pipeline so the cron picks it up.
+ */
+async function scrapeTvlineNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  console.log(`\n📡 ${source.name} (${source.url})`);
+
+  const html = await fetch(source.url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  }).then((r) => r.text());
+
+  const $ = load(html);
+  const seen = new Set<string>();
+  const results: NewsArticle[] = [];
+
+  $('.article-item h3 a, .article-block h3 a, article h2 a, article h3 a').each((_, el) => {
+    const $a = $(el);
+    let href = ($a.attr('href') || '').trim();
+    const title = $a.text().trim();
+    if (!href || !title) return;
+    if (title.length < 15) return;
+    if (!href.startsWith('http')) href = `https://www.tvline.com${href}`;
+    if (seen.has(href)) return;
+    if (/\/(category|lists|author|tag)\//.test(href)) return;
+    seen.add(href);
+    results.push({ title, url: href, timeAgo: '', source: source.name, series: undefined });
+  });
+
+  console.log(`   ${results.length} TVLine-Artikel gefunden`);
+  return results;
+}
+
+/**
  * Fetch news articles from a single source (for preview/listing)
  */
 export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArticle[]> {
@@ -599,6 +643,8 @@ export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArt
     return scrapeRssNews(sourceKey);
   } else if (source.type === 'tudum') {
     return scrapeTudumNews(sourceKey);
+  } else if (source.type === 'tvline') {
+    return scrapeTvlineNews(sourceKey);
   }
 
   throw new Error(`Unknown source type: ${source.type}`);
@@ -623,7 +669,7 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum'],
+    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
