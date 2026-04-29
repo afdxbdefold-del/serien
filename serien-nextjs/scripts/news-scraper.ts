@@ -55,6 +55,12 @@ export const NEWS_SOURCES = {
     domain: 'tvinsider.com',
     type: 'rss',
   },
+  netflixTudum: {
+    name: 'Netflix Tudum',
+    url: 'https://www.netflix.com/tudum/topics/tv-shows',
+    domain: 'netflix.com',
+    type: 'tudum',
+  },
 } as const;
 
 type SourceKey = keyof typeof NEWS_SOURCES;
@@ -501,6 +507,82 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
 }
 
 /**
+ * Scrape the Netflix Tudum editorial hub (HTML, no RSS).
+ * Extracts anchor tags pointing to /tudum/articles/{slug} and uses the
+ * visible link text as the headline. Filters out Next/emotion CSS-in-JS
+ * fragment leaks ("default-ltr-iqcdef-cache-…") that occasionally land
+ * inside anchor innerHTML.
+ */
+async function scrapeTudumNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  console.log(`\n📡 ${source.name} (${source.url})`);
+
+  const html = await fetch(source.url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+  }).then((r) => r.text());
+
+  const pattern = /<a[^>]*href="(\/tudum\/articles\/([a-z0-9-]+))"[^>]*>([\s\S]*?)<\/a>/g;
+  const seen = new Set<string>();
+  const results: NewsArticle[] = [];
+
+  // Skip anchors that embed CSS or obviously non-editorial content
+  const NOISE_MARKERS = [
+    /default-ltr-iqcdef/i,
+    /font-variation-settings/i,
+    /iqcdef-cache/i,
+  ];
+
+  // Skip topic hubs / round-ups / utility pages — we want article news, not evergreen listicles
+  const BAD_SLUG_MARKERS = [
+    'about-tudum',
+    'what-to-watch',
+    'top-10-',            // weekly Top-10 recap — already covered elsewhere
+    'best-',              // listicles
+    'movies-shows-',
+    'shows-based-on',
+    'documentaries-on-netflix',
+    'comedies-tv-shows',
+    'football-movies',
+    'thriller-book',
+    'wwe-',               // WWE content — explicitly out-of-scope for serien.de
+  ];
+
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    const slug = match[2];
+    if (seen.has(slug)) continue;
+
+    const skipSlug = BAD_SLUG_MARKERS.some((m) => slug.includes(m));
+    if (skipSlug) continue;
+
+    const innerHtml = match[3];
+    const title = innerHtml
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (title.length < 15) continue; // too short to be a real headline
+    if (NOISE_MARKERS.some((re) => re.test(title))) continue;
+
+    seen.add(slug);
+    results.push({
+      title,
+      url: `https://www.netflix.com/tudum/articles/${slug}`,
+      timeAgo: '', // Tudum list page does not expose publish times; we'll rely on /latest re-entry detection
+      source: source.name,
+      series: undefined,
+    });
+  }
+
+  console.log(`   ${results.length} Tudum-Artikel gefunden`);
+  return results;
+}
+
+/**
  * Fetch news articles from a single source (for preview/listing)
  */
 export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArticle[]> {
@@ -515,6 +597,8 @@ export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArt
     return scrapeWordPressNews(sourceKey);
   } else if (source.type === 'rss') {
     return scrapeRssNews(sourceKey);
+  } else if (source.type === 'tudum') {
+    return scrapeTudumNews(sourceKey);
   }
 
   throw new Error(`Unknown source type: ${source.type}`);
@@ -539,7 +623,7 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
+    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum'],
     limit = 5,
     dryRun = false,
     onlyNew = true,

@@ -1049,7 +1049,7 @@ export async function POST(request: NextRequest) {
         
         // Process only 1 article (the freshest one) from ALL 7 sources
         const result = await processAllNews({
-          sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'],
+          sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum'],
           limit: 1, // NUR 1 Artikel
           dryRun: false,
           onlyNew: true,
