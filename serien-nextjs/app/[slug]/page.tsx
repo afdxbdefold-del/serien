@@ -756,6 +756,50 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
       )}
 
+      {/* Mehr aktuelle Serien-News CTA */}
+      <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-2">
+        <section
+          aria-labelledby="more-news"
+          className="rounded-2xl border border-cyan-200 dark:border-cyan-900/60 bg-cyan-50 dark:bg-cyan-950/30 p-5 sm:p-6"
+          data-testid="article-news-cta"
+        >
+          <h3 id="more-news" className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+            Mehr aktuelle Serien-News
+          </h3>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+            Bleib auf dem Laufenden — alle frischen Meldungen, Trailer und Staffel-Starts auf einen Blick.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/news"
+              className="inline-flex items-center px-4 py-2 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-colors"
+              data-testid="article-news-cta-all"
+            >
+              Alle Serien-News →
+            </Link>
+            {(() => {
+              const nets = (article.series?.networks || []).map((n: string) => n.toLowerCase());
+              const STREAMER_LINKS: Array<{ match: string[]; href: string; label: string }> = [
+                { match: ['netflix'],                                 href: '/news/netflix',       label: 'Netflix-News' },
+                { match: ['prime video', 'amazon prime', 'amazon'],   href: '/news/prime-video',   label: 'Prime Video-News' },
+                { match: ['disney+', 'disney plus', 'disney'],        href: '/news/disney-plus',   label: 'Disney+ News' },
+                { match: ['apple tv+', 'apple tv plus', 'apple tv'],  href: '/news/apple-tv',      label: 'Apple TV+ News' },
+              ];
+              const matched = STREAMER_LINKS.find((s) => nets.some((n) => s.match.some((m) => n.includes(m))));
+              return matched ? (
+                <Link
+                  href={matched.href}
+                  className="inline-flex items-center px-4 py-2 rounded-full bg-white dark:bg-gray-900 border border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 text-sm font-semibold transition-colors"
+                  data-testid="article-news-cta-streamer"
+                >
+                  Mehr {matched.label} →
+                </Link>
+              ) : null;
+            })()}
+          </div>
+        </section>
+      </div>
+
       {/* Serien-Infobox + Streaming-Box — außerhalb von <article> */}
       <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
         {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (

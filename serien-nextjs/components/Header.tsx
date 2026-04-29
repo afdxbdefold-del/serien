@@ -130,8 +130,9 @@ export default function Header() {
               <nav className="hidden lg:flex items-center gap-1">
                 {/* NEWS */}
                 <Link 
-                  href="/" 
+                  href="/news" 
                   className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                  data-testid="nav-news-link"
                 >
                   NEWS
                 </Link>
@@ -389,7 +390,7 @@ export default function Header() {
               {/* Main Links */}
               <div className="space-y-1 mb-6">
                 <Link 
-                  href="/" 
+                  href="/news" 
                   className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                 >

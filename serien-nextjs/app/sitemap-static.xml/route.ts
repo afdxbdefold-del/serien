@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { GENRES, STREAMERS, DECADES } from '@/app/serien/_lib';
+import { STREAMERS as NEWS_STREAMERS, KINDS as NEWS_KINDS } from '@/app/news/_lib';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
@@ -18,6 +19,7 @@ interface StaticEntry {
 const STATIC_PAGES: StaticEntry[] = [
   // Flagship hubs — derive lastmod from the latest article so they reflect real freshness.
   { loc: '/',                          changefreq: 'daily',   priority: 1.0,  derive: latestArticle },
+  { loc: '/news',                      changefreq: 'hourly',  priority: 0.95, derive: latestArticle },
   { loc: '/top-10',                    changefreq: 'daily',   priority: 0.95, derive: latestSeries },
   { loc: '/serien',                    changefreq: 'daily',   priority: 0.92, derive: latestSeries },
   { loc: '/top-100-serien',            changefreq: 'daily',   priority: 0.9,  derive: latestSeries },
@@ -50,6 +52,14 @@ STREAMERS.forEach((s) =>
 );
 DECADES.forEach((d) =>
   STATIC_PAGES.push({ loc: `/serien/jahrzehnt/${d}er`, changefreq: 'weekly', priority: 0.7, derive: latestSeries })
+);
+
+// Append /news/{streamer|kind} sub-routes
+NEWS_STREAMERS.forEach((s) =>
+  STATIC_PAGES.push({ loc: `/news/${s.slug}`, changefreq: 'hourly', priority: 0.85, derive: latestArticle })
+);
+NEWS_KINDS.forEach((k) =>
+  STATIC_PAGES.push({ loc: `/news/${k.slug}`, changefreq: 'daily', priority: 0.75, derive: latestArticle })
 );
 
 async function latestArticle(): Promise<Date | null> {
