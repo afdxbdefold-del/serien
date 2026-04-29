@@ -65,6 +65,13 @@ const nextConfig: NextConfig = {
         destination: '/',
         permanent: true,
       },
+      // Unchosen Staffel 1 Ende erklärt — slug rename (29.04.2026). Keep old URL
+      // alive for indexed links + social shares.
+      {
+        source: '/warum-unchosen-echte-aussteiger-so-tief-erschuettert',
+        destination: '/das-ende-von-unchosen-staffel-1-erklaert',
+        permanent: true,
+      },
     ];
   },
   
