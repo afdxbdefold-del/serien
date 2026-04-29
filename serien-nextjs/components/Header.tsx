@@ -31,7 +31,6 @@ const STREAMING_PROVIDERS = [
 
 // More menu items
 const MORE_ITEMS = [
-  { name: 'Alle Serien (A–Z)', href: '/serien', icon: Tv, description: 'Komplettes Serien-Verzeichnis mit Filtern' },
   { name: 'Top 100 Serien', href: '/top-100-serien', icon: Flame, description: 'Täglich aktualisiertes Ranking' },
   { name: 'Top 100 Netflix', href: '/top-100-netflix', icon: Flame, description: 'Die besten Netflix-Serien' },
   { name: 'Top 100 Prime Video', href: '/top-100-amazon-prime', icon: Flame, description: 'Die besten Prime-Serien' },
@@ -137,6 +136,16 @@ export default function Header() {
                   NEWS
                 </Link>
                 
+                {/* ALLE SERIEN A–Z */}
+                <Link
+                  href="/serien"
+                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  data-testid="nav-serien-az-link"
+                >
+                  <Tv className="w-4 h-4" />
+                  ALLE SERIEN A–Z
+                </Link>
+
                 {/* TOP 10 */}
                 <Link 
                   href="/top-10" 
