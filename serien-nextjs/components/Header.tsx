@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, X, Menu, Loader2, ChevronDown, Tv, Users, PenLine, Compass, Play, Flame } from 'lucide-react';
+import { Search, X, Menu, Loader2, ChevronDown, Tv, Users, PenLine, Compass, Play, Flame, Newspaper } from 'lucide-react';
 import Logo from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -137,6 +137,16 @@ export default function Header() {
                   NEWS
                 </Link>
                 
+                {/* ALLE NEWS A–Z */}
+                <Link
+                  href="/news"
+                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  data-testid="nav-news-az-link"
+                >
+                  <Newspaper className="w-4 h-4" />
+                  ALLE NEWS A–Z
+                </Link>
+
                 {/* ALLE SERIEN A–Z */}
                 <Link
                   href="/serien"
