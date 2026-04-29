@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { SlidersHorizontal, X, Check, Loader2 } from 'lucide-react';
 import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
@@ -167,28 +166,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           <h1 id="main-heading" className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
             Serien News, Trailer & Streaming-Starts
           </h1>
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Top Serien-News heute:</span>
-            <Link
-              href="/news"
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold transition-colors"
-              data-testid="home-news-hub-link"
-            >
-              Alle News
-            </Link>
-            <Link href="/news/netflix" className="inline-flex items-center px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Netflix
-            </Link>
-            <Link href="/news/prime-video" className="inline-flex items-center px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Prime Video
-            </Link>
-            <Link href="/news/disney-plus" className="inline-flex items-center px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Disney+
-            </Link>
-            <Link href="/news/apple-tv" className="inline-flex items-center px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              Apple TV+
-            </Link>
-          </div>
         </div>
       </section>
 
