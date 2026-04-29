@@ -59,7 +59,13 @@ export async function fetchNewsArticles(opts: FetchOpts = {}): Promise<NewsArtic
     status: { in: ['published', 'PUBLISHED'] },
     publishedAt: { not: null },
     // Exclude articles flagged as "neue-videos" — that pipeline is deprecated.
-    NOT: { category: 'neue-videos' },
+    // NOTE: `NOT: { category: 'neue-videos' }` alone also filters out rows where
+    // category IS NULL (SQL NULL != 'x' → UNKNOWN). Most of our articles have
+    // category = null, so we need an explicit OR to include them.
+    OR: [
+      { category: null },
+      { category: { not: 'neue-videos' } },
+    ],
   };
 
   if (opts.excludeIds && opts.excludeIds.length > 0) {
