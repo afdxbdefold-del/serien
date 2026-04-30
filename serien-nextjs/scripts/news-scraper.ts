@@ -111,6 +111,11 @@ const SKIP_KEYWORDS = [
   'daily show', 'last week tonight', 'late night with',
   'after midnight', 'graham norton',
   'news anchor', 'cable news', 'fox news', 'cnn', 'msnbc',
+  // UK-only regional deals — irrelevant for DACH audience
+  'sky uk', 'sky one', 'sky max', 'sky atlantic uk', 'sky showcase',
+  'bbc iplayer', 'bbc one', 'bbc two', 'bbc three', 'itv', 'itvx',
+  'channel 4', 'all4 ', 'channel4', 'my5', 'u-next', 'uktv',
+  'bbc studios', 'britbox',
   // Skip movies - only series!
   'movie', 'film', 'mcu movie', 'dceu', 'box office',
   'theatrical', 'in theaters', 'coming to theaters'
