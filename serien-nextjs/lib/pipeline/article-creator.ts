@@ -173,7 +173,7 @@ export async function createArticle(
       data: {
         id: `discover-${Date.now()}`,
         articleId: article.id,
-        pipelineVersion: 'serien_pipeline_v1',
+        pipelineVersion: 'serien_pipeline_v2',
         headlineMetrics: data.discoverResult.dashboard.headline,
         contentMetrics: data.discoverResult.dashboard.content_opening,
         freshnessMetrics: data.discoverResult.dashboard.freshness,
