@@ -1441,36 +1441,62 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     // ══════════════════════════════════════════════════════════════════════
     // HERO IMAGE RESOLUTION
-    //   1) TMDB backdrop  → best case, use as-is
-    //   2) Composite hero → branded 1920×1080 with headline + series backdrop/poster
-    //                        blurred behind. Used for articles where we don't have
-    //                        a clean backdrop (new shows, movies, creator stories).
-    //                        Stored in Vercel Blob with deterministic URL.
-    //   3) Streamer fallback → last resort static Netflix/Prime/etc. logo (rare).
+    //   1) TMDB backdrop   → best case, use as-is
+    //   2) Nano Banana AI  → deterministic cinematic 16:9, cached in Blob
+    //                         per (tmdbId, category). Skipped if LLM key missing.
+    //   3) Composite hero  → branded 1920×1080 with headline + series backdrop/poster
+    //                         blurred behind. Used for articles where we don't have
+    //                         a clean backdrop (new shows, movies, creator stories).
+    //                         Stored in Vercel Blob with deterministic URL.
+    //   4) Streamer logo   → last resort static Netflix/Prime/etc. logo (rare).
     // ══════════════════════════════════════════════════════════════════════
     let heroImageUrl: string;
     if (selectedBackdrop) {
       heroImageUrl = `https://image.tmdb.org/t/p/original${selectedBackdrop}`;
     } else {
-      const { composeAndStoreArticleHero } = await import('../lib/compose-article-hero');
       const networks = dbSeries.networks || facts?.networks_platforms || [];
-      const composed = await composeAndStoreArticleHero(articleId, {
-        headline: finalHeadline,
-        seriesName: dbSeries.name || dbSeries.title || '',
-        backdropPath: dbSeries.backdropPath || null,
-        posterPath: (dbSeries as any).posterPath || null,
-        network: networks[0] || null,
-        category: duplicateResult?.topicCategory
-          ? duplicateResult.topicCategory.charAt(0) + duplicateResult.topicCategory.slice(1).toLowerCase() + '-News'
-          : 'News',
-      });
-      heroImageUrl = composed || getStreamerFallbackImage(networks);
-      if (composed) {
-        console.log(`   🎨 Composite hero generated: ${heroImageUrl}`);
-        logger.addMetadata('heroSource', 'composite');
+      const category = duplicateResult?.topicCategory
+        ? duplicateResult.topicCategory.charAt(0) + duplicateResult.topicCategory.slice(1).toLowerCase() + '-News'
+        : 'News';
+
+      // Tier 2: Nano Banana AI (Gemini) — cached per (tmdbId, category).
+      let nanoUrl: string | null = null;
+      try {
+        const { generateNanoBananaHero } = await import('../lib/nano-banana-hero');
+        nanoUrl = await generateNanoBananaHero({
+          tmdbId: dbSeries.tmdbId,
+          seriesName: dbSeries.name || dbSeries.title || '',
+          slot: category,
+          category,
+          networks,
+        });
+      } catch (e: any) {
+        console.log(`   ⚠️ Nano Banana hero failed: ${e?.message ?? e}`);
+      }
+
+      if (nanoUrl) {
+        heroImageUrl = nanoUrl;
+        console.log(`   🎨 Nano Banana hero generated: ${heroImageUrl}`);
+        logger.addMetadata('heroSource', 'nano-banana');
       } else {
-        console.log(`   🖼️  Fallback streamer-logo hero used`);
-        logger.addMetadata('heroSource', 'streamer-fallback');
+        // Tier 3: Sharp composite.
+        const { composeAndStoreArticleHero } = await import('../lib/compose-article-hero');
+        const composed = await composeAndStoreArticleHero(articleId, {
+          headline: finalHeadline,
+          seriesName: dbSeries.name || dbSeries.title || '',
+          backdropPath: dbSeries.backdropPath || null,
+          posterPath: (dbSeries as any).posterPath || null,
+          network: networks[0] || null,
+          category,
+        });
+        heroImageUrl = composed || getStreamerFallbackImage(networks);
+        if (composed) {
+          console.log(`   🎨 Composite hero generated: ${heroImageUrl}`);
+          logger.addMetadata('heroSource', 'composite');
+        } else {
+          console.log(`   🖼️  Fallback streamer-logo hero used`);
+          logger.addMetadata('heroSource', 'streamer-fallback');
+        }
       }
     }
 
