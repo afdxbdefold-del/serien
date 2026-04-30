@@ -38,6 +38,7 @@ import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { shouldSkipByGenre } from '../lib/genre-filter';
+import { checkDachAvailability } from '../lib/dach-availability';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
 import { computeStoryFingerprint } from '../lib/story-fingerprint';
@@ -602,7 +603,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
-      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true, genres: true, numberOfSeasons: true }
+      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true, genres: true, numberOfSeasons: true, networks: true }
     });
     
     if (!dbSeries) {
@@ -748,6 +749,42 @@ export async function runPipelineV2(source: PipelineV2Source) {
       if (skipCheck.skip) {
         console.log(`⛔ GENRE SKIP: ${skipCheck.reason}`);
         await logger.fail(`Genre out-of-scope: ${skipCheck.reason}`, 'genre-out-of-scope');
+        return null;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DACH-AVAILABILITY GATE — skip US/UK linear-only series with no
+    // German distribution. We rely on series.networks[] (TMDB names) and
+    // fall back to source URL/title when networks is empty.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      let networksForCheck: string[] = (dbSeries.networks as string[] | null) || [];
+      if (networksForCheck.length === 0) {
+        try {
+          const details = await getTvDetailsComplete(searchResult.tmdbId, 'en-US');
+          if (details && Array.isArray((details as any).networks)) {
+            networksForCheck = (details as any).networks
+              .map((x: any) => (typeof x === 'string' ? x : x?.name))
+              .filter(Boolean);
+            // Persist for next time
+            if (networksForCheck.length > 0) {
+              prisma.series.update({
+                where: { tmdbId: searchResult.tmdbId },
+                data: { networks: networksForCheck },
+              }).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+      const dachCheck = checkDachAvailability(
+        networksForCheck,
+        source.url,
+        source.title,
+      );
+      if (!dachCheck.available) {
+        console.log(`⛔ DACH SKIP: ${dachCheck.reason}`);
+        await logger.fail(`DACH-unavailable: ${dachCheck.reason}`, 'dach-availability');
         return null;
       }
     }

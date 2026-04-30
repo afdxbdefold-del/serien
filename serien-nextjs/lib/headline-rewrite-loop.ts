@@ -15,6 +15,7 @@
  */
 import { discoverGate } from './discover-gate';
 import { stripDashes } from './strip-dashes';
+import { detectHeadlineContradiction } from './headline-contradiction';
 
 export interface RewriteInput {
   originalHeadline: string;
@@ -204,8 +205,12 @@ export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<Rewrit
   const beforePerformanceReasons = input.beforePerformanceReasons ?? input.beforeReasons;
   const beforeCombined = beforeHygieneScore + beforePerformanceScore;
 
-  // Short-circuit: already above target.
-  if (beforeCombined >= TRIGGER_COMBINED) {
+  // Short-circuit: already above target AND no headline/body contradiction.
+  const baselineContradiction = detectHeadlineContradiction(
+    input.originalHeadline,
+    input.articleContent,
+  );
+  if (beforeCombined >= TRIGGER_COMBINED && !baselineContradiction.contradicted) {
     return {
       attempted: false,
       applied: false,
@@ -229,13 +234,19 @@ export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<Rewrit
   let bestHygiene = beforeHygieneScore;
   let bestPerformance = beforePerformanceScore;
   let bestCombined = beforeCombined;
+  let bestContradicted = baselineContradiction.contradicted;
   let currentHygieneReasons = beforeHygieneReasons;
-  let currentPerformanceReasons = beforePerformanceReasons;
+  let currentPerformanceReasons = baselineContradiction.contradicted
+    ? [
+        ...beforePerformanceReasons,
+        `Widerspruch zum Body (${baselineContradiction.reason}): Headline behauptet "${baselineContradiction.claim}", Body sagt "${baselineContradiction.disclaimer}". Vermeide diese Behauptung.`,
+      ]
+    : beforePerformanceReasons;
   let lastAppliedError: string | undefined;
 
   try {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      if (bestCombined >= TARGET_COMBINED) break;
+      if (bestCombined >= TARGET_COMBINED && !bestContradicted) break;
 
       const prompt = buildRewritePrompt({
         originalHeadline: bestHeadline,
@@ -255,10 +266,24 @@ export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<Rewrit
       const scored = await Promise.all(
         rawCandidates.map(async (text) => {
           const s = await scoreBoth(text, input.seriesName, input.articleContent);
-          return { text, hygiene: s.hygiene, performance: s.performance, combined: s.combined, hygieneReasons: s.hygieneReasons, performanceReasons: s.performanceReasons };
+          const contra = detectHeadlineContradiction(text, input.articleContent);
+          return {
+            text,
+            hygiene: s.hygiene,
+            performance: s.performance,
+            combined: s.combined,
+            hygieneReasons: s.hygieneReasons,
+            performanceReasons: s.performanceReasons,
+            contradicted: contra.contradicted,
+            contradictionReason: contra.reason,
+          };
         })
       );
-      scored.sort((a, b) => b.combined - a.combined);
+      // Sort: non-contradicting candidates first, then by combined score.
+      scored.sort((a, b) => {
+        if (a.contradicted !== b.contradicted) return a.contradicted ? 1 : -1;
+        return b.combined - a.combined;
+      });
       const top = scored[0];
 
       iterations.push({
@@ -270,14 +295,22 @@ export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<Rewrit
         candidates: scored.map((c) => ({ text: c.text, hygiene: c.hygiene, performance: c.performance, combined: c.combined })),
       });
 
-      // Apply only if strictly better than the current best
-      if (top.combined > bestCombined) {
+      // Apply if (a) it's strictly better, or (b) it resolves a contradiction without losing more than 4 points.
+      const resolvesContradiction = bestContradicted && !top.contradicted;
+      const acceptableScoreDrop = resolvesContradiction && top.combined >= bestCombined - 4;
+      if (top.combined > bestCombined || acceptableScoreDrop) {
         bestHeadline = top.text;
         bestHygiene = top.hygiene;
         bestPerformance = top.performance;
         bestCombined = top.combined;
+        bestContradicted = top.contradicted;
         currentHygieneReasons = top.hygieneReasons;
-        currentPerformanceReasons = top.performanceReasons;
+        currentPerformanceReasons = top.contradicted
+          ? [
+              ...top.performanceReasons,
+              `Widerspruch bleibt (${top.contradictionReason ?? 'unklar'}). Streiche die Überraschungs-/Sensations-Behauptung.`,
+            ]
+          : top.performanceReasons;
       } else {
         // No gain this round → further iterations unlikely to help.
         break;
@@ -287,7 +320,7 @@ export async function rewriteHeadlineIfWeak(input: RewriteInput): Promise<Rewrit
     lastAppliedError = error?.message || 'Unknown error';
   }
 
-  const applied = bestHeadline !== input.originalHeadline && bestCombined > beforeCombined;
+  const applied = bestHeadline !== input.originalHeadline;
   return {
     attempted: iterations.length > 0 || !!lastAppliedError,
     applied,
