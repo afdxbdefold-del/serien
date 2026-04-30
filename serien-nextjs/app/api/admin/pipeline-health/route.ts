@@ -65,6 +65,15 @@ export async function GET(req: NextRequest) {
     'duplicate-llm': 0,
   };
 
+  // Relevance / availability filters (skipped BEFORE LLM spend)
+  const relevanceByStage: Record<string, number> = {
+    'dach-availability': 0,
+    'genre-out-of-scope': 0,
+    'blocklist-source': 0,
+    'blocklist-tmdb': 0,
+    'topic-age-check': 0,
+  };
+
   function parseMeta(raw: unknown): Record<string, unknown> {
     if (!raw) return {};
     if (typeof raw === 'object') return raw as Record<string, unknown>;
@@ -80,6 +89,9 @@ export async function GET(req: NextRequest) {
       byFailStep[r.errorStep] = (byFailStep[r.errorStep] || 0) + 1;
       if (r.errorStep in duplicatesByStage) {
         duplicatesByStage[r.errorStep]++;
+      }
+      if (r.errorStep in relevanceByStage) {
+        relevanceByStage[r.errorStep]++;
       }
     }
     const meta = parseMeta(r.metadata);
@@ -156,6 +168,10 @@ export async function GET(req: NextRequest) {
     duplicates: {
       total: Object.values(duplicatesByStage).reduce((s, v) => s + v, 0),
       byStage: duplicatesByStage,
+    },
+    relevance: {
+      total: Object.values(relevanceByStage).reduce((s, v) => s + v, 0),
+      byStage: relevanceByStage,
     },
     recentFailures,
     lastPublished: lastPublished.map(a => ({

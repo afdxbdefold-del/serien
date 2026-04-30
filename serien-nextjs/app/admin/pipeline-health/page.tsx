@@ -44,6 +44,10 @@ interface HealthResponse {
     total: number;
     byStage: Record<string, number>;
   };
+  relevance: {
+    total: number;
+    byStage: Record<string, number>;
+  };
   recentFailures: Array<{
     id: string;
     at: string;
@@ -160,6 +164,10 @@ export default function PipelineHealthPage() {
         duplicates: {
           total: raw.duplicates?.total ?? 0,
           byStage: raw.duplicates?.byStage ?? {},
+        },
+        relevance: {
+          total: raw.relevance?.total ?? 0,
+          byStage: raw.relevance?.byStage ?? {},
         },
         recentFailures: Array.isArray(raw.recentFailures) ? raw.recentFailures : [],
         lastPublished: Array.isArray(raw.lastPublished) ? raw.lastPublished : [],
@@ -521,6 +529,66 @@ export default function PipelineHealthPage() {
           <div className="mt-4 text-xs text-slate-500 leading-relaxed">
             <strong>A</strong> Hard URL/Race &middot; <strong>B</strong> Pre-Filter (0 LLM) &middot;
             <strong> C</strong> Facts-Fingerprint &middot; <strong>D</strong> Claude Semantic-Check
+          </div>
+        </section>
+
+        {/* Relevance / availability filters (DACH-Gate, Genre, Blocklist, Topic-Age) */}
+        <section
+          className="rounded-xl border border-slate-200 bg-white p-5"
+          data-testid="relevance-card"
+        >
+          <h2 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-emerald-500" /> Irrelevante Artikel gestoppt
+            <span className="text-xs font-normal text-slate-500 ml-auto">
+              {data?.windowMinutes ?? 0}min Fenster
+            </span>
+          </h2>
+
+          <div className="mb-4 flex items-baseline gap-3">
+            <span
+              className="text-3xl font-bold text-slate-900 tabular-nums"
+              data-testid="relevance-total"
+            >
+              {data?.relevance?.total ?? 0}
+            </span>
+            <span className="text-xs text-slate-500">vor LLM-Spend abgewiesen</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              { key: 'dach-availability', label: 'DACH-unverfügbar', icon: '🇩🇪', tier: 'NET' },
+              { key: 'genre-out-of-scope', label: 'Genre out-of-scope', icon: '🎭', tier: 'GEN' },
+              { key: 'blocklist-source', label: 'Blocklist (Source)', icon: '🚫', tier: 'BL' },
+              { key: 'blocklist-tmdb', label: 'Blocklist (TMDB)', icon: '🛡️', tier: 'BL' },
+              { key: 'topic-age-check', label: 'Thema zu alt', icon: '⏰', tier: 'AGE' },
+            ].map((stage) => {
+              const count = data?.relevance?.byStage?.[stage.key] ?? 0;
+              return (
+                <div
+                  key={stage.key}
+                  data-testid={`rel-stage-${stage.key}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-500 flex items-center gap-1">
+                      <span>{stage.icon}</span>
+                      {stage.label}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                      {stage.tier}
+                    </span>
+                  </div>
+                  <div className="text-xl font-semibold tabular-nums text-slate-900">
+                    {count}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 text-xs text-slate-500 leading-relaxed">
+            <strong>NET</strong> Networks (US-linear) &middot; <strong>GEN</strong> Talk/Game/Reality &middot;
+            <strong> BL</strong> Series-Blocklist &middot; <strong>AGE</strong> &gt;72h alt
           </div>
         </section>
 
