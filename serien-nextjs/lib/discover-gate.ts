@@ -167,13 +167,26 @@ const CURIOSITY_PATTERNS: RegExp[] = [
 ];
 
 // Emotional anchors (concrete emotions, NOT hype-words like "mega")
+// v5.3-Erweiterung: deckt natürliche Feature-Writing-Verben ab, die emotionale
+// Resonanz signalisieren — "berührt", "nachwirkt", "bedroht", "zerbricht" usw.
 const EMOTIONAL_WORDS = [
+  // Status / Wende
   'abschied', 'schock', 'drama', 'enttäuscht', 'enttäuschung', 'durchbruch',
   'überraschung', 'überrascht', 'rückkehr', 'comeback', 'trauer', 'trauert',
   'triumph', 'verlust', 'verrat', 'verraten', 'krise', 'skandal',
   'neustart', 'wende', 'bruch', 'mysterium', 'rätsel',
   'kampf', 'angst', 'hoffnung', 'liebe', 'hass', 'wut', 'streit',
   'eskalation', 'aus', 'ende', 'finale', 'neubeginn',
+  // v5.3: Gefühle-in-Aktion
+  'berührt', 'berühren', 'bewegt', 'bewegen', 'rührt', 'ergreift',
+  'mitreißt', 'fesselt', 'fasziniert', 'packt', 'überwältigt',
+  'nachwirkt', 'prägt', 'bleibt hängen', 'überdauert',
+  'bedroht', 'gefährdet', 'riskiert', 'droht',
+  'zerbricht', 'zerfällt', 'spaltet', 'entzweit',
+  'scheitert', 'versagt', 'erschüttert',
+  'quält', 'peinigt', 'verfolgt',
+  'sehnsucht', 'verzweiflung', 'einsamkeit', 'leidenschaft',
+  'todesangst', 'panik', 'wahnsinn', 'chaos', 'eiskalt',
 ];
 
 // "Weak" first words — article/preposition starts kill scroll-stop power
@@ -187,16 +200,29 @@ const WEAK_FIRST_WORDS = new Set([
   'so', 'diese', 'dieser', 'dieses',
 ]);
 
-// Strong action verbs that signal something happened
+// Strong action verbs that signal something happened.
+// v5.3-Erweiterung: deckt auch Feature-Narrativ-Verben ab, die redaktionelle
+// Qualität signalisieren ("berührt", "riskiert", "stiehlt", "entlockt").
 const STRONG_VERBS = [
+  // Plot-Beats
   'beendet', 'kippt', 'streicht', 'verlässt', 'überrascht',
   'schockiert', 'bricht', 'stürmt', 'zerreißt', 'erobert',
   'kehrt zurück', 'kehrt', 'stirbt', 'verschwindet', 'entlarvt',
   'setzt', 'kündigt', 'stoppt', 'enthüllt', 'bestätigt',
   'verliert', 'gewinnt', 'entdeckt', 'verrät', 'feuert',
   'zerstört', 'rettet', 'triumphiert', 'scheitert', 'eskaliert',
-  'dreht', 'beendet', 'kassiert', 'holt', 'verpasst',
+  'dreht', 'kassiert', 'holt', 'verpasst',
   'warnt', 'droht', 'erhebt', 'zieht', 'wirft',
+  // v5.3: Feature / Analyse-Verben
+  'berührt', 'bewegt', 'rührt', 'ergreift', 'mitreißt', 'fesselt',
+  'fasziniert', 'packt', 'überwältigt',
+  'nachwirkt', 'prägt', 'überdauert',
+  'bedroht', 'gefährdet', 'riskiert',
+  'stiehlt', 'raubt', 'schnappt',
+  'zerbricht', 'zerfällt', 'spaltet',
+  'versetzt', 'tauscht', 'ersetzt', 'wechselt',
+  'verändert', 'wandelt', 'transformiert',
+  'entlockt', 'zwingt', 'bricht ein',
 ];
 
 // AI-smell patterns (feel robotic, over-formal, template-like)
