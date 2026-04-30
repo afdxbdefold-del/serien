@@ -326,15 +326,21 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   }
 
   // 6. FEED CTR POTENTIAL (5) — sweet-spot length + no colon-title + concreteness
+  // v5.3: Google Discover Mobile-Cards zeigen 2-3 Zeilen ≈ 80–90 Zeichen ohne
+  // Truncation; harter Cutoff erst bei ~110. Deshalb belohnen wir 45–90 Zeichen
+  // statt 40–70 und vergeben Penalty erst ab > 100.
   let ctr_score = 0;
   const len = safe.length;
-  const length_sweet_spot = len >= 40 && len <= 70;
+  const length_sweet_spot = len >= 45 && len <= 90;
   if (length_sweet_spot) {
     ctr_score += 2;
-  } else if (len < 40) {
-    reasons.push(`Zu kurz für Feed-Card (${len} Zeichen, ideal 40–70)`);
+  } else if (len < 45) {
+    reasons.push(`Zu kurz für Feed-Card (${len} Zeichen, ideal 45–90)`);
+  } else if (len > 100) {
+    reasons.push(`Zu lang für Feed-Card (${len} Zeichen, ideal 45–90)`);
   } else {
-    reasons.push(`Zu lang für Feed-Card (${len} Zeichen, ideal 40–70)`);
+    // 91–100 → ok aber kein Bonus
+    ctr_score += 1;
   }
 
   // Colon-title pattern like "Wednesday: Staffel 3 kommt" reads as label + detail
@@ -471,7 +477,9 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
     safeHeadline.toLowerCase().includes(pattern.toLowerCase())
   );
   
-  const clarity_specific = !isGeneric && safeHeadline.length <= 70 && safeHeadline.length >= 20;
+  // v5.3: gleiche Logik wie Performance-Length: Discover-Mobile zeigt 2-3 Zeilen
+  // → ideal 25–95 Zeichen, hart > 100.
+  const clarity_specific = !isGeneric && safeHeadline.length <= 100 && safeHeadline.length >= 25;
   if (clarity_specific) {
     score += 10;
   } else {

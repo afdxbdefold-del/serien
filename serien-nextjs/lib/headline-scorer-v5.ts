@@ -698,7 +698,7 @@ export function scoreHeadlineV5(
   // Length penalty
   const charCount = headline.length;
   let lengthPenalty = 0;
-  if (charCount > 70) { lengthPenalty = -5; penalties.push({ type: 'length', phrase: `${charCount}z > 70`, value: -5 }); }
+  if (charCount > 100) { lengthPenalty = -5; penalties.push({ type: 'length', phrase: `${charCount}z > 100`, value: -5 }); }
   else if (charCount < 25) { lengthPenalty = -5; penalties.push({ type: 'length', phrase: `${charCount}z < 25`, value: -5 }); }
 
   // Duplicate start with peers

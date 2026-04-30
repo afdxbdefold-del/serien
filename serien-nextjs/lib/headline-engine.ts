@@ -417,7 +417,7 @@ Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren
 ===== REGELN =====
 - Generiere genau 10 Headlines auf DEUTSCH.
 - "${seriesName}" MUSS in JEDER Headline vorkommen${detectedAngle === 'nostalgia' ? `, UND der Name "${vars.star || '{STAR}'}" sollte in mindestens 7 von 10 Headlines vorkommen` : ''}.
-- Max 65 Zeichen pro Headline, **Sweet-Spot 40–65 Zeichen** (Google Discover Card).
+- Max 95 Zeichen pro Headline, **Sweet-Spot 45–90 Zeichen** (Google Discover Card auf Mobile, 2-3 Zeilen ohne Truncation).
 - Nutze die Muster als INSPIRATION, kopiere nicht wörtlich — variiere Wortstellung & Rhythmus.
 - Schreibe so, wie ein Mensch bei Quotenmeter, DWDL oder serienjunkies schreiben würde.
 - Natürlicher deutscher Satzrhythmus. Keine hohle Euphorie.

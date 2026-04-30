@@ -104,7 +104,7 @@ H2. News-Wert-Signal MUSS enthalten sein — mindestens EINES von:
     Promo: bestätigt, startet, endet, angekündigt, veröffentlicht, beendet, erhält, verlängert, abgesetzt, verschoben
     Ereignis: kehrt zurück, verlässt, feuert, streicht, überrascht, triumphiert, scheitert, trennt sich, kippt, dreht, stirbt, schockt, bricht, eskaliert
     Feature-Lead: Warum, Darum, Was, Wie
-H3. Länge 40–65 Zeichen.
+H3. Länge 45–90 Zeichen (Discover Mobile Sweet Spot, max. 100).
 H4. Kein Clickbait ohne Fakt, keine doppelten Wörter, kein "offiziell bestätigt", "im Überblick", "alles was ihr wissen müsst".
 
 ====================================================================
