@@ -66,6 +66,8 @@ interface StructuredContentInput {
   contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING';
   wordCountTarget?: number;
   temperature?: number;
+  /** Optional source URL — used by ENDING_EXPLAINED to parse season/episode. */
+  sourceUrl?: string;
 }
 
 interface ContentSection {
@@ -111,7 +113,27 @@ export async function generateStructuredContent(
 
   // Validate and assemble
   const output = assembleMarkdown(response);
-  
+
+  // ENDING_EXPLAINED: headline format is mandatory — enforce mechanically.
+  if (input.contentType === 'ENDING_EXPLAINED' && output.headline) {
+    const { enforceEndeErklaertFormat, parseEndingExplainedMetaFromUrl } = await import('./ende-erklaert-format');
+    // Use URL-derived meta if the caller can supply it; fall back to null.
+    const urlMeta = parseEndingExplainedMetaFromUrl((input as any).sourceUrl || '');
+    const before = output.headline;
+    output.headline = enforceEndeErklaertFormat({
+      headline: output.headline,
+      seriesTitle: input.seriesName,
+      episodeType: urlMeta.episodeType,
+      seasonNumber: urlMeta.seasonNumber,
+      episodeNumber: urlMeta.episodeNumber,
+    });
+    if (before !== output.headline) {
+      console.log(`   📐 Ende-erklärt Headline-Format korrigiert`);
+      console.log(`      alt: "${before}"`);
+      console.log(`      neu: "${output.headline}"`);
+    }
+  }
+
   // Note: Headline wird durch Headline Engine in pipeline-v2 ersetzt.
   // Die Arbeits-Headline hier dient nur als Fallback.
   
@@ -124,11 +146,67 @@ export async function generateStructuredContent(
  * Build prompt based on content type
  */
 function buildPrompt(input: StructuredContentInput): string {
-  const { facts, seriesName, originalHeadline, contentType, wordCountTarget } = input;
-  
+  const { facts, seriesName, originalHeadline, contentType, wordCountTarget, sourceText } = input;
+
+  // ENDING_EXPLAINED has its own prompt: spoiler-warning + recap + interpretation.
+  // Headline format is mandatory — "Das Ende von <Serie> <Unit> erklärt: …".
+  if (contentType === 'ENDING_EXPLAINED') {
+    const today = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: 'long', year: 'numeric' });
+    const sourceExcerpt = (sourceText || '').slice(0, 6000);
+    return `Schreibe einen deutschen "Ende erklärt"-Artikel für serien.de über "${seriesName}".
+
+Heutiges Datum: ${today}
+Serie: ${seriesName}
+Quell-Headline (EN): ${originalHeadline}
+
+ENGLISCHER RECAP (Quelle zur Orientierung — NICHT wörtlich übersetzen):
+${sourceExcerpt}
+
+═══════════════════════════════════════════════════════════════════════
+PFLICHT-HEADLINE-FORMAT (KEINE AUSNAHME):
+═══════════════════════════════════════════════════════════════════════
+"headline" MUSS **EXAKT** beginnen mit:
+  "Das Ende von ${seriesName} <Staffel N | Episode N | Film> erklärt:"
+gefolgt von einem kurzen, konkreten Nachsatz (max. 8–10 Wörter).
+
+Beispiele:
+- "Das Ende von ${seriesName} Staffel 4 erklärt: Was Mars' letzter Blick bedeutet"
+- "Das Ende von ${seriesName} Episode 10 erklärt: Darum bleibt die Tür offen"
+- "Das Ende von ${seriesName} Film erklärt: Warum Ellie zurücklässt, was sie liebt"
+
+Nutze "Staffel N" bei Staffelfinales, "Episode N" bei Einzelfolgen, "Film" bei Standalone.
+
+═══════════════════════════════════════════════════════════════════════
+STRUKTUR (JSON-Schema):
+═══════════════════════════════════════════════════════════════════════
+1. headline: siehe Pflicht-Format oben.
+2. metaDescription: max 155 Zeichen. Enthält Serie + Hinweis, dass das Ende erklärt wird. Deutsch.
+3. lead: EXAKT 3 Sätze, startet mit einer **klaren Spoiler-Warnung** ("Achtung, Spoiler: Wer ${seriesName} noch nicht gesehen hat, sollte hier aufhören.")
+   Satz 2: Was passiert konkret am Ende (1 Kernfakt).
+   Satz 3: Worauf der Artikel Antworten gibt.
+4. sections: ${Math.max(3, Math.min(Math.ceil((wordCountTarget || 700) / 180), 5))} H2-Sections à 2–3 Absätze.
+   Empfohlene H2-Struktur (frei anpassbar, aber diese Themen abdecken):
+   - "Was passiert im Finale von ${seriesName}?" — chronologische Zusammenfassung der Schlussszenen
+   - "Die wichtigsten Wendepunkte" — 2–3 zentrale Plot-Twists + Bedeutung
+   - "Was die letzte Szene bedeutet" — Interpretation offener Fragen
+   - "Wie geht es weiter?" — Setup für nächste Staffel / Ausblick (falls Quelle erwähnt)
+5. qa: 3–5 Q&A-Paare zu konkreten Zuschauer-Fragen ("Stirbt X?", "Was passiert mit Y?", "Kommt Staffel N?").
+
+═══════════════════════════════════════════════════════════════════════
+SPRACHE & STIL:
+═══════════════════════════════════════════════════════════════════════
+- ALLES auf Deutsch. Serientitel im englischen Original belassen, Charakter-Namen aus dem Quelltext übernehmen.
+- Keine wörtliche Übersetzung — eigene Formulierungen, eigene Reihenfolge.
+- Neutral-redaktioneller Ton, keine AI-Floskeln ("In diesem Artikel…", "Zusammenfassend…").
+- Absätze 2–4 Sätze. Lesbar, flüssig.
+- KEINE Behauptungen, die nicht im Quelltext stehen. Wenn unklar → weglassen.
+- VERBOTEN: Gedankenstriche (— oder –). Nutze Doppelpunkt, Komma, Punkt.
+- Wortziel: ${wordCountTarget || 700} Wörter im Fließtext (ohne Lead/FAQ).`;
+  }
+
   // Convert facts object to flat list
   const factsList: string[] = [];
-  
+
   if (facts.key_statements && facts.key_statements.length > 0) {
     factsList.push(...facts.key_statements);
   }

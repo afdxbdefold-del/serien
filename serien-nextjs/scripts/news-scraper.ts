@@ -379,7 +379,9 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
     // 3. "Ending Explained" without season/episode marker → usually a movie
     if (/ending-explained/.test(path)) {
       const hasSeriesMarker =
-        /season-\d|episode-\d|staffel|s0?\d-?e?0?\d|finale-recap/i.test(path) ||
+        /season-\d|episode-\d|staffel|finale-recap/i.test(path) ||
+        /-s\d+(-e\d+)?(-|\/)/i.test(path) || // -s4- or -s02-e05-
+        /-s\d+-ending-explained/i.test(path) || // -s4-ending-explained
         /\bseason\s*\d|\bepisode\s*\d|\bs\d+e\d+|\bstaffel\b/i.test(t);
       if (!hasSeriesMarker) return false;
     }

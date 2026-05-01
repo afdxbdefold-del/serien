@@ -407,8 +407,19 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.addMetadata('multiSeriesException', multiSeriesException);
     }
 
-    // Map to our internal type
-    const contentType = classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
+    // Map to our internal type.
+    // URL-based ENDING_EXPLAINED detection: any `/ending-explained/` slug on
+    // any source (Cinemaholic, Decider etc.) is treated as recap-content and
+    // routed through the dedicated generator + headline format enforcement.
+    const isEndingExplainedUrl = /ending-explained/i.test(source.url || '') ||
+      /ending\s+explained/i.test(source.title || '');
+    const contentType = isEndingExplainedUrl
+      ? 'ENDING_EXPLAINED'
+      : classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
+    if (isEndingExplainedUrl) {
+      console.log(`   📝 ENDING_EXPLAINED pipeline aktiv (URL-Signal: "ending-explained")`);
+      logger.addMetadata('contentType', 'ENDING_EXPLAINED');
+    }
 
     logStep('3_tmdb_resolution');
     // ========== STEP 3: ENHANCED TMDB RESOLUTION ==========
@@ -527,9 +538,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
     
-    // Prüfe ob Confidence für Veröffentlichung reicht
-    if (searchResult && searchResult.confidence < PUBLISH_THRESHOLD && !saveAsDraft) {
-      console.log(`⚠️ Confidence below publish threshold (${(searchResult.confidence * 100).toFixed(0)}% < 70%)`);
+    // Prüfe ob Confidence für Veröffentlichung reicht.
+    // ENDING_EXPLAINED hat bereits URL-Level-Certainty (-ending-explained + TMDB-Match),
+    // deshalb lockerer Schwellwert: 50% reicht für Publish.
+    const publishThreshold = contentType === 'ENDING_EXPLAINED' ? 0.5 : PUBLISH_THRESHOLD;
+    if (searchResult && searchResult.confidence < publishThreshold && !saveAsDraft) {
+      console.log(`⚠️ Confidence below publish threshold (${(searchResult.confidence * 100).toFixed(0)}% < ${(publishThreshold * 100).toFixed(0)}%)`);
       console.log(`   → Artikel wird als DRAFT gespeichert (unsichere Zuordnung)`);
       saveAsDraft = true;
       draftReason = `Unsichere Zuordnung: ${searchResult.name} (${(searchResult.confidence * 100).toFixed(0)}%)`;
@@ -576,15 +590,25 @@ export async function runPipelineV2(source: PipelineV2Source) {
         primaryLc.length >= 4 &&
         (primaryLc.includes(resolvedLc) || resolvedLc.includes(primaryLc));
       if (!overlap && !substringMatch) {
-        console.log(
-          `⛔ PRIMARY-SERIES MISMATCH: classifier="${classification.primary_series}" vs TMDB="${searchResult.name}" — skipping to avoid mis-tagging.`,
-        );
-        await logger.fail(
-          `Primary mismatch: "${classification.primary_series}" vs "${searchResult.name}"`,
-          'primary-series-mismatch',
-        );
-        console.timeEnd('⏱️  STEP 3: TMDB Resolution');
-        return null;
+        // ENDING_EXPLAINED: URL-Signal + TMDB-Match sind ausreichend. Englischer
+        // Titel aus der Cinemaholic-Quelle ("Envious") vs. Originaltitel in TMDB
+        // ("Envidiosa") würde sonst zuschlagen, obwohl es dieselbe Serie ist.
+        if (contentType === 'ENDING_EXPLAINED') {
+          console.log(
+            `   ⚠️ Primary-Series-Mismatch ignoriert für ENDING_EXPLAINED: ` +
+            `classifier="${classification.primary_series}" vs TMDB="${searchResult.name}" — URL-Signal gewinnt.`,
+          );
+        } else {
+          console.log(
+            `⛔ PRIMARY-SERIES MISMATCH: classifier="${classification.primary_series}" vs TMDB="${searchResult.name}" — skipping to avoid mis-tagging.`,
+          );
+          await logger.fail(
+            `Primary mismatch: "${classification.primary_series}" vs "${searchResult.name}"`,
+            'primary-series-mismatch',
+          );
+          console.timeEnd('⏱️  STEP 3: TMDB Resolution');
+          return null;
+        }
       }
     }
 
@@ -932,11 +956,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
       seriesName: dbSeries.name || dbSeries.title,
       originalHeadline: source.title,
       sourceText: fullSourceText,
+      sourceUrl: source.url,
       contentType,
       // GOOGLE DISCOVER Qualität - Minimum 1500 Wörter
       wordCountTarget: contentType === 'RANKING' 
         ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500)) 
-        : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
+        : contentType === 'ENDING_EXPLAINED'
+          ? Math.max(700, Math.min(sourceWordCount * 1.2, 1100))
+          : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
     });
     
     console.log(`✅ Generated:`);
@@ -1229,7 +1256,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let finalHeadline = structuredContent.headline; // Fallback: Arbeits-Headline vom Content-LLM
     let headlineVariants: any[] = [];
     let headlineTop3: any[] = [];
-    
+
+    // ENDING_EXPLAINED: Headline-Format ist heilig ("Das Ende von X erklärt: …").
+    // Headline-Engine + Rewrite-Loop würden das Präfix zerstören → komplett überspringen.
+    if (contentType === 'ENDING_EXPLAINED') {
+      console.log(`   📐 ENDING_EXPLAINED: Headline-Engine + Rewrite-Loop übersprungen (Pflicht-Format bleibt)`);
+      logger.log(`Headline-Engine/Rewrite: skipped for ENDING_EXPLAINED`);
+    } else {
     try {
       const { generateHeadlines } = await import('../lib/headline-engine');
       
@@ -1346,6 +1379,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`   ⚠️ Rewrite-Loop-Fehler: ${rewriteErr.message}`);
       logger.log(`Rewrite error: ${rewriteErr.message}`);
     }
+    } // end: if (contentType !== 'ENDING_EXPLAINED')
     console.timeEnd('⏱️  STEP 7.65: Rewrite Loop');
 
     // ========== STEP 7.7: INTRO ENGINE ==========
