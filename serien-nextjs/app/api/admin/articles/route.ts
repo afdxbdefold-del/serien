@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { jwtVerify } from 'jose';
+import { revalidatePath } from 'next/cache';
 
 function getJWTSecret() {
   if (!process.env.JWT_SECRET) {
@@ -145,6 +146,15 @@ export async function DELETE(request: NextRequest) {
     await prisma.articles.delete({
       where: { id }
     });
+
+    // Flush ISR + sitemap caches so the page goes 404 immediately.
+    try {
+      revalidatePath(`/${article.slug}`, 'page');
+      revalidatePath('/', 'page');
+      revalidatePath('/news', 'page');
+      revalidatePath('/news-sitemap.xml');
+      revalidatePath('/sitemap.xml');
+    } catch { /* revalidate errors are not fatal */ }
 
     return NextResponse.json({ 
       success: true, 
