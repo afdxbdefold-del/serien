@@ -1747,7 +1747,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       (async () => {
         try {
           const wasBedeutetDasText = await generateWasBedeutetDas({
-            headline: structuredContent.headline || '',
+            headline: finalHeadline,
             articleHtml: finalContentWithVideo,
             seriesName: dbSeries.name || dbSeries.title || '',
             contentType: contentType || 'SINGLE_SERIES_NEWS',
@@ -1771,7 +1771,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         try {
           const darumRelevantText = await generateDarumRelevant({
             articleHtml: finalContentWithVideo,
-            headline: structuredContent.headline || '',
+            headline: finalHeadline,
             seriesName: dbSeries.name || dbSeries.title || '',
             extractedFacts: JSON.stringify(facts).substring(0, 500),
           });
@@ -1796,7 +1796,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             seriesOverview: dbSeries.overview || null,
             seriesStatus: dbSeries.status || null,
             seriesSeasons: dbSeries.seasons || null,
-            headline: structuredContent.headline || '',
+            headline: finalHeadline,
             extractedFacts: JSON.stringify(facts).substring(0, 500),
           });
           
@@ -1816,7 +1816,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       (async () => {
         try {
           const gateResult = await discoverGate({
-            final_headline: structuredContent.headline || '',
+            final_headline: finalHeadline,
             article_html: finalContentWithVideo || '',
             hero_image_metadata: {
               url: selectedBackdrop ? `https://image.tmdb.org/t/p/original${selectedBackdrop}` : '',
