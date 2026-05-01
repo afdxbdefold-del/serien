@@ -169,6 +169,7 @@ const CURIOSITY_PATTERNS: RegExp[] = [
 // Emotional anchors (concrete emotions, NOT hype-words like "mega")
 // v5.3-Erweiterung: deckt natürliche Feature-Writing-Verben ab, die emotionale
 // Resonanz signalisieren — "berührt", "nachwirkt", "bedroht", "zerbricht" usw.
+// v5.4: idiomatische Phrasen + echte deutsche Gefühls-Alltagsworte ergänzt.
 const EMOTIONAL_WORDS = [
   // Status / Wende
   'abschied', 'schock', 'drama', 'enttäuscht', 'enttäuschung', 'durchbruch',
@@ -183,10 +184,39 @@ const EMOTIONAL_WORDS = [
   'nachwirkt', 'prägt', 'bleibt hängen', 'überdauert',
   'bedroht', 'gefährdet', 'riskiert', 'droht',
   'zerbricht', 'zerfällt', 'spaltet', 'entzweit',
-  'scheitert', 'versagt', 'erschüttert',
+  'scheitert', 'versagt', 'erschüttert', 'erschüttern',
   'quält', 'peinigt', 'verfolgt',
   'sehnsucht', 'verzweiflung', 'einsamkeit', 'leidenschaft',
   'todesangst', 'panik', 'wahnsinn', 'chaos', 'eiskalt',
+  // v5.4: idiomatische + zusätzliche Gefühls-Alltagsworte
+  'begeistert', 'begeistern', 'verblüfft', 'verblüffen',
+  'entsetzt', 'entsetzen', 'empört', 'empören', 'enttäuscht',
+  'verlor', 'verloren', 'gewann', 'gewinnt',
+  'erwischt', 'ertappt', 'erwischen',
+  'vermisst', 'vermissen',
+  'herz', 'haut', 'nerv', 'seele', 'tränen', 'lächeln',
+  'mut', 'stolz', 'demütigung', 'schmerz', 'schuld', 'rache',
+  'sucht', 'zweifel', 'vertrauen', 'freundschaft', 'feindschaft',
+];
+
+/**
+ * v5.4: Idiomatic phrase patterns — catch emotional register that
+ * dictionary-lookup misses ("unter die Haut gehen", "ans Herz gehen").
+ */
+const EMOTIONAL_PHRASE_PATTERNS: RegExp[] = [
+  /unter\s+die\s+haut/i,
+  /(ans|zu)\s+herzen?/i,
+  /aus\s+der\s+(fassung|bahn)/i,
+  /in\s+den\s+bann/i,
+  /an\s+den\s+nerv/i,
+  /ins\s+herz(en)?/i,
+  /ins\s+schwarze/i,
+  /von\s+den\s+socken/i,
+  /außer\s+sich/i,
+  /bricht\s+das\s+herz/i,
+  /tief\s+unter/i,
+  /ein\s+letztes\s+mal/i,
+  /für\s+immer/i,
 ];
 
 // "Weak" first words — article/preposition starts kill scroll-stop power
@@ -203,6 +233,7 @@ const WEAK_FIRST_WORDS = new Set([
 // Strong action verbs that signal something happened.
 // v5.3-Erweiterung: deckt auch Feature-Narrativ-Verben ab, die redaktionelle
 // Qualität signalisieren ("berührt", "riskiert", "stiehlt", "entlockt").
+// v5.4: Alltags-Aktionsverben (begeistert, vereint, wirkt, verlor) + Präteritum-Formen.
 const STRONG_VERBS = [
   // Plot-Beats
   'beendet', 'kippt', 'streicht', 'verlässt', 'überrascht',
@@ -223,6 +254,18 @@ const STRONG_VERBS = [
   'versetzt', 'tauscht', 'ersetzt', 'wechselt',
   'verändert', 'wandelt', 'transformiert',
   'entlockt', 'zwingt', 'bricht ein',
+  // v5.4: Alltags-Aktionsverben
+  'begeistert', 'verblüfft', 'entsetzt', 'empört',
+  'vereint', 'spaltet', 'trennt', 'bindet',
+  'verlor', 'gewann', 'zerstörte', 'rettete', 'scheiterte',
+  'verwandelt', 'formt', 'schleudert',
+  'sprengt', 'brennt', 'platzt', 'explodiert',
+  'trifft', 'erwischt', 'ertappt', 'vermisst',
+  'lenkt', 'treibt', 'hetzt', 'peitscht',
+  'lockt', 'reißt', 'zerrt', 'drängt',
+  'überholt', 'überschlägt', 'übertrifft',
+  'begegnet', 'konfrontiert', 'fordert',
+  'wendet', 'kippt um', 'eskaliert', 'stiehlt die schau',
 ];
 
 // AI-smell patterns (feel robotic, over-formal, template-like)
@@ -274,6 +317,50 @@ function detectGrammarFailures(headline: string): Array<{ label: string; penalty
   return out;
 }
 
+/**
+ * v5.4: Fallback-heuristic — detects ANY finite German action verb in the
+ * headline, as long as it isn't in a short list of weak/filler verbs.
+ * This flips the "strong verb" check from whitelist (always-incomplete) to
+ * blacklist (much higher recall).
+ */
+const HEURISTIC_WEAK_VERBS = new Set([
+  'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'worden',
+  'hat', 'haben', 'hatte', 'hatten',
+  'kann', 'können', 'konnte', 'konnten',
+  'muss', 'müssen', 'musste',
+  'will', 'wollen', 'wollte',
+  'soll', 'sollen', 'sollte',
+  'darf', 'dürfen',
+  'gibt', 'geben', 'gab',
+  'macht', 'machen', 'machte',
+  'tut', 'tun', 'tat',
+  'sagt', 'sagen', 'sagte',
+  'meint', 'meinen', 'gemeint',
+  'scheint', 'scheinen',
+  'heißt', 'heißen',
+  'bleibt', 'bleiben', 'blieb',
+  'geht', 'gehen', 'ging', 'gegangen',
+  'steht', 'stehen', 'stand',
+  'kommt', 'kommen', 'kam',
+]);
+function detectStrongVerbHeuristic(lower: string): boolean {
+  // 3rd-person-singular or past-tense German verb endings.
+  // Matches only if the token is not a weak/filler verb and is ≥4 chars.
+  const tokens = lower.split(/[^a-zäöüß]+/).filter((t) => t.length >= 4);
+  for (const t of tokens) {
+    if (HEURISTIC_WEAK_VERBS.has(t)) continue;
+    // Common finite-verb endings (present / preterite / participle).
+    if (/(iert|isiert|elt|ert|nt|gt|cht|sst|kt|pt|ft|rt|zt|ht|te|ten|tet)$/.test(t)) {
+      // Exclude the obvious non-verb adjective/noun forms that share endings.
+      if (/^(bunt|kalt|glatt|satt|hart|sanft|zart|roh|toll|stolz|nett|hell|fest|stark|wert|grell|schnell|nackt|stumm|fremd|laut|treu|steif)$/.test(t)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+
+
 function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   const reasons: string[] = [];
   let score = 0;
@@ -291,7 +378,10 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   }
 
   // 2. EMOTIONAL PULL (5)
-  const has_emotion = EMOTIONAL_WORDS.some((w) => lower.includes(w));
+  // v5.4: dictionary OR idiomatic phrase (unter die Haut, ans Herz, …).
+  const has_emotion_word = EMOTIONAL_WORDS.some((w) => lower.includes(w));
+  const has_emotion_phrase = EMOTIONAL_PHRASE_PATTERNS.some((p) => p.test(safe));
+  const has_emotion = has_emotion_word || has_emotion_phrase;
   if (has_emotion) {
     score += 5;
   } else {
@@ -318,7 +408,12 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   }
 
   // 5. STRONG VERBS / CONCRETE WORDING (5)
-  const has_strong_verb = STRONG_VERBS.some((v) => lower.includes(v));
+  // v5.4: dictionary OR heuristic fallback — any non-weak finite verb counts.
+  // Detects inflected German verbs by pattern (-t/-et/-iert/-elt/-ert ending,
+  // not in WEAK_VERBS, not ending in common noun suffixes).
+  const has_strong_verb_dict = STRONG_VERBS.some((v) => lower.includes(v));
+  const has_strong_verb_heuristic = detectStrongVerbHeuristic(lower);
+  const has_strong_verb = has_strong_verb_dict || has_strong_verb_heuristic;
   if (has_strong_verb) {
     score += 5;
   } else {
