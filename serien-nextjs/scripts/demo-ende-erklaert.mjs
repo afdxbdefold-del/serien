@@ -19,7 +19,7 @@ const API_KEY = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
 if (!API_KEY) { console.error('Missing LLM API key'); process.exit(1); }
 const isEmergent = API_KEY.startsWith('sk-emergent-');
 const LLM_URL = isEmergent ? 'https://integrations.emergentagent.com/llm/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-const MODEL = isEmergent ? 'claude-sonnet-4-5' : 'gpt-4o';
+const MODEL = isEmergent ? 'claude-sonnet-4-6' : 'gpt-4o';
 
 const prisma = new PrismaClient();
 
@@ -58,13 +58,64 @@ async function llmJSON(system, user) {
   const content = m ? m[0] : raw;
   try {
     return JSON.parse(content);
-  } catch {
-    // Fix typical Claude JSON breaks: German quotes, unescaped newlines in strings
-    const fixed = content
+  } catch (e1) {
+    // Most common failure: HTML with unescaped double-quotes inside body_html.
+    // Strategy: inside string values, replace bare `"` with `\"` — done via a
+    // streaming scan that tracks whether we're currently inside a JSON string.
+    const sanitised = sanitiseJsonStrings(content)
       .replace(/„|"|"/g, "'")
-      .replace(/[\x00-\x1f]/g, (ch) => (ch === '\n' || ch === '\r' || ch === '\t') ? ' ' : '');
-    return JSON.parse(fixed);
+      .replace(/[\x00-\x08\x0b-\x1f]/g, ' ');
+    try {
+      return JSON.parse(sanitised);
+    } catch (e2) {
+      console.error('  RAW LLM output (first 500 chars):', content.slice(0, 500));
+      throw e2;
+    }
   }
+}
+
+/**
+ * Walk a JSON candidate character-by-character. When a value-string starts
+ * (after `:` outside another string), escape any bare `"` that is NOT the
+ * string's terminator. Good enough for cases where Claude forgets to escape
+ * quotes inside an HTML value, which is the common failure.
+ */
+function sanitiseJsonStrings(src) {
+  const out = [];
+  let inString = false;
+  let afterColon = false;
+  let depth = 0;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    const prev = src[i - 1];
+    if (!inString) {
+      if (c === '{' || c === '[') depth++;
+      else if (c === '}' || c === ']') depth--;
+      else if (c === ':') afterColon = true;
+      else if (c === ',' || c === '{' || c === '[') afterColon = false;
+      if (c === '"') { inString = true; out.push(c); continue; }
+      out.push(c);
+      continue;
+    }
+    // inString
+    if (c === '"' && prev !== '\\') {
+      // Decide: is this an end-of-string or a content quote?
+      // Lookahead: if the NEXT non-whitespace char is `,` `}` `]` or `:`, it's end.
+      let j = i + 1;
+      while (j < src.length && /\s/.test(src[j])) j++;
+      const next = src[j];
+      if (next === ',' || next === '}' || next === ']' || next === ':') {
+        inString = false;
+        out.push(c);
+        continue;
+      }
+      // content quote → escape
+      out.push('\\', '"');
+      continue;
+    }
+    out.push(c);
+  }
+  return out.join('');
 }
 
 function slugify(s) {
@@ -108,7 +159,10 @@ AUSGABE als JSON mit Feldern:
 }
 
 BEACHTE:
-- "newHeadline" MUSS enthalten: Serientitel + Staffel/Episode + "Ende erklärt" oder Variation.
+- "newHeadline" MUSS **exakt** mit "Das Ende von <SERIENTITEL> <Staffel/Episode> erklärt:" beginnen und darf nach dem Doppelpunkt einen kurzen, konkreten Nachsatz enthalten (max. 10 Wörter).
+  - Beispiele: "Das Ende von Envious Staffel 4 erklärt: Was Mars' letzter Blick bedeutet"
+  - Beispiele: "Das Ende von Squid Game Staffel 2 erklärt: Darum stirbt der Spieler"
+  - Nutze "Staffel N" bei Season-Finales, "Episode N" bei einzelnen Folgen, "Film" bei Standalone.
 - "body_html" MIN 400 Wörter, MAX 900.
 - KEINE Behauptungen, die nicht im Quelltext stehen. Wenn unklar → weglassen.`,
     `ENGLISCHER QUELL-ARTIKEL:
@@ -121,6 +175,43 @@ ${src.text}
 Jetzt JSON generieren.`
   );
   console.log(`   ↳ LLM took ${((Date.now()-t0)/1000).toFixed(1)}s\n`);
+
+  // ──────────────────────────────────────────────────────────────────────
+  // SAFETY-NET: "Ende erklärt"-Artikel MÜSSEN immer mit
+  // "Das Ende von <Serie> <Staffel> erklärt: …" anfangen.
+  // Falls Claude das Format nicht exakt trifft, bauen wir die Headline hier um.
+  // ──────────────────────────────────────────────────────────────────────
+  function enforceEndeErklaertFormat(headline, seriesTitleEN, episodeType, seasonNumber, episodeNumber) {
+    const prefixRe = /^das\s+ende\s+von\s+.+?\s+erklärt\s*:/i;
+    if (prefixRe.test(headline)) return headline; // already compliant
+    const unit = episodeType === 'finale' && seasonNumber
+      ? `Staffel ${seasonNumber}`
+      : episodeType === 'episode' && episodeNumber
+        ? `Episode ${episodeNumber}`
+        : episodeType === 'standalone'
+          ? 'Film'
+          : seasonNumber ? `Staffel ${seasonNumber}` : '';
+    const canonicalPrefix = unit
+      ? `Das Ende von ${seriesTitleEN} ${unit} erklärt:`
+      : `Das Ende von ${seriesTitleEN} erklärt:`;
+    // Try to extract a concise suffix (8–10 words) from the LLM headline.
+    const cleaned = headline.replace(/^[^:]+:\s*/, '').trim();
+    const shortSuffix = cleaned.split(/\s+/).slice(0, 10).join(' ');
+    return shortSuffix ? `${canonicalPrefix} ${shortSuffix}` : canonicalPrefix;
+  }
+  const originalHeadline = result.newHeadline;
+  result.newHeadline = enforceEndeErklaertFormat(
+    result.newHeadline,
+    result.seriesTitleEN,
+    result.episodeType,
+    result.seasonNumber,
+    result.episodeNumber,
+  );
+  if (originalHeadline !== result.newHeadline) {
+    console.log(`⚙️  Headline-Format korrigiert:`);
+    console.log(`   alt:  "${originalHeadline}"`);
+    console.log(`   neu:  "${result.newHeadline}"\n`);
+  }
 
   // Find series in DB
   const seriesTitle = result.seriesTitleEN || '';
