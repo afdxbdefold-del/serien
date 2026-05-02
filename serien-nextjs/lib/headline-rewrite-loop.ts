@@ -122,6 +122,14 @@ P7. KEIN COLON-LABEL: kein "Serie: Staffel X bestätigt" — Aussagesatz.
 P8. KEINE AI-SLOP-FORMEL: NIE "X enthüllt, warum Y" / "X verrät, was Y" / "X zeigt, weshalb Y".
     NIE "verändert alles" / "stellt alles auf den Kopf".
 P9. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
+P10. KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
+    VERBOTEN: erste Person ("ich", "mir", "mich", "mein", "unser") überall.
+    VERBOTEN: Imperativ an den Leser ("solltest du", "müsst ihr sehen", "darfst nicht verpassen", "unbedingt streamen").
+    VERBOTEN: editorialisierender Auftakt ("Endlich …", "Zum Glück …", "Leider …", "Ein Hoch auf …", "Bravo …", "Bitte mehr …").
+    VERBOTEN: Verdikt-Phrasen ("muss man gesehen haben", "gehört zu den besten", "Pflichtprogramm", "ein Muss für", "perfekteste", "beste Serie aller Zeiten").
+    VERBOTEN: Personal-Stance ("verzaubert mich", "überzeugt mich", "beeindruckt mich", "ich finde", "meiner Meinung").
+    ERLAUBT bleibt Drittpersonen-Emotion ("Hacks erschüttert Zuschauer", "Wednesday packt mit Wendung")
+    und Neugier-Hooks ("Warum X scheitert", "Darum kehrt Y zurück") — solange neutral berichtet.
 
 ====================================================================
 AUFGABE

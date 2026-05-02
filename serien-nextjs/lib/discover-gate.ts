@@ -288,6 +288,50 @@ const AI_GENERIC_PATTERNS: RegExp[] = [
  * without object, transitive verbs at the end of a clause without object, or
  * "warum/wie"-subclauses that never resolve their question.
  */
+
+/**
+ * v5.4: Detect opinion-tone markers — first-person pronouns, reader directives,
+ * editorialising openers, verdict phrases. Each hit returns a penalty so the
+ * Rewrite-Loop is triggered even if Hygiene + hook checks pass.
+ *
+ * Allowed: third-person emotion ("Hacks erschüttert Zuschauer"), curiosity hooks
+ * ("Warum X scheitert"). Blocked: "Ich finde …", "Endlich …", "Pflichtprogramm".
+ */
+const OPINION_PATTERNS: Array<{ regex: RegExp; label: string; penalty: number }> = [
+  // First-person pronouns — dead giveaway of personal column tone.
+  { regex: /(?<![a-zäöüß])(ich|mir|mich|mein(e|er|en|em|es)?|unser(e|er|en|em|es)?)(?![a-zäöüß])/i, label: 'Erste-Person-Pronomen', penalty: -12 },
+  { regex: /\b(meiner|meine)\s+meinung\b/i, label: 'Meiner Meinung nach', penalty: -15 },
+  { regex: /\baus\s+meiner\s+sicht\b/i, label: 'Aus meiner Sicht', penalty: -15 },
+  { regex: /\bich\s+(finde|liebe|hasse|denke|glaube)\b/i, label: 'Ich-Stance', penalty: -15 },
+  { regex: /(verzaubert|überzeugt|ueberzeugt|beeindruckt)\s+mich\b/i, label: 'Personal-Eindruck', penalty: -12 },
+  // Editorialising opener.
+  { regex: /^endlich\b/i, label: 'Editorialisierender Auftakt (Endlich …)', penalty: -12 },
+  { regex: /^zum\s+glück\b/i, label: 'Editorialisierender Auftakt (Zum Glück)', penalty: -12 },
+  { regex: /^leider\b/i, label: 'Editorialisierender Auftakt (Leider)', penalty: -10 },
+  { regex: /^glücklicherweise\b/i, label: 'Editorialisierender Auftakt (Glücklicherweise)', penalty: -12 },
+  { regex: /^ein\s+hoch\s+auf\b/i, label: 'Beifalls-Phrase (Ein Hoch auf …)', penalty: -15 },
+  { regex: /^bravo\b/i, label: 'Beifalls-Phrase (Bravo)', penalty: -15 },
+  { regex: /\bbitte\s+mehr\s+(davon|hiervon|von)\b/i, label: 'Appell-Phrase (Bitte mehr)', penalty: -12 },
+  // Reader directives / imperatives.
+  { regex: /\b(solltest|solltet|müsst|muesst)\b[^.]*?\b(sehen|schauen|gucken|streamen|verpassen)\b/i, label: 'Leser-Imperativ', penalty: -12 },
+  { regex: /\bmuss\s+man\s+(gesehen|geschaut)\s+haben\b/i, label: 'Verdikt (muss man gesehen haben)', penalty: -15 },
+  { regex: /\bunbedingt\s+(sehen|schauen|streamen|gucken)\b/i, label: 'Imperativ (unbedingt …)', penalty: -12 },
+  // Verdict phrases.
+  { regex: /\bgehört\s+zu\s+den\s+(besten|größten|grandiosesten|genialsten)\b/i, label: 'Verdikt (gehört zu den besten)', penalty: -15 },
+  { regex: /\bein\s+muss\s+f(ü|u|ue)r\b/i, label: 'Verdikt (ein Muss für …)', penalty: -12 },
+  { regex: /\bpflicht(programm|serie|film)\b/i, label: 'Verdikt (Pflichtprogramm)', penalty: -12 },
+  { regex: /\bperfekteste\b/i, label: 'Superlativ-Verdikt (perfekteste)', penalty: -15 },
+  { regex: /\bbeste\s+(serie|comedy|sitcom|drama)\s+aller\s+zeiten\b/i, label: 'Superlativ-Verdikt (beste … aller Zeiten)', penalty: -15 },
+];
+function detectOpinionTone(headline: string): Array<{ label: string; penalty: number }> {
+  const hits: Array<{ label: string; penalty: number }> = [];
+  for (const { regex, label, penalty } of OPINION_PATTERNS) {
+    if (regex.test(headline)) hits.push({ label, penalty });
+  }
+  return hits;
+}
+
+
 function detectGrammarFailures(headline: string): Array<{ label: string; penalty: number }> {
   const out: Array<{ label: string; penalty: number }> = [];
   const trimmed = headline.trim();
@@ -462,6 +506,16 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
     const totalPenalty = grammarPenalties.reduce((sum, p) => sum + p.penalty, 0);
     score += totalPenalty; // negative
     grammarPenalties.forEach((p) => reasons.push(`Grammatik: ${p.label}`));
+  }
+
+  // 8. OPINION-TONE PENALTY (v5.4) — wir sind eine News-Site.
+  // Headlines dürfen emotional und neugier-treibend sein, aber NIE nach
+  // Autoren-Meinung klingen. Harter -15-Cut, damit der Rewrite-Loop greift.
+  const opinionPenalties = detectOpinionTone(safe);
+  if (opinionPenalties.length > 0) {
+    const totalOpinion = opinionPenalties.reduce((sum, p) => sum + p.penalty, 0);
+    score += totalOpinion;
+    opinionPenalties.forEach((p) => reasons.push(`Meinungs-Sound: ${p.label}`));
   }
 
   const verdict: 'PASS' | 'FAIL' = score >= 18 ? 'PASS' : 'FAIL';

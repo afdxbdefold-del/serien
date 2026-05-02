@@ -114,6 +114,22 @@ const BANNED_PHRASES = [
   'zeigt, warum', 'zeigt, wie genau', 'zeigt, weshalb',
   'erklärt, warum', 'erklärt, wie', 'erklärt, weshalb',
   'offenbart, warum', 'offenbart, wie', 'beweist, warum',
+  // v5.4: Opinion-tone — News-Stil schützen.
+  // Erlaubt: Neugier, Drittpersonen-Emotion. Verboten: Erste Person, Imperativ, Verdikt.
+  'meiner meinung', 'meine meinung', 'aus meiner sicht',
+  'wie ich finde', 'ich finde', 'ich liebe', 'ich hasse', 'ich denke',
+  'verzaubert mich', 'überzeugt mich', 'beeindruckt mich', 'berührt mich',
+  'solltest du', 'solltet ihr', 'darfst du nicht', 'müsst ihr sehen',
+  'müssen sie sehen', 'unbedingt sehen', 'unbedingt schauen',
+  'muss man gesehen haben', 'gehört zu den besten',
+  'ein muss für', 'pflichtprogramm', 'pflichtserie', 'pflicht-serie',
+  'beste serie aller zeiten', 'beste comedy aller zeiten',
+  'genialste serie', 'perfekteste',
+  'unterschätzteste', 'überschätzteste',
+  'ein hoch auf', 'bitte mehr',
+  // Editorialising opener (Position 0)
+  'endlich startet', 'endlich kommt', 'endlich ist',
+  'zum glück', 'glücklicherweise',
 ];
 
 // ============================================================

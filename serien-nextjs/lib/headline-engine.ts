@@ -82,6 +82,32 @@ const AI_SLOP_PATTERNS = [
   /\b(enth[üu]llt|verr[äa]t|verraet|zeigt|erkl[äa]rt|verk[üu]ndet|offenbart|beweist|bestätigt|best[äa]tigt)\s*,\s*(warum|wieso|weshalb|wie|was|woran|wann|wo)\b/i,
   // v5.3: weaker variant without comma but same structure mid-sentence
   /\b(enth[üu]llt|verr[äa]t|zeigt|erkl[äa]rt|offenbart)\s+(warum|wieso|weshalb|wie\s+(genau|wirklich)|was\s+(wirklich|genau))\b/i,
+  // ──────────────────────────────────────────────────────────────────
+  // v5.4 OPINION-TONE PATTERNS — News-Stil schützen.
+  // Erlaubt bleiben Neugier ("Warum X scheitert") und Emotion ("X erschüttert").
+  // Verboten: erste Person, Imperativ, Beifall-Auftakt, Verdikt-Phrasen.
+  // ──────────────────────────────────────────────────────────────────
+  /(?<![a-zäöüß])(ich|mir|mich|mein(e|er|en|em)?|unser(e|er|en|em)?)(?![a-zäöüß])/i,
+  /\b(meiner|meine)\s+meinung\b/i,
+  /\baus\s+meiner\s+sicht\b/i,
+  /\bich\s+(finde|liebe|hasse|denke|glaube)\b/i,
+  /\b(verzaubert|überzeugt|ueberzeugt|beeindruckt|berührt|beruehrt)\s+mich\b/i,
+  /^endlich\b/i,                    // editorialising opener
+  /^zum\s+glück\b/i,
+  /^leider\b/i,
+  /^glücklicherweise\b/i,
+  /^bravo\b/i,
+  /^ein\s+hoch\s+auf\b/i,
+  /\bbitte\s+mehr\s+(davon|hiervon|von)\b/i,
+  /\b(solltest|solltet|musst|müsst|muesst|sollten\s+sie|müssen\s+sie)\s+(du|ihr|sie|man)?\s*(unbedingt|wirklich)?\s*(sehen|schauen|gucken|streamen|gespannt|nicht\s+verpassen)/i,
+  /\bmuss\s+man\s+(gesehen|geschaut)\s+haben\b/i,
+  /\bgehört\s+zu\s+den\s+(besten|größten|grandiosesten|genialsten)\b/i,
+  /\bgehoert\s+zu\s+den\s+besten\b/i,
+  /\bein\s+muss\s+f(ü|u|ue)r\b/i,
+  /\bpflicht(programm|serie|film)\b/i,
+  /\bperfekteste\b/i,
+  /\b(unterschätzteste|überschätzteste|unterschaetzteste|ueberschaetzteste)\b/i,
+  /\bbeste\s+(serie|comedy|sitcom|drama)\s+aller\s+zeiten\b/i,
 ];
 const isAISlop = (h: string) => AI_SLOP_PATTERNS.some(p => p.test(h));
 
@@ -488,6 +514,17 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
    (Ausnahme: Nostalgia-Angle darf Doppelpunkt nach Star-Name.)
 
 7) FEED-CTR SANITY — kurz genug, konkret, mind. ein Anker (Zahl, Name, Ort, Zeitangabe).
+
+8) KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
+   Headlines dürfen Neugier wecken und Emotion zeigen, aber NIE wie Autoren-Meinung klingen.
+   ❌ VERBOTEN: Erste Person ("ich", "mir", "mich", "mein", "unser") — überall in der Headline.
+   ❌ VERBOTEN: Imperativ an den Leser ("solltest du sehen", "müsst ihr streamen", "darfst nicht verpassen", "unbedingt schauen").
+   ❌ VERBOTEN: Editorialisierender Auftakt — "Endlich …", "Zum Glück …", "Leider …", "Ein Hoch auf …", "Bravo …", "Bitte mehr …".
+   ❌ VERBOTEN: Verdikt-Phrasen — "muss man gesehen haben", "gehört zu den besten", "Pflichtprogramm", "ein Muss für", "perfekteste …", "beste Serie aller Zeiten".
+   ❌ VERBOTEN: Personal-Stance — "verzaubert mich", "überzeugt mich", "beeindruckt mich", "wie ich finde".
+   ✅ ERLAUBT: Drittpersonen-Emotion — "Hacks erschüttert Zuschauer", "Wednesday packt mit Wendung", "Severance spaltet das Publikum".
+   ✅ ERLAUBT: Neugier-Hooks — "Warum X scheitert", "Darum kehrt Y zurück", "Wie Z das Finale bricht".
+   Faustregel: Schreibe über die SERIE und ihre WIRKUNG auf andere, nicht über DEINE BEZIEHUNG zur Serie.
 
 Gib dir selbst einen Check pro Headline: "Scroll-Stop, Open Loop, Emotion, starkes Verb, natürlich?"
 Wenn du 3 oder mehr der 5 Punkte erfüllst, ist es eine Winning-Headline. Strebe das für mindestens 7 der 10 Kandidaten an.

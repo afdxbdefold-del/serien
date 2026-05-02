@@ -245,6 +245,63 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'alles kippt', penalty: -18 },
   { phrase: 'alles auf den prüfstand', penalty: -15 },
   { phrase: 'alles auf den pruefstand', penalty: -15 },
+  // --- v5.4 OPINION-TONE KILLERS ---
+  // Wir sind eine News-Site, keine Kolumne. Headlines dürfen neugierig
+  // machen und emotional sein — aber NIE wie persönliche Meinung klingen.
+  // a) Erste Person Singular/Plural — sofortiger Kolumnen-Sound.
+  { phrase: 'meiner meinung', penalty: -30 },
+  { phrase: 'meine meinung', penalty: -30 },
+  { phrase: 'aus meiner sicht', penalty: -30 },
+  { phrase: 'wie ich finde', penalty: -25 },
+  { phrase: 'ich finde', penalty: -22 },
+  { phrase: 'ich liebe', penalty: -22 },
+  { phrase: 'ich hasse', penalty: -22 },
+  // b) Editorialising-Auftakt (Beifall, Klage, Erleichterung).
+  { phrase: 'endlich ', penalty: -20 },          // "Endlich startet ..."
+  { phrase: 'zum glück', penalty: -20 },
+  { phrase: 'glücklicherweise', penalty: -18 },
+  { phrase: 'gluecklicherweise', penalty: -18 },
+  { phrase: 'leider ', penalty: -15 },
+  { phrase: 'traurigerweise', penalty: -18 },
+  { phrase: 'ein hoch auf', penalty: -25 },
+  { phrase: 'bitte mehr', penalty: -22 },
+  { phrase: 'bravo', penalty: -25 },
+  { phrase: 'huldigung', penalty: -25 },
+  // c) Direkte Leser-Anrede / Imperativ — passt nicht zu News-Stil.
+  { phrase: 'solltest du', penalty: -22 },
+  { phrase: 'solltet ihr', penalty: -22 },
+  { phrase: 'darfst du nicht', penalty: -22 },
+  { phrase: 'müsst ihr sehen', penalty: -22 },
+  { phrase: 'muesst ihr sehen', penalty: -22 },
+  { phrase: 'müssen sie sehen', penalty: -22 },
+  // d) Empfehlungs-/Verdikt-Phrasen — Autoren-Urteil.
+  { phrase: 'muss man gesehen haben', penalty: -25 },
+  { phrase: 'gehört zu den besten', penalty: -25 },
+  { phrase: 'gehoert zu den besten', penalty: -25 },
+  { phrase: 'ein muss für', penalty: -22 },
+  { phrase: 'ein muss fuer', penalty: -22 },
+  { phrase: 'pflichtprogramm', penalty: -22 },
+  { phrase: 'pflicht-serie', penalty: -22 },
+  { phrase: 'pflichtserie', penalty: -22 },
+  { phrase: 'kein geheimtipp mehr', penalty: -18 },
+  { phrase: 'unbedingt sehen', penalty: -22 },
+  { phrase: 'unbedingt schauen', penalty: -22 },
+  { phrase: 'unbedingt streamen', penalty: -22 },
+  { phrase: 'unbedingt gucken', penalty: -22 },
+  { phrase: 'nicht verpassen', penalty: -18 },
+  { phrase: 'überzeugt mich', penalty: -22 },
+  { phrase: 'ueberzeugt mich', penalty: -22 },
+  { phrase: 'beeindruckt mich', penalty: -22 },
+  { phrase: 'verzaubert mich', penalty: -22 },
+  // e) Superlativ-Verdikt ohne Quelle.
+  { phrase: 'beste serie aller zeiten', penalty: -25 },
+  { phrase: 'beste comedy aller zeiten', penalty: -25 },
+  { phrase: 'genialste serie', penalty: -22 },
+  { phrase: 'perfekteste', penalty: -25 },
+  { phrase: 'unterschätzteste', penalty: -22 },
+  { phrase: 'unterschaetzteste', penalty: -22 },
+  { phrase: 'überschätzteste', penalty: -22 },
+  { phrase: 'ueberschaetzteste', penalty: -22 },
 ];
 
 // --- SOFT KILLERS (-6 to -12) ---
