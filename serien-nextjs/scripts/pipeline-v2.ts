@@ -1305,11 +1305,20 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // ========== STEP 7.65: HEADLINE REWRITE LOOP ==========
     // Turn Performance-scorer from gatekeeper into coach: if headline
     // underperforms, ask Claude to fix the specific failed checks.
+    //
+    // Phase-A Stop-Loss (Feb 2026): gated via HEADLINE_REWRITE_LOOP=true.
+    // Default AUS. Begründung: der Loop konvergiert gegen Warum/Darum-
+    // Monokultur (100% der letzten 25 Headlines). 7-Tage-Test mit rohen
+    // Source-Headlines + GSC-CTR-Messung, bevor wieder aktiviert.
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7.65: HEADLINE REWRITE LOOP 🎯');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 7.65: Rewrite Loop');
     let rewriteOutcome: any = null;
+    if (process.env.HEADLINE_REWRITE_LOOP !== 'true') {
+      console.log('   ⏭️  SKIPPED — HEADLINE_REWRITE_LOOP != "true" (Phase-A Stop-Loss)');
+      console.timeEnd('⏱️  STEP 7.65: Rewrite Loop');
+    } else {
     try {
       // Cheap probe: score CURRENT headline for performance only
       const { discoverGate } = await import('../lib/discover-gate');
@@ -1379,14 +1388,21 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`   ⚠️ Rewrite-Loop-Fehler: ${rewriteErr.message}`);
       logger.log(`Rewrite error: ${rewriteErr.message}`);
     }
-    } // end: if (contentType !== 'ENDING_EXPLAINED')
     console.timeEnd('⏱️  STEP 7.65: Rewrite Loop');
+    } // end: else (HEADLINE_REWRITE_LOOP enabled)
+    } // end: if (contentType !== 'ENDING_EXPLAINED')
 
     // ══════════════════════════════════════════════════════════════════════
-    // STEP 7.66: NEWS-VALUE-REJECT-GATE (v5.6)
-    //   Pflicht: Headline muss klares Ereignis ODER bestätigte Entwicklung
-    //   ODER messbare Veränderung enthalten — sonst: Reject (Draft + skip).
-    //   ENDING_EXPLAINED ist von der Regel ausgenommen (Format ist heilig).
+    // STEP 7.66: NEWS-VALUE + METAPHOR CHECK (v5.6)
+    //   - Metapher-Verben (stirbt/explodiert/bricht ein/zerstört/eskaliert):
+    //     BLEIBT Hard-Reject — Clickbait-Schutz.
+    //   - News-Value (Event/Development/Messbares):
+    //     Phase-A (Feb 2026) von Hard-Reject zu SOFT-SCORE degradiert.
+    //     Begründung: Human-Interest-Discover-Stories (Character-First,
+    //     Retrospektiven, Analysen) haben keinen expliziten News-Verb, sind
+    //     aber legitime Discover-Ware. Reject killte ~292/Tag davon.
+    //     Bleibt als Bewertungsfaktor im discover-gate-Scorer (10 Pkt).
+    //   - ENDING_EXPLAINED bleibt ausgenommen (Format ist heilig).
     // ══════════════════════════════════════════════════════════════════════
     if (contentType !== 'ENDING_EXPLAINED') {
       const { hasNewsValue, containsBannedMetaphor } = await import('../lib/discover-gate');
@@ -1399,14 +1415,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
         );
         return null;
       }
+      // Soft-Log statt Reject: News-Value wird weiterhin im Discover-Gate
+      // scored (10 Pkt), aber blockiert die Publikation nicht mehr.
       if (!hasNewsValue(finalHeadline)) {
-        console.log(`   ⛔ NEWS-VALUE-REJECT: "${finalHeadline}"`);
-        console.log(`      Kein klares Ereignis, keine bestätigte Entwicklung, keine messbare Veränderung.`);
-        await logger.fail(
-          `Headline ohne News-Wert: "${finalHeadline}"`,
-          'headline-no-news-value',
-        );
-        return null;
+        console.log(`   ⚠️  NEWS-VALUE soft-fail: "${finalHeadline}" — publiziert trotzdem, Score wird im Discover-Gate gedrückt.`);
+        logger.log(`News-Value soft-fail for "${finalHeadline}"`);
       }
     }
 

@@ -520,10 +520,15 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
   const words = safe.split(/\s+/);
   const firstWord = words[0]?.replace(/[^\wäöüß]/gi, '').toLowerCase() || '';
 
-  // 1. CURIOSITY / OPEN LOOP (5)
+  // 1. CURIOSITY / OPEN LOOP
+  // Phase-A Fix: Bonus von +5 auf +2 halbiert. Begründung: +5 Curiosity plus
+  // +2 Strong-Start-Halbbonus für "Warum/Darum" summierten sich zu +7/30 und
+  // machten Hook-Eröffnungen dominant — 100% der letzten 25 Headlines starteten
+  // mit Warum/Darum. Curiosity bleibt wertvoll, aber als Differenzierer, nicht
+  // als Hauptgewicht.
   const has_curiosity = CURIOSITY_PATTERNS.some((p) => p.test(safe));
   if (has_curiosity) {
-    score += 5;
+    score += 2;
   } else {
     reasons.push('Kein Open-Loop / Neugier-Trigger');
   }
@@ -539,21 +544,22 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
     reasons.push('Keine emotionale Verankerung');
   }
 
-  // 3. SCROLL-STOP POWER (5) — first word matters on feed cards.
-  // v5.5: "Warum/Darum/Wieso/Weshalb/Deshalb" sind seit der v5.4-Erweiterung zu
-  // dominant geworden (40% der Headlines starten so). Sie zählen weiter als
-  // Curiosity-Trigger, bekommen aber NUR den halben Strong-Start-Bonus, damit
-  // konkrete Eigennamen-/Verb-Eröffnungen wieder attraktiver werden.
+  // 3. SCROLL-STOP POWER — first word matters on feed cards.
+  // Phase-A Fix (Feb 2026): Hook-Wörter (Warum/Darum/…) kriegen 0 Punkte statt
+  // +2. Eigennamen- & Zahlen-Eröffnungen werden auf +6 angehoben. Grund: die
+  // alten +2 Hook-Halbpunkte belohnten die vom Rewrite-Loop erzeugte Warum/
+  // Darum-Monokultur. Konkret benannte Protagonisten klicken im Discover-Feed
+  // messbar besser als generische Hooks.
   const HOOK_WORDS = new Set(['warum', 'darum', 'wieso', 'weshalb', 'deshalb', 'daher']);
   const starts_with_number = /^\d/.test(safe);
   const starts_with_name = /^[A-ZÄÖÜ][a-zäöüß]+/.test(safe) && !WEAK_FIRST_WORDS.has(firstWord);
   const starts_with_hook = HOOK_WORDS.has(firstWord);
-  const starts_strong = starts_with_number || starts_with_name;
+  const starts_strong = starts_with_number || (starts_with_name && !starts_with_hook);
   if (starts_with_number || (starts_with_name && !starts_with_hook)) {
-    score += 5;
+    score += 6;
   } else if (starts_with_hook) {
-    score += 2; // halbe Punkte — Curiosity wird separat schon (+5) belohnt
-    reasons.push('Eröffnung mit "Warum/Darum" — variiere mit Eigenname, Zahl oder Faktenverb');
+    score += 0; // Hook-Start bekommt keinen Strong-Start-Bonus mehr
+    reasons.push('Eröffnung mit "Warum/Darum" — stärker: Eigenname, Zahl oder Faktenverb');
   } else {
     reasons.push(`Schwacher Einstieg: "${firstWord}" — lieber mit Name, Zahl oder Verb starten`);
   }
