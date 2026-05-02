@@ -515,6 +515,24 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
 
 7) FEED-CTR SANITY — kurz genug, konkret, mind. ein Anker (Zahl, Name, Ort, Zeitangabe).
 
+7a) PFLICHT-NEWS-WERT — JEDE Headline MUSS mindestens EINES enthalten:
+    (a) **Klares Ereignis** — etwas IST passiert / passiert konkret jetzt:
+        startet, kehrt zurück, stirbt, verlässt, debütiert, premiert, beginnt,
+        feuert, castet, übernimmt, dreht, gewinnt, verliert, enthüllt, schockt.
+    (b) **Bestätigte Entwicklung** — offizieller Status / Deal-Meldung:
+        bestätigt, kündigt an, verkündet, dementiert, verlängert, abgesetzt,
+        gecancelt, eingestellt, fix, offiziell, beschlossen, genehmigt.
+    (c) **Messbare Veränderung** — konkrete Zahl / Position / Zeitraum:
+        "Staffel 5", "Episode 10", "Platz 1", "+200%", "5 Mio Zuschauer",
+        "Top 10", "144 Comics", "über 12 Monate".
+
+    HEADLINES, DIE KEINES dieser drei Signale enthalten, WERDEN VERWORFEN.
+    Verboten daher: "Hacks bewegt das Publikum" (kein Event/Entwicklung/Zahl),
+    "Wednesday bleibt geheimnisvoll" (kein Signal), "Severance ist Kult" (Bewertung).
+    Erlaubt: "Hacks erschüttert die Oscar-Jury" (Event=erschüttert), "Wednesday
+    Staffel 3 startet im November" (Event+Messbar), "HBO bestätigt Spin-off zu
+    Game of Thrones" (Entwicklung).
+
 7b) ERÖFFNUNGS-DIVERSITÄT — VARIIER die ersten Wörter über deine 5 Vorschläge hinweg.
     NIE mehr als 1 von 5 Headlines darf mit "Warum" oder "Darum" beginnen.
     Nutze stattdessen abwechselnd:

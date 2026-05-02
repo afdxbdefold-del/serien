@@ -1382,6 +1382,25 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } // end: if (contentType !== 'ENDING_EXPLAINED')
     console.timeEnd('⏱️  STEP 7.65: Rewrite Loop');
 
+    // ══════════════════════════════════════════════════════════════════════
+    // STEP 7.66: NEWS-VALUE-REJECT-GATE (v5.6)
+    //   Pflicht: Headline muss klares Ereignis ODER bestätigte Entwicklung
+    //   ODER messbare Veränderung enthalten — sonst: Reject (Draft + skip).
+    //   ENDING_EXPLAINED ist von der Regel ausgenommen (Format ist heilig).
+    // ══════════════════════════════════════════════════════════════════════
+    if (contentType !== 'ENDING_EXPLAINED') {
+      const { hasNewsValue } = await import('../lib/discover-gate');
+      if (!hasNewsValue(finalHeadline)) {
+        console.log(`   ⛔ NEWS-VALUE-REJECT: "${finalHeadline}"`);
+        console.log(`      Kein klares Ereignis, keine bestätigte Entwicklung, keine messbare Veränderung.`);
+        await logger.fail(
+          `Headline ohne News-Wert: "${finalHeadline}"`,
+          'headline-no-news-value',
+        );
+        return null;
+      }
+    }
+
     // ========== STEP 7.7: INTRO ENGINE ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 7.7: INTRO ENGINE');

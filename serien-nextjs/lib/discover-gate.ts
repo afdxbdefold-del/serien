@@ -54,6 +54,7 @@ interface DiscoverDashboardMetrics {
     clarity_specific: boolean;
     series_name_present: boolean;
     news_value_clear: boolean;
+    news_value_kind: 'event' | 'development' | 'measurable' | null;
     has_duplicates: boolean;
     is_clickbait: boolean;
     score: number; // 0-30 (hygiene)
@@ -280,6 +281,87 @@ const AI_GENERIC_PATTERNS: RegExp[] = [
   /im folgenden/i,
   /zusammengefasst/i,
 ];
+
+/**
+
+/**
+ * v5.6: Klassifiziert eine Headline nach drei strikten News-Wert-Kategorien.
+ * Pflicht für jede publizierte Headline — sonst Reject im Pipeline-Layer.
+ *
+ *   - 'event'        — klares Ereignis (Plot-Beat, Cast-Wechsel, Premiere, Tod, Rückkehr …)
+ *   - 'development'  — bestätigte Entwicklung (verlängert, abgesetzt, offiziell, fix …)
+ *   - 'measurable'   — messbare Veränderung (Quoten-Zahl, Platzierung, Staffel-N, +/-%)
+ *
+ * Reine Hook-Phrasen ("Warum X überrascht", "Darum kehrt Y zurück") zählen NICHT
+ * als News-Wert — der News-Wert muss IM Satz stecken, nicht im Hook-Wort.
+ */
+const NEWS_EVENT_VERBS = [
+  // Karriere / Premiere
+  'startet', 'endet', 'beginnt', 'läuft an', 'kommt zu', 'erscheint',
+  'debütiert', 'feiert premiere', 'premiert', 'startet dreh',
+  // Plot / Charaktere
+  'kehrt zurück', 'kehrt heim', 'verlässt', 'tritt ab', 'übernimmt',
+  'stirbt', 'überlebt', 'verliert', 'gewinnt', 'rettet', 'tötet',
+  'verschwindet', 'enttarnt', 'entlarvt', 'erwischt',
+  // Casting & Personnel
+  'castet', 'verpflichtet', 'engagiert', 'feuert', 'entlässt',
+  'ersetzt', 'tritt bei', 'steigt ein', 'steigt aus', 'wirft hin',
+  // Produktion
+  'dreht', 'verfilmt', 'adaptiert', 'remake', 'produziert', 'plant',
+  'kündigt fortsetzung', 'kündigt prequel', 'kündigt spin-off',
+  // Plot-Wendungen (echtes Ereignis im Sinn von "ist passiert")
+  'enthüllt', 'offenbart', 'bricht', 'eskaliert', 'überrascht', 'schockt',
+];
+const NEWS_DEVELOPMENT_MARKERS = [
+  // Statusbestätigung
+  'bestätigt', 'verkündet', 'kündigt an', 'gibt bekannt', 'meldet',
+  'dementiert', 'widerspricht', 'stellt klar',
+  // Renewal / Cancellation
+  'verlängert', 'verlängerung', 'abgesetzt', 'gecancelt', 'cancelled',
+  'eingestellt', 'gestrichen', 'gestoppt', 'beendet',
+  'pickt auf', 'orders', 'bestellt',
+  // Deals
+  'unterschrieben', 'einigt sich', 'einigung', 'beschlossen',
+  'genehmigt', 'übernommen',
+  // Status-Adjektive
+  'offiziell', 'fix', 'definitiv', 'final', 'feststehend',
+];
+const NEWS_MEASURABLE_PATTERNS: RegExp[] = [
+  /\b(staffel|season)\s*\d+/i,
+  /\b(episode|folge)\s*\d+/i,
+  /\bkapitel\s*\d+/i,
+  /\bteil\s*\d+/i,
+  /\bjahr\s*\d{4}/i,
+  /\b\d{4}er\b/i,                                     // 2020er, 90er
+  /\b\d+\s*(jahre?|monate?|wochen?|tage?)\b/i,
+  /\bplatz\s*\d+|\bnummer\s*(eins|1|zwei|2)\b|\btop[\s-]*\d+/i,
+  /\b\d+[.,]?\d*\s*(mio|millionen?|mrd|milliarden?)\b/i,
+  /\b\d+\s*[%‰]/,
+  /\b[+\-−–]\s*\d+\s*[%]?/,
+  /\b\d+\s*x\b/i,                                     // 5x nominiert
+  /\b(rang|ranking|charts?)\b/i,
+  /\b\d+\s+millionen\b/i,
+];
+function detectNewsValueCategory(headline: string): {
+  kind: 'event' | 'development' | 'measurable' | null;
+  hit?: string;
+} {
+  const lower = headline.toLowerCase();
+  // Order matters: development first because "bestätigt", "verlängert" etc.
+  // are stronger signals than the more generic event verbs.
+  const dev = NEWS_DEVELOPMENT_MARKERS.find((w) => lower.includes(w));
+  if (dev) return { kind: 'development', hit: dev };
+  const evt = NEWS_EVENT_VERBS.find((w) => lower.includes(w));
+  if (evt) return { kind: 'event', hit: evt };
+  const mes = NEWS_MEASURABLE_PATTERNS.find((p) => p.test(headline));
+  if (mes) return { kind: 'measurable', hit: mes.source };
+  return { kind: null };
+}
+
+/** Public helper used by the pipeline reject-gate. */
+export function hasNewsValue(headline: string): boolean {
+  return detectNewsValueCategory(headline).kind !== null;
+}
 
 /**
  * German grammar incompleteness detector.
@@ -653,28 +735,18 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
     fail_reasons.push('Serienname nicht in Headline');
   }
   
-  // 3. News-Wert erkennbar (10 Punkte)
-  // v5.3-Erweiterung: deckt auch Feature/Cliffhanger/Status-News ab, nicht nur
-  // nackte Promo-Verben wie "bestätigt". 28 Verben statt 7.
-  const newsWords = [
-    // Promo / Status
-    'bestätigt', 'bestätig', 'startet', 'endet', 'angekündigt', 'veröffentlicht',
-    'beendet', 'erhält',
-    // Cast / Figur-Ereignisse
-    'kehrt zurück', 'verlässt', 'feuert', 'streicht', 'überrascht', 'stirbt',
-    'triumphiert', 'scheitert', 'trennt sich', 'kippt', 'dreht',
-    // Produktions-Ereignisse
-    'startet dreh', 'setzt ab', 'abgesetzt', 'verschoben', 'verlängert',
-    // Cliffhanger / Reveal
-    'schockt', 'bricht', 'eskaliert',
-    // Spotlight / Feature (Discover-kompatibel)
-    'warum ', 'darum ', 'was ', 'wie ',
-  ];
-  const news_value_clear = newsWords.some(word => safeHeadline.toLowerCase().includes(word));
-  if (news_value_clear) {
+  // 3. News-Wert erkennbar (10 Punkte) — v5.6 STRIKT.
+  // Pflicht: Headline MUSS mind. eines enthalten:
+  //   (a) klares Ereignis  (Event-Verb)
+  //   (b) bestätigte Entwicklung  (Development-Verb)
+  //   (c) messbare Veränderung  (Zahl, Platz, Quote, Prozent)
+  // "Warum / Darum / Was / Wie" sind KEIN News-Wert — sie sind nur Hooks.
+  const newsValue = detectNewsValueCategory(safeHeadline);
+  if (newsValue.kind) {
     score += 10;
   } else {
-    reasons.push('News-Wert nicht erkennbar');
+    reasons.push('Kein klares Ereignis, keine bestätigte Entwicklung, keine messbare Veränderung');
+    fail_reasons.push('Headline ohne News-Wert (Ereignis/Entwicklung/Messbares fehlt)');
   }
   
   // FAIL Checks
@@ -703,7 +775,8 @@ function scoreHeadline(headline: string, seriesName: string, fail_reasons: strin
   return {
     clarity_specific,
     series_name_present,
-    news_value_clear,
+    news_value_clear: !!newsValue.kind,
+    news_value_kind: newsValue.kind,
     has_duplicates,
     is_clickbait,
     score: Math.max(0, Math.min(30, score)),
