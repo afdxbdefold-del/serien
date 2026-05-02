@@ -130,6 +130,8 @@ const BANNED_PHRASES = [
   // Editorialising opener (Position 0)
   'endlich startet', 'endlich kommt', 'endlich ist',
   'zum glück', 'glücklicherweise',
+  // v5.6: gesperrte emotionale Metaphern (Editor-Regel)
+  'stirbt', 'explodiert', 'bricht ein', 'zerstört', 'eskaliert',
 ];
 
 // ============================================================

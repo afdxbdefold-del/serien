@@ -108,6 +108,12 @@ const AI_SLOP_PATTERNS = [
   /\bperfekteste\b/i,
   /\b(unterschätzteste|überschätzteste|unterschaetzteste|ueberschaetzteste)\b/i,
   /\bbeste\s+(serie|comedy|sitcom|drama)\s+aller\s+zeiten\b/i,
+  // v5.6: gesperrte emotionale Metaphern — Editor-Regel
+  /(?<![a-zäöüß])stirbt(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(explodiert|explodieren)(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])bricht\s+ein(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(zerstört|zerstoert)(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(eskaliert|eskalieren)(?![a-zäöüß])/i,
 ];
 const isAISlop = (h: string) => AI_SLOP_PATTERNS.some(p => p.test(h));
 
@@ -517,7 +523,7 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
 
 7a) PFLICHT-NEWS-WERT — JEDE Headline MUSS mindestens EINES enthalten:
     (a) **Klares Ereignis** — etwas IST passiert / passiert konkret jetzt:
-        startet, kehrt zurück, stirbt, verlässt, debütiert, premiert, beginnt,
+        startet, kehrt zurück, verlässt, debütiert, premiert, beginnt,
         feuert, castet, übernimmt, dreht, gewinnt, verliert, enthüllt, schockt.
     (b) **Bestätigte Entwicklung** — offizieller Status / Deal-Meldung:
         bestätigt, kündigt an, verkündet, dementiert, verlängert, abgesetzt,
@@ -529,11 +535,32 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
     HEADLINES, DIE KEINES dieser drei Signale enthalten, WERDEN VERWORFEN.
     Verboten daher: "Hacks bewegt das Publikum" (kein Event/Entwicklung/Zahl),
     "Wednesday bleibt geheimnisvoll" (kein Signal), "Severance ist Kult" (Bewertung).
-    Erlaubt: "Hacks erschüttert die Oscar-Jury" (Event=erschüttert), "Wednesday
-    Staffel 3 startet im November" (Event+Messbar), "HBO bestätigt Spin-off zu
-    Game of Thrones" (Entwicklung).
+    Erlaubt: "Hacks gewinnt 3 Emmys" (Event+Messbar), "Wednesday Staffel 3
+    startet im November" (Event+Messbar), "HBO bestätigt Spin-off zu Game of
+    Thrones" (Entwicklung).
 
-7b) ERÖFFNUNGS-DIVERSITÄT — VARIIER die ersten Wörter über deine 5 Vorschläge hinweg.
+7c) GESPERRTE EMOTIONS-METAPHERN — diese Wörter sind absolut tabu, auch wörtlich:
+    **stirbt, explodiert, bricht ein, zerstört, eskaliert**
+    Egal ob sie als Metapher gemeint sind oder nicht — Headlines mit diesen Verben
+    werden verworfen. Stattdessen konkrete Faktenformulierungen:
+    "stirbt" → "endet" / "läuft aus" / "verabschiedet sich"
+    "explodiert" → "verzeichnet [Zahl]" / "erreicht Platz 1"
+    "zerstört" → "schlägt" / "übertrifft" / "lässt hinter sich"
+    "eskaliert" → "steigt" / "weitet sich aus" / "verschärft sich"
+    "bricht ein" → "fällt" / "verliert [N] Plätze"
+
+7d) ERÖFFNUNGS-DIVERSITÄT — VARIIER die ersten Wörter über deine 5 Vorschläge hinweg.
+    NIE mehr als 1 von 5 Headlines darf mit "Warum" oder "Darum" beginnen.
+    Nutze stattdessen abwechselnd:
+    a) **Eigenname + Verb**: "Hacks erschüttert die Oscar-Jury", "Wednesday packt mit Wendung", "The Boys verliert seinen Kern"
+    b) **Streamer-Faktenmeldung**: "Netflix bestätigt Staffel 5", "Sky kündigt Spin-off an"
+    c) **Zeit-/Orts-Anker**: "Ab Dezember kehrt Wednesday zurück", "In Berlin dreht ZDF neue Serie"
+    d) **Frage-Headline**: "Wer überlebt das Finale?", "Wann startet The Bear Staffel 4?"
+    e) **Zahl-/Listen-Eröffnung**: "5 Gründe, warum X scheitert", "144 Comics machen Invincible groß"
+    f) **Direktes Faktenverb**: "Stranger Things startet ohne Eleven", "Severance enthüllt Sterben-Geheimnis"
+    g) Erst zuletzt: **"Warum/Darum"-Hook** — wenn der Aufhänger es WIRKLICH erfordert.
+
+8) KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
     NIE mehr als 1 von 5 Headlines darf mit "Warum" oder "Darum" beginnen.
     Nutze stattdessen abwechselnd:
     a) **Eigenname + Verb**: "Hacks erschüttert die Oscar-Jury", "Wednesday packt mit Wendung", "The Boys verliert seinen Kern"

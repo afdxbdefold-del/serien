@@ -139,13 +139,22 @@ P11. ERÖFFNUNGS-DIVERSITÄT — STARTE die Headline NICHT automatisch mit "Waru
     "Warum/Darum" ist erst zulässig, wenn keine andere Eröffnung den Aufhänger trifft.
 
 P12. PFLICHT-NEWS-WERT — JEDE Rewrite-Variante MUSS mindestens EINES enthalten:
-    (a) klares Ereignis (startet, kehrt zurück, stirbt, verlässt, debütiert, feuert, dreht, enthüllt …);
+    (a) klares Ereignis (startet, kehrt zurück, verlässt, debütiert, feuert, dreht, enthüllt, gewinnt …);
     (b) bestätigte Entwicklung (bestätigt, verkündet, verlängert, abgesetzt, offiziell, fix, beschlossen …);
     (c) messbare Veränderung (Staffel N, Episode N, Platz X, +/-Y%, Mio-Zahlen, Top 10, Zeitraum).
     Reine Stimmungs-Beschreibungen ("X bewegt das Publikum", "Y bleibt geheimnisvoll", "Z ist Kult")
     werden verworfen. Wenn der Aufhänger im Body keine dieser drei Kategorien hergibt,
     formuliere die Rewrite-Variante als FAKT (z.B. "Hacks Staffel 4 startet im November"
     statt "Warum Hacks so emotional ist"). Der News-Wert muss IM SATZ stehen, nicht im Hook-Wort.
+
+P13. GESPERRTE EMOTIONS-METAPHERN — diese Verben NIE benutzen, auch nicht wörtlich:
+    **stirbt, explodiert, bricht ein, zerstört, eskaliert.**
+    Stattdessen konkrete News-Verben:
+    stirbt → endet / läuft aus / verabschiedet sich
+    explodiert → verzeichnet [Zahl] / erreicht Platz 1 / springt auf
+    zerstört → schlägt / übertrifft / lässt hinter sich
+    eskaliert → steigt / weitet sich aus / verschärft sich
+    bricht ein → fällt / verliert [N] Plätze.
 
 ====================================================================
 AUFGABE

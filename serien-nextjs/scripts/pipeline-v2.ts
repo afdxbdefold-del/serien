@@ -1389,7 +1389,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     //   ENDING_EXPLAINED ist von der Regel ausgenommen (Format ist heilig).
     // ══════════════════════════════════════════════════════════════════════
     if (contentType !== 'ENDING_EXPLAINED') {
-      const { hasNewsValue } = await import('../lib/discover-gate');
+      const { hasNewsValue, containsBannedMetaphor } = await import('../lib/discover-gate');
+      if (containsBannedMetaphor(finalHeadline)) {
+        console.log(`   ⛔ BANNED-METAPHOR-REJECT: "${finalHeadline}"`);
+        console.log(`      Headline enthält gesperrtes Metapher-Verb (stirbt/explodiert/bricht ein/zerstört/eskaliert).`);
+        await logger.fail(
+          `Headline enthält gesperrtes Metapher-Verb: "${finalHeadline}"`,
+          'headline-banned-metaphor',
+        );
+        return null;
+      }
       if (!hasNewsValue(finalHeadline)) {
         console.log(`   ⛔ NEWS-VALUE-REJECT: "${finalHeadline}"`);
         console.log(`      Kein klares Ereignis, keine bestätigte Entwicklung, keine messbare Veränderung.`);

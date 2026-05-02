@@ -239,10 +239,10 @@ const STRONG_VERBS = [
   // Plot-Beats
   'beendet', 'kippt', 'streicht', 'verlässt', 'überrascht',
   'schockiert', 'bricht', 'stürmt', 'zerreißt', 'erobert',
-  'kehrt zurück', 'kehrt', 'stirbt', 'verschwindet', 'entlarvt',
+  'kehrt zurück', 'kehrt', 'verschwindet', 'entlarvt',
   'setzt', 'kündigt', 'stoppt', 'enthüllt', 'bestätigt',
   'verliert', 'gewinnt', 'entdeckt', 'verrät', 'feuert',
-  'zerstört', 'rettet', 'triumphiert', 'scheitert', 'eskaliert',
+  'rettet', 'triumphiert', 'scheitert',
   'dreht', 'kassiert', 'holt', 'verpasst',
   'warnt', 'droht', 'erhebt', 'zieht', 'wirft',
   // v5.3: Feature / Analyse-Verben
@@ -254,19 +254,19 @@ const STRONG_VERBS = [
   'zerbricht', 'zerfällt', 'spaltet',
   'versetzt', 'tauscht', 'ersetzt', 'wechselt',
   'verändert', 'wandelt', 'transformiert',
-  'entlockt', 'zwingt', 'bricht ein',
+  'entlockt', 'zwingt',
   // v5.4: Alltags-Aktionsverben
   'begeistert', 'verblüfft', 'entsetzt', 'empört',
   'vereint', 'spaltet', 'trennt', 'bindet',
-  'verlor', 'gewann', 'zerstörte', 'rettete', 'scheiterte',
+  'verlor', 'gewann', 'rettete', 'scheiterte',
   'verwandelt', 'formt', 'schleudert',
-  'sprengt', 'brennt', 'platzt', 'explodiert',
+  'platzt',
   'trifft', 'erwischt', 'ertappt', 'vermisst',
   'lenkt', 'treibt', 'hetzt', 'peitscht',
   'lockt', 'reißt', 'zerrt', 'drängt',
   'überholt', 'überschlägt', 'übertrifft',
   'begegnet', 'konfrontiert', 'fordert',
-  'wendet', 'kippt um', 'eskaliert', 'stiehlt die schau',
+  'wendet', 'kippt um', 'stiehlt die schau',
 ];
 
 // AI-smell patterns (feel robotic, over-formal, template-like)
@@ -301,7 +301,7 @@ const NEWS_EVENT_VERBS = [
   'debütiert', 'feiert premiere', 'premiert', 'startet dreh',
   // Plot / Charaktere
   'kehrt zurück', 'kehrt heim', 'verlässt', 'tritt ab', 'übernimmt',
-  'stirbt', 'überlebt', 'verliert', 'gewinnt', 'rettet', 'tötet',
+  'überlebt', 'verliert', 'gewinnt', 'rettet', 'tötet',
   'verschwindet', 'enttarnt', 'entlarvt', 'erwischt',
   // Casting & Personnel
   'castet', 'verpflichtet', 'engagiert', 'feuert', 'entlässt',
@@ -310,7 +310,7 @@ const NEWS_EVENT_VERBS = [
   'dreht', 'verfilmt', 'adaptiert', 'remake', 'produziert', 'plant',
   'kündigt fortsetzung', 'kündigt prequel', 'kündigt spin-off',
   // Plot-Wendungen (echtes Ereignis im Sinn von "ist passiert")
-  'enthüllt', 'offenbart', 'bricht', 'eskaliert', 'überrascht', 'schockt',
+  'enthüllt', 'offenbart', 'bricht', 'überrascht', 'schockt',
 ];
 const NEWS_DEVELOPMENT_MARKERS = [
   // Statusbestätigung
@@ -360,7 +360,30 @@ function detectNewsValueCategory(headline: string): {
 
 /** Public helper used by the pipeline reject-gate. */
 export function hasNewsValue(headline: string): boolean {
+  // Hard-blacklist user-banned emotional metaphors first — these always win,
+  // even if the headline also contains a legitimate news-value signal.
+  if (containsBannedMetaphor(headline)) return false;
   return detectNewsValueCategory(headline).kind !== null;
+}
+
+/**
+ * v5.6 / Editor-Regel: Emotionale Metaphern, die im Entertainment-Journalismus
+ * fast immer als Übertreibung benutzt werden, nicht als Fakt. User-Blacklist:
+ *   - stirbt, explodiert, bricht ein, zerstört, eskaliert
+ * Headlines mit diesen Wörtern werden hart verworfen, auch wenn andere
+ * News-Wert-Signale vorhanden sind.
+ */
+const BANNED_METAPHOR_PATTERNS: RegExp[] = [
+  /(?<![a-zäöüß])stirbt(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(explodiert|explodieren)(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])bricht\s+ein(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(zerstört|zerstoeren|zerstoert)(?![a-zäöüß])/i,
+  /(?<![a-zäöüß])(eskaliert|eskalieren)(?![a-zäöüß])/i,
+];
+
+/** Public helper — exported for tests + pipeline reject-gate. */
+export function containsBannedMetaphor(headline: string): boolean {
+  return BANNED_METAPHOR_PATTERNS.some((p) => p.test(headline));
 }
 
 /**
