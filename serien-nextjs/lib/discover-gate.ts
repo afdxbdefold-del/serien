@@ -897,7 +897,19 @@ function scoreContentOpening(paragraphs: string[], fail_reasons: string[]) {
   } else {
     reasons.push('Absatz 2 fehlt Kontext');
   }
-  
+
+  // Phase B Feb 2026: DACH-Anker-Check für Discover-Lokalrelevanz.
+  // Lead muss in den ersten 2 Absätzen entweder einen DACH-Streamer nennen
+  // ODER explizit auf "DACH-Start steht aus" verweisen — sonst -5 Score.
+  // Damit verschwinden "Sendet auf BBC One"-Leads, die für DE-Leser nutzlos sind.
+  const leadCombined = (paragraphs[0] + ' ' + paragraphs[1]);
+  const { hasDachAnchor } = require('./dach-network-mapping');
+  const has_dach_anchor = hasDachAnchor(leadCombined);
+  if (!has_dach_anchor) {
+    reasons.push('Lead ohne DACH-Anker (Streamer in DE/AT/CH nicht genannt, kein "Start in DACH offen")');
+    score = Math.max(0, score - 5);
+  }
+
   // FAIL Checks
   const is_paragraph_desert = paragraphs.some(p => p.split(/\s+/).length > 80);
   if (is_paragraph_desert) {

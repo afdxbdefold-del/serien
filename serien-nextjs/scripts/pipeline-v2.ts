@@ -944,6 +944,48 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 4.5: Fingerprint Gate');
 
+    // ========== STEP 4.6: DACH LOCALIZATION CONTEXT ==========
+    // Phase B Feb 2026: TMDB /watch/providers (region=DE) liefert konkrete
+    // DACH-Streamer für die Serie. Fallback: Network-Mapping. Wenn beides
+    // leer: explizit "Deutsche Ausstrahlung steht aus".
+    // Damit hat Claude im Content-Generation-Prompt einen DACH-Anker und
+    // schreibt nicht über CBS/NBC/ABC, sondern über Disney+/Paramount+/Sky.
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 4.6: DACH LOCALIZATION CONTEXT 🇩🇪');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 4.6: DACH Localization');
+    let dachContext: { dachStreamers: string[]; dachExpectation: string | null; originalNetworks: string[] } = {
+      dachStreamers: [],
+      dachExpectation: null,
+      originalNetworks: Array.isArray((dbSeries as any).networks) ? (dbSeries as any).networks : [],
+    };
+    try {
+      if (dbSeries.tmdbId) {
+        const { getTVWatchProviders, getProviderDisplayName } = await import('../lib/tmdb-watch-providers');
+        const providers = await getTVWatchProviders(dbSeries.tmdbId);
+        const flatrate = (providers?.flatrate || []).map(p => getProviderDisplayName(p.provider_name));
+        const free = (providers?.free || []).map(p => getProviderDisplayName(p.provider_name));
+        const ads = (providers?.ads || []).map(p => getProviderDisplayName(p.provider_name));
+        // Priorität: flatrate vor free vor ads. Dedupe + max 4.
+        const uniq = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
+        dachContext.dachStreamers = uniq;
+      }
+      if (dachContext.dachStreamers.length === 0) {
+        const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
+        const expectation = mapNetworksToDach(dachContext.originalNetworks);
+        if (expectation) {
+          dachContext.dachExpectation = expectation.hedge;
+        }
+      }
+      console.log(`   🇩🇪 DACH-Streamer: ${dachContext.dachStreamers.length > 0 ? dachContext.dachStreamers.join(', ') : '(keine in TMDB)'}`);
+      if (dachContext.dachExpectation) console.log(`   🔮 DACH-Erwartung: ${dachContext.dachExpectation}`);
+      if (dachContext.originalNetworks.length > 0) console.log(`   📺 Original-Networks: ${dachContext.originalNetworks.join(', ')}`);
+      logger.addMetadata('dachContext', dachContext);
+    } catch (e: any) {
+      console.log(`   ⚠️ DACH-Localization fehlgeschlagen: ${e.message} — Generator bekommt nur Original-Networks`);
+    }
+    console.timeEnd('⏱️  STEP 4.6: DACH Localization');
+
     logStep('5_content_generation');
     // ========== STEP 5: STRUCTURED CONTENT GENERATION (ONE CALL!) ==========
     console.log('\n' + '━'.repeat(70));
@@ -958,6 +1000,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       sourceText: fullSourceText,
       sourceUrl: source.url,
       contentType,
+      dachContext,
       // GOOGLE DISCOVER Qualität - Minimum 1500 Wörter
       wordCountTarget: contentType === 'RANKING' 
         ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500)) 
@@ -1393,19 +1436,22 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } // end: if (contentType !== 'ENDING_EXPLAINED')
 
     // ══════════════════════════════════════════════════════════════════════
-    // STEP 7.66: NEWS-VALUE + METAPHOR CHECK (v5.6)
+    // STEP 7.66: NEWS-VALUE + METAPHOR + US-CONTEXT CHECK (v5.6 + Phase B)
     //   - Metapher-Verben (stirbt/explodiert/bricht ein/zerstört/eskaliert):
     //     BLEIBT Hard-Reject — Clickbait-Schutz.
+    //   - US-Kontext (Phase B Feb 2026): Headlines mit US-Quoten-Talk
+    //     (Nielsen, X Mio US-Zuschauer, Sweeps, Upfronts) ODER mit US-/UK-
+    //     Sender (CBS/NBC/ABC/FOX/CW/BBC One/Hulu/HBO/AMC) ohne paralleles
+    //     DACH-Streamer-Mention werden als "us-context-only" verworfen —
+    //     sie bringen DACH-Discover null Lift und kosten E-E-A-T.
     //   - News-Value (Event/Development/Messbares):
-    //     Phase-A (Feb 2026) von Hard-Reject zu SOFT-SCORE degradiert.
-    //     Begründung: Human-Interest-Discover-Stories (Character-First,
-    //     Retrospektiven, Analysen) haben keinen expliziten News-Verb, sind
-    //     aber legitime Discover-Ware. Reject killte ~292/Tag davon.
-    //     Bleibt als Bewertungsfaktor im discover-gate-Scorer (10 Pkt).
-    //   - ENDING_EXPLAINED bleibt ausgenommen (Format ist heilig).
+    //     SOFT-SCORE statt Hard-Reject. Bleibt im Discover-Gate (10 Pkt).
+    //   - ENDING_EXPLAINED bleibt ausgenommen.
     // ══════════════════════════════════════════════════════════════════════
     if (contentType !== 'ENDING_EXPLAINED') {
       const { hasNewsValue, containsBannedMetaphor } = await import('../lib/discover-gate');
+      const { checkHeadlineUsContext } = await import('../lib/dach-network-mapping');
+
       if (containsBannedMetaphor(finalHeadline)) {
         console.log(`   ⛔ BANNED-METAPHOR-REJECT: "${finalHeadline}"`);
         console.log(`      Headline enthält gesperrtes Metapher-Verb (stirbt/explodiert/bricht ein/zerstört/eskaliert).`);
@@ -1415,6 +1461,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
         );
         return null;
       }
+
+      const usCheck = checkHeadlineUsContext(finalHeadline);
+      if (!usCheck.ok) {
+        console.log(`   ⛔ US-CONTEXT-ONLY-REJECT: "${finalHeadline}"`);
+        console.log(`      Grund: ${usCheck.reason} (Treffer: "${usCheck.hit}")`);
+        await logger.fail(
+          `Headline mit US-Kontext ohne DACH-Anker: "${finalHeadline}" — ${usCheck.reason}`,
+          'us-context-only',
+        );
+        return null;
+      }
+
       // Soft-Log statt Reject: News-Value wird weiterhin im Discover-Gate
       // scored (10 Pkt), aber blockiert die Publikation nicht mehr.
       if (!hasNewsValue(finalHeadline)) {

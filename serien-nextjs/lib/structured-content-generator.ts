@@ -68,6 +68,18 @@ interface StructuredContentInput {
   temperature?: number;
   /** Optional source URL — used by ENDING_EXPLAINED to parse season/episode. */
   sourceUrl?: string;
+  /**
+   * DACH-Lokalisierungs-Kontext (Phase B Feb 2026). Enthält:
+   *  - dachStreamers: konkrete DACH-Streamer aus TMDB /watch/providers (region=DE)
+   *  - dachExpectation: Fallback-Mapping bei leerer TMDB-Antwort ("CBS → Paramount+ erwartet")
+   *  - originalNetworks: Original-US/UK-Sender (Produktions-Heimat, nur als Hintergrund)
+   * Wenn nichts davon bekannt: Generator schreibt "Deutsche Ausstrahlung steht aus".
+   */
+  dachContext?: {
+    dachStreamers: string[];
+    dachExpectation: string | null;
+    originalNetworks: string[];
+  };
 }
 
 interface ContentSection {
@@ -146,7 +158,7 @@ export async function generateStructuredContent(
  * Build prompt based on content type
  */
 function buildPrompt(input: StructuredContentInput): string {
-  const { facts, seriesName, originalHeadline, contentType, wordCountTarget, sourceText } = input;
+  const { facts, seriesName, originalHeadline, contentType, wordCountTarget, sourceText, dachContext } = input;
 
   // ENDING_EXPLAINED has its own prompt: spoiler-warning + recap + interpretation.
   // Headline format is mandatory — "Das Ende von <Serie> <Unit> erklärt: …".
@@ -238,14 +250,53 @@ SPRACHE & STIL:
   const targetSections = Math.max(3, Math.min(sectionsNeeded, 5)); // 3-5 sections
   
   const today = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: 'long', year: 'numeric' });
-  
+
+  // ───────────────────────────────────────────────────────────────────
+  // DACH-LOKALISIERUNG (Phase B Feb 2026)
+  // Wir bauen einen expliziten DACH-Kontext-Block in den Prompt, damit
+  // Claude den deutschen Streamer im Lead nennt — nicht den US-Sender.
+  // ───────────────────────────────────────────────────────────────────
+  let dachBlock = '';
+  if (dachContext) {
+    const lines: string[] = [];
+    if (dachContext.dachStreamers.length > 0) {
+      lines.push(`In Deutschland verfügbar bei: ${dachContext.dachStreamers.join(', ')}`);
+      lines.push('→ Diesen Streamer im Lead-Absatz Satz 1 oder 2 NAMENTLICH nennen.');
+    } else if (dachContext.dachExpectation) {
+      lines.push(`DACH-Erwartung (kein hartes Datum): ${dachContext.dachExpectation}`);
+      lines.push('→ Im Lead als Erwartung formulieren, NIEMALS als bestätigtes Datum: z.B. "in DACH traditionell bei …" oder "Deutsche Ausstrahlung wird bei … erwartet".');
+    } else {
+      lines.push('DACH-Verfügbarkeit: UNBEKANNT.');
+      lines.push('→ Im Lead explizit schreiben: "Deutsche Ausstrahlung steht aus" oder "Startdatum für Deutschland steht noch aus".');
+    }
+    if (dachContext.originalNetworks.length > 0) {
+      lines.push(`Produktions-Heimat (nur Hintergrund, NICHT als Empfangsempfehlung): ${dachContext.originalNetworks.join(', ')}`);
+    }
+    dachBlock = `
+
+═══════════════════════════════════════════════════════════════════════
+DACH-LOKALISIERUNG (PFLICHT FÜR DEUTSCHE LESER):
+═══════════════════════════════════════════════════════════════════════
+${lines.join('\n')}
+
+REGELN für DACH-First-Schreibweise:
+- Der erste "Wo schaue ich das?"-Hinweis im Lead MUSS DACH-bezogen sein.
+- US-Sender (ABC, NBC, CBS, FOX, The CW, BBC One, BBC iPlayer, Hulu, Peacock, AMC, HBO Max …) NIEMALS allein nennen. Wenn überhaupt: nur als Produktions-Heimat in Klammern hinter dem deutschen Streamer.
+- US-Quoten und US-Einschaltquoten (Nielsen, Sweeps, "X Mio US-Zuschauer") im Fließtext nur erwähnen, wenn sie für die Story zentral sind. Nie in Lead oder Headline.
+- US-Premieren-Daten als "Premiere in den USA am …" labeln, nie als nacktes Datum.
+- Wenn der Quell-Artikel sich primär auf US-Quoten oder US-Branchengeschäft bezieht (Nielsen, Upfronts, US-Pilot-Buzz): WANDLE den Fokus auf den DACH-Releatable-Kern um (Plot, Cast, deutscher Streaming-Anbieter).
+- Erlaubte DACH-Streamer-Namen: Netflix, Disney+, Amazon Prime Video, Sky/WOW, Paramount+, Apple TV+, Joyn, RTL+, MagentaTV, ARD-Mediathek, ZDF-Mediathek, ARTE, Discovery+.
+
+`;
+  }
+
   const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
 
 Heutiges Datum: ${today}
 Serie: ${seriesName}
 Fakten: ${factsText}
 ${characterNames ? `Charaktere (MÜSSEN verwendet werden): ${characterNames}` : ''}
-
+${dachBlock}
 WICHTIG: Alle Datumsangaben müssen korrekt sein. Heute ist ${today}. Schreibe KEINE vergangenen Jahre als Zukunft. Wenn keine konkreten Termine bekannt sind, schreibe "ein Startdatum steht noch aus" statt ein Jahr zu raten.
 
 SPRACHE: ALLES auf DEUTSCH - ohne Ausnahme!
