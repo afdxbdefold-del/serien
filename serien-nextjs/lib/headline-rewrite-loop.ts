@@ -131,6 +131,13 @@ P10. KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
     ERLAUBT bleibt Drittpersonen-Emotion ("Hacks erschüttert Zuschauer", "Wednesday packt mit Wendung")
     und Neugier-Hooks ("Warum X scheitert", "Darum kehrt Y zurück") — solange neutral berichtet.
 
+P11. ERÖFFNUNGS-DIVERSITÄT — STARTE die Headline NICHT automatisch mit "Warum" oder "Darum".
+    Diese beiden Wörter sind aktuell überrepräsentiert. Wenn der Output "Warum"/"Darum"
+    als erstes Wort hatte, wähle für die Rewrite-Variante eine andere Eröffnung:
+    Eigenname+Verb ("Hacks erschüttert …"), Faktenmeldung ("Netflix bestätigt …"),
+    Zeit-Anker ("Ab Dezember kehrt …"), Frage ("Wer überlebt …") oder Zahl-Listen-Lead.
+    "Warum/Darum" ist erst zulässig, wenn keine andere Eröffnung den Aufhänger trifft.
+
 ====================================================================
 AUFGABE
 ====================================================================

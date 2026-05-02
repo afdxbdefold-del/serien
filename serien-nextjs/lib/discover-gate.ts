@@ -432,12 +432,21 @@ function scoreHeadlinePerformance(headline: string, fail_reasons: string[]) {
     reasons.push('Keine emotionale Verankerung');
   }
 
-  // 3. SCROLL-STOP POWER (5) — first word matters on feed cards
+  // 3. SCROLL-STOP POWER (5) — first word matters on feed cards.
+  // v5.5: "Warum/Darum/Wieso/Weshalb/Deshalb" sind seit der v5.4-Erweiterung zu
+  // dominant geworden (40% der Headlines starten so). Sie zählen weiter als
+  // Curiosity-Trigger, bekommen aber NUR den halben Strong-Start-Bonus, damit
+  // konkrete Eigennamen-/Verb-Eröffnungen wieder attraktiver werden.
+  const HOOK_WORDS = new Set(['warum', 'darum', 'wieso', 'weshalb', 'deshalb', 'daher']);
   const starts_with_number = /^\d/.test(safe);
   const starts_with_name = /^[A-ZÄÖÜ][a-zäöüß]+/.test(safe) && !WEAK_FIRST_WORDS.has(firstWord);
+  const starts_with_hook = HOOK_WORDS.has(firstWord);
   const starts_strong = starts_with_number || starts_with_name;
-  if (starts_strong) {
+  if (starts_with_number || (starts_with_name && !starts_with_hook)) {
     score += 5;
+  } else if (starts_with_hook) {
+    score += 2; // halbe Punkte — Curiosity wird separat schon (+5) belohnt
+    reasons.push('Eröffnung mit "Warum/Darum" — variiere mit Eigenname, Zahl oder Faktenverb');
   } else {
     reasons.push(`Schwacher Einstieg: "${firstWord}" — lieber mit Name, Zahl oder Verb starten`);
   }

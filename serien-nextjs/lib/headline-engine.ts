@@ -515,6 +515,17 @@ Safe Headlines werden indexiert. Winning Headlines werden geklickt. Check pro Ka
 
 7) FEED-CTR SANITY — kurz genug, konkret, mind. ein Anker (Zahl, Name, Ort, Zeitangabe).
 
+7b) ERÖFFNUNGS-DIVERSITÄT — VARIIER die ersten Wörter über deine 5 Vorschläge hinweg.
+    NIE mehr als 1 von 5 Headlines darf mit "Warum" oder "Darum" beginnen.
+    Nutze stattdessen abwechselnd:
+    a) **Eigenname + Verb**: "Hacks erschüttert die Oscar-Jury", "Wednesday packt mit Wendung", "The Boys verliert seinen Kern"
+    b) **Streamer-Faktenmeldung**: "Netflix bestätigt Staffel 5", "Sky kündigt Spin-off an"
+    c) **Zeit-/Orts-Anker**: "Ab Dezember kehrt Wednesday zurück", "In Berlin dreht ZDF neue Serie"
+    d) **Frage-Headline**: "Wer überlebt das Finale?", "Wann startet The Bear Staffel 4?"
+    e) **Zahl-/Listen-Eröffnung**: "5 Gründe, warum X scheitert", "144 Comics machen Invincible groß"
+    f) **Direktes Faktenverb**: "Stranger Things startet ohne Eleven", "Severance enthüllt Sterben-Geheimnis"
+    g) Erst zuletzt: **"Warum/Darum"-Hook** — wenn der Aufhänger es WIRKLICH erfordert.
+
 8) KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
    Headlines dürfen Neugier wecken und Emotion zeigen, aber NIE wie Autoren-Meinung klingen.
    ❌ VERBOTEN: Erste Person ("ich", "mir", "mich", "mein", "unser") — überall in der Headline.
