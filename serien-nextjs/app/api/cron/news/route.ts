@@ -89,13 +89,15 @@ export async function GET(request: NextRequest) {
           completedAt: new Date(),
           metadata: JSON.stringify({
             message: 'Keine neuen News gefunden',
+            published: 0,
+            attempted: 0,
             skipped: result.skipped || 0,
             duration,
           })
         }
       });
     } else {
-      console.log(`[CRON] News import: ${result.processed} verarbeitet, ${result.failed} fehlgeschlagen (${Math.round(duration/1000)}s)`);
+      console.log(`[CRON] News import: ${result.published} publiziert / ${result.processed} versucht, ${result.failed} fehlgeschlagen (${Math.round(duration/1000)}s)`);
       
       // Log successful run with articles
       await prisma.pipeline_runs.create({
@@ -103,11 +105,12 @@ export async function GET(request: NextRequest) {
           id: `cron-news-${Date.now()}`,
           pipeline: 'cron-news',
           trigger: 'cron',
-          status: result.failed > 0 ? 'partial' : 'success',
+          status: result.published > 0 ? 'success' : (result.failed > 0 ? 'partial' : 'success'),
           startedAt: new Date(startTime),
           completedAt: new Date(),
           metadata: JSON.stringify({
-            processed: result.processed,
+            published: result.published,
+            attempted: result.processed,
             failed: result.failed,
             skipped: result.skipped || 0,
             bySource: result.bySource,
@@ -122,11 +125,12 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       duration: `${Math.round(duration/1000)}s`,
       result: {
-        processed: result.processed,
+        published: result.published,
+        attempted: result.processed,
         failed: result.failed,
         skipped: result.skipped,
         bySource: result.bySource,
-        message: result.processed === 0 ? 'Keine neuen News gefunden' : undefined,
+        message: result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined,
       },
     });
   } catch (error: any) {

@@ -245,9 +245,13 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'alles kippt', penalty: -18 },
   { phrase: 'alles auf den prüfstand', penalty: -15 },
   { phrase: 'alles auf den pruefstand', penalty: -15 },
-  // --- v5.4 OPINION-TONE KILLERS ---
-  // Wir sind eine News-Site, keine Kolumne. Headlines dürfen neugierig
-  // machen und emotional sein — aber NIE wie persönliche Meinung klingen.
+];
+
+// --- v5.4 OPINION-TONE KILLERS (separat gated via HEADLINE_OPINION_KILLER env) ---
+// Wir sind eine News-Site, keine Kolumne. Phase-A Stop-Loss: standardmäßig AUS,
+// damit der Pool nicht weiter ausgehungert wird. Aktivierung über
+// HEADLINE_OPINION_KILLER=true sobald GSC-CTR-Daten zeigen, dass es hilft.
+const OPINION_TONE_KILLERS: Array<{ phrase: string; penalty: number }> = [
   // a) Erste Person Singular/Plural — sofortiger Kolumnen-Sound.
   { phrase: 'meiner meinung', penalty: -30 },
   { phrase: 'meine meinung', penalty: -30 },
@@ -303,6 +307,13 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'überschätzteste', penalty: -22 },
   { phrase: 'ueberschaetzteste', penalty: -22 },
 ];
+
+const OPINION_KILLER_ENABLED = process.env.HEADLINE_OPINION_KILLER === 'true';
+
+/** Effektive Hard-Killer-Liste — inkludiert Opinion-Killer nur wenn Toggle an ist. */
+function effectiveHardKillers(): Array<{ phrase: string; penalty: number }> {
+  return OPINION_KILLER_ENABLED ? [...HARD_KILLERS, ...OPINION_TONE_KILLERS] : HARD_KILLERS;
+}
 
 // --- SOFT KILLERS (-6 to -12) ---
 const SOFT_KILLERS: Array<{ phrase: string; penalty: number }> = [
@@ -460,7 +471,7 @@ export function detectHardKillers(headline: string): Array<{ type: string; phras
   const lower = headline.toLowerCase();
   const hits: Array<{ type: string; phrase: string; value: number }> = [];
 
-  for (const k of HARD_KILLERS) {
+  for (const k of effectiveHardKillers()) {
     if (lower.includes(k.phrase)) {
       hits.push({ type: 'hard_killer', phrase: k.phrase, value: k.penalty });
     }
@@ -592,7 +603,7 @@ export function computeRelativeOutlierBonus(
     const pLower = peer.toLowerCase();
 
     // Count generic peers
-    if (SOFT_KILLERS.some(k => pLower.includes(k.phrase)) || HARD_KILLERS.some(k => pLower.includes(k.phrase))) {
+    if (SOFT_KILLERS.some(k => pLower.includes(k.phrase)) || effectiveHardKillers().some(k => pLower.includes(k.phrase))) {
       peerGenericCount++;
     }
 
@@ -603,7 +614,7 @@ export function computeRelativeOutlierBonus(
   let bonus = 0;
 
   // This headline is NOT generic while peers are → outlier bonus
-  const myIsGeneric = SOFT_KILLERS.some(k => lower.includes(k.phrase)) || HARD_KILLERS.some(k => lower.includes(k.phrase));
+  const myIsGeneric = SOFT_KILLERS.some(k => lower.includes(k.phrase)) || effectiveHardKillers().some(k => lower.includes(k.phrase));
   if (!myIsGeneric && peerGenericCount >= 2) bonus += 4;
 
   // This headline has unique start
@@ -640,7 +651,7 @@ function seriesStartHandling(headline: string, seriesName: string): { penalty: n
   }
 
   // Hard killer after colon?
-  const hasHardKiller = HARD_KILLERS.some(k => afterColon.includes(k.phrase));
+  const hasHardKiller = effectiveHardKillers().some(k => afterColon.includes(k.phrase));
   if (hasHardKiller) {
     return { penalty: -20, handling: 'penalty' };
   }
@@ -691,7 +702,7 @@ function computeCtrPrediction(headline: string, topicClarity: number, specificit
   if (topicClarity >= 12 && specificity >= 8) ctr += 5;
 
   // Generic = anti-CTR
-  if (HARD_KILLERS.some(k => lower.includes(k.phrase))) ctr -= 8;
+  if (effectiveHardKillers().some(k => lower.includes(k.phrase))) ctr -= 8;
   if (SOFT_KILLERS.some(k => lower.includes(k.phrase))) ctr -= 4;
 
   // Austauschbar / zu offen

@@ -429,6 +429,8 @@ const OPINION_PATTERNS: Array<{ regex: RegExp; label: string; penalty: number }>
   { regex: /\bbeste\s+(serie|comedy|sitcom|drama)\s+aller\s+zeiten\b/i, label: 'Superlativ-Verdikt (beste … aller Zeiten)', penalty: -15 },
 ];
 function detectOpinionTone(headline: string): Array<{ label: string; penalty: number }> {
+  // Phase-A Stop-Loss: Standard AUS bis GSC-Daten zeigen, dass es CTR hilft.
+  if (process.env.HEADLINE_OPINION_KILLER !== 'true') return [];
   const hits: Array<{ label: string; penalty: number }> = [];
   for (const { regex, label, penalty } of OPINION_PATTERNS) {
     if (regex.test(headline)) hits.push({ label, penalty });

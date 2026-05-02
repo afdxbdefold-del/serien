@@ -33,16 +33,17 @@ const DACH_STREAMERS = [
 ];
 
 const US_LINEAR_ONLY = [
-  // Big-4 US Broadcast
-  'abc', 'nbc', 'cbs', 'fox', 'the cw', 'cw',
-  // Major US Cable, no DACH counterpart
-  'a&e', 'a+e', 'tlc', 'lifetime', 'bravo', 'amc',
+  // Phase-A (Feb 2026): Big-4 US-Broadcaster (ABC, NBC, CBS, FOX, CW) entfernt.
+  // Begründung: Prestige-Inhalte dieser Sender wandern fast immer auf DACH-
+  // Streamer (ABC→Disney+, CBS→Paramount+, NBC→Peacock/Sky/WOW, FOX→Disney+,
+  // CW→Netflix). Das alte Setup blockierte ~110× pro Tag legitime Artikel.
+  // Cable-only-Marken bleiben — die landen tatsächlich selten in DACH.
+  'a&e', 'a+e', 'tlc', 'lifetime', 'bravo',
   'tnt', 'tbs', 'usa network', 'syfy', 'oxygen',
-  'history', 'history channel', 'discovery', 'discovery channel',
   'we tv', 'wetv', 'pop tv', 'reelz', 'ovation',
-  'investigation discovery', 'id', 'travel channel',
+  'investigation discovery', 'travel channel',
   'animal planet', 'food network', 'hgtv', 'cooking channel',
-  'ion television', 'ion', 'mtv', 'vh1', 'cmt', 'bet',
+  'ion television',
 ];
 
 function norm(s: string): string {

@@ -666,6 +666,7 @@ interface ProcessOptions {
 
 interface ProcessStats {
   processed: number;
+  published: number;
   failed: number;
   skipped: number;
   bySource: Record<string, number>;
@@ -693,6 +694,7 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
 
   const stats: ProcessStats = {
     processed: 0,
+    published: 0,
     failed: 0,
     skipped: 0,
     bySource: {},
@@ -737,30 +739,59 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     if (onlyNew) {
       const newArticles: NewsArticle[] = [];
       
+      // Phase-A Stop-Loss: URLs mit deterministischem Fail-Step nicht erneut
+      // verarbeiten. Diese Steps werden sich auf erneutem Lauf NICHT lösen
+      // (gleiche TMDB-Network, gleiche Source-Blocklist, gleiches Listicle-
+      // Pattern …) → spart bis zu 80% LLM-Calls pro Cron-Run.
+      const DETERMINISTIC_FAIL_STEPS = [
+        'multi-series-skip',
+        'dach-availability',
+        'blocklist-source',
+        'genre-out-of-scope',
+        'primary-series-mismatch',
+        'primary-series-unresolvable',
+        'duplicate-llm',
+        'duplicate-jaccard-title',
+        'duplicate-core-event',
+        'duplicate-fingerprint',
+        'duplicate-url',
+      ];
+      const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
       for (const article of allArticles) {
         // Check 1: Published article exists
         const exists = await prisma.articles.findFirst({
           where: { sourceUrl: article.url },
           select: { id: true }
         });
-        
+
         // Check 2: URL was successfully processed in last 24h.
-        // Only SUCCESS counts as dedup — if a previous run FAILED (e.g.
-        // classifier hiccup → UNKNOWN), we must retry, otherwise the URL
-        // ages out of the 6h relevance window and the article is lost.
-        const recentRun = !exists ? await prisma.pipeline_runs.findFirst({
+        const recentSuccess = !exists ? await prisma.pipeline_runs.findFirst({
           where: {
             inputSource: article.url,
             status: 'success',
-            startedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            startedAt: { gte: TWENTY_FOUR_HOURS_AGO },
           },
           select: { id: true }
         }) : null;
-        
-        if (!exists && !recentRun) {
+
+        // Check 3: URL hit a deterministic-fail step in last 7 days → permanently skip.
+        const detFail = !exists && !recentSuccess ? await prisma.pipeline_runs.findFirst({
+          where: {
+            inputSource: article.url,
+            status: 'failed',
+            errorStep: { in: DETERMINISTIC_FAIL_STEPS },
+            startedAt: { gte: SEVEN_DAYS_AGO },
+          },
+          select: { id: true, errorStep: true }
+        }) : null;
+
+        if (!exists && !recentSuccess && !detFail) {
           newArticles.push(article);
         } else {
-          console.log(`⏭️  SKIP (exists): ${article.title.substring(0, 50)}...`);
+          const reason = exists ? 'exists' : recentSuccess ? 'recent-success' : `det-fail:${detFail?.errorStep}`;
+          console.log(`⏭️  SKIP (${reason}): ${article.title.substring(0, 50)}...`);
           stats.skipped++;
         }
       }
@@ -798,7 +829,18 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           trigger: 'cron'
         });
         stats.processed++;
-        console.log('   ✅ SUCCESS');
+        // Authoritative published-check: pipeline-v2 doesn't throw on filter-skips,
+        // so "no throw" ≠ "published". Verify the article actually landed in DB.
+        const landed = await prisma.articles.findFirst({
+          where: { sourceUrl: article.url, status: 'published' },
+          select: { id: true },
+        });
+        if (landed) {
+          stats.published++;
+          console.log('   ✅ PUBLISHED');
+        } else {
+          console.log('   ⚠️  ATTEMPTED (no publish — see pipeline_runs for fail step)');
+        }
       } catch (error: any) {
         stats.failed++;
         console.log(`   ❌ FAILED: ${error.message}`);
@@ -811,9 +853,10 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     console.log('\n' + '='.repeat(70));
     console.log('📊 IMPORT COMPLETE');
     console.log('='.repeat(70));
-    console.log(`   Processed: ${stats.processed}`);
-    console.log(`   Failed: ${stats.failed}`);
-    console.log(`   Skipped: ${stats.skipped}`);
+    console.log(`   Processed:  ${stats.processed}`);
+    console.log(`   Published:  ${stats.published}`);
+    console.log(`   Failed:     ${stats.failed}`);
+    console.log(`   Skipped:    ${stats.skipped}`);
     Object.entries(stats.bySource).forEach(([source, count]) => {
       console.log(`   ${source}: ${count} found`);
     });
