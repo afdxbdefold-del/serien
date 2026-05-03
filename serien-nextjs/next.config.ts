@@ -72,6 +72,30 @@ const nextConfig: NextConfig = {
         destination: '/das-ende-von-unchosen-staffel-1-erklaert',
         permanent: true,
       },
+      // SNL / Talkshow-Klatsch-Cleanup (03.05.2026). Phase B+ Topic-Out-of-
+      // Scope-Filter macht solche Artikel zukünftig unmöglich — die vier
+      // Bestands-Artikel werden 301 auf Serien-Hub bzw. /news umgeleitet,
+      // damit indexierte Discover-Links nicht ins Leere laufen.
+      {
+        source: '/snl-buehne-denim-outfit-olivia-rodrigo-heated-rivalry-star-storrie-trifft-ins-schwarze',
+        destination: '/serie/heated-rivalry',
+        permanent: true,
+      },
+      {
+        source: '/aimee-lou-wood-ueberrascht-snl-u-k-warum-the-white-lotus-jetzt-folgt',
+        destination: '/serie/the-white-lotus',
+        permanent: true,
+      },
+      {
+        source: '/padilla-fuerchtete-ihren-rauswurf-bei-saturday-night-live',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/ki-debatte-was-ferrell-bei-saturday-night-live-voraussagte',
+        destination: '/news',
+        permanent: true,
+      },
     ];
   },
   
