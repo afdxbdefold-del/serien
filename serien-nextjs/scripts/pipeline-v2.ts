@@ -1075,6 +1075,67 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logger.log(`Headline: ${structuredContent.headline}`);
     console.timeEnd('⏱️  STEP 5: Content Generation');
 
+    // ========== STEP 5.05: US-PACKAGING SANITIZER ==========
+    // Defensive Schicht: säubert generierten Content von US-Sender-Mentions,
+    // Nielsen-Zahlen, Primetime-Slang, Wochentag-Slot-Angaben — selbst wenn
+    // Claude trotz Prompt-Hardening US-Verpackung übernommen hat.
+    // Bei ≥2 Treffern im Lead → Warning loggen (Indiz für schwache Generation).
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.05: US-PACKAGING SANITIZER 🇺🇸→🇩🇪');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 5.05: Sanitizer');
+    try {
+      const { sanitizeArticle } = await import('../lib/us-packaging-sanitizer');
+      // Build joined body from sections (sections are { heading, paragraphs[] }).
+      const bodyJoined = (structuredContent.sections || [])
+        .map((s: any) => `<h2>${s.heading || ''}</h2>${(s.paragraphs || []).map((p: string) => `<p>${p}</p>`).join('')}`)
+        .join('');
+      const result = sanitizeArticle({
+        headline: structuredContent.headline,
+        metaDescription: structuredContent.metaDescription,
+        lead: structuredContent.lead,
+        bodyHtml: bodyJoined,
+      });
+
+      if (result.report.total > 0) {
+        console.log(`   🧹 Entfernt: ${result.report.total} US-Phrasen total`);
+        console.log(`      Sender=${result.report.removedNetworkMentions} Nielsen=${result.report.removedNielsen} Primetime=${result.report.removedPrimetime} Wochentag=${result.report.removedWeekdaySlots}`);
+        console.log(`      Lead-Treffer: ${result.leadHits}`);
+        if (result.leadHits >= 2) {
+          console.log(`   ⚠️  HOHER LEAD-HIT-COUNT (${result.leadHits}) — Content-Prompt sollte schärfer formulieren.`);
+          logger.log(`Sanitizer: ${result.leadHits} US-Hits im Lead — Generation-Quality-Warning`);
+        }
+        // Apply cleaned values back. Lead/Headline werden direkt übernommen,
+        // Body wird via Section-Re-Splitting NICHT zurückgeschrieben (zu fragil
+        // mit Section-Struktur) — wir säubern nur Headline/Lead/Meta hart, der
+        // Body wurde Fließtext-säubernd inplace verändert via sections (s.u.).
+        structuredContent.headline = result.clean.headline;
+        if (result.clean.metaDescription) structuredContent.metaDescription = result.clean.metaDescription;
+        if (result.clean.lead) structuredContent.lead = result.clean.lead;
+
+        // Säuberung der einzelnen Section-Paragraphs (separat, damit die
+        // Section-Struktur erhalten bleibt).
+        const { sanitizeUsPackaging } = await import('../lib/us-packaging-sanitizer');
+        for (const sec of structuredContent.sections || []) {
+          if (sec.heading) sec.heading = sanitizeUsPackaging(sec.heading).clean;
+          if (Array.isArray(sec.paragraphs)) {
+            sec.paragraphs = sec.paragraphs.map((p: string) => sanitizeUsPackaging(p).clean);
+          }
+        }
+        // Q&A auch säubern
+        for (const qa of structuredContent.qa || []) {
+          if (qa.question) qa.question = sanitizeUsPackaging(qa.question).clean;
+          if (qa.answer) qa.answer = sanitizeUsPackaging(qa.answer).clean;
+        }
+        logger.addMetadata('sanitizerReport', result.report);
+      } else {
+        console.log(`   ✓ Saubere Generation (keine US-Phrasen erkannt)`);
+      }
+    } catch (e: any) {
+      console.log(`   ⚠️  Sanitizer-Fehler: ${e.message} — Content geht ungesäubert weiter`);
+    }
+    console.timeEnd('⏱️  STEP 5.05: Sanitizer');
+
     // ========== STEP 5.1: QUALITY GATES ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5.1: QUALITY GATES');

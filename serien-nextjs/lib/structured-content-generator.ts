@@ -279,13 +279,53 @@ DACH-LOKALISIERUNG (PFLICHT FÜR DEUTSCHE LESER):
 ═══════════════════════════════════════════════════════════════════════
 ${lines.join('\n')}
 
-REGELN für DACH-First-Schreibweise:
-- Der erste "Wo schaue ich das?"-Hinweis im Lead MUSS DACH-bezogen sein.
-- US-Sender (ABC, NBC, CBS, FOX, The CW, BBC One, BBC iPlayer, Hulu, Peacock, AMC, HBO Max …) NIEMALS allein nennen. Wenn überhaupt: nur als Produktions-Heimat in Klammern hinter dem deutschen Streamer.
-- US-Quoten und US-Einschaltquoten (Nielsen, Sweeps, "X Mio US-Zuschauer") im Fließtext nur erwähnen, wenn sie für die Story zentral sind. Nie in Lead oder Headline.
-- US-Premieren-Daten als "Premiere in den USA am …" labeln, nie als nacktes Datum.
-- Wenn der Quell-Artikel sich primär auf US-Quoten oder US-Branchengeschäft bezieht (Nielsen, Upfronts, US-Pilot-Buzz): WANDLE den Fokus auf den DACH-Releatable-Kern um (Plot, Cast, deutscher Streaming-Anbieter).
-- Erlaubte DACH-Streamer-Namen: Netflix, Disney+, Amazon Prime Video, Sky/WOW, Paramount+, Apple TV+, Joyn, RTL+, MagentaTV, ARD-Mediathek, ZDF-Mediathek, ARTE, Discovery+.
+═══════════════════════════════════════════════════════════════════════
+US-VERPACKUNG ENTFERNEN — STRIKT VERBOTEN IN HEADLINE / LEAD / BODY:
+═══════════════════════════════════════════════════════════════════════
+Die Quell-Artikel kommen aus US-Trade-Press und enthalten US-spezifische
+Verpackung um den Story-Kern. Übernimm den Kern (Plot, Cast, Wendung,
+Renewal, Zitat), aber NICHT diese Verpackung:
+
+  ❌ US-/UK-Sender als Empfangs-Quelle:
+     "auf ABC", "bei NBC", "läuft bei CBS", "FOX-Drama", "The CW",
+     "BBC One", "BBC iPlayer", "Hulu", "Peacock", "HBO", "AMC",
+     "Showtime", "Starz", "USA Network", "Syfy", "TNT"
+     → WEGLASSEN. Sender nicht erwähnen, außer parallel als
+       Produktions-Hintergrund mit DACH-Streamer ("die Serie wird in
+       Deutschland bei Disney+ gestreamt; produziert wurde sie für ABC").
+
+  ❌ US-Sendeplatz-Slang:
+     "Primetime", "Tuesday primetime", "Donnerstagabend-Slot",
+     "Sweeps Week", "Upfronts", "May Sweeps", "Fall premiere",
+     "Midseason replacement", "Lead-out", "Lead-in", "ratings darling"
+     → WEGLASSEN. Stattdessen schlicht: "in der ersten Staffel",
+       "zum Auftakt", "zum Finale", "im Frühjahr 2026".
+
+  ❌ US-Quoten:
+     "X Millionen US-Zuschauer", "Nielsen-Zahlen", "Nielsen-Quote",
+     "X demo", "household rating", "X Mio total viewers",
+     "ratings winner", "linearer Marktanteil"
+     → WEGLASSEN. International beliebt = "ist ein Hit" oder
+       "fand ein großes Publikum" — ohne konkrete US-Zahl.
+
+  ❌ US-Kalender-Slang:
+     "Tuesday, May 5", "this Thursday", "midweek slot"
+     → Stattdessen Monat oder Datum im DE-Format ("am 5. Mai 2026"
+       oder "im Mai") — keine Wochentag-Slot-Angaben.
+
+  ❌ US-Industrie-Insider-Begriffe ohne DACH-Pendant:
+     "showrunner deal", "studio note", "first-look deal",
+     "overall deal", "pickup", "pilot order"
+     → Inhaltlich übersetzen ("die Serie wurde in Auftrag gegeben",
+       "Studio bestellte einen Piloten") oder weglassen.
+
+ERLAUBT bleiben:
+  ✅ Plot- und Charakter-Beschreibungen (alles, was IN der Serie passiert)
+  ✅ Cast-Namen, Showrunner-Namen, Regisseur-Namen
+  ✅ Zitate aus Interviews (mit korrekter Attribution)
+  ✅ Renewal/Cancellation/Premiere-Daten (in DE-Format)
+  ✅ DACH-Streamer (Netflix, Disney+, Sky/WOW, Paramount+, Amazon Prime, Joyn, RTL+, Apple TV+, MagentaTV, ARD/ZDF/ARTE-Mediathek)
+  ✅ Produktions-Land (USA/UK/Kanada/…) als Sachinformation, einmalig
 
 `;
   }
