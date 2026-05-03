@@ -306,6 +306,42 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     logStep('2_classification');
+
+    // ══════════════════════════════════════════════════════════════════════
+    // URL-PATTERN SHORT-CIRCUIT (Phase B+ Feb 2026)
+    // Bevor wir teures LLM-Classification zahlen, prüfen wir URL + Titel
+    // gegen kurze Pattern-Liste, die strukturell nie TV-Serien-News sein
+    // können (Sport-Live-Guides, Wahlen, Wetter, Börse, Listicles über Filme).
+    // Alle diese fallen eh später durch den Classifier — wir sparen Tokens.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const urlLc = (source.url || '').toLowerCase();
+      const titleLc = (source.title || '').toLowerCase();
+      const combined = `${urlLc} ${titleLc}`;
+      const NON_TV_URL_PATTERNS: Array<{ re: RegExp; label: string }> = [
+        { re: /\bwhere[\s-]*to[\s-]*watch[\s-]*(?:the[\s-]*)?(?:f1|formula[\s-]*one|nfl|nba|nhl|mlb|ufc|boxing|golf|tennis|nascar|indycar|motogp|premier[\s-]*league|super[\s-]*bowl|wrestlemania|ncaa|college[\s-]*(?:football|basketball)|world[\s-]*cup|olympics?|grand[\s-]*prix)\b/i, label: 'sports-where-to-watch' },
+        { re: /\b(?:f1|formula[\s-]*one)[\s-]*(?:miami|monaco|bahrain|silverstone|spa|monza|austin|sao[\s-]*paulo|abu[\s-]*dhabi)[\s-]*grand[\s-]*prix/i, label: 'f1-race' },
+        { re: /\b(?:how|where)[\s-]*to[\s-]*watch[\s-]*(?:the[\s-]*)?(?:kentucky[\s-]*derby|preakness|belmont|triple[\s-]*crown|breeders[\s-]*cup|indy[\s-]*500|daytona[\s-]*500|nascar)/i, label: 'horse-racing-motorsport' },
+        { re: /\belection[\s-]*(?:results|night|coverage)\b/i, label: 'election-news' },
+        { re: /\b(?:weather|hurricane|storm|tornado|wildfire)[\s-]*(?:forecast|warning|coverage)/i, label: 'weather-news' },
+        { re: /\b(?:stock|market|nasdaq|dow[\s-]*jones|s&p[\s-]*500|crypto|bitcoin|ethereum)[\s-]*(?:report|close|today)/i, label: 'finance-markets' },
+        { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:comedies?|movies?|films?|musicals?)[\s-]*on[\s-]*(?:amazon[\s-]*prime|netflix|hulu|disney|paramount|hbo|max|apple|peacock|starz)/i, label: 'movie-listicle' },
+        { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:rewatch|rewatchable|feel[\s-]*good|underrated|forgotten)[\s-]*movies?\b/i, label: 'movie-listicle' },
+      ];
+      for (const { re, label } of NON_TV_URL_PATTERNS) {
+        const m = combined.match(re);
+        if (m) {
+          console.log(`⚠️  URL-Pattern-Block: "${source.title.slice(0,70)}"`);
+          console.log(`   Typ: ${label} — Treffer: "${m[0]}"`);
+          await logger.fail(
+            `URL-Pattern blockt (${label}): "${m[0]}" — "${source.title}"`,
+            'blocklist-source',
+          );
+          return null;
+        }
+      }
+    }
+
     // ========== STEP 2: CLASSIFICATION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 2: CLASSIFICATION');

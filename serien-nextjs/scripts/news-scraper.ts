@@ -743,6 +743,9 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
       // verarbeiten. Diese Steps werden sich auf erneutem Lauf NICHT lösen
       // (gleiche TMDB-Network, gleiche Source-Blocklist, gleiches Listicle-
       // Pattern …) → spart bis zu 80% LLM-Calls pro Cron-Run.
+      // Classification kann in Einzelfällen transient sein (Claude-Hiccup),
+      // aber bei ≥2 Fails auf derselben URL ist das deterministisch — Bezug
+      // des Artikels ändert sich nicht. Gesonderter Count-Check weiter unten.
       const DETERMINISTIC_FAIL_STEPS = [
         'multi-series-skip',
         'dach-availability',
@@ -790,10 +793,32 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           select: { id: true, errorStep: true }
         }) : null;
 
-        if (!exists && !recentSuccess && !detFail) {
+        // Check 4: URL failed `classification` ≥2× in the last 3 days. Single
+        // Claude-Hiccup kann transient sein, aber 2+ Fails in 72h bedeuten:
+        // Artikel ist strukturell kein TV-Serien-Content (Sport, Politik,
+        // Movie-Listicle …). Ohne diese Heuristik geht dieselbe URL alle 15
+        // Min wieder durch den Classifier → tausend unnötige LLM-Calls/Tag.
+        const THREE_DAYS_AGO = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const clsFailCount = !exists && !recentSuccess && !detFail ? await prisma.pipeline_runs.count({
+          where: {
+            inputSource: article.url,
+            status: 'failed',
+            errorStep: 'classification',
+            startedAt: { gte: THREE_DAYS_AGO },
+          },
+        }) : 0;
+        const clsFailedRepeatedly = clsFailCount >= 2;
+
+        if (!exists && !recentSuccess && !detFail && !clsFailedRepeatedly) {
           newArticles.push(article);
         } else {
-          const reason = exists ? 'exists' : recentSuccess ? 'recent-success' : `det-fail:${detFail?.errorStep}`;
+          const reason = exists
+            ? 'exists'
+            : recentSuccess
+              ? 'recent-success'
+              : detFail
+                ? `det-fail:${detFail.errorStep}`
+                : `cls-repeat:${clsFailCount}×`;
           console.log(`⏭️  SKIP (${reason}): ${article.title.substring(0, 50)}...`);
           stats.skipped++;
         }
