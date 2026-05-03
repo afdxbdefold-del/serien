@@ -748,6 +748,7 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         'dach-availability',
         'blocklist-source',
         'genre-out-of-scope',
+        'topic-out-of-scope',
         'primary-series-mismatch',
         'primary-series-unresolvable',
         'duplicate-llm',
