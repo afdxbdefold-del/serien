@@ -872,6 +872,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SHOW-AGE CUTOFF — skip Ended/Canceled series whose lastAirDate is
+    // older than 10 years, unless source contains Reboot/Revival/Death/
+    // Reunion-Premiere keywords. Catches Boulevard-Gossip on retired US
+    // sitcoms (Happy Days, Cheers, Frasier, Seinfeld …).
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { checkShowAgeCutoff } = await import('../lib/show-age-cutoff');
+      const ageCheck = checkShowAgeCutoff(
+        {
+          name: dbSeries.title || dbSeries.originalName,
+          lastAirDate: (dbSeries as any).lastAirDate,
+          firstAirDate: (dbSeries as any).firstAirDate,
+          status: (dbSeries as any).status,
+          inProduction: (dbSeries as any).inProduction,
+        },
+        source.title,
+        (fullSourceText || '').slice(0, 800),
+      );
+      if (ageCheck.skip) {
+        console.log(`⛔ AGE-CUTOFF SKIP: ${ageCheck.reason}`);
+        await logger.fail(`Show-Age-Cutoff: ${ageCheck.reason}`, 'show-age-cutoff');
+        return null;
+      }
+    }
+
     // ========== STEP 3.5: DUPLICATE CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 3.5: DUPLICATE CHECK 🔍');

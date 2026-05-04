@@ -100,8 +100,7 @@ const nextConfig: NextConfig = {
       // für US-Game-Shows → Genre-Filter greift nicht. Fix: DB-Blocklist
       // (`blocklist_entries`) blockt zukünftige Crawls. Diese 7 Bestands-Artikel
       // werden 301 auf /news umgeleitet, damit Discover-Indexed-Links nicht
-      // ins Leere laufen.
-      {
+      // ins Leere laufen.      {
         source: '/rummel-verspielt-sein-motorrad-warum-celebrity-wheel-of-fortune-schockiert',
         destination: '/news',
         permanent: true,
@@ -133,6 +132,15 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/warum-seacrest-bei-celebrity-wheel-of-fortune-lachtraenen-ausloest',
+        destination: '/news',
+        permanent: true,
+      },
+      // Show-Age-Cutoff Cleanup (Feb 2026): Boulevard-Gossip über >10y abgesetzte
+      // US-Sitcoms (Happy Days etc.). Strukturelle Pipeline-Sperre via
+      // `lib/show-age-cutoff.ts` greift ab nächstem Cron — diese Bestands-URL
+      // wird 301 auf /news umgeleitet.
+      {
+        source: '/warum-happy-days-nach-42-jahren-noch-echte-freundschaften-traegt',
         destination: '/news',
         permanent: true,
       },
