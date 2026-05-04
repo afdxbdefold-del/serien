@@ -1712,17 +1712,23 @@ export async function runPipelineV2(source: PipelineV2Source) {
         ? duplicateResult.topicCategory.charAt(0) + duplicateResult.topicCategory.slice(1).toLowerCase() + '-News'
         : 'News';
 
-      // Tier 2: Nano Banana AI (Gemini) — cached per (tmdbId, category).
+      // Tier 2: Nano Banana AI (Gemini) — cached per (tmdbId|nameHash, category).
       let nanoUrl: string | null = null;
       try {
-        const { generateNanoBananaHero } = await import('../lib/nano-banana-hero');
-        nanoUrl = await generateNanoBananaHero({
-          tmdbId: dbSeries.tmdbId,
-          seriesName: dbSeries.name || dbSeries.title || '',
-          slot: category,
-          category,
-          networks,
-        });
+        const seriesName = dbSeries.name || dbSeries.title || '';
+        if (!seriesName) {
+          console.log(`   ⚠️ Nano Banana skip: kein Series-Name (dbSeries.name + .title leer)`);
+        } else {
+          console.log(`   🎨 Nano Banana versucht: tmdbId=${dbSeries.tmdbId || 'null'} name="${seriesName}" slot=${category}`);
+          const { generateNanoBananaHero } = await import('../lib/nano-banana-hero');
+          nanoUrl = await generateNanoBananaHero({
+            tmdbId: dbSeries.tmdbId,
+            seriesName,
+            slot: category,
+            category,
+            networks,
+          });
+        }
       } catch (e: any) {
         console.log(`   ⚠️ Nano Banana hero failed: ${e?.message ?? e}`);
       }

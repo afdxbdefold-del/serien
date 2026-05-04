@@ -28,7 +28,13 @@ function getBlobBase(): string {
 }
 
 export interface NanoBananaHeroInput {
-  tmdbId: number;
+  /**
+   * TMDB ID, optional. Wird als primary Cache-Key verwendet wenn vorhanden.
+   * Wenn null/undefined: Cache-Key fällt auf einen Hash der `seriesName`
+   * zurück, damit auch Artikel ohne TMDB-Match einen Nano-Banana-Hero
+   * bekommen — genau die Artikel, für die der Fallback gedacht ist.
+   */
+  tmdbId?: number | null;
   seriesName: string;
   /**
    * Extra variance token so different article-slots (e.g. trailer vs.
@@ -56,8 +62,22 @@ function normaliseSlot(slot: string): string {
     .slice(0, 32) || 'default';
 }
 
-function buildBlobKey(tmdbId: number, slot: string): string {
-  return `nano-banana/${tmdbId}-${normaliseSlot(slot)}.jpg`;
+/**
+ * Stabiler 8-stelliger DJB2-Hash über die Series-Name. Wird als Cache-Key-
+ * Suffix verwendet, wenn keine TMDB-ID vorliegt. Idempotent.
+ */
+function hashSeriesName(name: string): string {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) + hash) ^ name.charCodeAt(i); // hash * 33 ^ char
+  }
+  // Hash kann negativ werden — wir wollen ein konsistentes positives 8-Hex.
+  return Math.abs(hash).toString(16).padStart(8, '0').slice(0, 8);
+}
+
+function buildBlobKey(tmdbId: number | null | undefined, seriesName: string, slot: string): string {
+  const id = tmdbId && tmdbId > 0 ? String(tmdbId) : `name-${hashSeriesName(seriesName.toLowerCase().trim())}`;
+  return `nano-banana/${id}-${normaliseSlot(slot)}.jpg`;
 }
 
 function buildPrompt(input: NanoBananaHeroInput): string {
@@ -128,21 +148,23 @@ export async function generateNanoBananaHero(
   input: NanoBananaHeroInput,
 ): Promise<string | null> {
   if (!process.env.EMERGENT_LLM_KEY) return null;
-  if (!input.tmdbId || !input.seriesName) return null;
+  // tmdbId ist jetzt optional; nur seriesName ist Pflicht (für Cache-Key + Prompt).
+  if (!input.seriesName || input.seriesName.trim().length === 0) return null;
 
-  const blobKey = buildBlobKey(input.tmdbId, input.slot);
+  const blobKey = buildBlobKey(input.tmdbId, input.seriesName, input.slot);
 
   // 1. Cache hit?
   const cached = await getCachedUrl(blobKey);
   if (cached) return cached;
 
   // 2. Generate in a temp file.
+  const idForTmp = input.tmdbId && input.tmdbId > 0 ? input.tmdbId : `name-${hashSeriesName(input.seriesName.toLowerCase().trim())}`;
   const tmp = path.join(
     os.tmpdir(),
-    `nano-banana-${input.tmdbId}-${Date.now()}.bin`,
+    `nano-banana-${idForTmp}-${Date.now()}.bin`,
   );
   const prompt = buildPrompt(input);
-  const sessionId = `nb-${input.tmdbId}-${normaliseSlot(input.slot)}-${Date.now()}`;
+  const sessionId = `nb-${idForTmp}-${normaliseSlot(input.slot)}-${Date.now()}`;
 
   const ok = await runPython(tmp, sessionId, prompt);
   if (!ok) {
