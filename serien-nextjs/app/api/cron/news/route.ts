@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
     // Premium sources (Deadline, Variety, HR, TVInsider, TVLine) bring journalistic industry
     // news; Netflix Tudum delivers canonical first-party Netflix headlines.
     const result = await processAllNews({
-      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline'],
-      limit: 4, // 4 per source × 9 = up to 36 candidates per cron run
+      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline', 'whatsOnNetflix'],
+      limit: 4, // 4 per source × 10 = up to 40 candidates per cron run
       dryRun: false,
       onlyNew: true,
     });

@@ -67,6 +67,16 @@ export const NEWS_SOURCES = {
     domain: 'tvline.com',
     type: 'tvline',
   },
+  whatsOnNetflix: {
+    name: "What's On Netflix",
+    url: 'https://www.whats-on-netflix.com/feed/',
+    domain: 'whats-on-netflix.com',
+    type: 'rss',
+    // Quelle postet langsamer als US-Trades (~3-5 Artikel/Tag).
+    // 6h-Default = leerer Pool. 48h gibt im Schnitt 5-15 Items zur Auswahl,
+    // Permanent-Skip im Dedup verhindert Re-Processing alter URLs.
+    maxAgeHours: 48,
+  },
 } as const;
 
 type SourceKey = keyof typeof NEWS_SOURCES;
@@ -475,7 +485,10 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
-  const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
+  // Per-source max-age (default 6h für hochfrequente Quellen wie Netflix Tudum;
+  // für gemächliche Quellen wie What's-on-Netflix kann pro Eintrag erweitert werden).
+  const maxAgeHours = (source as any).maxAgeHours ?? 6;
+  const ageCutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
 
   for (const item of items) {
     const titleMatch = item.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
@@ -499,10 +512,10 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
     const url = linkMatch[1].trim();
     if (seenUrls.has(url)) continue;
 
-    // Only include items from the last 6h
+    // Only include items within configured max-age window
     if (pubMatch) {
       const pubTime = new Date(pubMatch[1]).getTime();
-      if (!Number.isFinite(pubTime) || pubTime < sixHoursAgo) continue;
+      if (!Number.isFinite(pubTime) || pubTime < ageCutoff) continue;
     }
 
     seenUrls.add(url);
@@ -515,7 +528,7 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
     });
   }
 
-  console.log(`   ${results.length} relevant (≤6h, TV content)`);
+  console.log(`   ${results.length} relevant (≤${maxAgeHours}h, TV content)`);
   return results;
 }
 
