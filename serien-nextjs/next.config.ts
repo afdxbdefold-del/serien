@@ -96,6 +96,46 @@ const nextConfig: NextConfig = {
         destination: '/news',
         permanent: true,
       },
+      // Celebrity Wheel of Fortune Cleanup (Feb 2026). TMDB liefert leere Genres
+      // für US-Game-Shows → Genre-Filter greift nicht. Fix: DB-Blocklist
+      // (`blocklist_entries`) blockt zukünftige Crawls. Diese 7 Bestands-Artikel
+      // werden 301 auf /news umgeleitet, damit Discover-Indexed-Links nicht
+      // ins Leere laufen.
+      {
+        source: '/rummel-verspielt-sein-motorrad-warum-celebrity-wheel-of-fortune-schockiert',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/chad-verliert-reisen-bei-celebrity-wheel-of-fortune-warum',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/darum-gewinnt-dieser-pensionaer-celebrity-wheel-of-fortune',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/89-000-dollar-wheel-of-fortune-erlebt-einen-seltenen-moment',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/warum-celebrity-wheel-of-fortune-mit-diane-epps-gerade-so-viele-bewegt',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/wegen-kristen-fisher-reden-wieder-viele-ueber-celebrity-wheel-of-fortune',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/warum-seacrest-bei-celebrity-wheel-of-fortune-lachtraenen-ausloest',
+        destination: '/news',
+        permanent: true,
+      },
     ];
   },
   
