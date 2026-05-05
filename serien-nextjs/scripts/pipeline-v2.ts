@@ -873,6 +873,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // US-DAYTIME/LATE-NIGHT/SNL BRAND CHECK — fängt Series-Name-basiert
+    // alles was TMDB mit leeren Genres und NBC/ABC/CBS-Networks durchwinkt:
+    // Today franchise, GMA, The View, Tonight Show, SNL, Daily Show etc.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { checkUsDaytimeTalkBrand } = await import('../lib/us-daytime-talk-brands');
+      const brandCheck = checkUsDaytimeTalkBrand(
+        dbSeries.title,
+        (dbSeries as any).originalName,
+      );
+      if (brandCheck.blocked) {
+        console.log(`⛔ DAYTIME-BRAND SKIP: ${brandCheck.reason}`);
+        await logger.fail(`US-Daytime/Late-Night-Brand: ${brandCheck.reason}`, 'us-daytime-talk-brand');
+        return null;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // SHOW-AGE CUTOFF — skip Ended/Canceled series whose lastAirDate is
     // older than 10 years, unless source contains Reboot/Revival/Death/
     // Reunion-Premiere keywords. Catches Boulevard-Gossip on retired US

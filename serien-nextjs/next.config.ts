@@ -144,6 +144,20 @@ const nextConfig: NextConfig = {
         destination: '/news',
         permanent: true,
       },
+      // US-Daytime/Late-Night/SNL-Brand-Cleanup (Feb 2026): NBC/ABC-Daytime-
+      // Talkshows wie Today, GMA, The View laufen nie auf DACH-Streamern.
+      // Strukturelle Sperre via `lib/us-daytime-talk-brands.ts` greift ab
+      // nächstem Cron-Run — diese 2 Bestands-URLs werden 301 auf /news.
+      {
+        source: '/warum-today-with-jenna-sheinelle-gerade-so-viele-zuschauer-anspricht',
+        destination: '/news',
+        permanent: true,
+      },
+      {
+        source: '/play-for-today-enthuellt-warum-jenna-bush-hager-schweigt',
+        destination: '/news',
+        permanent: true,
+      },
     ];
   },
   
