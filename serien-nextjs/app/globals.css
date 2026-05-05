@@ -39,7 +39,7 @@
   
   .dark {
     /* Dark Theme - Cinematic & Jewel */
-    --background: 222 11% 17%; /* #272A31 */
+    --background: 228 8% 15%; /* #232429 - Body */
     --foreground: 210 40% 98%;
     
     --card: 230 25% 9%;
@@ -88,10 +88,11 @@
   }
   
   /* ===========================================
-   * DARK MODE BACKGROUND - flache Farbe #272A31
+   * DARK MODE BACKGROUND - flache Farbe #232429 (Body)
+   * Karten / Surfaces: #272A31 (siehe utilities-Layer unten)
    * =========================================== */
   .dark body {
-    background: #272A31;
+    background: #232429;
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -241,15 +242,16 @@
 
 /* Dark mode utility overrides */
 @layer utilities {
-  /* Common background overrides */
+  /* Common background overrides — Karten/Surfaces auf #272A31, leicht heller
+   * als der Body (#232429) für sichtbaren Kontrast. */
   .dark .bg-white {
-    @apply !bg-gray-900;
+    background-color: #272A31 !important;
   }
   .dark .bg-gray-50 {
-    @apply !bg-gray-900;
+    background-color: #272A31 !important;
   }
   .dark .bg-gray-100 {
-    @apply !bg-gray-800;
+    background-color: #2C2F37 !important;
   }
   
   /* Text color overrides */
