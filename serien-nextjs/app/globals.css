@@ -88,10 +88,10 @@
   }
   
   /* ===========================================
-   * DARK MODE GRADIENT BACKGROUND - Cinematic
+   * DARK MODE BACKGROUND - flache Farbe #272A31
    * =========================================== */
   .dark body {
-    background: linear-gradient(145deg, hsl(230, 25%, 5%) 0%, hsl(230, 30%, 8%) 50%, hsl(230, 25%, 4%) 100%);
+    background: #272A31;
     background-attachment: fixed;
     min-height: 100vh;
   }
