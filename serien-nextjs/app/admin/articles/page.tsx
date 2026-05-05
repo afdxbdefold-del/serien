@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Trash2, Search, ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from 'lucide-react';
+import { ForceKillArticleCard } from '@/components/admin/ForceKillArticleCard';
 
 interface Article {
   id: string;
@@ -162,6 +163,8 @@ export default function AdminArticlesPage() {
 
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <ForceKillArticleCard />
+
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}

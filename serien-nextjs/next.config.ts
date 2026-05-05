@@ -100,7 +100,8 @@ const nextConfig: NextConfig = {
       // für US-Game-Shows → Genre-Filter greift nicht. Fix: DB-Blocklist
       // (`blocklist_entries`) blockt zukünftige Crawls. Diese 7 Bestands-Artikel
       // werden 301 auf /news umgeleitet, damit Discover-Indexed-Links nicht
-      // ins Leere laufen.      {
+      // ins Leere laufen.
+      {
         source: '/rummel-verspielt-sein-motorrad-warum-celebrity-wheel-of-fortune-schockiert',
         destination: '/news',
         permanent: true,
