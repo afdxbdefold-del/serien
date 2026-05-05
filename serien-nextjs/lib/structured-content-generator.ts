@@ -63,11 +63,18 @@ interface StructuredContentInput {
   seriesName: string;
   originalHeadline: string;
   sourceText: string;
-  contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING';
+  contentType: 'NEWS' | 'ENDING_EXPLAINED' | 'RANKING' | 'TRUE_STORY';
   wordCountTarget?: number;
   temperature?: number;
   /** Optional source URL — used by ENDING_EXPLAINED to parse season/episode. */
   sourceUrl?: string;
+  /**
+   * TRUE_STORY-Sicherheitsgrad. Bestimmt welches Pflicht-Headline-Pattern
+   * angewandt wird: 'confirmed' → "Die wahre Geschichte hinter X. Wie ging
+   * es weiter?", 'uncertain' → "Basiert X auf einer wahren Geschichte? Wie
+   * ging es weiter?". Nur relevant wenn contentType === 'TRUE_STORY'.
+   */
+  trueStoryCertainty?: 'confirmed' | 'uncertain';
   /**
    * DACH-Lokalisierungs-Kontext (Phase B Feb 2026). Enthält:
    *  - dachStreamers: konkrete DACH-Streamer aus TMDB /watch/providers (region=DE)
@@ -146,6 +153,23 @@ export async function generateStructuredContent(
     }
   }
 
+  // TRUE_STORY: headline format is mandatory — eines von zwei Pflicht-Pattern.
+  if (input.contentType === 'TRUE_STORY' && output.headline) {
+    const { enforceTrueStoryFormat } = await import('./true-story-format');
+    const certainty = input.trueStoryCertainty || 'uncertain';
+    const before = output.headline;
+    output.headline = enforceTrueStoryFormat({
+      headline: output.headline,
+      seriesTitle: input.seriesName,
+      certainty,
+    });
+    if (before !== output.headline) {
+      console.log(`   📐 True-Story Headline-Format korrigiert (${certainty})`);
+      console.log(`      alt: "${before}"`);
+      console.log(`      neu: "${output.headline}"`);
+    }
+  }
+
   // Note: Headline wird durch Headline Engine in pipeline-v2 ersetzt.
   // Die Arbeits-Headline hier dient nur als Fallback.
   
@@ -214,6 +238,68 @@ SPRACHE & STIL:
 - KEINE Behauptungen, die nicht im Quelltext stehen. Wenn unklar → weglassen.
 - VERBOTEN: Gedankenstriche (— oder –). Nutze Doppelpunkt, Komma, Punkt.
 - Wortziel: ${wordCountTarget || 700} Wörter im Fließtext (ohne Lead/FAQ).`;
+  }
+
+  // TRUE_STORY has its own prompt: realer Hintergrund + "Wo sind sie jetzt"-
+  // Update. Headline-Format ist Pflicht — beide Patterns enforced mechanisch.
+  if (contentType === 'TRUE_STORY') {
+    const today = new Date().toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: 'long', year: 'numeric' });
+    const sourceExcerpt = (sourceText || '').slice(0, 6000);
+    const certainty = input.trueStoryCertainty || 'uncertain';
+    const headlineExample = certainty === 'confirmed'
+      ? `"Die wahre Geschichte hinter ${seriesName}. Wie ging es weiter?"`
+      : `"Basiert ${seriesName} auf einer wahren Geschichte? Wie ging es weiter?"`;
+    return `Schreibe einen deutschen Artikel für serien.de über den realen Hintergrund von "${seriesName}" und was aus den beteiligten Personen wurde ("Wo sind sie jetzt?").
+
+Heutiges Datum: ${today}
+Serie: ${seriesName}
+Quell-Headline (EN): ${originalHeadline}
+
+ENGLISCHER QUELLTEXT (zur Faktenbasis — NICHT wörtlich übersetzen):
+${sourceExcerpt}
+
+═══════════════════════════════════════════════════════════════════════
+PFLICHT-HEADLINE (KEINE AUSNAHME):
+═══════════════════════════════════════════════════════════════════════
+"headline" MUSS **EXAKT** lauten:
+  ${headlineExample}
+
+Kein Kreativ-Spielraum, kein Suffix, keine Variation. Der Wert wird vom
+Server zur Sicherheit nochmal mechanisch erzwungen.
+
+═══════════════════════════════════════════════════════════════════════
+STRUKTUR (JSON-Schema):
+═══════════════════════════════════════════════════════════════════════
+1. headline: siehe Pflicht-Format oben.
+2. metaDescription: max 155 Zeichen. ${certainty === 'confirmed'
+    ? `Klare Aussage: "${seriesName}" basiert auf realen Ereignissen, der Artikel zeigt was wirklich geschah und wo die Beteiligten heute stehen.`
+    : `Frage als Hook: ${seriesName} — wahre Geschichte oder reine Fiktion? Der Artikel ordnet ein und zeigt das Schicksal der Vorlage-Personen.`}
+3. lead: EXAKT 3 Sätze.
+   ${certainty === 'confirmed'
+     ? `Satz 1 startet mit "${seriesName}" als reale Vorlage (kurze Verankerung der wahren Begebenheit, 1 Schlüsselfakt).
+   Satz 2: Wer waren die echten Personen, was passierte ihnen?
+   Satz 3: Worauf der Artikel jetzt Antwort gibt (heutiger Status, neueste Erkenntnisse).`
+     : `Satz 1 spielt die Frage des Headlines konkret aus ("${seriesName}" — Realität oder Erfindung?).
+   Satz 2: Was die offizielle Quellenlage ergibt (Buch, Skandal, Gerichtsakte, Wikipedia-Eintrag etc.).
+   Satz 3: Wie real-life-Personen heute mit der Adaption umgehen / wo sie stehen.`}
+4. sections: ${Math.max(3, Math.min(Math.ceil((wordCountTarget || 600) / 180), 4))} H2-Sections à 2–3 Absätze.
+   Empfohlene H2-Struktur (bitte abdecken):
+   - "Was wirklich passierte" — chronologische Rekonstruktion der echten Ereignisse aus dem Quelltext
+   - "Die Personen hinter der Serie" — wer ist wer (echter Name → Charaktername)
+   - "Wo sie heute stehen" — aktueller Status (Strafmaß, Wohnort, öffentliche Auftritte, Verschwiegenheit)
+   - "Was die Serie auslässt oder verändert" — wenn der Quelltext Fiktion-vs-Realität-Abweichungen erwähnt
+5. qa: 3–5 Q&A-Paare. Beispiele: "Ist X heute noch im Gefängnis?", "Hat Y die Serie kommentiert?", "Wo lebt Z heute?", "Stimmt Detail D wirklich?".
+
+═══════════════════════════════════════════════════════════════════════
+SPRACHE & STIL — TITEL NAH AM ORIGINAL HALTEN
+═══════════════════════════════════════════════════════════════════════
+- ALLES auf Deutsch. Serientitel + Personen-Eigennamen aus dem Quelltext im Original belassen.
+- Keine wörtliche Satz-für-Satz-Übersetzung — eigene Reihenfolge, eigene Formulierungen.
+- Neutral-redaktioneller Ton, keine Boulevard-Aufgeregtheit.
+- Absätze 2–4 Sätze.
+- KEINE Behauptungen, die nicht im Quelltext stehen. Bei Lücken offen sagen ("nicht überliefert", "öffentlich nicht kommuniziert").
+- VERBOTEN: Gedankenstriche (— oder –). Nutze Doppelpunkt, Komma, Punkt.
+- Wortziel: ${wordCountTarget || 600} Wörter im Fließtext (ohne Lead/FAQ).`;
   }
 
   // Convert facts object to flat list

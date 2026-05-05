@@ -472,12 +472,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // routed through the dedicated generator + headline format enforcement.
     const isEndingExplainedUrl = /ending-explained/i.test(source.url || '') ||
       /ending\s+explained/i.test(source.title || '');
+    // URL/Source-based TRUE_STORY detection. Triggers: "true story", "real
+    // story", "where are they now", "wahre geschichte", "basiert auf einer
+    // wahren". Eigene Pflicht-Headline-Patterns ("Die wahre Geschichte hinter
+    // X. Wie ging es weiter?" / "Basiert X auf einer wahren Geschichte? Wie
+    // ging es weiter?"), Routing wie ENDING_EXPLAINED.
+    const { isTrueStorySource, assessTrueStoryCertainty } = await import('../lib/true-story-format');
+    const isTrueStoryUrl = !isEndingExplainedUrl && isTrueStorySource(source.url, source.title);
+    let trueStoryCertainty: 'confirmed' | 'uncertain' = 'uncertain';
+    if (isTrueStoryUrl) {
+      trueStoryCertainty = assessTrueStoryCertainty(source.title, fullSourceText, []);
+    }
     const contentType = isEndingExplainedUrl
       ? 'ENDING_EXPLAINED'
-      : classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
+      : isTrueStoryUrl
+        ? 'TRUE_STORY'
+        : classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
     if (isEndingExplainedUrl) {
       console.log(`   📝 ENDING_EXPLAINED pipeline aktiv (URL-Signal: "ending-explained")`);
       logger.addMetadata('contentType', 'ENDING_EXPLAINED');
+    } else if (isTrueStoryUrl) {
+      console.log(`   📝 TRUE_STORY pipeline aktiv (Signal: ${trueStoryCertainty}-Variante)`);
+      logger.addMetadata('contentType', 'TRUE_STORY');
+      logger.addMetadata('trueStoryCertainty', trueStoryCertainty);
     }
 
     logStep('3_tmdb_resolution');
@@ -1096,6 +1113,17 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 5: Content Generation');
     
+    // ── Re-assess True-Story certainty mit TMDB-Genres (genauer als nur Source) ──
+    if (isTrueStoryUrl) {
+      const seriesGenresForCert = (dbSeries as any).genres as string[] | null | undefined;
+      trueStoryCertainty = (await import('../lib/true-story-format')).assessTrueStoryCertainty(
+        source.title,
+        fullSourceText,
+        seriesGenresForCert,
+      );
+      logger.addMetadata('trueStoryCertaintyFinal', trueStoryCertainty);
+    }
+
     const structuredContent = await generateStructuredContent({
       facts,
       seriesName: dbSeries.name || dbSeries.title,
@@ -1104,12 +1132,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
       sourceUrl: source.url,
       contentType,
       dachContext,
+      trueStoryCertainty: contentType === 'TRUE_STORY' ? trueStoryCertainty : undefined,
       // GOOGLE DISCOVER Qualität - Minimum 1500 Wörter
       wordCountTarget: contentType === 'RANKING' 
         ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500)) 
         : contentType === 'ENDING_EXPLAINED'
           ? Math.max(700, Math.min(sourceWordCount * 1.2, 1100))
-          : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
+          : contentType === 'TRUE_STORY'
+            ? Math.max(600, Math.min(sourceWordCount * 1.2, 1000))
+            : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
     });
     
     console.log(`✅ Generated:`);
@@ -1270,10 +1301,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
           seriesName: dbSeries.name || dbSeries.title,
           originalHeadline: source.title,
           sourceText: fullSourceText,
+          sourceUrl: source.url,
           contentType,
+          trueStoryCertainty: contentType === 'TRUE_STORY' ? trueStoryCertainty : undefined,
           wordCountTarget: contentType === 'RANKING'
             ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500))
-            : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
+            : contentType === 'TRUE_STORY'
+              ? Math.max(600, Math.min(sourceWordCount * 1.2, 1000))
+              : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
           temperature: 0.5,
         });
 
@@ -1466,9 +1501,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
     // ENDING_EXPLAINED: Headline-Format ist heilig ("Das Ende von X erklärt: …").
     // Headline-Engine + Rewrite-Loop würden das Präfix zerstören → komplett überspringen.
-    if (contentType === 'ENDING_EXPLAINED') {
-      console.log(`   📐 ENDING_EXPLAINED: Headline-Engine + Rewrite-Loop übersprungen (Pflicht-Format bleibt)`);
-      logger.log(`Headline-Engine/Rewrite: skipped for ENDING_EXPLAINED`);
+    // TRUE_STORY: gleicher Mechanismus für die zwei Pflicht-Patterns (siehe lib/true-story-format).
+    if (contentType === 'ENDING_EXPLAINED' || contentType === 'TRUE_STORY') {
+      console.log(`   📐 ${contentType}: Headline-Engine + Rewrite-Loop übersprungen (Pflicht-Format bleibt)`);
+      logger.log(`Headline-Engine/Rewrite: skipped for ${contentType}`);
     } else {
     try {
       const { generateHeadlines } = await import('../lib/headline-engine');

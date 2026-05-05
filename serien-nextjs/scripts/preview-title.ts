@@ -16,6 +16,7 @@ dotenvConfig({ path: '.env.local', override: false });
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { extractFacts } from '../lib/fact-extractor';
 import { generateStructuredContent } from '../lib/structured-content-generator';
+import { isTrueStorySource, assessTrueStoryCertainty } from '../lib/true-story-format';
 
 async function main() {
   const url = process.argv[2];
@@ -38,18 +39,28 @@ async function main() {
   const seriesName = seriesNameOverride || 'Should I Marry A Murderer?';
   console.log(`🎬 Series: ${seriesName}\n`);
 
-  // 2. Facts
-  const facts = await extractFacts(fetched.title || '', fetched.fullText);
-  console.log(`📊 Facts extracted: ${Array.isArray(facts) ? facts.length : Object.keys(facts || {}).length} entries\n`);
+  // 2. Detect content type
+  const isTrueStory = isTrueStorySource(url, fetched.title);
+  const contentType: 'NEWS' | 'TRUE_STORY' = isTrueStory ? 'TRUE_STORY' : 'NEWS';
+  const trueStoryCertainty = isTrueStory
+    ? assessTrueStoryCertainty(fetched.title, fetched.fullText, ['Documentary', 'Crime'])
+    : undefined;
+  console.log(`📂 Detected contentType: ${contentType}${trueStoryCertainty ? ` (${trueStoryCertainty})` : ''}\n`);
 
-  // 3. Generate
+  // 3. Facts
+  const facts = await extractFacts(fetched.title || '', fetched.fullText);
+  console.log(`📊 Facts extracted: ${Object.keys(facts || {}).length} keys\n`);
+
+  // 4. Generate
   const out = await generateStructuredContent({
     facts,
     seriesName,
     originalHeadline: fetched.title || '',
     sourceText: fetched.fullText,
-    contentType: 'NEWS',
-    wordCountTarget: 400,
+    sourceUrl: url,
+    contentType,
+    trueStoryCertainty,
+    wordCountTarget: 600,
   });
 
   console.log('═'.repeat(70));
