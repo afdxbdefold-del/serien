@@ -1,5 +1,5 @@
 /**
- * Nano-Banana (Gemini) hero-image generator.
+ * AI-Hero-Image Generator (gpt-image-1 via Emergent LLM-Proxy).
  *
  * Used as a fallback when an article has no TMDB backdrop available.
  * Returns a public Vercel-Blob URL for a generated 16:9 cinematic
@@ -7,21 +7,20 @@
  * regenerate for the same show/category combo.
  *
  * Flow:
- *   1. Build a cache key `nano-banana/{tmdbId}-{slot}.png`.
+ *   1. Build a cache key `nano-banana/{tmdbId}-{slot}.jpg`.
  *   2. HEAD the Vercel-Blob URL. If 200 → return cached URL (no LLM spend).
- *   3. Otherwise, spawn `scripts/py/gen-nano-banana-hero.py` with a German
- *      prompt → receive PNG bytes on disk → upload to Blob → return URL.
+ *   3. Otherwise, call OpenAI `images.generate` (gpt-image-1) via the
+ *      Emergent LLM-Proxy → receive base64 → upload to Blob → return URL.
+ *
+ * Wir nutzen NICHT mehr `python3` (Vercel Node-Serverless hat kein Python).
+ * Das `emergentintegrations`-Python-Paket war Quelle des Bugs: der Spawn
+ * scheiterte still auf Vercel, Pipeline fiel auf Composite-Hero zurück.
  *
  * Never throws: on any failure returns null so the caller falls back to
  * the existing Sharp-composite hero.
  */
-import { spawn } from 'child_process';
-import { promises as fs } from 'fs';
-import path from 'path';
-import os from 'os';
 import { put } from '@vercel/blob';
-
-const PY_SCRIPT = path.resolve(__dirname, '..', 'scripts', 'py', 'gen-nano-banana-hero.py');
+import OpenAI from 'openai';
 
 function getBlobBase(): string {
   return process.env.BLOB_PUBLIC_URL || process.env.NEXT_PUBLIC_BLOB_URL || '';
@@ -87,7 +86,6 @@ function buildPrompt(input: NanoBananaHeroInput): string {
   const categoryHint = input.category
     ? `Artikel-Kontext: ${input.category}.`
     : '';
-  // Keep prompt short — Gemini image-gen scales poorly with long prompts.
   return [
     `Erzeuge ein kinematisches 16:9-Hero-Bild im Widescreen-Format für einen deutschen Serien-News-Artikel über "${input.seriesName}".`,
     categoryHint,
@@ -113,31 +111,45 @@ async function getCachedUrl(blobKey: string): Promise<string | null> {
   return null;
 }
 
-function runPython(outPath: string, sessionId: string, prompt: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const proc = spawn('python3', [PY_SCRIPT, outPath, sessionId], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: process.env,
-    });
-    let stderr = '';
-    proc.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        console.log(`   ⚠️ Nano Banana exit ${code}: ${stderr.trim().slice(-400)}`);
-      } else if (stderr.trim()) {
-        console.log(`   🎨 Nano Banana ${stderr.trim().slice(-200)}`);
-      }
-      resolve(code === 0);
-    });
-    proc.on('error', (err) => {
-      console.log(`   ⚠️ Nano Banana spawn failed: ${err.message}`);
-      resolve(false);
-    });
-    proc.stdin.write(prompt);
-    proc.stdin.end();
+/**
+ * Generate image via OpenAI gpt-image-1 routed through the Emergent LLM-Proxy.
+ * Returns raw bytes + content-type, or null on any failure.
+ */
+async function generateImageBytes(prompt: string): Promise<{ buf: Buffer; contentType: string } | null> {
+  const apiKey = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const isEmergent = !!process.env.EMERGENT_LLM_KEY;
+  const client = new OpenAI({
+    apiKey,
+    baseURL: isEmergent ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
   });
+  try {
+    const res = await client.images.generate({
+      model: 'gpt-image-1',
+      prompt,
+      // 1536x1024 ist die nächste 16:9-nahe Größe, die gpt-image-1 unterstützt.
+      // Wird vom Frontend bei Bedarf nochmal nachgecroppt.
+      size: '1536x1024',
+      n: 1,
+    } as any);
+    const item: any = res.data?.[0];
+    const b64 = item?.b64_json;
+    if (!b64) {
+      console.log(`   ⚠️ gpt-image-1 Antwort enthielt kein b64_json (keys=${Object.keys(item || {}).join(',')})`);
+      return null;
+    }
+    const buf = Buffer.from(b64, 'base64');
+    // Magic-byte Sniffing für korrekten Content-Type
+    const contentType = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff
+      ? 'image/jpeg'
+      : buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e
+        ? 'image/png'
+        : 'application/octet-stream';
+    return { buf, contentType };
+  } catch (e: any) {
+    console.log(`   ⚠️ gpt-image-1 Aufruf fehlgeschlagen: ${e?.message?.slice(0, 300) || e}`);
+    return null;
+  }
 }
 
 /**
@@ -147,8 +159,7 @@ function runPython(outPath: string, sessionId: string, prompt: string): Promise<
 export async function generateNanoBananaHero(
   input: NanoBananaHeroInput,
 ): Promise<string | null> {
-  if (!process.env.EMERGENT_LLM_KEY) return null;
-  // tmdbId ist jetzt optional; nur seriesName ist Pflicht (für Cache-Key + Prompt).
+  if (!process.env.EMERGENT_LLM_KEY && !process.env.OPENAI_API_KEY) return null;
   if (!input.seriesName || input.seriesName.trim().length === 0) return null;
 
   const blobKey = buildBlobKey(input.tmdbId, input.seriesName, input.slot);
@@ -157,48 +168,30 @@ export async function generateNanoBananaHero(
   const cached = await getCachedUrl(blobKey);
   if (cached) return cached;
 
-  // 2. Generate in a temp file.
-  const idForTmp = input.tmdbId && input.tmdbId > 0 ? input.tmdbId : `name-${hashSeriesName(input.seriesName.toLowerCase().trim())}`;
-  const tmp = path.join(
-    os.tmpdir(),
-    `nano-banana-${idForTmp}-${Date.now()}.bin`,
-  );
+  // 2. Generate via gpt-image-1 (pure Node, läuft auf Vercel).
   const prompt = buildPrompt(input);
-  const sessionId = `nb-${idForTmp}-${normaliseSlot(input.slot)}-${Date.now()}`;
-
-  const ok = await runPython(tmp, sessionId, prompt);
-  if (!ok) {
-    console.log(`   ⚠️ Nano Banana python step failed, falling back`);
-    try { await fs.unlink(tmp); } catch {}
+  const generated = await generateImageBytes(prompt);
+  if (!generated) {
+    console.log(`   ⚠️ Hero-Generation fehlgeschlagen, Fallback auf Composite`);
     return null;
   }
 
-  // 3. Upload to Vercel Blob. Sniff mime from magic bytes so the
-  //    Content-Type header matches the actual payload.
+  // 3. Upload to Vercel Blob.
   try {
-    const buf = await fs.readFile(tmp);
-    const contentType = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff
-      ? 'image/jpeg'
-      : buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e
-        ? 'image/png'
-        : 'application/octet-stream';
-    const res = await put(blobKey, buf, {
+    const res = await put(blobKey, generated.buf, {
       access: 'public',
       addRandomSuffix: false,
-      contentType,
+      contentType: generated.contentType,
     });
-    await fs.unlink(tmp).catch(() => {});
     return res.url;
   } catch (err: any) {
-    // "already exists" race → build canonical URL from base.
     const msg = String(err?.message ?? '');
+    // "already exists" race → build canonical URL from base.
     if (/already exists/i.test(msg)) {
       const base = getBlobBase();
-      await fs.unlink(tmp).catch(() => {});
       if (base) return `${base.replace(/\/+$/, '')}/${blobKey}`;
     }
-    console.log(`   ⚠️ Nano Banana Blob upload failed: ${msg || err}`);
-    await fs.unlink(tmp).catch(() => {});
+    console.log(`   ⚠️ Hero-Image Blob-Upload fehlgeschlagen: ${msg || err}`);
     return null;
   }
 }
