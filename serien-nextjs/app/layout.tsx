@@ -129,7 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors`}>
+      <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-white dark:bg-[#272A31] text-gray-900 dark:text-gray-100 transition-colors`}>
         <AnalyticsTracker />
         <LayoutWrapper>{children}</LayoutWrapper>
         {/* Server-rendered footer nav for Google crawler (visible in first HTML pass) */}
