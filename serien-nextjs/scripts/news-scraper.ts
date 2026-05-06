@@ -8,6 +8,7 @@
 import { load, type Cheerio, type Element } from 'cheerio';
 import { PrismaClient } from '@prisma/client';
 import { runPipelineV2 } from './pipeline-v2';
+import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
 
 const prisma = new PrismaClient();
 
@@ -76,6 +77,28 @@ export const NEWS_SOURCES = {
     // 6h-Default = leerer Pool. 48h gibt im Schnitt 5-15 Items zur Auswahl,
     // Permanent-Skip im Dedup verhindert Re-Processing alter URLs.
     maxAgeHours: 48,
+  },
+  googleNewsStreaming: {
+    name: 'Google News (Streaming, en-US)',
+    // Strikt auf Streaming-TV-Serien fokussiert. Negative Keywords schließen
+    // Sport-Teams aus, deren Namen mit Streamern kollidieren ("Vikings",
+    // "Sky"-WNBA, "Hawks"). FIX auf en-US/US — wir wollen englischsprachige
+    // Stories ENTDECKEN, BEVOR deutsche Publisher sie aufgreifen. Der German-
+    // Angle-Coverage-Gate in pipeline-v2.ts filtert anschließend bereits
+    // gecoverte Angles raus.
+    url: 'https://news.google.com/rss/search?q=' +
+      encodeURIComponent(
+        '("Netflix series" OR "Netflix show" OR "Netflix docuseries" OR "Disney+ series" OR ' +
+        '"Prime Video series" OR "Apple TV+ series" OR "HBO Max" OR "Paramount+ series" OR ' +
+        '"Hulu series" OR "Peacock series" OR "streaming series" OR "limited series") ' +
+        '-softball -baseball -football -basketball -wnba -nba -nfl -nhl -mlb -hockey ' +
+        'when:7d',
+      ) + '&hl=en-US&gl=US&ceid=US:en',
+    domain: 'news.google.com',
+    type: 'googlenews',
+    // Strikt: nur die letzten 12h. News-Discovery muss schnell sein, sonst
+    // sind die deutschen Publisher schon dran.
+    maxAgeHours: 12,
   },
 } as const;
 
@@ -533,6 +556,96 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
 }
 
 /**
+ * Scrape Google News RSS — decodes wrapper URLs to real publisher URLs.
+ * Used to discover stories from publishers we don't have direct RSS feeds for
+ * (z.B. News-Press, Decider-deep, Hollywood Reporter sub-categories etc.).
+ */
+async function scrapeGoogleNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
+  const source = NEWS_SOURCES[sourceKey];
+  console.log(`🔍 Scraping ${source.name} (Google News)...\n`);
+
+  const response = await fetch(source.url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      Accept: 'application/rss+xml, application/xml, text/xml',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${source.name}: ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  const maxAgeHours = (source as any).maxAgeHours ?? 12;
+  const ageCutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
+
+  const wrapped: NewsArticle[] = [];
+  const seenWrappers = new Set<string>();
+  for (const item of items) {
+    const titleMatch = item.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+    const linkMatch = item.match(/<link>([^<]+)<\/link>/);
+    const pubMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
+    const sourceUrlMatch = item.match(/<source\s+url="([^"]+)"/i);
+    if (!titleMatch || !linkMatch) continue;
+
+    const rawTitle = titleMatch[1].trim();
+    const title = rawTitle
+      .replace(/&#8216;|&#8217;/g, "'").replace(/&#8220;|&#8221;/g, '"')
+      .replace(/&#038;/g, '&').replace(/&#8211;|&#8212;/g, '–')
+      .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
+    const wrapperUrl = linkMatch[1].trim();
+    if (seenWrappers.has(wrapperUrl)) continue;
+    seenWrappers.add(wrapperUrl);
+
+    if (pubMatch) {
+      const pubTime = new Date(pubMatch[1]).getTime();
+      if (!Number.isFinite(pubTime) || pubTime < ageCutoff) continue;
+    }
+
+    // Skip Google's own aggregator domains we already have direct feeds for —
+    // saves a decode call. The <source url="..."> attribute holds the publisher.
+    const publisherDomain = sourceUrlMatch ? (() => {
+      try { return new URL(sourceUrlMatch[1]).hostname.toLowerCase().replace(/^www\./, ''); } catch { return ''; }
+    })() : '';
+    const ALREADY_INDEXED_DOMAINS = [
+      'screenrant.com', 'collider.com', 'thecinemaholic.com', 'deadline.com',
+      'variety.com', 'hollywoodreporter.com', 'tvinsider.com', 'tvline.com',
+      'whats-on-netflix.com', 'imdb.com', 'wikipedia.org',
+    ];
+    if (ALREADY_INDEXED_DOMAINS.some((d) => publisherDomain.endsWith(d))) continue;
+
+    wrapped.push({
+      title,
+      url: wrapperUrl,
+      timeAgo: pubMatch ? pubMatch[1] : '',
+      source: source.name,
+      series: undefined,
+    });
+  }
+
+  console.log(`   ${wrapped.length} candidates (≤${maxAgeHours}h, non-duplicate publishers)`);
+  if (wrapped.length === 0) return [];
+
+  // Decode wrapper URLs in batches of 6 to avoid Google rate-limiting.
+  const decoded: NewsArticle[] = [];
+  const BATCH = 6;
+  for (let i = 0; i < wrapped.length; i += BATCH) {
+    const batch = wrapped.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(async (a) => {
+      const real = await decodeGoogleNewsUrl(a.url);
+      if (!real || real === a.url) return null;
+      return { ...a, url: real };
+    }));
+    for (const r of results) if (r) decoded.push(r);
+  }
+
+  console.log(`   ${decoded.length} decoded successfully`);
+  return decoded;
+}
+
+/**
  * Scrape the Netflix Tudum editorial hub (HTML, no RSS).
  * Extracts anchor tags pointing to /tudum/articles/{slug} and uses the
  * visible link text as the headline. Filters out Next/emotion CSS-in-JS
@@ -665,6 +778,8 @@ export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArt
     return scrapeTudumNews(sourceKey);
   } else if (source.type === 'tvline') {
     return scrapeTvlineNews(sourceKey);
+  } else if (source.type === 'googlenews') {
+    return scrapeGoogleNews(sourceKey);
   }
 
   throw new Error(`Unknown source type: ${source.type}`);
@@ -690,7 +805,7 @@ interface ProcessStats {
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
   const {
-    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline'],
+    sources = ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline', 'whatsOnNetflix', 'googleNewsStreaming'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
@@ -727,6 +842,12 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           articles = await scrapeWordPressNews(sourceKey as SourceKey);
         } else if (source.type === 'rss') {
           articles = await scrapeRssNews(sourceKey as SourceKey);
+        } else if (source.type === 'tudum') {
+          articles = await scrapeTudumNews(sourceKey as SourceKey);
+        } else if (source.type === 'tvline') {
+          articles = await scrapeTvlineNews(sourceKey as SourceKey);
+        } else if (source.type === 'googlenews') {
+          articles = await scrapeGoogleNews(sourceKey as SourceKey);
         } else {
           articles = await scrapeValnetNews(sourceKey as SourceKey);
         }
