@@ -5,7 +5,7 @@
  * Pure-fetch + simple XML regex parse — kein extra dep nötig.
  */
 import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
-import { checkGermanCoverage } from '../lib/google-news-de-coverage-check';
+import { checkGermanAngleCoverage, extractAngleEntities } from '../lib/google-news-de-coverage-check';
 
 const SOURCES: { name: string; rss: string; isHtml?: boolean }[] = [
   { name: 'Deadline TV', rss: 'https://deadline.com/v/tv/feed/' },
@@ -138,24 +138,50 @@ async function main() {
   }
 
   console.log('\n━'.repeat(80));
-  console.log('🇩🇪 DE-Coverage-Check (Google News deutsche Quellen):');
+  console.log('🇩🇪 Story-Angle Coverage-Check pro Treffer (DE-Whitelist Publisher):');
   console.log('━'.repeat(80));
-  const deCov = await checkGermanCoverage(query, 14, 2);
-  if (deCov.stale) {
-    console.log(`⛔ STALE — ${deCov.editorialHits} redaktionelle DE-Treffer in 14 Tagen.`);
-    console.log(`   Top-Quellen: ${deCov.topSources.join(', ')}`);
-    console.log(`   Earliest pub: ${deCov.earliestPub?.toISOString().slice(0, 10) || '?'}`);
-    console.log(`   → für serien.de wertlos (kein First-Mover-Advantage)\n`);
-  } else {
-    console.log(`✅ FRESH — nur ${deCov.editorialHits} redaktionelle DE-Treffer.`);
-    if (deCov.nonEditorialHits > 0) console.log(`   (+${deCov.nonEditorialHits} Trailer/Bilder-Indexierung — nicht relevant)`);
-    if (deCov.topSources.length > 0) console.log(`   DE-Quellen: ${deCov.topSources.join(', ')}`);
-    console.log(`   → Story ist noch frei für serien.de\n`);
+
+  // Run checks in parallel for speed
+  const checked = await Promise.all(allHits.map(async (h) => {
+    const cov = await checkGermanAngleCoverage(query, h.title, 14, 1);
+    return { hit: h, cov };
+  }));
+
+  const fresh = checked.filter((c) => !c.cov.stale);
+  const stale = checked.filter((c) => c.cov.stale);
+
+  console.log(`✅ FRISCHE Angles: ${fresh.length}`);
+  console.log(`⛔ STALE Angles:   ${stale.length}\n`);
+
+  if (fresh.length > 0) {
+    console.log('━'.repeat(80));
+    console.log(`🎯 FRISCH (${fresh.length}) — noch nicht in DE-Publisher gecovert:`);
+    console.log('━'.repeat(80));
+    for (const { hit: h, cov } of fresh) {
+      const age = h.ageDays < 1
+        ? `${Math.round(h.ageDays * 24)}h`
+        : `${Math.round(h.ageDays * 10) / 10}d`;
+      const angles = cov.angles.map((a) => a.entity).join(', ') || '(keine Angles erkannt)';
+      console.log(`\n[${age.padStart(5)} alt] ${h.source}`);
+      console.log(`  ${h.title}`);
+      console.log(`  Angles: ${angles}`);
+      console.log(`  ${h.url}`);
+    }
   }
 
-  console.log('━'.repeat(80));
-  console.log('🎯 Treffer (neueste zuerst):');
-  console.log('━'.repeat(80));
+  if (stale.length > 0) {
+    console.log('\n' + '━'.repeat(80));
+    console.log(`⛔ STALE (${stale.length}) — DE-Publisher hat angle bereits:`);
+    console.log('━'.repeat(80));
+    for (const { hit: h, cov } of stale) {
+      const age = h.ageDays < 1
+        ? `${Math.round(h.ageDays * 24)}h`
+        : `${Math.round(h.ageDays * 10) / 10}d`;
+      console.log(`\n[${age.padStart(5)} alt] ${h.title.slice(0, 80)}`);
+      console.log(`  → ${cov.staleReason}`);
+    }
+  }
+  return;
   for (const h of allHits) {
     const age = h.ageDays < 1
       ? `${Math.round(h.ageDays * 24)}h`
@@ -164,6 +190,8 @@ async function main() {
     console.log(`  ${h.title}`);
     console.log(`  ${h.url}`);
   }
+  // unused: extractAngleEntities (re-exported from lib for tests)
+  void extractAngleEntities;
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
