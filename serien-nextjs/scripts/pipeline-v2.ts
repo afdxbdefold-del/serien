@@ -933,6 +933,33 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // GERMAN-ANGLE COVERAGE GATE — skip if a real German publisher
+    // (moviepilot, filmstarts, serienjunkies, quotenmeter, spiegel, bild …)
+    // already covered the SPECIFIC story-angle in the last 14 days. Saves
+    // LLM-Spend on stories that have no Discover/SEO first-mover advantage
+    // for serien.de. Auto-translated IMDb/ČSFD pages are filtered out.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { checkGermanAngleCoverage } = await import('../lib/google-news-de-coverage-check');
+      const angleCov = await checkGermanAngleCoverage(
+        dbSeries.title || dbSeries.originalName || '',
+        source.title || '',
+        14,
+        1,
+      );
+      if (angleCov.stale) {
+        console.log(`⛔ GERMAN-ANGLE-COVERAGE SKIP: ${angleCov.staleReason}`);
+        await logger.fail(`German-Angle-Coverage: ${angleCov.staleReason}`, 'german-angle-coverage');
+        return null;
+      }
+      if (angleCov.angles.length > 0) {
+        const summary = angleCov.angles.map((a) => `${a.entity} (${a.deWhitelistedHits.length}/${a.deTotalHits})`).join(' · ');
+        console.log(`   ✅ Story-Angle frei: ${summary}`);
+        logger.addMetadata('germanAngleCheck', { angles: summary, stale: false });
+      }
+    }
+
     // ========== STEP 3.5: DUPLICATE CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 3.5: DUPLICATE CHECK 🔍');
