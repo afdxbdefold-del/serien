@@ -111,7 +111,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   return (
     <section 
       ref={containerRef}
-      className="relative w-full bg-gray-900 dark:bg-[hsl(230,25%,5%)]"
+      className="relative w-full bg-gray-900 dark:bg-[#16171B]"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -153,7 +153,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
                   unoptimized={imgUrl.startsWith('/img/')}
                 />
                 {/* Gradient Scrim - Only in Dark Mode */}
-                <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[hsl(230,25%,5%)] via-[hsl(230,25%,5%)]/30 to-transparent" />
+                <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[#16171B] via-[#16171B]/30 to-transparent" />
               </div>
             );
           })}
@@ -161,7 +161,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
       </Link>
 
       {/* Content Box */}
-      <div className="bg-gray-900 dark:bg-[hsl(230,25%,5%)] px-4 py-5 sm:px-6 sm:py-6">
+      <div className="bg-gray-900 dark:bg-[#16171B] px-4 py-5 sm:px-6 sm:py-6">
         <Link href={`/${currentNews.slug}`} data-testid="carousel-title-link">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 hover:text-cyan-400 transition-colors duration-300 line-clamp-3 tracking-tight">
             {currentNews.title}
@@ -176,7 +176,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
 
       {/* Navigation Dots */}
       <nav 
-        className="bg-gray-900 dark:bg-[hsl(230,25%,5%)] pb-6 flex justify-center gap-2"
+        className="bg-gray-900 dark:bg-[#16171B] pb-6 flex justify-center gap-2"
         aria-label="Karussell Navigation"
       >
         {news.map((item, index) => (
