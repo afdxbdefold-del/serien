@@ -4,6 +4,8 @@
  *
  * Pure-fetch + simple XML regex parse — kein extra dep nötig.
  */
+import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
+
 const SOURCES: { name: string; rss: string; isHtml?: boolean }[] = [
   { name: 'Deadline TV', rss: 'https://deadline.com/v/tv/feed/' },
   { name: 'Variety TV', rss: 'https://variety.com/v/tv/feed/' },
@@ -68,7 +70,15 @@ async function main() {
 
   console.log(`🔎 Suche: "${query}"  (max ${maxDays} Tage alt)\n`);
 
-  const results = await Promise.all(SOURCES.map(async (src) => {
+  const allSources = [
+    ...SOURCES,
+    {
+      name: 'Google News (search)',
+      rss: `https://news.google.com/rss/search?q=${encodeURIComponent(`"${query}"`)}&hl=en-US&gl=US&ceid=US:en&when=${maxDays}d`,
+    },
+  ];
+
+  const results = await Promise.all(allSources.map(async (src) => {
     try {
       const res = await fetch(src.rss, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; serien.de-search/1.0)' },
@@ -100,7 +110,7 @@ async function main() {
   const allHits = results.flatMap((r) => r.hits).sort((a, b) => b.pub.getTime() - a.pub.getTime());
 
   console.log('━'.repeat(80));
-  console.log(`📊 Gesamt: ${allHits.length} Treffer in ${SOURCES.length} Quellen`);
+  console.log(`📊 Gesamt: ${allHits.length} Treffer in ${allSources.length} Quellen`);
   console.log('━'.repeat(80));
   for (const r of results) {
     const status = r.error ? `❌ ${r.error}` : `${r.hits.length} hits`;
@@ -110,6 +120,20 @@ async function main() {
   if (allHits.length === 0) {
     console.log(`\n⚠️ Keine Treffer für "${query}" in den letzten ${maxDays} Tagen.`);
     return;
+  }
+
+  // Decode Google News wrapper URLs in parallel (max 8 at a time to be polite)
+  const gnHits = allHits.filter((h) => /^https?:\/\/news\.google\.com\/rss\/articles\//i.test(h.url));
+  if (gnHits.length > 0) {
+    console.log(`\n⏳ Dekodiere ${gnHits.length} Google-News-Wrapper-URLs ...`);
+    const limit = 8;
+    for (let i = 0; i < gnHits.length; i += limit) {
+      const batch = gnHits.slice(i, i + limit);
+      await Promise.all(batch.map(async (h) => {
+        const decoded = await decodeGoogleNewsUrl(h.url);
+        if (decoded) h.url = decoded;
+      }));
+    }
   }
 
   console.log('\n━'.repeat(80));
