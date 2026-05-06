@@ -159,6 +159,16 @@ const nextConfig: NextConfig = {
         destination: '/news',
         permanent: true,
       },
+      // Untitled-Industry-Stub Cleanup (Feb 2026): TMDB-Platzhalter ohne Release-
+      // Daten ("Untitled Las Vegas Casino Series" etc.) erzeugen unsuchbare
+      // Headlines + verbrennen LLM-Tokens. Strukturelle Sperre via
+      // `lib/unreleased-project-filter.ts` greift ab nächstem Cron-Run; dieser
+      // Bestands-Artikel wird 301 auf /news umgeleitet.
+      {
+        source: '/was-viele-ueber-oscar-isaac-nicht-wussten-bevor-untitled-las-vegas-casino-series-kam',
+        destination: '/news',
+        permanent: true,
+      },
     ];
   },
   

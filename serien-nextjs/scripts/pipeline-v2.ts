@@ -934,6 +934,40 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // UNRELEASED-PROJECT FILTER — skip TMDB stubs ("Untitled <X> Series",
+    // "Untitled <X> Project") that have no firstAirDate and a planned/null
+    // status. Such placeholders generate unsearchable headlines like
+    // "Was viele über Oscar Isaac nicht wussten, bevor Untitled Las Vegas
+    // Casino Series kam" and waste LLM tokens on industry-trade gossip.
+    // Whitelist: status="In Production" (working title is real).
+    // Override: source explicitly announces the official title.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { checkUnreleasedProject } = await import('../lib/unreleased-project-filter');
+      const projectCheck = checkUnreleasedProject(
+        {
+          name: dbSeries.name,
+          title: dbSeries.title,
+          originalName: (dbSeries as any).originalName,
+          status: (dbSeries as any).status,
+          firstAirDate: (dbSeries as any).firstAirDate,
+          inProduction: (dbSeries as any).inProduction,
+        },
+        source.title,
+        (fullSourceText || '').slice(0, 800),
+      );
+      if (projectCheck.skip) {
+        console.log(`⛔ UNRELEASED-PROJECT SKIP: ${projectCheck.reason}`);
+        console.log(`   Treffer: ${projectCheck.hit}`);
+        await logger.fail(
+          `Unreleased-Project: ${projectCheck.reason} — ${projectCheck.hit}`,
+          'unreleased-project',
+        );
+        return null;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // GERMAN-ANGLE COVERAGE GATE — skip if a real German publisher
     // (moviepilot, filmstarts, serienjunkies, quotenmeter, spiegel, bild …)
     // already covered the SPECIFIC story-angle in the last 14 days. Saves
