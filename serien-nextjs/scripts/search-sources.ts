@@ -5,6 +5,7 @@
  * Pure-fetch + simple XML regex parse — kein extra dep nötig.
  */
 import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
+import { checkGermanCoverage } from '../lib/google-news-de-coverage-check';
 
 const SOURCES: { name: string; rss: string; isHtml?: boolean }[] = [
   { name: 'Deadline TV', rss: 'https://deadline.com/v/tv/feed/' },
@@ -137,6 +138,22 @@ async function main() {
   }
 
   console.log('\n━'.repeat(80));
+  console.log('🇩🇪 DE-Coverage-Check (Google News deutsche Quellen):');
+  console.log('━'.repeat(80));
+  const deCov = await checkGermanCoverage(query, 14, 2);
+  if (deCov.stale) {
+    console.log(`⛔ STALE — ${deCov.editorialHits} redaktionelle DE-Treffer in 14 Tagen.`);
+    console.log(`   Top-Quellen: ${deCov.topSources.join(', ')}`);
+    console.log(`   Earliest pub: ${deCov.earliestPub?.toISOString().slice(0, 10) || '?'}`);
+    console.log(`   → für serien.de wertlos (kein First-Mover-Advantage)\n`);
+  } else {
+    console.log(`✅ FRESH — nur ${deCov.editorialHits} redaktionelle DE-Treffer.`);
+    if (deCov.nonEditorialHits > 0) console.log(`   (+${deCov.nonEditorialHits} Trailer/Bilder-Indexierung — nicht relevant)`);
+    if (deCov.topSources.length > 0) console.log(`   DE-Quellen: ${deCov.topSources.join(', ')}`);
+    console.log(`   → Story ist noch frei für serien.de\n`);
+  }
+
+  console.log('━'.repeat(80));
   console.log('🎯 Treffer (neueste zuerst):');
   console.log('━'.repeat(80));
   for (const h of allHits) {
