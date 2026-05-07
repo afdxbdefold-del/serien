@@ -348,7 +348,8 @@ export async function processScreenrantNews(options: {
           url: article.url,
           text: '', // Wird von Pipeline via useFullTextMode geholt
           useFullTextMode: true,
-          trigger: 'cron' // Automatischer Import = Altersfilter aktiv
+          trigger: 'cron', // Automatischer Import = Altersfilter aktiv
+          discoveryChannel: 'screenrant-deep',
         });
         stats.processed++;
         console.log('   ✅ SUCCESS');

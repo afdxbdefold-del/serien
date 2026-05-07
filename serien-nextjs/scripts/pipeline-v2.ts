@@ -78,6 +78,20 @@ interface PipelineV2Source {
   text: string;
   useFullTextMode?: boolean;
   trigger?: TriggerType;
+  /**
+   * Discovery channel — wo wurde dieser Artikel ENTDECKT? (Feb 2026)
+   *   - 'rss-direct'        : direkter RSS-Feed (Screenrant, Collider, Cinemaholic, …)
+   *   - 'googlenews'        : Google News RSS Wrapper-URL (post-decode)
+   *   - 'tudum'             : Netflix Tudum HTML-Scraper
+   *   - 'streamer-aggregator': /neue-serien Source (TMDB-Releases pro Streamer)
+   *   - 'admin-manual'      : manueller Trigger via Admin-UI / CLI
+   *   - 'replay'            : Replay-Job (already-rejected sources retry)
+   *   - 'trends'            : trends-processor
+   *   - 'screenrant-deep'   : screenrant deep-scraper
+   *   - 'tvline-deep'       : tvline deep-scraper
+   * Wert wird in `pipeline_runs.metadata.discoveryChannel` persistiert.
+   */
+  discoveryChannel?: string;
 }
 
 function generateSlug(title: string): string {
@@ -172,6 +186,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
   
   logger.log(`Source: ${source.title}`);
   logger.addMetadata('url', source.url);
+  if (source.discoveryChannel) {
+    logger.addMetadata('discoveryChannel', source.discoveryChannel);
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // SERIES BLOCKLIST (earliest gate — saves LLM cost + TMDB calls)

@@ -183,6 +183,7 @@ export async function processTVLineNews(options: {
           text: '', // Will be fetched by pipeline
           useFullTextMode: true,
           trigger: 'cron',
+          discoveryChannel: 'tvline-deep',
         });
         
         if (result) {

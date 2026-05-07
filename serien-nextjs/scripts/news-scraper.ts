@@ -110,6 +110,23 @@ interface NewsArticle {
   timeAgo: string;
   source: string;
   series?: string;
+  /** Discovery channel — set by scraper, persisted via pipeline_runs.metadata. */
+  discoveryChannel?: string;
+}
+
+/**
+ * Map news-source `type` to a stable `discoveryChannel` slug used in
+ * `pipeline_runs.metadata.discoveryChannel`.
+ */
+function discoveryChannelForType(type: string): string {
+  switch (type) {
+    case 'rss':       return 'rss-direct';
+    case 'wordpress': return 'rss-direct';
+    case 'tudum':     return 'tudum';
+    case 'tvline':    return 'tvline-rss';
+    case 'googlenews': return 'googlenews';
+    default:          return 'rss-direct'; // valnet & friends
+  }
 }
 
 // Keywords to filter relevant articles (German market focus)
@@ -851,7 +868,11 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         } else {
           articles = await scrapeValnetNews(sourceKey as SourceKey);
         }
-        
+
+        // Tag each article with its discovery channel for pipeline_runs metadata.
+        const channel = discoveryChannelForType(source.type);
+        for (const a of articles) a.discoveryChannel = channel;
+
         allArticles = allArticles.concat(articles.slice(0, limit));
         stats.bySource[sourceKey] = articles.length;
       } catch (error: any) {
@@ -990,7 +1011,8 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           url: article.url,
           text: '',
           useFullTextMode: true,
-          trigger: 'cron'
+          trigger: 'cron',
+          discoveryChannel: article.discoveryChannel || 'rss-direct',
         });
         stats.processed++;
         // Authoritative published-check: pipeline-v2 doesn't throw on filter-skips,

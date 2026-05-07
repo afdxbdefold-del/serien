@@ -53,6 +53,7 @@ function log(msg: string) {
         text: '',
         useFullTextMode: true,
         trigger: 'manual',
+        discoveryChannel: 'replay',
       } as any);
       // Verify via DB whether it ended up published
       const a = await prisma.articles.findFirst({

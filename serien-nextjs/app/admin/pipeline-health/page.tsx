@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 import SitemapHealthCard from '@/components/admin/SitemapHealthCard';
+import DiscoveryChannelCard from '@/components/admin/DiscoveryChannelCard';
 
 type Health = 'ok' | 'warn' | 'critical';
 
@@ -473,6 +474,9 @@ export default function PipelineHealthPage() {
 
         {/* Sitemap health (Googlebot cadence + prewarm log) */}
         <SitemapHealthCard />
+
+        {/* Discovery-Channel performance (Google News, RSS-Direct, Tudum, …) */}
+        <DiscoveryChannelCard />
 
         {/* Duplicate prevention */}
         <section

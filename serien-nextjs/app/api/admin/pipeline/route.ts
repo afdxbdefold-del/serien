@@ -534,6 +534,7 @@ export async function POST(request: NextRequest) {
         text: '',
         useFullTextMode: true,
         trigger: 'manual',
+        discoveryChannel: 'admin-manual',
       });
       
       return NextResponse.json({ 
@@ -1000,7 +1001,8 @@ export async function POST(request: NextRequest) {
           url: url,
           text: fullText,
           useFullTextMode: true,
-          trigger: 'manual'
+          trigger: 'manual',
+          discoveryChannel: 'admin-manual',
         });
         
         const duration = Date.now() - startTime;
