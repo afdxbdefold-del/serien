@@ -169,6 +169,16 @@ const nextConfig: NextConfig = {
         destination: '/news',
         permanent: true,
       },
+      // Sammel-Recap Cleanup (Feb 2026): TVInsider Multi-Show-Roundup
+      // ("9-1-1, Grey's Anatomy, The Hunting Party Season Finales & The Terror
+      // Season Premiere") wurde fälschlich als Single-Series-News verarbeitet.
+      // Strukturelle Sperre via `lib/sammel-recap-detector.ts` greift ab
+      // nächstem Cron-Run. Bestands-Artikel 301 auf /serie/the-terror.
+      {
+        source: '/wann-startet-the-terror-staffel-3-im-linearen-programm',
+        destination: '/serie/the-terror',
+        permanent: true,
+      },
     ];
   },
   

@@ -342,6 +342,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // SAMMEL-RECAP GATE (Feb 2026)
+    //   TVInsider/Decider Multi-Show-Roundups ("Show1, Show2 & Show3 Season
+    //   Finales") werden vom LLM-Classifier oft als SINGLE_SERIES_NEWS
+    //   geroutet, weil die letzte/prominenteste Serie als primary_series
+    //   gewählt wird → MULTI_SERIES_EDITORIAL-Filter mit DEATH/PLATFORM/
+    //   AWARD-Override greift NICHT mehr. Frühe deterministische Sperre
+    //   am URL+Titel spart LLM-Tokens und schließt das Bypass-Loch.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { detectSammelRecap } = await import('../lib/sammel-recap-detector');
+      const recap = detectSammelRecap(source.title || '', source.url || '');
+      if (recap.isSammelRecap) {
+        console.log(`⛔ SAMMEL-RECAP SKIP: "${source.title.slice(0, 80)}"`);
+        console.log(`   Grund: ${recap.reason} (Treffer: "${recap.hit}")`);
+        await logger.fail(
+          `Sammel-Recap: ${recap.reason} — "${recap.hit}"`,
+          'sammel-recap',
+        );
+        return null;
+      }
+    }
+
     // ========== STEP 2: CLASSIFICATION ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 2: CLASSIFICATION');
