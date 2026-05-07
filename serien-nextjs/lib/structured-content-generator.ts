@@ -394,6 +394,15 @@ Renewal, Zitat), aber NICHT diese Verpackung:
      → WEGLASSEN. International beliebt = "ist ein Hit" oder
        "fand ein großes Publikum" — ohne konkrete US-Zahl.
 
+  ❌ US-Dollar-Beträge:
+     "300 Millionen Dollar", "$1.2 Milliarden", "$50M pro Folge"
+     → IMMER in Euro umrechnen mit Wechselkurs ≈ 0,92 EUR/USD und auf
+       runde Zahlen runden. Beispiele:
+         "300 Millionen Dollar" → "rund 275 Millionen Euro"
+         "50 Millionen Dollar"  → "rund 45 Millionen Euro"
+         "1,2 Milliarden Dollar" → "rund 1,1 Milliarden Euro"
+       Niemals beide Währungen nennen ("300 Mio Dollar bzw. 275 Mio Euro").
+
   ❌ US-Kalender-Slang:
      "Tuesday, May 5", "this Thursday", "midweek slot"
      → Stattdessen Monat oder Datum im DE-Format ("am 5. Mai 2026"

@@ -1295,6 +1295,67 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 5.05: Sanitizer');
 
+    // ========== STEP 5.06: USD → EUR CONVERTER ==========
+    // Defensive Schicht: alle Dollar-Beträge im generierten Content werden
+    // deterministisch in Euro umgerechnet (Wechselkurs ≈ 0,92, nice-rounding).
+    // Greift auch wenn Claude die Prompt-Regel ignoriert. Idempotent.
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 5.06: USD → EUR CONVERTER 💵→💶');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 5.06: USD-to-EUR');
+    try {
+      const { convertUsdMentions } = await import('../lib/usd-to-eur-converter');
+      let totalConv = 0;
+      const headRes = convertUsdMentions(structuredContent.headline);
+      structuredContent.headline = headRes.clean;
+      totalConv += headRes.report.conversions;
+      if (structuredContent.metaDescription) {
+        const r = convertUsdMentions(structuredContent.metaDescription);
+        structuredContent.metaDescription = r.clean;
+        totalConv += r.report.conversions;
+      }
+      if (structuredContent.lead) {
+        const r = convertUsdMentions(structuredContent.lead);
+        structuredContent.lead = r.clean;
+        totalConv += r.report.conversions;
+      }
+      for (const sec of structuredContent.sections || []) {
+        if (sec.heading) {
+          const r = convertUsdMentions(sec.heading);
+          sec.heading = r.clean;
+          totalConv += r.report.conversions;
+        }
+        if (Array.isArray(sec.paragraphs)) {
+          sec.paragraphs = sec.paragraphs.map((p: string) => {
+            const r = convertUsdMentions(p);
+            totalConv += r.report.conversions;
+            return r.clean;
+          });
+        }
+      }
+      for (const qa of structuredContent.qa || []) {
+        if (qa.question) {
+          const r = convertUsdMentions(qa.question);
+          qa.question = r.clean;
+          totalConv += r.report.conversions;
+        }
+        if (qa.answer) {
+          const r = convertUsdMentions(qa.answer);
+          qa.answer = r.clean;
+          totalConv += r.report.conversions;
+        }
+      }
+      if (totalConv > 0) {
+        console.log(`   💶 ${totalConv} Dollar-Mention(s) → Euro umgerechnet`);
+        logger.addMetadata('usdEurConversions', totalConv);
+      } else {
+        console.log(`   ✓ Keine Dollar-Beträge im Content`);
+      }
+    } catch (e: any) {
+      console.log(`   ⚠️  USD-Converter-Fehler: ${e.message}`);
+    }
+    console.timeEnd('⏱️  STEP 5.06: USD-to-EUR');
+
     // ========== STEP 5.1: QUALITY GATES ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 5.1: QUALITY GATES');
