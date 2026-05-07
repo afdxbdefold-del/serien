@@ -86,6 +86,10 @@ export function generateArticleSchema(data: {
   wordCount?: number;
   /** Optional: tag array, surfaced as comma-separated `keywords`. */
   keywords?: string[];
+  /** Optional: plain-text article body (max ~5000 chars), surfaced as `articleBody`. */
+  articleBody?: string;
+  /** Optional: external source URL (Variety, Deadline, …) referenced via `isBasedOn`. */
+  sourceUrl?: string;
   publisher?: {
     name: string;
     logo?: string;
@@ -108,6 +112,8 @@ export function generateArticleSchema(data: {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
     headline: data.title,
+    // Aggregator-Fallback: manche Crawler lesen `name` wenn `headline` fehlt.
+    name: data.title,
     description: data.description,
     image: generateImageObject(
       absoluteImageUrl,
@@ -145,6 +151,15 @@ export function generateArticleSchema(data: {
     ...(data.keywords && data.keywords.length > 0 && {
       keywords: data.keywords.join(', '),
     }),
+    ...(data.articleBody && {
+      articleBody: data.articleBody.slice(0, 5000),
+    }),
+    ...(data.sourceUrl && /^https?:\/\//.test(data.sourceUrl) && {
+      isBasedOn: [{
+        '@type': 'NewsArticle',
+        url: data.sourceUrl,
+      }],
+    }),
     ...(data.aboutSeriesSlug && {
       about: { '@id': `${baseUrl}/serie/${data.aboutSeriesSlug}#tvseries` },
     }),
@@ -154,9 +169,34 @@ export function generateArticleSchema(data: {
 }
 
 /**
- * Detect image type from URL and return appropriate dimensions
+ * Detect image type from URL and return appropriate dimensions.
+ *
+ * Pattern-Erkennung in Reihenfolge der Spezifität:
+ *   1. TMDB sized-URLs (`/t/p/w1280/…`, `/t/p/original/…`) → echte Maße
+ *   2. Nano-Banana Vercel Blob (`/nano-banana/…`) → 1536×1024 (gpt-image-1 Output)
+ *   3. Internal route handlers (`/img/og/`, `/img/hero/`, `/img/processed/`)
+ *   4. Default: 1920×1080 (Discover-safe, ≥1200 px Breite)
  */
 export function getImageDimensions(imageUrl: string): { width: number; height: number } {
+  // 1. TMDB direct image URLs (image.tmdb.org/t/p/<size>/…)
+  // Common sizes for backdrops: w300, w780, w1280, original (max 3840×2160)
+  const tmdbMatch = imageUrl.match(/image\.tmdb\.org\/t\/p\/(w\d+|original)\b/i);
+  if (tmdbMatch) {
+    const size = tmdbMatch[1].toLowerCase();
+    if (size === 'original') return { width: 1920, height: 1080 }; // Most TMDB backdrops are 1920×1080
+    const w = parseInt(size.slice(1), 10);
+    if (Number.isFinite(w) && w >= 300) {
+      // TMDB backdrops have 16:9 aspect (1.78). Round height to nearest int.
+      return { width: w, height: Math.round(w / (16 / 9)) };
+    }
+  }
+
+  // 2. Nano-Banana / GPT-Image-1 output (Vercel Blob, deterministic 1536×1024 from gpt-image-1)
+  if (/\/nano-banana\//i.test(imageUrl)) {
+    return { width: 1536, height: 1024 };
+  }
+
+  // 3. Internal route handlers
   if (imageUrl.includes('/img/processed/')) {
     return IMAGE_DIMENSIONS.PROCESSED;
   }
@@ -169,9 +209,9 @@ export function getImageDimensions(imageUrl: string): { width: number; height: n
   if (imageUrl.includes('/img/card/')) {
     return IMAGE_DIMENSIONS.CARD;
   }
-  
-  // Default to hero dimensions
-  return IMAGE_DIMENSIONS.HERO;
+
+  // 4. Default: Discover-safe 1920×1080 (≥1200 px Breite, 16:9 Aspect)
+  return IMAGE_DIMENSIONS.PROCESSED;
 }
 
 /**

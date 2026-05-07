@@ -68,6 +68,7 @@ const getArticle = (slug: string) => unstable_cache(
         bisherigerStandText: true,
         metaDescription: true,
         tags: true,
+        sourceUrl: true,
         users: {
           select: { id: true, name: true, image: true, bio: true, expertise: true }
         },
@@ -314,6 +315,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     alternates: {
       canonical: `${baseUrl}/${slug}`,
+      languages: {
+        'de-DE': `${baseUrl}/${slug}`,
+        'x-default': `${baseUrl}/${slug}`,
+      },
     },
     openGraph: {
       title: article.title,
@@ -451,6 +456,15 @@ export default async function ArticlePage({ params }: PageProps) {
       ? article.contentHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
       : undefined,
     keywords: article.tags && article.tags.length > 0 ? article.tags : undefined,
+    // Plain-text body (HTML stripped, whitespace collapsed) for Discover indexers
+    articleBody: article.contentHtml
+      ? article.contentHtml
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : undefined,
+    // E-E-A-T: explicit attribution to the journalistic source (Variety, Deadline, …).
+    sourceUrl: article.sourceUrl || undefined,
   });
 
   // Generate BreadcrumbList schema
