@@ -24,6 +24,27 @@ model ad_slots {
   updatedAt   DateTime
 }
 
+/// Observability for Google Indexing API calls.
+/// Captures every push attempt (publish/update/manual) so the admin dashboard
+/// can verify whether Google is actually receiving notifications and whether
+/// the API key/auth flow is healthy.
+model google_indexing_api_logs {
+  id              String   @id @default(cuid())
+  articleId       String?
+  url             String
+  eventType       String   // 'publish' | 'update' | 'manual'
+  requestPayload  String?  // JSON of the body we sent
+  responseStatus  Int?     // HTTP status from Google
+  responseBody    String?  // truncated response (max ~2000 chars)
+  success         Boolean
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([articleId])
+  @@index([success, createdAt])
+}
+
 model analytics_events {
   id          String   @id
   sessionId   String

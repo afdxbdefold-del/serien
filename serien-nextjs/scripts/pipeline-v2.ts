@@ -2380,7 +2380,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       (async () => {
         if (!saveAsDraft) {
           try {
-            await indexNewArticle(slug);
+            await indexNewArticle(slug, articleId);
           } catch (error: any) {
             console.log(`   ⚠️  Google Indexing failed: ${error.message}`);
           }

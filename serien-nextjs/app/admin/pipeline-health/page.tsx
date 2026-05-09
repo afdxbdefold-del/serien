@@ -20,6 +20,7 @@ import {
 import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 import SitemapHealthCard from '@/components/admin/SitemapHealthCard';
 import DiscoveryChannelCard from '@/components/admin/DiscoveryChannelCard';
+import GoogleIndexingApiCard from '@/components/admin/GoogleIndexingApiCard';
 
 type Health = 'ok' | 'warn' | 'critical';
 
@@ -477,6 +478,9 @@ export default function PipelineHealthPage() {
 
         {/* Discovery-Channel performance (Google News, RSS-Direct, Tudum, …) */}
         <DiscoveryChannelCard />
+
+        {/* Google Indexing API observability + manual trigger */}
+        <GoogleIndexingApiCard />
 
         {/* Duplicate prevention */}
         <section
