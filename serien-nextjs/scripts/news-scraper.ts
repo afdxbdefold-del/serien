@@ -905,10 +905,15 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         'multi-series-skip',
         'dach-availability',
         'blocklist-source',
+        'blocklist-tmdb',
         'genre-out-of-scope',
         'topic-out-of-scope',
+        'topic-age-check',           // Article wird nicht jünger → permanent
+        'source-age-check',          // dito
+        'tmdb-no-match',             // TMDB fügt die Show nicht plötzlich hinzu
         'primary-series-mismatch',
         'primary-series-unresolvable',
+        'german-angle-coverage',     // DE-Publisher-Coverage verschwindet selten → permanent
         'duplicate-llm',
         'duplicate-jaccard-title',
         'duplicate-core-event',
