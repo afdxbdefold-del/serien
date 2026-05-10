@@ -21,6 +21,7 @@ import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 import SitemapHealthCard from '@/components/admin/SitemapHealthCard';
 import DiscoveryChannelCard from '@/components/admin/DiscoveryChannelCard';
 import GoogleIndexingApiCard from '@/components/admin/GoogleIndexingApiCard';
+import FacebookStatusCard from '@/components/admin/FacebookStatusCard';
 
 type Health = 'ok' | 'warn' | 'critical';
 
@@ -481,6 +482,9 @@ export default function PipelineHealthPage() {
 
         {/* Google Indexing API observability + manual trigger */}
         <GoogleIndexingApiCard />
+
+        {/* Facebook Auto-Poster Status (App-Mode, Token, Posts/Tag) */}
+        <FacebookStatusCard />
 
         {/* Duplicate prevention */}
         <section
