@@ -19,11 +19,17 @@ const prisma = new PrismaClient();
 const GRAPH_VERSION = 'v21.0';
 const SITE_BASE = 'https://serien.de';
 
+// Rate-Limit-Konstanten — FB drosselt Pages bei >20 Posts/Tag mit externen Links.
+// Konservativ unter dem Limit halten, um eine wiederholte "Limited Distribution"-Penalty zu vermeiden.
+const RATE_LIMIT_MAX_PER_24H = 15;
+const RATE_LIMIT_MIN_GAP_MINUTES = 60;
+
 interface PostResult {
   success: boolean;
   fbPostId?: string;
   statusCode?: number;
   errorMessage?: string;
+  skipped?: 'rate_limit_daily' | 'rate_limit_gap';
 }
 
 /**
@@ -50,6 +56,36 @@ export async function postArticleToFacebook(
     });
     if (existing) {
       return { success: true, fbPostId: existing.fbPostId ?? undefined };
+    }
+  }
+
+  // Rate-Limit (nur für auto-Posts; manuelle Admin-Posts bypassen)
+  if (trigger === 'auto') {
+    const since24h = new Date(Date.now() - 24 * 3600_000);
+    const [count24h, lastPost] = await Promise.all([
+      prisma.facebook_post_log.count({
+        where: { createdAt: { gte: since24h }, success: true },
+      }),
+      prisma.facebook_post_log.findFirst({
+        where: { success: true },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    if (count24h >= RATE_LIMIT_MAX_PER_24H) {
+      const err = `Rate-Limit: ${count24h}/${RATE_LIMIT_MAX_PER_24H} Posts in letzten 24h`;
+      await logPost(slug, false, null, null, null, err, trigger);
+      return { success: false, errorMessage: err, skipped: 'rate_limit_daily' };
+    }
+
+    if (lastPost) {
+      const gapMinutes = (Date.now() - lastPost.createdAt.getTime()) / 60_000;
+      if (gapMinutes < RATE_LIMIT_MIN_GAP_MINUTES) {
+        const err = `Rate-Limit: nur ${Math.floor(gapMinutes)}min seit letztem Post (min ${RATE_LIMIT_MIN_GAP_MINUTES}min)`;
+        await logPost(slug, false, null, null, null, err, trigger);
+        return { success: false, errorMessage: err, skipped: 'rate_limit_gap' };
+      }
     }
   }
 
