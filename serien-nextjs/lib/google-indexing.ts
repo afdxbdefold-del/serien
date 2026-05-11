@@ -16,19 +16,45 @@ const INDEXING_API_URL = 'https://indexing.googleapis.com/v3/urlNotifications:pu
 
 let authClient: any = null;
 
+/**
+ * Decodiert den Service-Account-JSON aus der ENV-Variable.
+ *
+ * Akzeptiert BEIDE Formate für maximale Robustheit auf Vercel:
+ *   1. Base64-kodiertes JSON (empfohlen, vermeidet Newline-Probleme)
+ *   2. Plain JSON-String (z.B. direkt aus der service_account.json reinkopiert)
+ *
+ * Heuristik:
+ *   - Beginnt der getrimmte String mit `{` → plain JSON
+ *   - sonst → Base64-Decode versuchen, dann JSON-Parse
+ *
+ * Wirft `Error` mit beschreibendem Text wenn beide Pfade scheitern.
+ */
+function decodeServiceAccountJson(raw: string): {
+  creds: any;
+  decoded: string;
+  format: 'plain' | 'base64';
+} {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    return { creds: JSON.parse(trimmed), decoded: trimmed, format: 'plain' };
+  }
+  const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
+  return { creds: JSON.parse(decoded), decoded, format: 'base64' };
+}
+
 async function getAuthClient() {
   if (authClient) return authClient;
 
-  const jsonBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  
-  if (!jsonBase64) {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+  if (!raw) {
     throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var nicht gesetzt');
   }
 
-  const credentials = JSON.parse(Buffer.from(jsonBase64, 'base64').toString('utf-8'));
+  const { creds } = decodeServiceAccountJson(raw);
 
   const auth = new GoogleAuth({
-    credentials,
+    credentials: creds,
     scopes: ['https://www.googleapis.com/auth/indexing'],
   });
 
@@ -164,28 +190,39 @@ export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
     errors: [],
   };
 
-  const jsonBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!jsonBase64) {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) {
     out.errors.push('GOOGLE_SERVICE_ACCOUNT_JSON env var nicht gesetzt');
     return out;
   }
   out.envSet = true;
 
-  let decoded: string;
-  try {
-    decoded = Buffer.from(jsonBase64, 'base64').toString('utf-8');
-    out.base64Decoded = true;
-  } catch (e: any) {
-    out.errors.push(`Base64-Decode-Fehler: ${e.message}`);
-    return out;
-  }
-
   let creds: any;
   try {
-    creds = JSON.parse(decoded);
+    const result = decodeServiceAccountJson(raw);
+    creds = result.creds;
+    // Bei plain JSON markieren wir Base64-Decode als "OK" (nicht nötig)
+    // damit der Health-Check weiter sinnvoll bleibt
+    out.base64Decoded = true;
     out.jsonParsed = true;
   } catch (e: any) {
-    out.errors.push(`JSON-Parse-Fehler: ${e.message}`);
+    // Heuristisch: war es Base64-Decode oder JSON-Parse das gescheitert ist?
+    const trimmed = raw.trim();
+    const looksLikePlain = trimmed.startsWith('{');
+    if (looksLikePlain) {
+      // Plain-Format aber JSON.parse failed → vermutlich invalides JSON
+      out.base64Decoded = true; // nicht relevant, plain
+      out.errors.push(`JSON-Parse-Fehler (plain): ${e.message}`);
+    } else {
+      // Base64-Format, hat versucht zu decoden + parsen
+      try {
+        Buffer.from(trimmed, 'base64').toString('utf-8');
+        out.base64Decoded = true;
+        out.errors.push(`JSON-Parse-Fehler nach Base64-Decode: ${e.message}. Hinweis: Variable scheint Base64 zu sein, decodiert aber zu kein gültiges JSON. Vermutlich falsche Kodierung (z.B. URL-encoded oder ungültiger Base64).`);
+      } catch (b: any) {
+        out.errors.push(`Base64-Decode-Fehler: ${b.message}`);
+      }
+    }
     return out;
   }
 

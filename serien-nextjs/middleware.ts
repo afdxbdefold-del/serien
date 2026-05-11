@@ -98,7 +98,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(clean, 301);
   }
 
-  const response = NextResponse.next();
+  // Set x-pathname on the REQUEST headers so server components (e.g. root
+  // layout) can conditionally render based on the current path — e.g. skip
+  // the AdSense script on admin pages (ads are allowed only on article
+  // pages per user policy). NextResponse.next({ request: { headers } })
+  // is the documented way to pass headers through to the rendering layer.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', path);
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   // Crawler tracking: fire-and-forget POST to internal endpoint.
   // Middleware runs on every request (no ISR caching), so this catches every bot hit.
