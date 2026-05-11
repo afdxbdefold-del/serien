@@ -1,4 +1,5 @@
 import './globals.css';
+import Script from 'next/script';
 import { headers } from 'next/headers';
 import LayoutWrapper from '@/components/LayoutWrapper';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
@@ -96,38 +97,36 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="alternate" hrefLang="de-DE" href="https://serien.de" />
         <link rel="alternate" hrefLang="x-default" href="https://serien.de" />
         
-        {/* AdSense - NEVER REMOVE. Hardcoded publisher ID, must always be in <head>.
-            EXCEPT on /admin/* — ads policy: only article pages may show ads. */}
+        {/* AdSense - NEVER REMOVE. Hardcoded publisher ID.
+            EXCEPT on /admin/* — ads policy: only article pages may show ads.
+            Loaded with next/script `afterInteractive` strategy so it does not
+            block initial paint / hydration → reduces Total Blocking Time. */}
         {isAdsAllowed && (
-          <>
-            <script
-              async
-              src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-              crossOrigin="anonymous"
-            />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.adsbygoogle = window.adsbygoogle || [];`
-              }}
-            />
-          </>
+          <Script
+            id="adsbygoogle-loader"
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
         )}
 
-        {/* Google Analytics 4 (G-K7T0SF14YX) */}
-        <script
-          async
+        {/* Google Analytics 4 (G-K7T0SF14YX) — afterInteractive to avoid TBT */}
+        <Script
+          id="ga4-loader"
           src="https://www.googletagmanager.com/gtag/js?id=G-K7T0SF14YX"
+          strategy="afterInteractive"
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-K7T0SF14YX');
-            `,
-          }}
-        />
+        <Script
+          id="ga4-init"
+          strategy="afterInteractive"
+        >
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-K7T0SF14YX');
+          `}
+        </Script>
         
         {/* Global Schema.org markup */}
         <script
