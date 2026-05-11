@@ -294,7 +294,12 @@ Bewerte: KI oder Redakteur?`;
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-    const parsed = JSON.parse(content);
+    // Strip ```json ... ``` code fences that Claude/GPT often wrap JSON in.
+    const cleaned = content
+      .replace(/^\s*```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
 
     const verdict = parsed.verdict;
     const score = verdict === 'Redakteur' ? 100 : verdict === 'Unklar' ? 50 : 0;

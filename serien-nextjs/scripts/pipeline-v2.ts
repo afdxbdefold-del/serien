@@ -1398,8 +1398,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     
     try {
-      // Anti-AI Filter
-      const antiAiResult = antiAiFilter({
+      // Anti-AI Filter (async — must be awaited; otherwise score remains undefined → null in DB)
+      const antiAiResult = await antiAiFilter({
         articleHtml: structuredContent.markdown || '',
         headline: structuredContent.headline,
         seriesName: dbSeries.name || dbSeries.title || '',
@@ -1430,6 +1430,39 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`✅ Content age: ${contentAge.ageCategory}`);
     } catch (error: any) {
       console.log(`⚠️  Time-axis check skipped: ${error.message}`);
+    }
+
+    // Plagiarism / near-duplicate gate (TF-Cosine over 14-day published corpus).
+    // Catches re-writes of our own old articles that `duplicate-llm` would miss
+    // (LLM judges by event semantics; this gate catches lexical overlap that
+    // Google would treat as self-cannibalization regardless of intent).
+    try {
+      const { findSimilarArticles } = await import('../lib/article-similarity');
+      const similar = await findSimilarArticles(structuredContent.markdown || '', {
+        windowDays: 14,
+        topK: 3,
+        minTokens: 80,
+      });
+      const top = similar[0];
+      if (top && top.similarity >= 0.75) {
+        logger.log(`Plagiat-Gate: ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit zu /${top.slug}`, 'warn');
+        logger.addMetadata('plagiarismCheck', {
+          similarity: top.similarity,
+          matchSlug: top.slug,
+          matchTitle: top.title,
+          others: similar.slice(1, 3).map((s) => ({ slug: s.slug, sim: s.similarity })),
+        });
+        await logger.fail(
+          `Plagiat-Verdacht: ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit zu /${top.slug}`,
+          'plagiarism-similar-article',
+        );
+        return null;
+      }
+      if (top) {
+        logger.log(`Plagiat-Gate: max ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit (OK, unter Schwellenwert 75%)`);
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Plagiat-Check skipped: ${error.message}`);
     }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 

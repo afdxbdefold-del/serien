@@ -923,6 +923,7 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         'headline-banned-metaphor',
         'unreleased-project',
         'sammel-recap',
+        'plagiarism-similar-article',  // TF-Cosine matched an existing recent article → permanent
       ];
       const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
