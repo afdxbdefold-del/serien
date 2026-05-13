@@ -13,8 +13,16 @@ model ad_slots {
   position    String   @unique
   name        String
   description String?
+  // 'adsense' (legacy: render <ins class="adsbygoogle">) or
+  // 'custom'  (render arbitrary HTML / JS code from customHtmlJson)
+  provider    String   @default("adsense")
   adClient    String   @default("ca-pub-8583619451045805")
   adSlot      String
+  // JSON array of variants for custom-HTML mode (rotation supported).
+  // Each variant: { label: string, html: string, weight: number, isActive: boolean }
+  customHtmlJson String? @db.Text
+  // 'random' | 'weighted' | 'first'  — how to pick a variant on each render
+  rotationMode String   @default("random")
   width       Int
   height      Int
   isActive    Boolean  @default(true)

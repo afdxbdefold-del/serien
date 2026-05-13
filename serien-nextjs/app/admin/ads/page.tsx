@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Trash2, Plus, Eye, EyeOff, Monitor, Smartphone, RefreshCw } from 'lucide-react';
+import { Save, Trash2, Plus, Eye, EyeOff, Monitor, Smartphone, RefreshCw, Code, Layers } from 'lucide-react';
 
 // Vordefinierte Ad-Positionen mit Beschreibungen
 const AD_POSITIONS = [
@@ -64,13 +64,23 @@ const AD_POSITIONS = [
   },
 ];
 
+interface AdVariant {
+  label: string;
+  html: string;
+  weight: number;
+  isActive: boolean;
+}
+
 interface AdSlot {
   id?: string;
   position: string;
   name: string;
   description?: string;
+  provider: 'adsense' | 'custom';
   adClient: string;
   adSlot: string;
+  customHtmlVariants: AdVariant[];
+  rotationMode: 'random' | 'weighted' | 'first';
   width: number;
   height: number;
   isActive: boolean;
@@ -98,14 +108,22 @@ export default function AdsAdminPage() {
       const mergedSlots = AD_POSITIONS.map(pos => {
         const existing = data.find((s: AdSlot) => s.position === pos.position);
         if (existing) {
-          return existing;
+          return {
+            ...existing,
+            provider: existing.provider || 'adsense',
+            customHtmlVariants: Array.isArray(existing.customHtmlVariants) ? existing.customHtmlVariants : [],
+            rotationMode: existing.rotationMode || 'random',
+          };
         }
         return {
           position: pos.position,
           name: pos.name,
           description: pos.description,
+          provider: 'adsense' as const,
           adClient: 'ca-pub-8583619451045805',
           adSlot: '',
+          customHtmlVariants: [],
+          rotationMode: 'random' as const,
           width: pos.defaultWidth,
           height: pos.defaultHeight,
           isActive: false,
@@ -124,8 +142,12 @@ export default function AdsAdminPage() {
   };
 
   const handleSave = async (slot: AdSlot) => {
-    if (!slot.adSlot) {
-      setMessage({ type: 'error', text: 'Bitte Slot-ID eingeben' });
+    if (slot.provider === 'adsense' && !slot.adSlot) {
+      setMessage({ type: 'error', text: 'AdSense braucht eine Slot-ID' });
+      return;
+    }
+    if (slot.provider === 'custom' && (!slot.customHtmlVariants || slot.customHtmlVariants.length === 0 || !slot.customHtmlVariants.some(v => v.html.trim()))) {
+      setMessage({ type: 'error', text: 'Custom-HTML braucht mindestens einen Variant mit Inhalt' });
       return;
     }
 
@@ -292,66 +314,105 @@ export default function AdsAdminPage() {
 
                 {/* Slot Body */}
                 <div className="p-4 space-y-4">
-                  {/* AdSense Code Paste Area */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      AdSense-Code einfügen (automatische Erkennung)
-                    </label>
-                    <textarea
-                      placeholder="Füge hier den kompletten AdSense-Code ein..."
-                      className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-xs resize-none"
-                      onChange={(e) => parseAdCode(slot.position, e.target.value)}
-                    />
+                  {/* Provider Toggle */}
+                  <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
+                    <button
+                      type="button"
+                      onClick={() => updateSlot(slot.position, 'provider', 'adsense')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        slot.provider === 'adsense'
+                          ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                      data-testid={`provider-adsense-${slot.position}`}
+                    >
+                      <Code className="w-4 h-4" /> AdSense
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateSlot(slot.position, 'provider', 'custom')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        slot.provider === 'custom'
+                          ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                      data-testid={`provider-custom-${slot.position}`}
+                    >
+                      <Layers className="w-4 h-4" /> Custom HTML
+                    </button>
                   </div>
 
-                  {/* Manual Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Slot-ID *
-                      </label>
-                      <input
-                        type="text"
-                        value={slot.adSlot}
-                        onChange={(e) => updateSlot(slot.position, 'adSlot', e.target.value)}
-                        placeholder="z.B. 1234567890"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Breite (px)
-                      </label>
-                      <input
-                        type="number"
-                        value={slot.width}
-                        onChange={(e) => updateSlot(slot.position, 'width', parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Höhe (px)
-                      </label>
-                      <input
-                        type="number"
-                        value={slot.height}
-                        onChange={(e) => updateSlot(slot.position, 'height', parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Client-ID
-                      </label>
-                      <input
-                        type="text"
-                        value={slot.adClient}
-                        onChange={(e) => updateSlot(slot.position, 'adClient', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
-                      />
-                    </div>
-                  </div>
+                  {slot.provider === 'adsense' ? (
+                    <>
+                      {/* AdSense Code Paste Area */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          AdSense-Code einfügen (automatische Erkennung)
+                        </label>
+                        <textarea
+                          placeholder="Füge hier den kompletten AdSense-Code ein..."
+                          className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-xs resize-none"
+                          onChange={(e) => parseAdCode(slot.position, e.target.value)}
+                        />
+                      </div>
+
+                      {/* AdSense fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Slot-ID *
+                          </label>
+                          <input
+                            type="text"
+                            value={slot.adSlot}
+                            onChange={(e) => updateSlot(slot.position, 'adSlot', e.target.value)}
+                            placeholder="z.B. 1234567890"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono"
+                            data-testid={`slot-id-${slot.position}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Breite (px)
+                          </label>
+                          <input
+                            type="number"
+                            value={slot.width}
+                            onChange={(e) => updateSlot(slot.position, 'width', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Höhe (px)
+                          </label>
+                          <input
+                            type="number"
+                            value={slot.height}
+                            onChange={(e) => updateSlot(slot.position, 'height', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Client-ID
+                          </label>
+                          <input
+                            type="text"
+                            value={slot.adClient}
+                            onChange={(e) => updateSlot(slot.position, 'adClient', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* Custom HTML mode */
+                    <CustomHtmlEditor
+                      slot={slot}
+                      updateSlot={updateSlot}
+                    />
+                  )}
 
                   {/* Toggles */}
                   <div className="flex flex-wrap items-center gap-6 pt-2">
@@ -418,8 +479,13 @@ export default function AdsAdminPage() {
                       )}
                       <button
                         onClick={() => handleSave(slot)}
-                        disabled={saving === slot.position || !slot.adSlot}
+                        disabled={
+                          saving === slot.position ||
+                          (slot.provider === 'adsense' && !slot.adSlot) ||
+                          (slot.provider === 'custom' && (slot.customHtmlVariants?.length === 0 || !slot.customHtmlVariants?.some(v => v.html?.trim())))
+                        }
                         className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                        data-testid={`save-${slot.position}`}
                       >
                         {saving === slot.position ? (
                           <RefreshCw className="w-4 h-4 animate-spin" />
@@ -432,7 +498,7 @@ export default function AdsAdminPage() {
                   </div>
 
                   {/* Preview */}
-                  {slot.adSlot && (
+                  {slot.provider === 'adsense' && slot.adSlot && (
                     <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Vorschau (generierter Code):</p>
                       <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">
@@ -453,13 +519,171 @@ export default function AdsAdminPage() {
         <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
           <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Hinweise</h3>
           <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-            <li>• Füge den kompletten AdSense-Code in das Textfeld ein - die Werte werden automatisch erkannt</li>
-            <li>• Oder konfiguriere die Felder manuell</li>
-            <li>• "Aktiv" muss aktiviert sein, damit die Werbung angezeigt wird</li>
+            <li>• <b>AdSense</b>: Füge den kompletten AdSense-Code ein, Werte werden automatisch erkannt</li>
+            <li>• <b>Custom HTML</b>: Beliebiger HTML-/JS-Code (Plista, Outbrain, Affiliate-Banner, Direct-Deals). Mehrere Varianten ergänzen → Rotation aktiv</li>
+            <li>• <b>Rotation:</b> Random = gleichmäßig, Weighted = nach Gewicht, First = immer der erste aktive Variant</li>
+            <li>• &quot;Aktiv&quot; muss aktiviert sein, damit die Werbung angezeigt wird</li>
             <li>• Änderungen werden nach 5 Minuten auf der Website sichtbar (Cache)</li>
             <li>• Ads werden nur auf Artikelseiten angezeigt</li>
           </ul>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Editor for the Custom-HTML provider mode. Each ad slot can have N variants;
+ * if >1 active variant is present, the client-side ClientAdSlot picks one at
+ * render time based on the rotationMode (random / weighted / first).
+ */
+function CustomHtmlEditor({
+  slot,
+  updateSlot,
+}: {
+  slot: AdSlot;
+  updateSlot: (position: string, field: string, value: any) => void;
+}) {
+  const variants = slot.customHtmlVariants || [];
+
+  const updateVariant = (idx: number, field: keyof AdVariant, value: any) => {
+    const next = variants.map((v, i) => (i === idx ? { ...v, [field]: value } : v));
+    updateSlot(slot.position, 'customHtmlVariants', next);
+  };
+
+  const addVariant = () => {
+    const next = [
+      ...variants,
+      { label: `Variante ${variants.length + 1}`, html: '', weight: 1, isActive: true },
+    ];
+    updateSlot(slot.position, 'customHtmlVariants', next);
+  };
+
+  const removeVariant = (idx: number) => {
+    const next = variants.filter((_, i) => i !== idx);
+    updateSlot(slot.position, 'customHtmlVariants', next);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Dimensions + rotation mode */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Breite (px) — nur für Platzhalter
+          </label>
+          <input
+            type="number"
+            value={slot.width}
+            onChange={(e) => updateSlot(slot.position, 'width', parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Höhe (px)
+          </label>
+          <input
+            type="number"
+            value={slot.height}
+            onChange={(e) => updateSlot(slot.position, 'height', parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Rotation
+          </label>
+          <select
+            value={slot.rotationMode}
+            onChange={(e) => updateSlot(slot.position, 'rotationMode', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+            data-testid={`rotation-mode-${slot.position}`}
+          >
+            <option value="random">Zufällig (Random)</option>
+            <option value="weighted">Gewichtet (Weighted)</option>
+            <option value="first">Erste aktive (First)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Variants */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
+            HTML-Varianten {variants.length > 1 && <span className="text-cyan-600">(Rotation aktiv)</span>}
+          </h4>
+          <button
+            type="button"
+            onClick={addVariant}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg"
+            data-testid={`add-variant-${slot.position}`}
+          >
+            <Plus className="w-4 h-4" /> Variant hinzufügen
+          </button>
+        </div>
+
+        {variants.length === 0 && (
+          <div className="text-sm text-gray-500 dark:text-gray-400 p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
+            Noch keine Varianten. Klicke „Variant hinzufügen" um zu starten.
+          </div>
+        )}
+
+        {variants.map((v, idx) => (
+          <div
+            key={idx}
+            className={`rounded-lg border-2 p-3 ${
+              v.isActive
+                ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10'
+                : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 opacity-60'
+            }`}
+            data-testid={`variant-${slot.position}-${idx}`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <input
+                type="text"
+                value={v.label}
+                onChange={(e) => updateVariant(idx, 'label', e.target.value)}
+                placeholder={`Variante ${idx + 1}`}
+                className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              />
+              {slot.rotationMode === 'weighted' && (
+                <input
+                  type="number"
+                  min="0"
+                  value={v.weight}
+                  onChange={(e) => updateVariant(idx, 'weight', parseInt(e.target.value) || 1)}
+                  placeholder="Gewicht"
+                  title="Gewicht (höher = häufiger)"
+                  className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-center"
+                />
+              )}
+              <label className="flex items-center gap-1 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={v.isActive}
+                  onChange={(e) => updateVariant(idx, 'isActive', e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500"
+                />
+                <span className="text-gray-700 dark:text-gray-300">Aktiv</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => removeVariant(idx)}
+                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                title="Variant löschen"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+            <textarea
+              value={v.html}
+              onChange={(e) => updateVariant(idx, 'html', e.target.value)}
+              placeholder="<!-- HTML-Code des Werbemittels — z.B. Plista, Outbrain, Affiliate-Banner, JustWatch-Widget, eigenes Direct-Deal-Creative -->"
+              className="w-full h-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-xs resize-y"
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

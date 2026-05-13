@@ -21,9 +21,23 @@ export async function GET() {
     // Convert to a map for easy lookup
     const slotsMap: Record<string, any> = {};
     adSlots.forEach(slot => {
+      // Parse customHtmlJson once on the server so the client never
+      // ships JSON.parse() for every slot render.
+      let customHtmlVariants: any[] | undefined;
+      if (slot.provider === 'custom' && slot.customHtmlJson) {
+        try {
+          const parsed = JSON.parse(slot.customHtmlJson);
+          if (Array.isArray(parsed)) customHtmlVariants = parsed;
+        } catch {
+          customHtmlVariants = undefined;
+        }
+      }
       slotsMap[slot.position] = {
+        provider: slot.provider || 'adsense',
         adClient: slot.adClient,
         adSlot: slot.adSlot,
+        customHtmlVariants,
+        rotationMode: slot.rotationMode || 'random',
         width: slot.width,
         height: slot.height,
         mobileOnly: slot.mobileOnly,

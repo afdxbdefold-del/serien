@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { injectHtmlWithScripts, pickAdVariant, AdVariant } from '@/lib/ad-html-injector';
 
 declare global {
   interface Window {
@@ -10,8 +11,11 @@ declare global {
 }
 
 interface AdConfig {
+  provider: 'adsense' | 'custom';
   adClient: string;
   adSlot: string;
+  customHtmlVariants?: AdVariant[];
+  rotationMode?: 'random' | 'weighted' | 'first';
   width: number;
   height: number;
   mobileOnly: boolean;
@@ -62,10 +66,22 @@ function AdSlotInner({ config }: { config: AdConfig }) {
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
 
-    // Clear any previous content
-    container.innerHTML = '';
+    // Custom HTML provider (Plista, Outbrain, direct deal, anything else):
+    // inject the HTML and ensure embedded <script> tags actually run.
+    if (config.provider === 'custom') {
+      const variants = config.customHtmlVariants || [];
+      const picked = pickAdVariant(variants, config.rotationMode || 'random');
+      if (picked) {
+        injectHtmlWithScripts(container, picked.html);
+      }
+      return () => {
+        container.innerHTML = '';
+      };
+    }
 
-    // Create fresh <ins> via raw DOM (not React JSX)
+    // AdSense provider: create fresh <ins> via raw DOM (not React JSX) so
+    // adsbygoogle.push() always sees a clean, never-seen-before element.
+    container.innerHTML = '';
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
     ins.style.display = 'inline-block';
@@ -84,7 +100,7 @@ function AdSlotInner({ config }: { config: AdConfig }) {
       if (typeof window.adsbygoogle !== 'undefined') {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
+        } catch {
           // AdSense errors are expected in some cases
         }
       } else if (attempts < maxAttempts) {
@@ -92,7 +108,6 @@ function AdSlotInner({ config }: { config: AdConfig }) {
       }
     };
 
-    // Wait for DOM to settle before pushing
     retryTimer = setTimeout(tryPush, 250);
 
     return () => {
