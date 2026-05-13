@@ -1464,6 +1464,26 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch (error: any) {
       console.log(`⚠️  Plagiat-Check skipped: ${error.message}`);
     }
+    // US-only streaming gate (deterministic). Headline + US provider + DACH
+    // mention only as side-note → block. Catches the "Das Boot streamt in
+    // den USA bei MHz Choice" class of articles that pass the LLM-based
+    // german-angle filter via a perfunctory "in Deutschland bei Netflix
+    // verfügbar" side-note.
+    try {
+      const { checkUsOnlyStreaming } = await import('../lib/us-only-streaming-filter');
+      const usCheck = checkUsOnlyStreaming({
+        headline: structuredContent.headline || '',
+        body: structuredContent.markdown || '',
+        sourceTitle: source.title || '',
+      });
+      if (usCheck.blocked) {
+        logger.addMetadata('usOnlyCheck', usCheck.signals);
+        await logger.fail(usCheck.reason, 'us-streaming-only');
+        return null;
+      }
+    } catch (error: any) {
+      console.log(`⚠️  US-only-streaming check skipped: ${error.message}`);
+    }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 
     // ========== STEP 5.2: AUTO-RETRY BEI NIEDRIGER QUALITÄT ==========
