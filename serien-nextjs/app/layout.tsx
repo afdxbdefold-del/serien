@@ -1,6 +1,5 @@
 import './globals.css';
 import Script from 'next/script';
-import { headers } from 'next/headers';
 import LayoutWrapper from '@/components/LayoutWrapper';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
@@ -62,17 +61,13 @@ export const metadata = {
   },
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const websiteSchema = generateWebSiteSchema();
   const orgSchema = generateOrganizationSchema();
-
-  // Determine current path (set by middleware) so we can skip ad scripts on
-  // admin pages. User policy: "Ads dürfen nur auf artikelseiten angezeigt
-  // werden". /admin/* never renders AdSense — neither the loader script nor
-  // any Auto-Ads injection it would trigger.
-  const hdrs = await headers();
-  const pathname = hdrs.get('x-pathname') || '';
-  const isAdsAllowed = !pathname.startsWith('/admin');
+  // AdSense script is intentionally NOT loaded here in the root layout —
+  // it's now scoped to article pages only (see app/[slug]/page.tsx). This
+  // keeps the root layout static-renderable and avoids `Cache-Control:
+  // no-store` propagating to every route via headers().
   
   return (
     <html lang="de" suppressHydrationWarning>
@@ -97,18 +92,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="alternate" hrefLang="de-DE" href="https://serien.de" />
         <link rel="alternate" hrefLang="x-default" href="https://serien.de" />
         
-        {/* AdSense - NEVER REMOVE. Hardcoded publisher ID.
-            EXCEPT on /admin/* — ads policy: only article pages may show ads.
-            Loaded with next/script `afterInteractive` strategy so it does not
-            block initial paint / hydration → reduces Total Blocking Time. */}
-        {isAdsAllowed && (
-          <Script
-            id="adsbygoogle-loader"
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
+        {/* AdSense loader is scoped to /[slug] (article pages) — not loaded
+            in root layout per ads policy "only on article pages". */}
 
         {/* Google Analytics 4 (G-K7T0SF14YX) — afterInteractive to avoid TBT */}
         <Script

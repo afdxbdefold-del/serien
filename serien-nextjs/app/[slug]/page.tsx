@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import Script from 'next/script';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
@@ -503,9 +504,14 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
-      {/* AdSense script is loaded globally in app/layout.tsx with afterInteractive
-          strategy. No need to load it again here — duplicate loads block the
-          main thread and inflate Total Blocking Time. */}
+      {/* AdSense loader — scoped to article pages per ads policy. Uses
+          afterInteractive so it doesn't block initial paint or hydration. */}
+      <Script
+        id="adsbygoogle-loader"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
 
       {/* JSON-LD Structured Data with ImageObject */}
       <script
@@ -596,6 +602,8 @@ export default async function ArticlePage({ params }: PageProps) {
                         fill
                         className="object-cover"
                         priority
+                        fetchPriority="high"
+                        sizes="(max-width: 1024px) 100vw, 1024px"
                       />
                     )}
                   </div>

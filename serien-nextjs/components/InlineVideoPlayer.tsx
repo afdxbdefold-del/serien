@@ -77,6 +77,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
           fill
           className="object-cover"
           priority
+          fetchPriority="high"
+          sizes="(max-width: 1024px) 100vw, 1024px"
         />
       </div>
     );
@@ -172,6 +174,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
             fill
             className="object-cover transition-opacity duration-300"
             priority
+            fetchPriority="high"
+            sizes="(max-width: 1024px) 100vw, 1024px"
           />
           
           {/* Play Button Overlay */}
