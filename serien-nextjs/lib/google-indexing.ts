@@ -237,7 +237,32 @@ export interface IndexingHealth {
   serviceAccountEmail: string | null;
   projectId: string | null;
   tokenGenerated: boolean;
+  envFingerprint: { length: number; head: string; tail: string; looksLike: string } | null;
   errors: string[];
+}
+
+/**
+ * Produces a non-sensitive "fingerprint" of the env value so the user can
+ * debug *what* is stored on Vercel without exposing the secret itself.
+ * Returns: length, first 4 chars, last 4 chars, and a guess what it might be.
+ */
+function envFingerprint(raw: string): { length: number; head: string; tail: string; looksLike: string } {
+  const trimmed = raw.trim();
+  const len = trimmed.length;
+  const head = trimmed.slice(0, 4);
+  const tail = len > 8 ? trimmed.slice(-4) : '…';
+
+  let looksLike = 'unbekannt';
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) looksLike = 'plain JSON (aber invalid)';
+  else if (trimmed.startsWith('"') && trimmed.endsWith('"')) looksLike = 'quoted string';
+  else if (/^[A-Za-z0-9+/=]+$/.test(trimmed)) looksLike = 'Standard-Base64 (aber dekodiert zu Müll)';
+  else if (/^[A-Za-z0-9_-]+={0,2}$/.test(trimmed)) looksLike = 'URL-safe Base64';
+  else if (trimmed.startsWith('%')) looksLike = 'URL-encoded';
+  else if (trimmed.startsWith('-----BEGIN')) looksLike = 'PEM private key (nicht das ganze JSON!)';
+  else if (trimmed.startsWith('eyJ')) looksLike = 'JWT-Token (nicht Service-Account!)';
+  else if (trimmed.includes(' ') || trimmed.includes('\n')) looksLike = 'enthält Whitespace/Newlines';
+
+  return { length: len, head, tail, looksLike };
 }
 
 export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
@@ -249,6 +274,7 @@ export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
     serviceAccountEmail: null,
     projectId: null,
     tokenGenerated: false,
+    envFingerprint: null,
     errors: [],
   };
 
@@ -258,6 +284,7 @@ export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
     return out;
   }
   out.envSet = true;
+  out.envFingerprint = envFingerprint(raw);
 
   let creds: any;
   try {

@@ -22,6 +22,7 @@ interface IndexingHealth {
   serviceAccountEmail: string | null;
   projectId: string | null;
   tokenGenerated: boolean;
+  envFingerprint: { length: number; head: string; tail: string; looksLike: string } | null;
   errors: string[];
 }
 
@@ -179,6 +180,14 @@ export default function GoogleIndexingApiCard() {
             <ul className="list-disc list-inside text-xs">
               {data.health.errors.map((e, i) => <li key={i}>{e}</li>)}
             </ul>
+            {data.health.envFingerprint && (
+              <div className="mt-2 text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded p-2 font-mono">
+                <div className="font-semibold mb-1 not-italic">ENV-Fingerprint:</div>
+                <div>Länge: {data.health.envFingerprint.length} chars</div>
+                <div>Beginn: <code>{data.health.envFingerprint.head}…</code> · Ende: <code>…{data.health.envFingerprint.tail}</code></div>
+                <div>Sieht aus wie: <strong>{data.health.envFingerprint.looksLike}</strong></div>
+              </div>
+            )}
             <div className="mt-2 text-xs text-red-800 bg-red-50 border border-red-200 rounded p-2">
               <strong>Fix:</strong> Auf einer Maschine mit der <code>service_account.json</code>:
               <pre className="mt-1 bg-white p-1 rounded font-mono text-[11px] overflow-x-auto">base64 -w0 service_account.json</pre>
