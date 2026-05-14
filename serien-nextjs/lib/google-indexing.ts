@@ -19,27 +19,87 @@ let authClient: any = null;
 /**
  * Decodiert den Service-Account-JSON aus der ENV-Variable.
  *
- * Akzeptiert BEIDE Formate für maximale Robustheit auf Vercel:
- *   1. Base64-kodiertes JSON (empfohlen, vermeidet Newline-Probleme)
- *   2. Plain JSON-String (z.B. direkt aus der service_account.json reinkopiert)
+ * Probiert (in dieser Reihenfolge) alle gängigen Vercel-Pannen durch:
+ *   1. Plain JSON (`{...}`)
+ *   2. Plain JSON in Quotes gewrappt (`"{...}"` mit escapten Newlines)
+ *   3. Standard-Base64 (empfohlen)
+ *   4. URL-safe Base64 (`-_` statt `+/`)
+ *   5. URL-decoded → JSON
  *
- * Heuristik:
- *   - Beginnt der getrimmte String mit `{` → plain JSON
- *   - sonst → Base64-Decode versuchen, dann JSON-Parse
- *
- * Wirft `Error` mit beschreibendem Text wenn beide Pfade scheitern.
+ * Validiert das Ergebnis (`client_email` + `private_key` müssen vorhanden sein),
+ * sonst wird die nächste Variante probiert.
  */
+type DecodeFormat = 'plain' | 'plain-unquoted' | 'base64' | 'base64url' | 'url-encoded';
+
+function looksLikeServiceAccount(obj: any): boolean {
+  return !!(obj && typeof obj === 'object' && obj.client_email && obj.private_key);
+}
+
 function decodeServiceAccountJson(raw: string): {
   creds: any;
   decoded: string;
-  format: 'plain' | 'base64';
+  format: DecodeFormat;
 } {
   const trimmed = raw.trim();
-  if (trimmed.startsWith('{')) {
-    return { creds: JSON.parse(trimmed), decoded: trimmed, format: 'plain' };
+  const attempts: { format: DecodeFormat; produce: () => string }[] = [
+    { format: 'plain', produce: () => trimmed },
+    {
+      format: 'plain-unquoted',
+      produce: () => {
+        // Vercel/dotenv wrappt manchmal JSON in Quotes. JSON.parse aufs
+        // Outer-Wrapper macht das Unescaping atomar (keine fragilen Regex).
+        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+          const inner = JSON.parse(trimmed);
+          if (typeof inner !== 'string') throw new Error('outer parse lieferte non-string');
+          return inner;
+        }
+        throw new Error('not quote-wrapped');
+      },
+    },
+    { format: 'base64', produce: () => Buffer.from(trimmed, 'base64').toString('utf-8') },
+    {
+      format: 'base64url',
+      produce: () => {
+        const normalized = trimmed.replace(/-/g, '+').replace(/_/g, '/');
+        // Re-pad
+        const pad = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+        return Buffer.from(normalized + pad, 'base64').toString('utf-8');
+      },
+    },
+    { format: 'url-encoded', produce: () => decodeURIComponent(trimmed) },
+  ];
+
+  const errors: string[] = [];
+  for (const a of attempts) {
+    let decoded: string;
+    try {
+      decoded = a.produce();
+    } catch (e: any) {
+      errors.push(`${a.format}: ${e.message}`);
+      continue;
+    }
+    // Cheap pre-check: must contain a key marker before we try to parse
+    if (!decoded.includes('"type"') && !decoded.includes('service_account')) {
+      errors.push(`${a.format}: keine Service-Account-Marker im Ergebnis`);
+      continue;
+    }
+    try {
+      const creds = JSON.parse(decoded);
+      if (!looksLikeServiceAccount(creds)) {
+        errors.push(`${a.format}: parsed OK aber client_email/private_key fehlt`);
+        continue;
+      }
+      return { creds, decoded, format: a.format };
+    } catch (e: any) {
+      errors.push(`${a.format}: JSON.parse → ${e.message}`);
+    }
   }
-  const decoded = Buffer.from(trimmed, 'base64').toString('utf-8');
-  return { creds: JSON.parse(decoded), decoded, format: 'base64' };
+
+  throw new Error(
+    `Konnte GOOGLE_SERVICE_ACCOUNT_JSON nicht dekodieren. Probiert: ${errors.join(' | ')}. ` +
+      `Empfohlene Lösung: \`base64 -w0 service_account.json | pbcopy\` und den Inhalt 1:1 ` +
+      `in Vercel als ENV-Wert einfügen (keine Quotes, keine Newlines, Standard-Base64-Alphabet).`,
+  );
 }
 
 async function getAuthClient() {
@@ -173,6 +233,7 @@ export interface IndexingHealth {
   envSet: boolean;
   base64Decoded: boolean;
   jsonParsed: boolean;
+  detectedFormat: DecodeFormat | null;
   serviceAccountEmail: string | null;
   projectId: string | null;
   tokenGenerated: boolean;
@@ -184,6 +245,7 @@ export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
     envSet: false,
     base64Decoded: false,
     jsonParsed: false,
+    detectedFormat: null,
     serviceAccountEmail: null,
     projectId: null,
     tokenGenerated: false,
@@ -201,28 +263,11 @@ export async function checkIndexingApiHealth(): Promise<IndexingHealth> {
   try {
     const result = decodeServiceAccountJson(raw);
     creds = result.creds;
-    // Bei plain JSON markieren wir Base64-Decode als "OK" (nicht nötig)
-    // damit der Health-Check weiter sinnvoll bleibt
+    out.detectedFormat = result.format;
     out.base64Decoded = true;
     out.jsonParsed = true;
   } catch (e: any) {
-    // Heuristisch: war es Base64-Decode oder JSON-Parse das gescheitert ist?
-    const trimmed = raw.trim();
-    const looksLikePlain = trimmed.startsWith('{');
-    if (looksLikePlain) {
-      // Plain-Format aber JSON.parse failed → vermutlich invalides JSON
-      out.base64Decoded = true; // nicht relevant, plain
-      out.errors.push(`JSON-Parse-Fehler (plain): ${e.message}`);
-    } else {
-      // Base64-Format, hat versucht zu decoden + parsen
-      try {
-        Buffer.from(trimmed, 'base64').toString('utf-8');
-        out.base64Decoded = true;
-        out.errors.push(`JSON-Parse-Fehler nach Base64-Decode: ${e.message}. Hinweis: Variable scheint Base64 zu sein, decodiert aber zu kein gültiges JSON. Vermutlich falsche Kodierung (z.B. URL-encoded oder ungültiger Base64).`);
-      } catch (b: any) {
-        out.errors.push(`Base64-Decode-Fehler: ${b.message}`);
-      }
-    }
+    out.errors.push(e.message);
     return out;
   }
 

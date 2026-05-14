@@ -18,6 +18,7 @@ interface IndexingHealth {
   envSet: boolean;
   base64Decoded: boolean;
   jsonParsed: boolean;
+  detectedFormat: string | null;
   serviceAccountEmail: string | null;
   projectId: string | null;
   tokenGenerated: boolean;
@@ -169,6 +170,7 @@ export default function GoogleIndexingApiCard() {
           <div className="mt-2 text-xs text-gray-600 font-mono break-all">
             {data.health.serviceAccountEmail}
             {data.health.projectId && <> · project=<span className="font-semibold">{data.health.projectId}</span></>}
+            {data.health.detectedFormat && <> · format=<span className="font-semibold">{data.health.detectedFormat}</span></>}
           </div>
         )}
         {data.health.errors.length > 0 && (
@@ -177,6 +179,11 @@ export default function GoogleIndexingApiCard() {
             <ul className="list-disc list-inside text-xs">
               {data.health.errors.map((e, i) => <li key={i}>{e}</li>)}
             </ul>
+            <div className="mt-2 text-xs text-red-800 bg-red-50 border border-red-200 rounded p-2">
+              <strong>Fix:</strong> Auf einer Maschine mit der <code>service_account.json</code>:
+              <pre className="mt-1 bg-white p-1 rounded font-mono text-[11px] overflow-x-auto">base64 -w0 service_account.json</pre>
+              Output 1:1 in Vercel → Settings → Environment Variables → <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> einfügen (keine Quotes, keine Newlines). Danach Redeploy.
+            </div>
           </div>
         )}
         {!data.health.envSet && (
