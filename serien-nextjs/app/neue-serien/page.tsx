@@ -111,12 +111,131 @@ const getNewReleasesData = unstable_cache(
     // Get slug + display titles from series table for all releases.
     // We fetch German title + English name so we can fall back when the
     // streaming_releases.name is in a non-Latin script (Korean / Japanese / Chinese).
+    // Also fetch language/genres/countries for the Anime/Reality/Foreign filter.
     const tmdbIds = [...new Set(releases.map((r) => r.tmdbId))];
     const seriesMeta = await prisma.series.findMany({
       where: { tmdbId: { in: tmdbIds } },
-      select: { tmdbId: true, slug: true, title: true, name: true, originalName: true },
+      select: {
+        tmdbId: true,
+        slug: true,
+        title: true,
+        name: true,
+        originalName: true,
+        originalLanguage: true,
+        genres: true,
+        productionCountries: true,
+      },
     });
     const metaByTmdb = new Map(seriesMeta.map((s) => [s.tmdbId, s]));
+
+    // ── Filter: Anime / asiatische Originalsprachen / Reality-Trash ───────
+    // Goal: keep the page focused on Western-mainstream streaming content
+    // that a German viewer is likely to actually watch. Anime fans have
+    // Crunchyroll's own catalogue + dedicated /crunchyroll-serien page.
+    const BLOCKED_LANGUAGES = new Set([
+      'ja', 'ko', 'zh', 'th', 'tr', 'hi', 'tl', 'vi', 'ar', 'id', 'ms',
+    ]);
+    // Asian-origin animation = Anime. Western animation (Family Guy, American
+    // Dad, Regular Show, Rick & Morty) stays — those are mainstream comedy.
+    const ASIAN_COUNTRIES = new Set(['JP', 'KR', 'CN', 'TW', 'HK', 'TH', 'VN']);
+    const ASIAN_COUNTRY_NAMES = new Set([
+      'Japan', 'South Korea', 'China', 'Taiwan', 'Hong Kong', 'Thailand', 'Vietnam',
+    ]);
+    // Hard-blocked genres — no German viewer comes to /neue-serien for these.
+    const BLOCKED_GENRES = new Set([
+      'Reality', 'Soap', 'News', 'Talk-Show', 'Talk', 'Game-Show',
+    ]);
+    // Crunchyroll is a pure-anime streamer. Skip entirely on the aggregator —
+    // dedicated /crunchyroll-serien still exists for fans.
+    const BLOCKED_PROVIDERS = new Set(['Crunchyroll']);
+
+    // Title-based anime detection — needed because our DB has empty
+    // originalLanguage / productionCountries for many anime that TMDB never
+    // backfilled. Patterns:
+    //   • ALL-CAPS Latin title (BEYBLADE X, MARRIAGETOXIN, LIAR GAME, NIPPON SANGOKU)
+    //   • Common isekai / harem / shonen vocabulary (Reborn as, Reincarnated, Demon Lord, ...)
+    //   • Long quirky descriptive titles ("The Most Heretical Last Boss Queen From the Hero")
+    //   • Japanese honorifics in the title (-kun!, -chan, -sensei, -sama)
+    // Whitelist is checked first to keep Western mainstream animation
+    // (Family Guy, American Dad, Bob's Burgers, SpongeBob, Rick and Morty, ...).
+    const WESTERN_ANIMATION_WHITELIST = new Set(
+      [
+        'family guy', 'american dad', "bob's burgers", 'bobs burgers',
+        'spongebob schwammkopf', 'spongebob squarepants',
+        'regular show', 'rick and morty', 'the simpsons', 'die simpsons',
+        'south park', 'king of the hill', 'futurama', 'archer',
+        'big mouth', 'bojack horseman', 'disenchantment', 'inside job',
+        'adventure time', 'steven universe', 'gravity falls',
+        'avatar - the last airbender', 'avatar - der herr der elemente',
+        'bluey', 'paw patrol', 'peppa pig', 'masha and the bear',
+        'arcane', 'invincible', 'the legend of korra', 'love death + robots',
+        'star wars - the clone wars', 'star wars - rebels', 'star wars - andor',
+        'harley quinn', 'star wars - visions',
+      ].map((s) => s.toLowerCase()),
+    );
+
+    const ANIME_TITLE_KEYWORDS = [
+      /\b(isekai|tensei|otaku|sensei|senpai|onii(?:-?san|-?chan)?|onee(?:-?san|-?chan)?|imouto|waifu|tsundere|yandere|harem|shonen|shojo|seinen|josei)\b/i,
+      /\breborn\s+as\b/i,
+      /\breincarnated\s+(as|into)\b/i,
+      /\b(demon|dark)\s+lord\b/i,
+      /\b(my\s+)?(beloved|cute)\s+(little\s+)?sister\b/i,
+      /\b(dungeon|adventurer)\s+(of|in)\b/i,
+      /-?(kun|chan|sama|sensei|senpai)[!?\s]/i,
+    ];
+
+    function looksLikeAnimeTitle(title: string): boolean {
+      if (!title) return false;
+      const clean = title.trim();
+      // ALL-CAPS Latin titles ≥4 chars (BEYBLADE X, MARRIAGETOXIN, LIAR GAME)
+      // — excludes initialisms like "NCIS", "FBI", "CSI" by requiring a space
+      // or length ≥ 7.
+      if (/^[A-Z0-9][A-Z0-9\s!?\-:.]{6,}$/.test(clean) && /[A-Z]{3,}/.test(clean)) return true;
+      // Common Anime vocabulary
+      for (const re of ANIME_TITLE_KEYWORDS) if (re.test(clean)) return true;
+      // Long descriptive title (>50 chars) starting with "The"/"My"/"I" is
+      // a very strong Anime signal (Western shows almost never have these).
+      if (clean.length >= 50 && /^(the|my|i)\s/i.test(clean)) return true;
+      return false;
+    }
+
+    function isBlocked(
+      release: typeof releases[number],
+      meta: typeof seriesMeta[number] | undefined,
+    ): boolean {
+      if (BLOCKED_PROVIDERS.has(release.provider)) return true;
+      if (!meta) return false;
+      if (meta.originalLanguage && BLOCKED_LANGUAGES.has(meta.originalLanguage)) return true;
+      const genres = meta.genres || [];
+      if (genres.some((g) => BLOCKED_GENRES.has(g))) return true;
+      // Anime detection: Animation + asian origin/language/title-pattern
+      if (genres.includes('Animation')) {
+        const whitelistKey = (meta.name || meta.title || '').toLowerCase().trim();
+        if (WESTERN_ANIMATION_WHITELIST.has(whitelistKey)) return false;
+
+        const countries = meta.productionCountries || [];
+        const isAsian =
+          countries.some((c) => ASIAN_COUNTRIES.has(c) || ASIAN_COUNTRY_NAMES.has(c)) ||
+          (meta.originalLanguage && BLOCKED_LANGUAGES.has(meta.originalLanguage));
+        if (isAsian) return true;
+
+        // Western country explicitly set → keep
+        const WESTERN_COUNTRIES = new Set([
+          'US', 'CA', 'GB', 'DE', 'FR', 'AT', 'CH', 'IE', 'AU', 'NZ',
+          'United States of America', 'Canada', 'United Kingdom', 'Germany',
+          'France', 'Austria', 'Switzerland', 'Ireland', 'Australia', 'New Zealand',
+        ]);
+        if (countries.some((c) => WESTERN_COUNTRIES.has(c))) return false;
+
+        // Metadata empty → fall back to title heuristic
+        const titleCjk = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff66-\uff9f]/.test(
+          release.name + ' ' + (meta.originalName || ''),
+        );
+        if (titleCjk) return true;
+        if (looksLikeAnimeTitle(meta.name || meta.title || release.name)) return true;
+      }
+      return false;
+    }
 
     // Detect CJK / Hangul / Kana characters – these names are unhelpful for German users.
     const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff66-\uff9f]/;
@@ -139,9 +258,10 @@ const getNewReleasesData = unstable_cache(
     }
 
     // Enrich releases with slugs + chosen display title; drop entries with no
-    // usable Latin title at all.
+    // usable Latin title at all OR that match the Anime/Reality/Foreign block.
     const enrichedReleases = releases.flatMap((release) => {
       const meta = metaByTmdb.get(release.tmdbId);
+      if (isBlocked(release, meta)) return [];
       const displayName = pickTitle(release, meta);
       if (!displayName) return [];
       return [
