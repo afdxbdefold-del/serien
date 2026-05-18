@@ -53,7 +53,7 @@ export const metadata: Metadata = {
 // Cached database queries for better performance
 const getHomepageData = unstable_cache(
   async () => {
-    const [articles, series, seriesCount, articlesCount] = await Promise.all([
+    const [rawArticles, series, seriesCount, articlesCount] = await Promise.all([
       prisma.articles.findMany({
         where: { 
           OR: [
@@ -77,7 +77,9 @@ const getHomepageData = unstable_cache(
           }
         },
         orderBy: { publishedAt: 'desc' },
-        take: 11  // 5 for carousel + 6 for initial grid (reduces LCP)
+        // Over-fetch so the per-series dedup below still has 11 entries even
+        // when 2-3 articles per series cluster in the most recent batch.
+        take: 40
       }),
       prisma.series.findMany({
         orderBy: { createdAt: 'desc' },
@@ -93,6 +95,24 @@ const getHomepageData = unstable_cache(
         } 
       }),
     ]);
+
+    // Homepage dedup: at most ONE article per series in the visible 11-card
+    // window. When the pipeline ships multiple stories about the same show
+    // within minutes (e.g. casting news + release-date confirmation), the
+    // newer one wins the slot, the older lives on in the series page +
+    // "Mehr aus …" sections. Without this two near-identical cards land
+    // side-by-side and look like duplicates to the visitor.
+    const seenSeries = new Set<number>();
+    const articles: typeof rawArticles = [];
+    for (const a of rawArticles) {
+      const key = a.primarySeriesId;
+      if (key != null) {
+        if (seenSeries.has(key)) continue;
+        seenSeries.add(key);
+      }
+      articles.push(a);
+      if (articles.length >= 11) break;
+    }
 
     // Fetch trending series from streaming_releases (last 7 days)
     // Focus on TODAY and YESTERDAY for "Aktuell im Stream"
