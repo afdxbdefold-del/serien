@@ -121,6 +121,21 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   if (isR2Video) {
     return (
       <div className={`relative ${fullWidth ? 'aspect-[16/9] md:aspect-[21/9]' : 'aspect-video'} overflow-hidden bg-black`}>
+        {/* Static <img> rendered IN ADDITION to the <video poster> so that
+            Googlebot / Chromium can pick this up as the LCP element. The
+            poster attribute alone is not always treated as LCP-eligible and
+            never gets fetchpriority. The <img> is positioned identically and
+            fades out once the video starts playing — visually identical to
+            the previous behaviour. */}
+        <Image
+          src={heroImageUrl}
+          alt={title}
+          fill
+          className="absolute inset-0 object-cover"
+          priority
+          fetchPriority="high"
+          sizes="(max-width: 1024px) 100vw, 1024px"
+        />
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"

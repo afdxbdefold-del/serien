@@ -1,7 +1,6 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import Script from 'next/script';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
@@ -21,14 +20,7 @@ import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
-
-// Lazy load heavy client components
-const InlineVideoPlayer = dynamic(() => import('@/components/InlineVideoPlayer'), {
-  ssr: true,
-  loading: () => (
-    <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-gray-900 animate-pulse" />
-  ),
-});
+import InlineVideoPlayer from '@/components/InlineVideoPlayer';
 
 // Helper to safely convert Date or ISO string to Date object
 const toDate = (value: Date | string | null | undefined): Date => {
@@ -157,8 +149,6 @@ const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstab
         heroImageUrl: true,
         heroImagePath: true,
         heroLocalUrl: true,
-        heroImageUrl: true,
-        heroImagePath: true,
         cardImageUrl: true,
         tmdbId: true,
         tmdbType: true,
@@ -502,8 +492,28 @@ export default async function ArticlePage({ params }: PageProps) {
     publisher: { '@id': 'https://serien.de#organization' },
   } : null;
 
+  // Hero preload URL for LCP optimization. We render an explicit
+  // <link rel="preload" as="image"> in <head> so Chromium downloads the
+  // hero before parsing the article body — Discover ranks LCP-image quality
+  // heavily, and Googlebot weights `preload`-hinted images higher.
+  const heroPreloadUrl = heroImageUrlCB
+    || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl)
+    || null;
+
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
+      {/* LCP: preload the hero image so Chromium fetches it before the
+          article body parses. Next.js can't auto-emit this because the
+          hero is rendered by a Client Component (InlineVideoPlayer). */}
+      {heroPreloadUrl && (
+        <link
+          rel="preload"
+          as="image"
+          href={heroPreloadUrl}
+          fetchPriority="high"
+        />
+      )}
+
       {/* AdSense loader — scoped to article pages per ads policy. Uses
           afterInteractive so it doesn't block initial paint or hydration. */}
       <Script
