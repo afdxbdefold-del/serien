@@ -151,6 +151,21 @@ export function middleware(request: NextRequest) {
     });
   }
 
+  // ========================================================================
+  // SITEMAP VARY-HEADER FIX
+  //
+  // Next.js auto-emits `Vary: rsc, next-router-state-tree, ...` on every
+  // route. Those tokens are meaningless to Googlebot but signal "do not
+  // trust this cache" → it throttles re-crawls. For static-ish XML
+  // sitemaps this killed our crawl frequency from ~110/day to ~2/day.
+  //
+  // We force-overwrite Vary to plain Accept-Encoding on all sitemap paths.
+  // ========================================================================
+  if (path === '/news-sitemap.xml' || path === '/sitemap.xml' || /^\/sitemap-[^/]+\.xml$/.test(path)) {
+    response.headers.delete('vary');
+    response.headers.set('Vary', 'Accept-Encoding');
+  }
+
   return response;
 }
 
