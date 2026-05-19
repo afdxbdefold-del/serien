@@ -41,8 +41,13 @@ function posterUrl(p: string | null): string | null {
 }
 
 export default function StreamerTop10Carousel({ platforms }: Props) {
+  // Default to Netflix when available — it's the dominant DACH streamer and
+  // matches user expectation. Falls back to first platform with data.
+  const netflix = platforms.find((p) => p.id === 'netflix' && p.items.length > 0);
   const firstWithData = platforms.find((p) => p.items.length > 0);
-  const [active, setActive] = useState<string>(firstWithData?.id ?? platforms[0]?.id ?? '');
+  const [active, setActive] = useState<string>(
+    netflix?.id ?? firstWithData?.id ?? platforms[0]?.id ?? ''
+  );
   const scrollRef = useRef<HTMLOListElement | null>(null);
 
   const current = platforms.find((p) => p.id === active) ?? platforms[0];
