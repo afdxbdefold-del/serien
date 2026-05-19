@@ -120,6 +120,7 @@ export function stripStreamerClaim(headline: string, streamer: string): string {
 export type VerifyResult =
   | { kind: 'no-claim'; headline: string }
   | { kind: 'verified'; headline: string; streamer: string }
+  | { kind: 'unknown'; headline: string; claimedStreamer: string; reason: 'no-tmdb-data' }
   | {
       kind: 'unverified';
       headline: string;
@@ -134,6 +135,9 @@ export type VerifyResult =
  *
  *   • `no-claim`     — headline doesn't promise a streamer → no action
  *   • `verified`     — claim matches DE-providers → publish as-is
+ *   • `unknown`      — TMDB has no DE provider data yet (data-lag on fresh
+ *                     content). We MUST NOT strip the headline — that would
+ *                     delete correct claims and produce false negatives.
  *   • `unverified`   — claim doesn't match → pipeline should swap headline
  *
  * `deProviders` is the array of provider_name strings from
@@ -145,6 +149,11 @@ export function verifyHeadlineClaim(
 ): VerifyResult {
   const claimed = detectStreamerClaim(headline);
   if (!claimed) return { kind: 'no-claim', headline };
+
+  // TMDB has no DE data → don't risk stripping a correct claim. Stay neutral.
+  if (!deProviders || deProviders.length === 0) {
+    return { kind: 'unknown', headline, claimedStreamer: claimed, reason: 'no-tmdb-data' };
+  }
 
   // Normalise: TMDB sometimes returns "Disney Plus" vs "Disney+"
   const normalisedProviders = deProviders.map((p) => p.trim().toLowerCase());

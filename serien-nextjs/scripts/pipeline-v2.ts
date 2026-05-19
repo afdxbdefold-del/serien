@@ -1777,7 +1777,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         : [];
       const verdict = verifyHeadlineClaim(finalHeadline, deProviderNames);
       if (verdict.kind === 'unverified') {
-        console.log(`   🚦 Streamer-Claim UNVERIFIED: "${verdict.claimedStreamer}" claimed, DE-Providers laut TMDB: [${verdict.actualDeProviders.join(', ') || 'leer'}]`);
+        console.log(`   🚦 Streamer-Claim UNVERIFIED: "${verdict.claimedStreamer}" claimed, DE-Providers laut TMDB: [${verdict.actualDeProviders.join(', ')}]`);
         console.log(`   → Rewrite: "${finalHeadline}"`);
         console.log(`        →    "${verdict.rewrittenHeadline}"`);
         logger.log(`Streamer-Claim REJECTED — claimed=${verdict.claimedStreamer}, actual=[${verdict.actualDeProviders.join(',')}], rewritten=${verdict.rewrittenHeadline}`);
@@ -1785,6 +1785,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
       } else if (verdict.kind === 'verified') {
         console.log(`   ✅ Streamer-Claim verified: "${verdict.streamer}" stimmt mit DE-Providers überein`);
         logger.log(`Streamer-Claim OK — ${verdict.streamer}`);
+      } else if (verdict.kind === 'unknown') {
+        // TMDB has no DE-Provider data yet — don't strip, could be a fresh release.
+        // The body-prompt-guard catches the inverse case (LLM hallucinating "not in DE").
+        console.log(`   ⚠️ Streamer-Claim UNKNOWN: "${verdict.claimedStreamer}" — TMDB hat keine DE-Daten. Headline bleibt.`);
+        logger.log(`Streamer-Claim UNKNOWN — ${verdict.claimedStreamer} (TMDB data missing)`);
       } else {
         // no-claim — nothing to do
       }
