@@ -78,7 +78,7 @@ export default function StreamerTop10Carousel({ platforms }: Props) {
             </div>
             <div>
               <h2 id="top10-heading" className="text-2xl font-bold text-gray-900 dark:text-white">
-                Top 10 auf den Streamern — gerade jetzt
+                Top 10 auf den Streamern
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Tägliches Ranking der meistgesehenen Serien in Deutschland
