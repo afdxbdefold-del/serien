@@ -79,6 +79,14 @@ export function generateArticleSchema(data: {
   slug: string;
   author?: string;
   authorSlug?: string;
+  /** Optional: author avatar URL (relative or absolute), surfaced as Person.image. */
+  authorImage?: string | null;
+  /** Optional: author short bio (used as Person.description). */
+  authorBio?: string | null;
+  /** Optional: author expertise tags (used as Person.knowsAbout). */
+  authorExpertise?: string[] | null;
+  /** Optional: author job title (defaults to "Serien-Redakteur:in" when expertise hints at editorial). */
+  authorJobTitle?: string | null;
   category?: string;
   /** Optional: TVSeries entity to link via `about` (deep Knowledge-Graph signal). */
   aboutSeriesSlug?: string;
@@ -129,11 +137,42 @@ export function generateArticleSchema(data: {
     dateModified: data.dateModified,
     inLanguage: 'de-DE',
     isAccessibleForFree: true,
-    author: {
-      '@type': 'Person',
-      name: data.author || 'serien.de Redaktion',
-      ...(data.authorSlug && { url: `${baseUrl}/autor/${data.authorSlug}` }),
-    },
+    author: (() => {
+      const authorName = data.author || 'serien.de Redaktion';
+      const authorUrl = data.authorSlug ? `${baseUrl}/autor/${data.authorSlug}` : undefined;
+      const person: Record<string, any> = {
+        '@type': 'Person',
+        ...(authorUrl && { '@id': `${authorUrl}#person` }),
+        name: authorName,
+        ...(authorUrl && { url: authorUrl }),
+      };
+      // E-E-A-T signals: image, jobTitle, knowsAbout, description, worksFor
+      if (data.authorImage) {
+        const absImg = data.authorImage.startsWith('http')
+          ? data.authorImage
+          : `${baseUrl}${data.authorImage.startsWith('/') ? '' : '/'}${data.authorImage}`;
+        person.image = absImg;
+      }
+      if (data.authorBio) {
+        // Trim to 500 chars — Google ignores schema strings beyond that.
+        person.description = data.authorBio.length > 500
+          ? data.authorBio.slice(0, 497) + '…'
+          : data.authorBio;
+      }
+      if (data.authorExpertise && data.authorExpertise.length > 0) {
+        person.knowsAbout = data.authorExpertise;
+      }
+      // jobTitle: explicit value wins; otherwise infer from expertise.
+      if (data.authorJobTitle) {
+        person.jobTitle = data.authorJobTitle;
+      } else if (data.authorExpertise?.some((e) => /redakti|news|editor/i.test(e))) {
+        person.jobTitle = 'Serien-Redakteur:in';
+      }
+      // Connect Person to the publisher Organization entity. Single source of
+      // truth — the full org definition lives in generateOrganizationSchema.
+      person.worksFor = { '@id': ORG_ID };
+      return person;
+    })(),
     // Reference the publisher entity defined in the global Organization schema
     // (see generateOrganizationSchema). Single source of truth, no duplication.
     publisher: { '@id': ORG_ID },

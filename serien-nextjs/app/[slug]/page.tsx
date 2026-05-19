@@ -440,6 +440,11 @@ export default async function ArticlePage({ params }: PageProps) {
     slug,
     author: article.users?.name,
     authorSlug,
+    // E-E-A-T author signals straight from DB. Google weights these heavily
+    // for Discover: real images, real expertise tags, real bios.
+    authorImage: article.users?.image,
+    authorBio: article.users?.bio,
+    authorExpertise: article.users?.expertise,
     category: article.category || article.contentType || 'Serien-News',
     aboutSeriesSlug: article.series?.slug,
     wordCount: article.contentHtml
