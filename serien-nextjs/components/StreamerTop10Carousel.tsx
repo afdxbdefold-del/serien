@@ -153,7 +153,7 @@ export default function StreamerTop10Carousel({ platforms }: Props) {
                   {...(href ? { href } : {})}
                   data-card
                   data-testid={`top10-${current.id}-rank-${item.rank}`}
-                  className="group/card snap-start flex-none w-36 sm:w-40 md:w-44 lg:w-48 relative block overflow-hidden rounded-xl bg-gray-900 aspect-[2/3] shadow-md hover:shadow-xl transition-shadow"
+                  className="group/card snap-start flex-none w-24 sm:w-28 md:w-32 lg:w-36 relative block overflow-hidden rounded-xl bg-gray-900 aspect-[2/3] shadow-md hover:shadow-xl transition-shadow"
                 >
                   {img ? (
                     <Image
