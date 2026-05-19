@@ -70,22 +70,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // no-store` propagating to every route via headers().
   
   return (
-    <html lang="de" suppressHydrationWarning>
+    <html lang="de" className="dark" suppressHydrationWarning>
       <head>
-        {/* Prevent flash of wrong theme */}
+        {/* Prevent flash of wrong theme — dark is the site default; light is
+            opt-in via the theme switcher (stored as 'light' in localStorage). */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                const stored = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const theme = stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark) ? 'dark' : 'light';
-                document.documentElement.classList.add(theme);
+                try {
+                  const stored = localStorage.getItem('theme');
+                  const root = document.documentElement;
+                  if (stored === 'light') {
+                    root.classList.remove('dark');
+                    root.classList.add('light');
+                  } else {
+                    // 'dark' (explicit) or 'system' or unset → dark by default
+                    root.classList.remove('light');
+                    root.classList.add('dark');
+                  }
+                } catch (e) { /* localStorage unavailable */ }
               })();
             `,
           }}
         />
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#0f0f17" />
         <link rel="manifest" href="/manifest.json" />
         {/* hreflang — single-language German site; emitted globally so every
             page (including ones that override `alternates`) carries the signal. */}

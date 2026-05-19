@@ -42,8 +42,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize theme on mount
   useEffect(() => {
     const stored = localStorage.getItem('theme') as Theme | null;
-    // Default to light mode
-    const initialTheme = stored || 'light';
+    // Default to dark mode (user preference). Honors any explicit stored
+    // choice from the theme switcher first.
+    const initialTheme = stored || 'dark';
     setThemeState(initialTheme);
     applyTheme(initialTheme);
     setMounted(true);
@@ -75,7 +76,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Prevent flash of wrong theme
   if (!mounted) {
     return (
-      <ThemeContext.Provider value={{ theme: 'light', resolvedTheme: 'light', setTheme: () => {} }}>
+      <ThemeContext.Provider value={{ theme: 'dark', resolvedTheme: 'dark', setTheme: () => {} }}>
         {children}
       </ThemeContext.Provider>
     );
