@@ -1760,6 +1760,39 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     console.timeEnd('⏱️  STEP 7.6: Headline Engine');
 
+    // ========== STEP 7.61: STREAMER-CLAIM VERIFIER ==========
+    // Sanity-check before we ship: if the headline says "…auf Netflix" but
+    // TMDB doesn't list Netflix as a DE provider for this series, we strip
+    // the streamer from the headline. Prevents Handmaid's-Tale-style
+    // mismatches where the US source's premise doesn't hold for DACH
+    // readers. See lib/streamer-claim-verifier.ts for the heuristic.
+    try {
+      const { verifyHeadlineClaim } = await import('../lib/streamer-claim-verifier');
+      const watchProviders = (dbSeries.watchProviders as any) || {};
+      const deFlat = watchProviders?.results?.DE?.flatrate
+        ?? watchProviders?.DE?.flatrate
+        ?? [];
+      const deProviderNames: string[] = Array.isArray(deFlat)
+        ? deFlat.map((p: any) => p?.provider_name).filter(Boolean)
+        : [];
+      const verdict = verifyHeadlineClaim(finalHeadline, deProviderNames);
+      if (verdict.kind === 'unverified') {
+        console.log(`   🚦 Streamer-Claim UNVERIFIED: "${verdict.claimedStreamer}" claimed, DE-Providers laut TMDB: [${verdict.actualDeProviders.join(', ') || 'leer'}]`);
+        console.log(`   → Rewrite: "${finalHeadline}"`);
+        console.log(`        →    "${verdict.rewrittenHeadline}"`);
+        logger.log(`Streamer-Claim REJECTED — claimed=${verdict.claimedStreamer}, actual=[${verdict.actualDeProviders.join(',')}], rewritten=${verdict.rewrittenHeadline}`);
+        finalHeadline = verdict.rewrittenHeadline;
+      } else if (verdict.kind === 'verified') {
+        console.log(`   ✅ Streamer-Claim verified: "${verdict.streamer}" stimmt mit DE-Providers überein`);
+        logger.log(`Streamer-Claim OK — ${verdict.streamer}`);
+      } else {
+        // no-claim — nothing to do
+      }
+    } catch (err: any) {
+      console.log(`   ⚠️ Streamer-Claim-Verifier-Fehler: ${err.message}`);
+      logger.log(`Streamer-Claim-Verifier-Error: ${err.message}`);
+    }
+
     // ========== STEP 7.65: HEADLINE REWRITE LOOP ==========
     // Turn Performance-scorer from gatekeeper into coach: if headline
     // underperforms, ask Claude to fix the specific failed checks.
