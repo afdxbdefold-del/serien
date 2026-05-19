@@ -47,7 +47,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
   const [loadingMore, setLoadingMore] = useState(false);
 
   const NEWS_PER_PAGE = 20;
-  const HIGHLIGHT_COUNT = 1;
+  const HIGHLIGHT_COUNT = 5;
 
   // Load followed series from localStorage on mount
   useEffect(() => {
