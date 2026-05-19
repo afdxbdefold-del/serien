@@ -160,6 +160,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         <NewsHighlightCarousel news={highlightNews} />
       )}
 
+      {/* Top-10 Streamer Carousel — directly between hero carousel and feed */}
+      {top10Blocks.length > 0 && <StreamerTop10Carousel platforms={top10Blocks} />}
+
       {/* H1 for all users */}
       <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
         <div className="container mx-auto px-6 md:px-12">
@@ -340,9 +343,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           </div>
         </div>
-
-      {/* Top-10 Streamer Carousel — directly after news feed */}
-      {top10Blocks.length > 0 && <StreamerTop10Carousel platforms={top10Blocks} />}
 
     </main>
   );
