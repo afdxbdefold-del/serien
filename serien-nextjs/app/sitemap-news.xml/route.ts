@@ -41,6 +41,8 @@ ${urls}
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': 'public, max-age=600, s-maxage=600',
+      // Override Next.js auto Vary so Googlebot caches normally.
+      Vary: 'Accept-Encoding',
     },
   });
 }

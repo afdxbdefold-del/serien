@@ -91,6 +91,11 @@ export async function GET() {
         'Last-Modified': lastModifiedHttp,
         ETag: etag,
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        // Explicit Vary to neutralise Next.js auto-generated RSC headers
+        // (`rsc, next-router-state-tree, ...`) which confuse Googlebot's
+        // freshness logic on XML routes — these tokens make Google treat
+        // cached responses as "variable" and back off crawl frequency.
+        Vary: 'Accept-Encoding',
       },
     });
   }
@@ -159,6 +164,10 @@ ${newsItems
       'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
       'Last-Modified': lastModifiedHttp,
       ETag: etag,
+      // Override Next.js' default RSC Vary (`rsc, next-router-state-tree, …`).
+      // Googlebot doesn't send those headers and treats the unknown-token
+      // Vary as a "do-not-cache" signal, which throttles re-crawls.
+      Vary: 'Accept-Encoding',
     },
   });
 }
