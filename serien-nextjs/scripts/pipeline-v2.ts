@@ -862,6 +862,65 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.timeEnd('⏱️  STEP 3: TMDB Resolution');
 
     // ══════════════════════════════════════════════════════════════════════
+    // EXTENDED OVERVIEW HOOK (Feb 2026)
+    //
+    // Series-Pages rendern `extendedOverview` (eigener LLM-Text via Wikipedia
+    // + TMDB) vor dem TMDB-`overview`. Wenn die Serie hier zum ersten Mal
+    // resolved wurde, hat sie noch keinen — und der manuelle Bulk-Job hat
+    // sie auch nie gesehen. Hook erledigt das automatisch.
+    //
+    // Fire-and-forget: blockiert die Pipeline NICHT (4–8 s LLM-Call), läuft
+    // im Hintergrund. Bei Fehler nur loggen.
+    // ══════════════════════════════════════════════════════════════════════
+    if (dbSeries.tmdbId) {
+      void (async () => {
+        try {
+          // Re-query with the full set of fields the generator needs;
+          // the upstream select() only covers the pipeline-critical columns.
+          const full = await prisma.series.findUnique({
+            where: { tmdbId: dbSeries!.tmdbId },
+            select: {
+              extendedOverview: true, name: true, title: true,
+              originalName: true, overview: true, genres: true,
+              firstAirDate: true, numberOfSeasons: true, status: true,
+              cast: true, crew: true, networks: true,
+            },
+          });
+          if (!full || full.extendedOverview) return;
+
+          const { generateSeriesExtendedOverview } = await import('../lib/series-overview-generator');
+          const cast = (full.cast as any[]) || [];
+          const crew = (full.crew as any[]) || [];
+          const creators = crew
+            .filter((c: any) => c.job === 'Creator' || c.job === 'Executive Producer')
+            .slice(0, 3)
+            .map((c: any) => c.name);
+          const generated = await generateSeriesExtendedOverview({
+            seriesName: full.name || full.title || '',
+            originalTitle: full.originalName ?? undefined,
+            originalOverview: full.overview || '',
+            genres: (full.genres as string[]) || [],
+            firstAirYear: full.firstAirDate ? new Date(full.firstAirDate).getFullYear() : null,
+            numberOfSeasons: full.numberOfSeasons,
+            status: full.status,
+            cast: cast.slice(0, 5),
+            creators,
+            networks: (full.networks as string[]) || [],
+          });
+          if (generated && generated.length > 200) {
+            await prisma.series.update({
+              where: { tmdbId: dbSeries!.tmdbId },
+              data: { extendedOverview: generated, updatedAt: new Date() },
+            });
+            console.log(`   🪶 extendedOverview generated (${generated.length} chars) for "${full.name}"`);
+          }
+        } catch (e: any) {
+          console.log(`   ⚠️ extendedOverview hook failed: ${e?.message}`);
+        }
+      })();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // GENRE SAFETY NET — skip US late-night / talk / game / reality shows
     // BEFORE any LLM spend. Source: TVInsider/Variety/Deadline RSS-noise.
     // ══════════════════════════════════════════════════════════════════════

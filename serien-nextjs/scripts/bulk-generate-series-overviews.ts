@@ -14,21 +14,25 @@ async function bulkGenerateOverviews() {
 
     // Fetch series that don't have extended overview yet
     // Prioritize series with articles (more important series)
+    const LIMIT_ARG = process.argv.find(a => a.startsWith('--limit='));
+    const limit = LIMIT_ARG ? parseInt(LIMIT_ARG.split('=')[1], 10) : 1000;
     const seriesList = await prisma.series.findMany({
       where: {
         extendedOverview: null,
-        // Only series with basic data
-        overview: { not: null },
+        // No filter on `overview` — the generator can fall back to Wikipedia
+        // for series whose TMDB overview is empty (which is the *exact*
+        // group we need to backfill).
       },
       orderBy: [
         { articles: { _count: 'desc' } }, // Series with most articles first
         { popularity: 'desc' },
       ],
-      take: 50, // Process top 50 series
+      take: limit,
       select: {
         tmdbId: true,
         name: true,
         title: true,
+        originalName: true,
         overview: true,
         genres: true,
         firstAirDate: true,
@@ -53,15 +57,15 @@ async function bulkGenerateOverviews() {
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < seriesList.length; i++) {
-      const series = seriesList[i];
+    // Concurrency: process N series in parallel batches. Default 5 keeps a
+    // reasonable balance between throughput and LLM rate-limits.
+    const CONC_ARG = process.argv.find(a => a.startsWith('--concurrency='));
+    const concurrency = CONC_ARG ? Math.max(1, parseInt(CONC_ARG.split('=')[1], 10)) : 5;
+
+    const processOne = async (series: typeof seriesList[number], i: number) => {
       const seriesName = series.name || series.title;
-
-      console.log(`\n[${i + 1}/${seriesList.length}] ${seriesName} (${series._count.articles} Artikel)`);
-      console.log(`   TMDB ID: ${series.tmdbId}`);
-
+      const prefix = `[${i + 1}/${seriesList.length}] ${seriesName}`;
       try {
-        // Extract data for overview generation
         const cast = (series.cast as any[]) || [];
         const crew = (series.crew as any[]) || [];
         const creators = crew
@@ -70,8 +74,8 @@ async function bulkGenerateOverviews() {
           .map(c => c.name);
 
         const input = {
-          seriesName: seriesName,
-          originalTitle: series.originalName || series.originalTitle,
+          seriesName,
+          originalTitle: series.originalName ?? undefined,
           originalOverview: series.overview || '',
           genres: (series.genres as string[]) || [],
           firstAirYear: series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : null,
@@ -82,35 +86,22 @@ async function bulkGenerateOverviews() {
           networks: (series.networks as string[]) || [],
         };
 
-        console.log('   🤖 Generiere Extended Overview...');
-
-        // Generate extended overview
         const extendedOverview = await generateSeriesExtendedOverview(input);
-
-        // Save to database
         await prisma.series.update({
           where: { tmdbId: series.tmdbId },
-          data: {
-            extendedOverview,
-            updatedAt: new Date(),
-          },
+          data: { extendedOverview, updatedAt: new Date() },
         });
-
-        console.log(`   ✅ Gespeichert (${extendedOverview.length} Zeichen)`);
+        console.log(`✅ ${prefix} (${extendedOverview.length} Zeichen)`);
         successCount++;
-
-        // Rate limiting: Wait 2 seconds between requests to avoid overwhelming the LLM
-        if (i < seriesList.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-
       } catch (error) {
-        console.error(`   ❌ Fehler: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`❌ ${prefix} — ${error instanceof Error ? error.message : String(error)}`);
         failCount++;
-        
-        // Continue with next series even if one fails
-        continue;
       }
+    };
+
+    for (let batchStart = 0; batchStart < seriesList.length; batchStart += concurrency) {
+      const batch = seriesList.slice(batchStart, batchStart + concurrency);
+      await Promise.all(batch.map((s, j) => processOne(s, batchStart + j)));
     }
 
     console.log('\n' + '='.repeat(60));
