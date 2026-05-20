@@ -233,13 +233,30 @@ export async function getTvDetailsComplete(tmdbId: number, language: string = 'd
 
     const data = await response.json();
 
+    // EN-Fallback für overview/tagline: TMDB liefert für junge Serien
+    // oft nur in en-US einen Wert; de-DE bleibt leer bis Community-Übersetzung
+    // existiert. Wir nehmen den englischen Text als Fallback statt nichts.
+    let overview = data.overview as string;
+    let tagline = data.tagline as string | null;
+    if (language !== 'en-US' && ((!overview || !overview.trim()) || (!tagline || !tagline.trim()))) {
+      try {
+        const enUrl = `${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+        const enRes = await fetch(enUrl, { next: { revalidate: 86400 } });
+        if (enRes.ok) {
+          const en = await enRes.json();
+          if ((!overview || !overview.trim()) && en.overview) overview = en.overview;
+          if ((!tagline || !tagline.trim()) && en.tagline) tagline = en.tagline;
+        }
+      } catch { /* swallow — fallback is best-effort */ }
+    }
+
     return {
       // Basic Info
       tmdbId: data.id,
       name: data.name,
       originalName: data.original_name,
-      overview: data.overview,
-      tagline: data.tagline || null,
+      overview,
+      tagline: tagline || null,
       type: data.type || null,
       status: data.status,
       inProduction: data.in_production,
