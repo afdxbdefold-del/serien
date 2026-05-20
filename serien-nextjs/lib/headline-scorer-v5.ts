@@ -245,6 +245,9 @@ const HARD_KILLERS: Array<{ phrase: string; penalty: number }> = [
   { phrase: 'alles kippt', penalty: -18 },
   { phrase: 'alles auf den prüfstand', penalty: -15 },
   { phrase: 'alles auf den pruefstand', penalty: -15 },
+  // v5.7: PERSONALITY-NEWS Slop — siehe Begründung in lib/headline-engine.ts
+  { phrase: 'hinaus beschäftigt', penalty: -25 },
+  { phrase: 'hinaus beschaeftigt', penalty: -25 },
 ];
 
 // --- v5.4 OPINION-TONE KILLERS (separat gated via HEADLINE_OPINION_KILLER env) ---
@@ -539,6 +542,26 @@ export function detectHardKillers(headline: string): Array<{ type: string; phras
   const STAFFEL_VERAENDERT = /\b(staffel|serie|season)\s*\d*\s+(ver[äa]ndert|[äa]ndert)\s+(alles|das spiel)\b/i;
   if (STAFFEL_VERAENDERT.test(headline)) {
     hits.push({ type: 'hard_killer', phrase: 'ai_formula:staffel_veraendert_alles', value: -25 });
+  }
+
+  // v5.7 PERSONALITY-NEWS: "über {Serie} hinaus beschäftigt" / "was X beschäftigt"
+  // → Headline-Engine zieht die Serie reflexartig rein, obwohl der Body
+  // persönliche Statements (Memoir, Übergriffe, Bisexualität) behandelt.
+  const PERSONALITY_HINAUS = /\b(?:[üu]ber|jenseits\s+von)\s+\S+\s+hinaus\s+besch[äa]ftigt\b/i;
+  if (PERSONALITY_HINAUS.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'personality:hinaus_beschaeftigt', value: -25 });
+  }
+  const PERSONALITY_VACUUM = /\bwas\s+\S+(?:\s+\S+){0,3}\s+besch[äa]ftigt\b/i;
+  if (PERSONALITY_VACUUM.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'personality:was_x_beschaeftigt', value: -20 });
+  }
+
+  // v5.7 AGE-MARKER: "bei {kleine Zahl}" als Alters-Anker → im Deutschen
+  // korrekt: "mit 19 Jahren" / "mit 19". "bei 19" ist Anglizismus/Boulevard.
+  // Whitelist abdeckt Platzierungen, Streamer, Scores, Messwerte.
+  const AGE_BEI_ZAHL = /\bbei\s+\d{1,2}\b(?!\s*(?:%|prozent|punkten?|sternen?|millionen?|tausend|netflix|prime|disney|hbo|amazon|apple|paramount|sky|hulu|wow|joyn|magenta|rtl|ard|zdf|crunchyroll|von|aus|im|in|auf|für|fuer|–|—|-|\d))/i;
+  if (AGE_BEI_ZAHL.test(headline)) {
+    hits.push({ type: 'hard_killer', phrase: 'age_marker:bei_statt_mit', value: -20 });
   }
 
   return hits;

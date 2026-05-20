@@ -527,7 +527,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       ? 'ENDING_EXPLAINED'
       : isTrueStoryUrl
         ? 'TRUE_STORY'
-        : classification.content_type === 'SINGLE_SERIES_NEWS' ? 'NEWS' : 'RANKING';
+        : (classification.content_type === 'SINGLE_SERIES_NEWS' || classification.content_type === 'PERSONALITY_NEWS') ? 'NEWS' : 'RANKING';
     if (isEndingExplainedUrl) {
       console.log(`   📝 ENDING_EXPLAINED pipeline aktiv (URL-Signal: "ending-explained")`);
       logger.addMetadata('contentType', 'ENDING_EXPLAINED');
@@ -1738,6 +1738,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         },
         explorationMode: true, // Exploration ON by default
         preserveOriginalStyle: (source.url || '').includes('thecinemaholic.com'),
+        contentClassification: classification.content_type,
       });
       
       if (headlineResult.winner && headlineResult.winner.score > 0) {

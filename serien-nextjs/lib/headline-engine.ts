@@ -114,6 +114,24 @@ const AI_SLOP_PATTERNS = [
   /(?<![a-zäöüß])bricht\s+ein(?![a-zäöüß])/i,
   /(?<![a-zäöüß])(zerstört|zerstoert)(?![a-zäöüß])/i,
   /(?<![a-zäöüß])(eskaliert|eskalieren)(?![a-zäöüß])/i,
+  // ──────────────────────────────────────────────────────────────────
+  // v5.7 PERSONALITY-NEWS SLOP — Memoir/Personal-Statement Headlines.
+  // Reaktion auf "Schock bei 19: Was Hayden Panettiere über Nashville
+  // hinaus beschäftigt": Headline-Engine zog die Serie reflexartig rein,
+  // obwohl der Body über persönliche Übergriffe handelt. Zwei Fehler:
+  // (a) "über [Serie] hinaus beschäftigt" — Serie wird zum Subjekt eines
+  //     Empfindens, was inhaltlich nicht stimmt.
+  // (b) "bei {Zahl}" als Alters-Marker — im Deutschen IMMER "mit {Zahl}"
+  //     bzw. "mit {Zahl} Jahren" (vgl. "mit 19 Jahren"). "bei 19" ist
+  //     Anglizismus / Boulevard-Tabloid-Sound.
+  // (c) Vacuum-Hooks "Was X beschäftigt" ohne harten Fakt im Satz.
+  // ──────────────────────────────────────────────────────────────────
+  /\b(?:[üu]ber|jenseits\s+von)\s+\S+\s+hinaus\s+besch[äa]ftigt\b/i,
+  /\bwas\s+\S+(?:\s+\S+){0,3}\s+(?:[üu]ber\s+\S+\s+hinaus\s+)?besch[äa]ftigt\b/i,
+  // Age-marker "bei <kleine Zahl>" — verboten, wenn es offensichtlich
+  // KEIN Platz/Streamer/Score/Messwert ist. Whitelist die typischen
+  // Folgewörter, die "bei N …" rechtfertigen (Netflix, Prozent, …).
+  /\bbei\s+\d{1,2}\b(?!\s*(?:%|prozent|punkten?|sternen?|millionen?|tausend|netflix|prime|disney|hbo|amazon|apple|paramount|sky|hulu|wow|joyn|magenta|rtl|ard|zdf|crunchyroll|von|aus|im|in|auf|für|fuer|–|—|-|\d))/i,
 ];
 const isAISlop = (h: string) => AI_SLOP_PATTERNS.some(p => p.test(h));
 
@@ -247,14 +265,28 @@ export async function generateHeadlines(input: {
   };
   explorationMode?: boolean;
   preserveOriginalStyle?: boolean;
+  /**
+   * v5.7: When the upstream classifier returns PERSONALITY_NEWS, the series is
+   * only context (the actor's "known for" show). We force the star_power angle
+   * and tell the prompt that {SERIE} must NOT be the news subject — only an
+   * optional context tag. Prevents the "über [Serie] hinaus beschäftigt" trap.
+   */
+  contentClassification?: string;
 }): Promise<HeadlineEngineResult> {
   const start = Date.now();
   const { originalHeadline, articleContent, seriesName, entities } = input;
   const explorationMode = input.explorationMode !== false;
   const preserveOriginalStyle = input.preserveOriginalStyle === true;
+  const isPersonalityNews = input.contentClassification === 'PERSONALITY_NEWS';
 
   // 1) Angle classification (heuristic — cheap, deterministic)
   let detectedAngle = detectAngle(originalHeadline, articleContent);
+
+  // v5.7: PERSONALITY_NEWS articles ALWAYS use star_power. The body is about
+  // the actor's personal life, not the series.
+  if (isPersonalityNews) {
+    detectedAngle = 'star_power';
+  }
 
   // 2) Extract SERIE / STAR / PLATTFORM / STAFFEL for pattern slot-filling
   const vars = extractVariables(originalHeadline, articleContent, entities, seriesName);
@@ -279,6 +311,7 @@ export async function generateHeadlines(input: {
   const prompt = buildDiscoverPrompt({
     originalHeadline, contentSummary, seriesName, vars,
     focusPatterns, allByAngle, detectedAngle, banned, preserveOriginalStyle,
+    isPersonalityNews,
   });
   let rawVariants = await callHeadlineLLM(prompt, seriesName);
 
@@ -388,8 +421,9 @@ function buildDiscoverPrompt(args: {
   detectedAngle: HeadlineAngle;
   banned: string[];
   preserveOriginalStyle: boolean;
+  isPersonalityNews?: boolean;
 }): string {
-  const { originalHeadline, contentSummary, seriesName, vars, focusPatterns, allByAngle, detectedAngle, banned, preserveOriginalStyle } = args;
+  const { originalHeadline, contentSummary, seriesName, vars, focusPatterns, allByAngle, detectedAngle, banned, preserveOriginalStyle, isPersonalityNews } = args;
 
   const focusBlock = focusPatterns.map(p => `  • [${p.angle}] "${p.example}"`).join('\n');
   const libraryBlock = (Object.keys(allByAngle) as HeadlineAngle[])
@@ -402,6 +436,15 @@ function buildDiscoverPrompt(args: {
 
   const preserveNote = preserveOriginalStyle
     ? `\n===== QUELL-STIL BEWAHREN =====\nDie Quelle schreibt bewusst nüchtern. Bleibe semantisch nah am englischen Original, keine künstliche Dramatisierung.`
+    : '';
+
+  const personalityNote = isPersonalityNews
+    ? `\n===== PERSONALITY-NEWS MODUS =====
+Diese Story handelt vom PERSÖNLICHEN Leben des Stars (Memoir, Übergriffe, Krankheit, Klage, Beziehung).
+Die Serie "${seriesName}" ist nur "bekannt aus"-Kontext — NICHT das Thema der Headline.
+→ Lead mit dem PERSONEN-NAMEN, nicht mit der Serie.
+→ Wenn die Serie überhaupt vorkommt, dann als kurzer Apposition-Kontext ("Nashville-Star X …", "X (Nashville) …"), nie als Subjekt eines Empfindens ("über Nashville hinaus beschäftigt" o. ä. ist STRENG VERBOTEN).
+→ Bei Altersangaben IMMER "mit 19" / "mit 19 Jahren", NIE "bei 19" (Anglizismus/Boulevard).`
     : '';
 
   const knownVars = [
@@ -423,7 +466,7 @@ ${knownVars}
 PRIMÄRER ANGLE (heuristisch erkannt): ${detectedAngle} — ${ANGLE_META[detectedAngle].label}
 
 ===== ARTIKEL-INHALT (erste 1500 Zeichen) =====
-${contentSummary}${preserveNote}
+${contentSummary}${preserveNote}${personalityNote}
 
 ===== ANGLE-KLASSIFIKATION =====
 Du klassifizierst die Story in GENAU EINEN dieser Angles (pick one):
@@ -448,7 +491,9 @@ Zielgruppe: Ältere TV-Fans, NCIS-/CSI-/Magnum-/Columbo-Community. Sie reagieren
 
 ===== REGELN =====
 - Generiere genau 10 Headlines auf DEUTSCH.
-- "${seriesName}" MUSS in JEDER Headline vorkommen${detectedAngle === 'nostalgia' ? `, UND der Name "${vars.star || '{STAR}'}" sollte in mindestens 7 von 10 Headlines vorkommen` : ''}.
+- ${isPersonalityNews
+    ? `"${vars.star || seriesName}" (Person) MUSS in jeder Headline vorkommen. Die Serie "${seriesName}" darf vorkommen, MUSS aber nicht — und nur als Kontext-Apposition, nie als Thema.`
+    : `"${seriesName}" MUSS in JEDER Headline vorkommen${detectedAngle === 'nostalgia' ? `, UND der Name "${vars.star || '{STAR}'}" sollte in mindestens 7 von 10 Headlines vorkommen` : ''}.`}
 - Max 95 Zeichen pro Headline, **Sweet-Spot 45–90 Zeichen** (Google Discover Card auf Mobile, 2-3 Zeilen ohne Truncation).
 - Nutze die Muster als INSPIRATION, kopiere nicht wörtlich — variiere Wortstellung & Rhythmus.
 - Schreibe so, wie ein Mensch bei Quotenmeter, DWDL oder serienjunkies schreiben würde.

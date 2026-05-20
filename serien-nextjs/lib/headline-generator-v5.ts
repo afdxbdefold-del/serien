@@ -114,6 +114,8 @@ const BANNED_PHRASES = [
   'zeigt, warum', 'zeigt, wie genau', 'zeigt, weshalb',
   'erklärt, warum', 'erklärt, wie', 'erklärt, weshalb',
   'offenbart, warum', 'offenbart, wie', 'beweist, warum',
+  // v5.7: PERSONALITY-NEWS Slop
+  'hinaus beschäftigt', 'hinaus beschaeftigt',
   // v5.4: Opinion-tone — News-Stil schützen.
   // Erlaubt: Neugier, Drittpersonen-Emotion. Verboten: Erste Person, Imperativ, Verdikt.
   'meiner meinung', 'meine meinung', 'aus meiner sicht',

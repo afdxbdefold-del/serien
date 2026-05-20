@@ -121,6 +121,11 @@ P6. KEINE SCORE-REVEALS: Rotten Tomatoes, Metacritic, IMDb, NN %, NN Prozent, N,
 P7. KEIN COLON-LABEL: kein "Serie: Staffel X bestätigt" — Aussagesatz.
 P8. KEINE AI-SLOP-FORMEL: NIE "X enthüllt, warum Y" / "X verrät, was Y" / "X zeigt, weshalb Y".
     NIE "verändert alles" / "stellt alles auf den Kopf".
+    NIE "über [Serie] hinaus beschäftigt", "Was [Person] beschäftigt" o. ä. Vakuum-Hooks
+    (Memoir/Personal-Statement-Trap — Body handelt von einer Person, nicht von der Serie).
+P8b. ALTERS-ANKER: NIE "bei {Zahl}" als Alters-Marker ("Schock bei 19", "Wende bei 25").
+    Im Deutschen korrekt: "mit 19" oder "mit 19 Jahren". "bei 19" = Anglizismus/Boulevard.
+    "bei Netflix", "bei 30 Millionen", "bei Platz 1" bleibt natürlich erlaubt.
 P9. KEINE Gedankenstriche (— oder –). Nutze Komma, Punkt oder Doppelpunkt.
 P10. KEIN MEINUNGS-SOUND — wir sind eine NEWS-Site, keine Kolumne.
     VERBOTEN: erste Person ("ich", "mir", "mich", "mein", "unser") überall.

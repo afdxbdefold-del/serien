@@ -10,6 +10,7 @@ export type ContentType =
   | 'SINGLE_SERIES_NEWS' 
   | 'MULTI_SERIES_EDITORIAL' 
   | 'FEATURE_ESSAY'
+  | 'PERSONALITY_NEWS'
   | 'MOVIE' 
   | 'MIXED' 
   | 'UNKNOWN';
@@ -40,6 +41,17 @@ Your ONLY task is to classify incoming articles into ONE of these types:
   INCLUDES: Celebrity opinions listing multiple shows, retrospectives comparing series, recommendation lists
   → If the article mentions 2+ different TV series as main subjects → MULTI_SERIES_EDITORIAL
   → STILL set primary_series to the MAIN focus (e.g., if "Spielberg loves Mad Men" → primary_series = "Mad Men")
+
+- PERSONALITY_NEWS: News about a TV actor's PERSONAL life, statements, memoir, abuse allegations,
+  health issues, relationships, lawsuits — where ONE specific TV series provides the actor's
+  "known for" context but is NOT the news subject.
+  Examples:
+    • "Hayden Panettiere (Nashville) details abuse incident in new memoir"
+    • "Jennifer Aniston (Friends) opens up about IVF struggles"
+    • "Bryan Cranston (Breaking Bad) sues former agent"
+  CRITICAL: The series name in the headline is CONTEXT, not the subject.
+  → primary_series = the actor's signature show (for tagging/linking only)
+  → Headline must lead with the PERSON, not the series.
 
 ⛔ REJECTED TYPES (use ONLY if you are CERTAIN):
 - FEATURE_ESSAY: Pure analysis about ONE series with ZERO news hook — no anniversary, no interview, no recent event
@@ -83,7 +95,7 @@ TITLE PATTERNS → AUTOMATIC CLASSIFICATION:
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
-  "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "FEATURE_ESSAY" | "MOVIE" | "MIXED" | "UNKNOWN",
+  "content_type": "SINGLE_SERIES_NEWS" | "MULTI_SERIES_EDITORIAL" | "FEATURE_ESSAY" | "PERSONALITY_NEWS" | "MOVIE" | "MIXED" | "UNKNOWN",
   "confidence": 0.0-1.0,
   "primary_series": "The MAIN series this article is about (if applicable)",
   "series_candidates": ["Series Name 1", "Series Name 2"],
@@ -172,7 +184,7 @@ Classify this content now.
       const result = parseJsonResponse(content) as ClassificationResult;
 
       // Validation
-      const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'FEATURE_ESSAY', 'MOVIE', 'MIXED', 'UNKNOWN'];
+      const validTypes: ContentType[] = ['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'FEATURE_ESSAY', 'PERSONALITY_NEWS', 'MOVIE', 'MIXED', 'UNKNOWN'];
       if (!validTypes.includes(result.content_type)) {
         throw new Error(`Invalid content_type: ${result.content_type}`);
       }
@@ -259,5 +271,5 @@ Classify this content now.
 }
 
 export function shouldSkipArticle(classification: ClassificationResult): boolean {
-  return !['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL'].includes(classification.content_type);
+  return !['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'PERSONALITY_NEWS'].includes(classification.content_type);
 }
