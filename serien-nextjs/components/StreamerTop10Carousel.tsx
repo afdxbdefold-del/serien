@@ -9,10 +9,10 @@
  * all platforms' data up-front so switching tabs is instantaneous.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface TopEntry {
   rank: number;
@@ -52,6 +52,15 @@ export default function StreamerTop10Carousel({ platforms }: Props) {
 
   const current = platforms.find((p) => p.id === active) ?? platforms[0];
 
+  // Tabs render Netflix first (it's the default selection and the dominant
+  // DACH streamer). Remaining platforms keep their original prop order.
+  const orderedPlatforms = useMemo(() => {
+    const withData = platforms.filter((p) => p.items.length > 0);
+    const idx = withData.findIndex((p) => p.id === 'netflix');
+    if (idx <= 0) return withData;
+    return [withData[idx], ...withData.slice(0, idx), ...withData.slice(idx + 1)];
+  }, [platforms]);
+
   // Reset scroll position when switching platform so the first poster is
   // always visible — otherwise a Netflix→HBO switch can land mid-list
   useEffect(() => {
@@ -77,23 +86,17 @@ export default function StreamerTop10Carousel({ platforms }: Props) {
       <div className="max-w-7xl mx-auto">
         {/* Header: title + tabs */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <h2 id="top10-heading" className="text-2xl font-bold text-gray-900 dark:text-white">
-                Top 10 auf den Streamern
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Tägliches Ranking der meistgesehenen Serien in Deutschland
-              </p>
-            </div>
+          <div>
+            <h2 id="top10-heading" className="text-2xl font-bold text-gray-900 dark:text-white">
+              Top 10 auf den Streamern
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Tägliches Ranking der meistgesehenen Serien in Deutschland
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Streaming-Plattform auswählen">
-            {platforms
-              .filter((p) => p.items.length > 0)
+            {orderedPlatforms
               .map((p) => {
                 const isActive = p.id === active;
                 return (
