@@ -32,6 +32,10 @@
     {
       "path": "/api/cron/flixpatrol",
       "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/downgrade-stale",
+      "schedule": "30 3 * * *"
     }
   ]
 }

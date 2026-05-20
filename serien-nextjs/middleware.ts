@@ -58,9 +58,30 @@ export function middleware(request: NextRequest) {
   }
 
   // ========================================================================
+  // LEGACY DUPLICATE-SLUG REDIRECTS (permanent, 301)
+  //
+  // A handful of 2021-era articles ended up with two slugs for the same
+  // story (e.g. "bruised-netflix" + "bruised-netflix-film-2021"). We pick
+  // the canonical slug and 301 the others, then depublish the duplicate
+  // record. This preserves any backlinks while removing duplicate-content
+  // signals from Search Console.
+  // ========================================================================
+  const LEGACY_DUP_REDIRECTS: Record<string, string> = {
+    '/vikings-valhalla-2': '/vikings-valhalla-erscheinungsdatum-handlung-und-besetzung',
+    '/neu-auf-netflix-jeder-film-und-jede-serie-im-august-2021': '/neu-auf-netflix',
+    '/bruised-netflix-film-2021': '/bruised-netflix',
+  };
+  if (LEGACY_DUP_REDIRECTS[path]) {
+    return NextResponse.redirect(`${request.nextUrl.origin}${LEGACY_DUP_REDIRECTS[path]}`, 301);
+  }
+
+  // ========================================================================
   // LEGACY WORDPRESS FEED REDIRECTS (permanent, 301)
   //
   // serien.de used to run on WordPress. Googlebot still crawls the old
+  // feed URLs years later. We map them to their semantic equivalents on
+  // the new stack so Google reindexes with equity intact instead of 404-ing.
+  // ======================================================================== Googlebot still crawls the old
   // feed URLs years later. We map them to their semantic equivalents on
   // the new stack so Google reindexes with equity intact instead of 404-ing.
   // ========================================================================

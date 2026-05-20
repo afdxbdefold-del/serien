@@ -23,12 +23,20 @@ const getSeriesMeta = (slug: string) => unstable_cache(
     if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
       return prisma.series.findUnique({
         where: { tmdbId: possibleTmdbId },
-        select: { name: true, title: true, overview: true, backdropPath: true, tmdbType: true, networks: true, tmdbId: true, slug: true },
+        select: {
+          name: true, title: true, overview: true, backdropPath: true, tmdbType: true,
+          networks: true, tmdbId: true, slug: true, popularity: true,
+          _count: { select: { articles: { where: { status: 'published' } } } },
+        },
       });
     }
     return prisma.series.findFirst({
       where: { slug },
-      select: { name: true, title: true, overview: true, backdropPath: true, tmdbType: true, networks: true, tmdbId: true, slug: true },
+      select: {
+        name: true, title: true, overview: true, backdropPath: true, tmdbType: true,
+        networks: true, tmdbId: true, slug: true, popularity: true,
+        _count: { select: { articles: { where: { status: 'published' } } } },
+      },
     });
   },
   [`series-meta-${slug}`],
@@ -61,7 +69,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const canonicalSlug = series.slug || slug;
 
   // noindex for broken slugs (non-Latin titles that generated invalid slugs like "-2661")
-  const shouldIndex = canonicalSlug && !canonicalSlug.startsWith('-');
+  // AND for "Karteileichen" series — no articles AND low TMDB popularity → no SEO value,
+  // costs crawl budget, dilutes site quality signals.
+  const articleCount = (series as any)._count?.articles ?? 0;
+  const popularity = (series as any).popularity ?? 0;
+  const isKarteileichen = articleCount === 0 && popularity < 5;
+  const shouldIndex = !!canonicalSlug && !canonicalSlug.startsWith('-') && !isKarteileichen;
 
   const rawTitle = `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`;
   const rawDescription = `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`;

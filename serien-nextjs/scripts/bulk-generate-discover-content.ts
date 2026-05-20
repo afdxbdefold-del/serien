@@ -103,7 +103,7 @@ async function main() {
         title: true,
       },
       orderBy: { popularity: 'desc' },
-      take: 50, // Top 50 by popularity
+      take: parseInt(process.env.DISCOVER_BULK_LIMIT || '500', 10),
     });
 
     console.log(`📊 Found ${seriesList.length} series without Discover content\n`);
@@ -111,21 +111,20 @@ async function main() {
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < seriesList.length; i++) {
-      const series = seriesList[i];
-      console.log(`\n[${i + 1}/${seriesList.length}] ${series.name || series.title} (TMDB: ${series.tmdbId})`);
-
-      const success = await generateDiscoverForSeries(series.tmdbId);
-      
-      if (success) {
-        successCount++;
-      } else {
-        failCount++;
-      }
-
-      // Rate limiting: 3 seconds between requests
-      if (i < seriesList.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+    // Concurrency: process N series in parallel
+    const concurrency = parseInt(process.env.DISCOVER_BULK_CONCURRENCY || '5', 10);
+    for (let batchStart = 0; batchStart < seriesList.length; batchStart += concurrency) {
+      const batch = seriesList.slice(batchStart, batchStart + concurrency);
+      const results = await Promise.all(batch.map(async (series, j) => {
+        const idx = batchStart + j;
+        console.log(`[${idx + 1}/${seriesList.length}] ${series.name || series.title} (TMDB: ${series.tmdbId})`);
+        return await generateDiscoverForSeries(series.tmdbId);
+      }));
+      successCount += results.filter(Boolean).length;
+      failCount += results.filter(r => !r).length;
+      // Gentle pause between batches
+      if (batchStart + concurrency < seriesList.length) {
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
     }
 

@@ -7,7 +7,17 @@ export const revalidate = 1800;
 const BASE = 'https://serien.de';
 
 export async function GET(_req: NextRequest) {
+  // Only include series that have either:
+  //  • at least one published article on the site, OR
+  //  • measurable popularity (TMDB popularity ≥ 5) — keeps niche shows
+  //    discoverable while excluding 1.4k cast-import-only "Karteileichen".
   const series = await prisma.series.findMany({
+    where: {
+      OR: [
+        { articles: { some: { status: 'published' } } },
+        { popularity: { gte: 5 } },
+      ],
+    },
     select: { slug: true, updatedAt: true },
     orderBy: { updatedAt: 'desc' },
   });
