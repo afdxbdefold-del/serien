@@ -2488,11 +2488,30 @@ export async function runPipelineV2(source: PipelineV2Source) {
             const bv = verifyBodyClaims(finalContentWithVideo || '', deProvidersForBody);
             if (!bv.ok) {
               bodyFactsOk = false;
+              // Log hallucinations for the admin Watch widget so editors can
+              // spot patterns (which source URLs systematically mislead).
+              const sourceHost = (() => {
+                try { return source.url ? new URL(source.url).host : null; } catch { return null; }
+              })();
               if (bv.negativeDeClaimMismatch) {
                 bodyFactReason = `body claims "nicht in DE / US-only" but TMDB lists [${bv.negativeDeClaimMismatch.actualDeProviders.join(', ')}]`;
                 console.log(`   🚨 Body-Fact-Verifier: NEGATIVE-DE-Halluzination`);
                 console.log(`      excerpt: "${bv.negativeDeClaimMismatch.excerpt.slice(0, 160)}…"`);
                 console.log(`      actual DE-providers: [${bv.negativeDeClaimMismatch.actualDeProviders.join(', ')}]`);
+                try {
+                  await prisma.hallucination_log.create({
+                    data: {
+                      articleId: articleId,
+                      articleSlug: structuredContent.headline ? null : null,
+                      articleTitle: finalHeadline,
+                      sourceUrl: source.url || null,
+                      sourceHost,
+                      kind: 'negative_de_claim',
+                      actualDeProviders: bv.negativeDeClaimMismatch.actualDeProviders,
+                      excerpt: bv.negativeDeClaimMismatch.excerpt.slice(0, 500),
+                    },
+                  });
+                } catch { /* logging is best-effort */ }
               } else if (bv.unverifiedClaims.length > 0) {
                 const first = bv.unverifiedClaims[0];
                 bodyFactReason = `body claims "${first.streamer}" but DE-providers=[${first.actualDeProviders.join(', ')}]`;
@@ -2500,6 +2519,22 @@ export async function runPipelineV2(source: PipelineV2Source) {
                 bv.unverifiedClaims.slice(0, 3).forEach(c =>
                   console.log(`      ❌ "${c.streamer}" claim → DE actual: [${c.actualDeProviders.join(', ')}] | "${c.excerpt.slice(0, 100)}…"`),
                 );
+                try {
+                  for (const claim of bv.unverifiedClaims.slice(0, 3)) {
+                    await prisma.hallucination_log.create({
+                      data: {
+                        articleId: articleId,
+                        articleTitle: finalHeadline,
+                        sourceUrl: source.url || null,
+                        sourceHost,
+                        kind: 'positive_claim',
+                        claimedStreamer: claim.streamer,
+                        actualDeProviders: claim.actualDeProviders,
+                        excerpt: claim.excerpt.slice(0, 500),
+                      },
+                    });
+                  }
+                } catch { /* best-effort */ }
               }
             } else if (bv.totalClaims > 0) {
               console.log(`   ✅ Body-Fact-Verifier: ${bv.verifiedClaims}/${bv.totalClaims} streamer claims verified`);

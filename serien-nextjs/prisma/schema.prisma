@@ -804,4 +804,26 @@ model facebook_post_log {
   @@index([createdAt])
 }
 
+/// v5.7 Hallucination Watch: logged every time the Body-Fact-Verifier
+/// blocks an article from DISCOVER because of a streamer claim that
+/// contradicts TMDB DE provider data. Powers the admin watchlist widget
+/// so editors can see which sources are systematically lying about
+/// German streaming availability.
+model hallucination_log {
+  id              String   @id @default(cuid())
+  articleId       String?
+  articleSlug     String?
+  articleTitle    String?  @db.Text
+  sourceUrl       String?  @db.Text
+  sourceHost      String?
+  kind            String   // "positive_claim" | "negative_de_claim"
+  claimedStreamer String?
+  actualDeProviders String[] @default([])
+  excerpt         String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sourceHost])
+  @@index([kind])
+}
 

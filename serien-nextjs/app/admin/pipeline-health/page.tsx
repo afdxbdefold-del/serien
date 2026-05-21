@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import CrawlerStatsCard from '@/components/admin/CrawlerStatsCard';
 import SitemapHealthCard from '@/components/admin/SitemapHealthCard';
+import HallucinationWatchCard from '@/components/admin/HallucinationWatchCard';
 import DiscoveryChannelCard from '@/components/admin/DiscoveryChannelCard';
 import GoogleIndexingApiCard from '@/components/admin/GoogleIndexingApiCard';
 import FacebookStatusCard from '@/components/admin/FacebookStatusCard';
@@ -476,6 +477,9 @@ export default function PipelineHealthPage() {
 
         {/* Sitemap health (Googlebot cadence + prewarm log) */}
         <SitemapHealthCard />
+
+        {/* Halluzinations-Watch — Body-Fact-Verifier-Blocks von DISCOVER */}
+        <HallucinationWatchCard />
 
         {/* Discovery-Channel performance (Google News, RSS-Direct, Tudum, …) */}
         <DiscoveryChannelCard />
