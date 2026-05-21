@@ -32,6 +32,15 @@ interface DiscoverGateInput {
   };
   publishedAt: Date;
   primary_series: string;
+  /**
+   * Optional source-reputation penalty (Halluzinations-Greylist).
+   * Pipeline-v2 looks up `hallucination_log` for the article's source host;
+   * if the host produced ≥3 hallucinations in the last 7 days, it injects
+   * a -10 penalty here, which is then subtracted from `trust_clarity`.
+   * Caps at 15 (= the entire trust budget) so a single source can't drag
+   * the total below the rest of the model.
+   */
+  source_reputation_penalty?: number;
 }
 
 interface DiscoverScoreBreakdown {
@@ -693,6 +702,19 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
   
   // === E) TRUST/CLARITY (15 Punkte) ===
   const trustMetrics = scoreTrust(plainText, fail_reasons);
+
+  // === E2) SOURCE-REPUTATION PENALTY (Halluzinations-Greylist) ===
+  // Sources that hallucinated ≥3 times in the last 7 days get a -10 penalty
+  // on trust_clarity. The penalty is forwarded from the pipeline (which has
+  // DB access). Cap at trustMetrics.score to avoid negative values.
+  const reputationPenalty = Math.min(input.source_reputation_penalty ?? 0, trustMetrics.score);
+  if (reputationPenalty > 0) {
+    trustMetrics.score = Math.max(0, trustMetrics.score - reputationPenalty);
+    if (Array.isArray(trustMetrics.reasons)) {
+      trustMetrics.reasons.push(`source-greylist −${reputationPenalty} (≥3 Halluzinationen in 7T)`);
+    }
+    fail_reasons.push(`Source-Greylist Penalty: −${reputationPenalty} Punkte`);
+  }
 
   // === TOTAL SCORE (out of 130) ===
   const total_score =

@@ -2553,7 +2553,27 @@ export async function runPipelineV2(source: PipelineV2Source) {
               source: 'TMDB_BACKDROP' as const
             },
             publishedAt: new Date(),
-            primary_series: dbSeries.name || dbSeries.title || ''
+            primary_series: dbSeries.name || dbSeries.title || '',
+            // Source-Reputation Greylist: hosts with ≥3 hallucinations in
+            // the last 7 days lose -10 trust points. Self-tuning feedback
+            // loop on top of the hallucination_log writes above.
+            source_reputation_penalty: await (async () => {
+              try {
+                const host = (() => {
+                  try { return source.url ? new URL(source.url).host : null; } catch { return null; }
+                })();
+                if (!host) return 0;
+                const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+                const halluciCount = await prisma.hallucination_log.count({
+                  where: { sourceHost: host, createdAt: { gte: since } },
+                });
+                if (halluciCount >= 3) {
+                  console.log(`   🚨 Source-Greylist: "${host}" hat ${halluciCount} Halluzinationen in 7T → −10 Punkte Trust`);
+                  return 10;
+                }
+                return 0;
+              } catch { return 0; }
+            })(),
           });
 
           // v5.7 Per-Series-Quote: Avoid Discover-feed spam if 5 sources
