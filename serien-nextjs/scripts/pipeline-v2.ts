@@ -2467,6 +2467,47 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // Discover Gate - Score berechnen und speichern
       (async () => {
         try {
+          // v5.7 BODY FACT-VERIFIER:
+          // Before computing the Discover-Score, scan the body for streamer
+          // mentions and verify each against TMDB's DE provider list. If we
+          // find a hallucinated availability claim (e.g. body says "läuft auf
+          // Netflix" but TMDB DE doesn't list Netflix), the article must NOT
+          // go into Discover — that's the Handmaid's-Tale failure mode.
+          let bodyFactsOk = true;
+          let bodyFactReason = '';
+          try {
+            const { verifyBodyClaims } = await import('../lib/streamer-claim-verifier');
+            const watchProvidersForBody = (dbSeries.watchProviders as any) || {};
+            const deProvidersForBody: string[] = (
+              watchProvidersForBody?.results?.DE?.flatrate
+              ?? watchProvidersForBody?.DE?.flatrate
+              ?? []
+            )
+              .map((p: any) => p?.provider_name)
+              .filter(Boolean);
+            const bv = verifyBodyClaims(finalContentWithVideo || '', deProvidersForBody);
+            if (!bv.ok) {
+              bodyFactsOk = false;
+              if (bv.negativeDeClaimMismatch) {
+                bodyFactReason = `body claims "nicht in DE / US-only" but TMDB lists [${bv.negativeDeClaimMismatch.actualDeProviders.join(', ')}]`;
+                console.log(`   🚨 Body-Fact-Verifier: NEGATIVE-DE-Halluzination`);
+                console.log(`      excerpt: "${bv.negativeDeClaimMismatch.excerpt.slice(0, 160)}…"`);
+                console.log(`      actual DE-providers: [${bv.negativeDeClaimMismatch.actualDeProviders.join(', ')}]`);
+              } else if (bv.unverifiedClaims.length > 0) {
+                const first = bv.unverifiedClaims[0];
+                bodyFactReason = `body claims "${first.streamer}" but DE-providers=[${first.actualDeProviders.join(', ')}]`;
+                console.log(`   🚨 Body-Fact-Verifier: ${bv.unverifiedClaims.length} hallucinated streamer claim(s)`);
+                bv.unverifiedClaims.slice(0, 3).forEach(c =>
+                  console.log(`      ❌ "${c.streamer}" claim → DE actual: [${c.actualDeProviders.join(', ')}] | "${c.excerpt.slice(0, 100)}…"`),
+                );
+              }
+            } else if (bv.totalClaims > 0) {
+              console.log(`   ✅ Body-Fact-Verifier: ${bv.verifiedClaims}/${bv.totalClaims} streamer claims verified`);
+            }
+          } catch (e: any) {
+            console.log(`   ⚠️ Body-Fact-Verifier-Fehler (non-fatal): ${e.message}`);
+          }
+
           const gateResult = await discoverGate({
             final_headline: finalHeadline,
             article_html: finalContentWithVideo || '',
@@ -2479,6 +2520,26 @@ export async function runPipelineV2(source: PipelineV2Source) {
             publishedAt: new Date(),
             primary_series: dbSeries.name || dbSeries.title || ''
           });
+
+          // v5.7 Per-Series-Quote: Avoid Discover-feed spam if 5 sources
+          // covered the same news item. Max 3 DISCOVER articles per series
+          // in a rolling 24h window. Further articles still publish — they
+          // just go straight to SEARCH_ONLY.
+          let seriesQuotaReached = false;
+          if (dbSeries.tmdbId) {
+            const recentSeriesDiscoverCount = await prisma.articles.count({
+              where: {
+                primarySeriesId: dbSeries.tmdbId,
+                publishMode: 'DISCOVER',
+                publishedAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) },
+                id: { not: articleId },
+              },
+            });
+            if (recentSeriesDiscoverCount >= 3) {
+              seriesQuotaReached = true;
+              console.log(`   📊 Per-Series-Quote erreicht: ${recentSeriesDiscoverCount} DISCOVER-Artikel zu "${dbSeries.name}" in den letzten 24h → SEARCH_ONLY`);
+            }
+          }
           
           // Save to discover_score_dashboards
           await prisma.discover_score_dashboards.create({
@@ -2486,7 +2547,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
               id: crypto.randomUUID(),
               articleId: articleId,
               timestamp: new Date(),
-              finalVerdict: gateResult.discover_eligible ? 'DISCOVER_OK' : 'SEARCH_ONLY',
+              finalVerdict: (gateResult.discover_eligible && bodyFactsOk && !seriesQuotaReached) ? 'DISCOVER_OK' : 'SEARCH_ONLY',
               discoverScore: gateResult.scores.total,
               // Nest performance inside headlineMetrics to avoid schema migration
               headlineMetrics: {
@@ -2504,7 +2565,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           // for multi-series exceptions:
           //   AWARD        → forced SEARCH_ONLY (listicle-like, too diffuse for Discover)
           //   DEATH/PLATFORM → normal Discover-Gate (single clear event, news-worthy)
-          const forceSearchOnly = multiSeriesException?.trigger === 'AWARD';
+          const forceSearchOnly = multiSeriesException?.trigger === 'AWARD' || !bodyFactsOk || seriesQuotaReached;
           const publishMode = forceSearchOnly
             ? 'SEARCH_ONLY'
             : gateResult.discover_eligible
@@ -2515,7 +2576,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
             data: { publishMode }
           });
 
-          if (forceSearchOnly) {
+          if (!bodyFactsOk) {
+            console.log(`   🚨 Body-Fact-Verifier FAIL → publishMode=SEARCH_ONLY erzwungen (${bodyFactReason})`);
+            logger.log(`Body-Fact-Verifier FAIL — ${bodyFactReason}`);
+          } else if (seriesQuotaReached) {
+            console.log(`   📊 Per-Series-Quote-Limit → publishMode=SEARCH_ONLY erzwungen`);
+          } else if (forceSearchOnly) {
             console.log(`   🔒 AWARD-Multi-Series → publishMode=SEARCH_ONLY erzwungen (Score: ${gateResult.scores.total}/130, Phrase: "${multiSeriesException.matchedPhrase}")`);
           } else if (multiSeriesException) {
             console.log(`   ✅ Discover Gate (${multiSeriesException.trigger}-Multi): ${gateResult.scores.total}/130 → ${publishMode}`);

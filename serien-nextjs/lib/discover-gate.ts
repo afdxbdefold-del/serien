@@ -8,7 +8,10 @@
  * D)  IMAGE/VISUAL:         15 Punkte
  * E)  TRUST/CLARITY:        15 Punkte
  *
- * PASS: ≥ 91 Punkte (~70%) → publishMode = "DISCOVER"
+ * PASS: ≥ 100 Punkte (~77%) → publishMode = "DISCOVER"
+ *   (raised from 91 in v5.7: 7d-Median lag bei 111, das alte 91-Limit war zu
+ *   lasch und ließ "Just-Miss"-Schwächen wie dünne Hooks, generische Hero-
+ *   Images und unklare Quellangaben durchsickern.)
  *
  * Philosophy: Not just safe headlines — winning headlines.
  * Hygiene keeps us out of trouble; performance wins the feed card.
@@ -700,7 +703,10 @@ export async function discoverGate(input: DiscoverGateInput): Promise<DiscoverGa
     imageMetrics.score +
     trustMetrics.score;
 
-  const discover_eligible = total_score >= 91;
+  // v5.7: PASS-Threshold von 91 → 100 angehoben. Begründung: Median lag bei
+  // 111/130 — nur "Just-Miss"-Artikel (Score 91-99) fielen weg, und die hatten
+  // meist dünne Hooks oder unklare Trust-Signale. Top-Klasse (100+) bleibt drin.
+  const discover_eligible = total_score >= 100;
 
   const dashboard: DiscoverDashboardMetrics = {
     headline: headlineMetrics,
