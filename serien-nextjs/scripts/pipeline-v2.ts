@@ -2563,6 +2563,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
                   try { return source.url ? new URL(source.url).host : null; } catch { return null; }
                 })();
                 if (!host) return 0;
+                // Whitelist: premium trade outlets are exempt from the
+                // self-tuning greylist, even if a temporary hallucination
+                // cluster appears in the 7-day window.
+                const { isSourceHostWhitelisted } = await import('../lib/source-policy');
+                if (isSourceHostWhitelisted(host)) return 0;
                 const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
                 const halluciCount = await prisma.hallucination_log.count({
                   where: { sourceHost: host, createdAt: { gte: since } },
