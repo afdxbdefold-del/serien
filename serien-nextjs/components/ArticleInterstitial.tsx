@@ -202,29 +202,35 @@ export default function ArticleInterstitial() {
       }}
     >
       <div
-        className="relative rounded-2xl bg-white dark:bg-gray-900 shadow-2xl ring-1 ring-black/10"
+        className="relative rounded-2xl bg-white dark:bg-gray-900 shadow-2xl ring-1 ring-black/10 overflow-hidden"
         style={{ width: '300px', maxWidth: 'calc(100vw - 32px)' }}
       >
-        {/* Top bar: "Anzeige" + close */}
-        <div className="flex items-center justify-between px-3 pt-2 pb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-            Anzeige
-          </span>
-          <button
-            type="button"
-            onClick={() => setVisible(false)}
-            className="-mr-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-gray-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-            aria-label="Werbung schließen"
-            data-testid="interstitial-close-btn"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        {/* Close button — absolutely positioned at the top-right corner
+            of the banner, overlaying the creative. White circular pill so
+            it stays visible against any ad background. */}
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          className="absolute top-2 right-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 dark:bg-gray-900/95 text-gray-800 dark:text-gray-100 shadow-md ring-1 ring-black/10 hover:bg-white hover:scale-105 active:scale-95 transition focus:outline-none focus:ring-2 focus:ring-rose-500"
+          aria-label="Werbung schließen"
+          data-testid="interstitial-close-btn"
+        >
+          <X className="h-4 w-4" strokeWidth={2.4} />
+        </button>
+
+        {/* Tiny "Anzeige" badge bottom-left so the disclosure is still
+            visible without taking up a full toolbar row. */}
+        <span
+          className="absolute bottom-1.5 left-2 z-10 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-white"
+          aria-hidden="true"
+        >
+          Anzeige
+        </span>
 
         {/* Creative slot — fixed 300×600 inventory box (IAB Half Page / Skyscraper) */}
         <div
           ref={slotRef}
-          className="px-3 pb-3 flex items-center justify-center overflow-hidden"
+          className="flex items-center justify-center overflow-hidden"
           style={{ width: '300px', height: '600px' }}
           data-testid="interstitial-creative"
         />
