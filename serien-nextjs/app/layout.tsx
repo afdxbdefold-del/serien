@@ -72,6 +72,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" className="dark" suppressHydrationWarning>
       <head>
+        {/* GateKeeperConsent CMP — MUST load before any ad / analytics script
+            so consent state is established first. `data-cfasync="false"` tells
+            Cloudflare Rocket Loader to leave the tag untouched (CMP must be
+            blocking + render-critical). Plain <script> tags so Next.js does
+            not move them with its Script component strategies. */}
+        <script
+          data-cfasync="false"
+          src="https://cmp.gatekeeperconsent.com/min.js"
+        />
+        <script
+          data-cfasync="false"
+          src="https://the.gatekeeperconsent.com/cmp.min.js"
+        />
+
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
         <script
