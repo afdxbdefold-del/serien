@@ -22,9 +22,21 @@ interface InterstitialConfig {
   desktopOnly: boolean;
 }
 
-const DELAY_MS = 3500;                              // wait before showing
+const DELAY_MS = 0;                                 // show immediately
 const SESSION_KEY = 'serien_interstitial_shown_v1'; // 1x per browser-tab session
 const POSITION = 'interstitial';
+
+// Conservative bot pattern — matches Googlebot, Bingbot, Applebot, GPTBot,
+// ClaudeBot, FacebookExternalHit, Twitterbot, LinkedInBot, headless crawlers
+// and the common SEO testers. We never want to show paid creatives to bots
+// (AdSense policy) and we don't want Google to see modal overlay above the
+// hero image (Core Web Vitals / layout-shift complaint).
+const BOT_UA_REGEX = /bot|crawler|spider|crawling|googlebot|bingbot|applebot|gptbot|claudebot|chatgpt|ccbot|petalbot|yandexbot|baiduspider|duckduckbot|facebookexternalhit|whatsapp|telegrambot|twitterbot|linkedinbot|slackbot|pinterest|embedly|preview|prerender|headless|lighthouse|pagespeed|gtmetrix|webpagetest/i;
+
+function isBotUserAgent(ua: string | undefined): boolean {
+  if (!ua) return false;
+  return BOT_UA_REGEX.test(ua);
+}
 
 /**
  * Full-screen ad interstitial. Mounted ONLY on article pages.
@@ -44,6 +56,11 @@ export default function ArticleInterstitial() {
 
   // Fetch config + decide whether to show
   useEffect(() => {
+    // Hide for bots / crawlers / preview tools — never let paid creatives
+    // appear in Google's render snapshot (CWV penalty) and stay AdSense-safe.
+    if (isBotUserAgent(navigator.userAgent)) return;
+    if ((navigator as any).webdriver === true) return; // headless browsers
+
     // Already shown in this session — skip immediately
     try {
       if (sessionStorage.getItem(SESSION_KEY) === '1') return;
@@ -71,10 +88,14 @@ export default function ArticleInterstitial() {
         }
 
         setConfig(cfg);
-        const t = setTimeout(() => {
-          if (!cancelled) setVisible(true);
-        }, DELAY_MS);
-        return () => clearTimeout(t);
+        if (DELAY_MS <= 0) {
+          setVisible(true);
+        } else {
+          const t = setTimeout(() => {
+            if (!cancelled) setVisible(true);
+          }, DELAY_MS);
+          return () => clearTimeout(t);
+        }
       })
       .catch(() => { /* silent — ads must never break the page */ });
 
@@ -138,11 +159,11 @@ export default function ArticleInterstitial() {
       }}
     >
       <div
-        className="relative w-full max-w-[420px] rounded-2xl bg-white dark:bg-gray-900 shadow-2xl ring-1 ring-black/10"
-        style={{ maxHeight: '90vh' }}
+        className="relative rounded-2xl bg-white dark:bg-gray-900 shadow-2xl ring-1 ring-black/10"
+        style={{ width: '300px', maxWidth: 'calc(100vw - 32px)' }}
       >
         {/* Top bar: "Anzeige" + close */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between px-3 pt-2 pb-1">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             Anzeige
           </span>
@@ -157,14 +178,11 @@ export default function ArticleInterstitial() {
           </button>
         </div>
 
-        {/* Creative slot */}
+        {/* Creative slot — fixed 300×600 inventory box (IAB Half Page / Skyscraper) */}
         <div
           ref={slotRef}
-          className="px-4 pb-5 flex items-center justify-center overflow-y-auto"
-          style={{
-            minHeight: Math.min(config.height, 560),
-            maxHeight: '78vh',
-          }}
+          className="px-3 pb-3 flex items-center justify-center overflow-hidden"
+          style={{ width: '300px', height: '600px' }}
           data-testid="interstitial-creative"
         />
       </div>

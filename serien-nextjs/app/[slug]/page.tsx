@@ -19,6 +19,7 @@ import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
 import ArticleInterstitial from '@/components/ArticleInterstitial';
+import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
@@ -511,8 +512,19 @@ export default async function ArticlePage({ params }: PageProps) {
       {/* Article-only ad interstitial. Reads its creative from the
           admin-managed ad_slots table (position="interstitial"). Renders
           nothing if the slot is inactive or empty. Frequency-capped to
-          once per browser-tab session via sessionStorage. */}
-      <ArticleInterstitial />
+          once per browser-tab session via sessionStorage.
+
+          Defense-in-depth: we ALSO skip emitting the component on the
+          server when the request's User-Agent looks like a bot — so
+          Googlebot / SEO crawlers / preview tools never even receive the
+          script. Belt + braces on top of the client-side UA check. */}
+      {await (async () => {
+        const h = await headers();
+        const ua = h.get('user-agent') || '';
+        const BOT_RE = /bot|crawler|spider|googlebot|bingbot|applebot|gptbot|claudebot|chatgpt|ccbot|petalbot|yandexbot|baiduspider|duckduckbot|facebookexternalhit|whatsapp|telegrambot|twitterbot|linkedinbot|slackbot|pinterest|embedly|preview|prerender|headless|lighthouse|pagespeed|gtmetrix|webpagetest/i;
+        if (BOT_RE.test(ua)) return null;
+        return <ArticleInterstitial />;
+      })()}
 
       {/* LCP: preload the hero image so Chromium fetches it before the
           article body parses. Next.js can't auto-emit this because the
