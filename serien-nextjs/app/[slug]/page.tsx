@@ -18,6 +18,7 @@ import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
+import ArticleInterstitial from '@/components/ArticleInterstitial';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
@@ -507,6 +508,12 @@ export default async function ArticlePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
+      {/* Article-only ad interstitial. Reads its creative from the
+          admin-managed ad_slots table (position="interstitial"). Renders
+          nothing if the slot is inactive or empty. Frequency-capped to
+          once per browser-tab session via sessionStorage. */}
+      <ArticleInterstitial />
+
       {/* LCP: preload the hero image so Chromium fetches it before the
           article body parses. Next.js can't auto-emit this because the
           hero is rendered by a Client Component (InlineVideoPlayer). */}

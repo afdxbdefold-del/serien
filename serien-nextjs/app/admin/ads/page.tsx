@@ -62,6 +62,14 @@ const AD_POSITIONS = [
     defaultWidth: 300,
     defaultHeight: 600
   },
+  {
+    position: 'interstitial',
+    name: 'Interstitial (Vollbild)',
+    description:
+      'Vollbild-Overlay auf Artikelseiten (max 1× pro Session, Schließen-X oben rechts). NUR auf Artikelseiten aktiv. AdSense-Anchor/Vignette-Slot oder eigenes HTML.',
+    defaultWidth: 360,
+    defaultHeight: 640,
+  },
 ];
 
 interface AdVariant {
