@@ -103,25 +103,69 @@ export default function ArticleInterstitial() {
     if (!visible || !config || !slotRef.current) return;
     // (No session-cap write — unlimited displays per user request.)
 
+    const slot = slotRef.current;
+
     if (config.provider === 'custom') {
       const variant = pickAdVariant(config.customHtmlVariants || [], config.rotationMode || 'random');
-      if (variant) injectHtmlWithScripts(slotRef.current, variant.html);
+      if (variant) injectHtmlWithScripts(slot, variant.html);
       return;
     }
 
-    // AdSense path: build a fresh <ins> element on every show (raw DOM,
-    // never trust React to leave AdSense attributes alone).
+    // AdSense path.
+    // ──────────────────────────────────────────────────────────────────
+    // 1. Localhost / Preview-host: AdSense returns nothing because the
+    //    domain isn't whitelisted in the Ad Manager. Render a visible
+    //    placeholder so the editor knows the slot is configured. This is
+    //    the same pattern the existing AdUnit component uses.
+    // 2. Production: build a fixed-size <ins> for the 300×600 inventory.
+    //    `data-ad-format="rectangle"` keeps AdSense from auto-resizing
+    //    into a half-banner; explicit width/height pixel hints are
+    //    required for fixed slots, otherwise the iframe stays 0×0.
+    // 3. Push 250ms after appendChild — AdSense needs the iframe to be
+    //    in the DOM with measurable layout before push() succeeds.
+    // ──────────────────────────────────────────────────────────────────
+    const host = window.location.hostname;
+    const isProd =
+      host !== 'localhost' &&
+      !host.includes('127.0.0.1') &&
+      !host.includes('preview') &&
+      !host.includes('emergentagent');
+
+    slot.innerHTML = '';
+
+    if (!isProd) {
+      const placeholder = document.createElement('div');
+      placeholder.style.cssText =
+        'width:300px;height:600px;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 20px);border:2px dashed #9ca3af;border-radius:10px;color:#374151;font-family:system-ui,sans-serif;font-size:13px;text-align:center;padding:16px;';
+      placeholder.textContent = `AdSense-Slot ${config.adSlot} · 300×600 (nur in Production aktiv)`;
+      slot.appendChild(placeholder);
+      return;
+    }
+
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
-    ins.style.display = 'block';
+    ins.style.display = 'inline-block';
+    ins.style.width = '300px';
+    ins.style.height = '600px';
     ins.setAttribute('data-ad-client', config.adClient);
     ins.setAttribute('data-ad-slot', config.adSlot);
-    ins.setAttribute('data-ad-format', 'auto');
-    ins.setAttribute('data-full-width-responsive', 'true');
-    slotRef.current.appendChild(ins);
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch { /* AdSense will retry on its own */ }
+    // Fixed inventory — do NOT set data-ad-format=auto here; the slot's
+    // sizing in Ad Manager controls what creative fills it. Setting
+    // "rectangle" keeps AdSense from collapsing the iframe on narrow
+    // mobile viewports.
+    ins.setAttribute('data-ad-format', 'rectangle');
+    slot.appendChild(ins);
+
+    const timer = setTimeout(() => {
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch { /* AdSense retries internally */ }
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      slot.innerHTML = '';
+    };
   }, [visible, config]);
 
   // ESC to close
