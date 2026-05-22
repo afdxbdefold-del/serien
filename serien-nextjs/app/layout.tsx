@@ -122,6 +122,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <meta name="theme-color" content="#0f0f17" />
+        {/* Ezoic site verification — required for Ezoic dashboard to confirm
+            ownership of serien.de. Must remain in <head> permanently. */}
+        <meta name="ezoic-site-verification" content="yzQjDFf6oMSKH59CPmqpphmHzzbu9s" />
         <link rel="manifest" href="/manifest.json" />
         {/* hreflang — single-language German site; emitted globally so every
             page (including ones that override `alternates`) carries the signal. */}
