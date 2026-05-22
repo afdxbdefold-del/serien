@@ -23,7 +23,6 @@ interface InterstitialConfig {
 }
 
 const DELAY_MS = 0;                                 // show immediately
-const SESSION_KEY = 'serien_interstitial_shown_v1'; // 1x per browser-tab session
 const POSITION = 'interstitial';
 
 // Conservative bot pattern — matches Googlebot, Bingbot, Applebot, GPTBot,
@@ -44,7 +43,7 @@ function isBotUserAgent(ua: string | undefined): boolean {
  * Behaviour:
  *  - Loads slot config from `/api/ads/slots` (admin-managed).
  *  - Waits DELAY_MS after mount so it doesn't trample LCP / FCP.
- *  - Shows once per browser-tab session (sessionStorage flag).
+ *  - Shows on every article view (no frequency cap).
  *  - Closes on X, ESC, or backdrop click.
  *  - Respects `mobileOnly` / `desktopOnly` toggles.
  *  - If the slot is missing, inactive, or has no creative, renders nothing.
@@ -61,10 +60,7 @@ export default function ArticleInterstitial() {
     if (isBotUserAgent(navigator.userAgent)) return;
     if ((navigator as any).webdriver === true) return; // headless browsers
 
-    // Already shown in this session — skip immediately
-    try {
-      if (sessionStorage.getItem(SESSION_KEY) === '1') return;
-    } catch { /* sessionStorage blocked → behave as if first view */ }
+    // No session cap — show on every page view (per user request).
 
     let cancelled = false;
     fetch('/api/ads/slots')
@@ -105,7 +101,7 @@ export default function ArticleInterstitial() {
   // Inject ad creative once visible
   useEffect(() => {
     if (!visible || !config || !slotRef.current) return;
-    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* ignore */ }
+    // (No session-cap write — unlimited displays per user request.)
 
     if (config.provider === 'custom') {
       const variant = pickAdVariant(config.customHtmlVariants || [], config.rotationMode || 'random');

@@ -66,7 +66,7 @@ const AD_POSITIONS = [
     position: 'interstitial',
     name: 'Interstitial (Vollbild)',
     description:
-      '300×600 Half-Page-Overlay auf Artikelseiten. Erscheint sofort, max 1× pro Session. Vor Bots & Google versteckt. AdSense-Slot oder eigenes HTML.',
+      '300×600 Half-Page-Overlay auf Artikelseiten. Erscheint sofort bei JEDEM Page-View. Vor Bots & Google versteckt. AdSense-Slot oder eigenes HTML.',
     defaultWidth: 300,
     defaultHeight: 600,
   },

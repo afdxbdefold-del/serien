@@ -511,8 +511,8 @@ export default async function ArticlePage({ params }: PageProps) {
     <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
       {/* Article-only ad interstitial. Reads its creative from the
           admin-managed ad_slots table (position="interstitial"). Renders
-          nothing if the slot is inactive or empty. Frequency-capped to
-          once per browser-tab session via sessionStorage.
+          nothing if the slot is inactive or empty. Appears on every page
+          view — there is no per-session cap.
 
           Defense-in-depth: we ALSO skip emitting the component on the
           server when the request's User-Agent looks like a bot — so
