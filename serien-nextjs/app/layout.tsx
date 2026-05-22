@@ -86,6 +86,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           src="https://the.gatekeeperconsent.com/cmp.min.js"
         />
 
+        {/* Ezoic Standalone Ads — must load AFTER the GateKeeper CMP (so it
+            can read consent state) and BEFORE the rest of the page renders.
+            `ezstandalone.cmd` queue is initialised inline so any later
+            `ezstandalone.showAds(...)` calls from ad components are safe
+            even if sa.min.js is still loading. */}
+        <script async src="https://www.ezojs.com/ezoic/sa.min.js" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.ezstandalone = window.ezstandalone || {}; ezstandalone.cmd = ezstandalone.cmd || [];`,
+          }}
+        />
+        <script src="https://ezoicanalytics.com/analytics.js" />
+
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
         <script
