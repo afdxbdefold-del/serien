@@ -40,7 +40,7 @@ React-basierter UI-Prototyp zur visuellen Abnahme des Designs.
 - ❌ Keine Backend-Integration
 
 **Live Preview:**
-https://discover-seo-hub.preview.emergentagent.com
+https://german-streaming-seo.preview.emergentagent.com
 
 **Dokumentation:**
 Siehe `/app/frontend/README_PROTOTYPE.md`

@@ -817,7 +817,7 @@ module.exports = {
 **File: `/app/frontend/.env`**
 
 ```bash
-REACT_APP_BACKEND_URL=https://discover-seo-hub.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://german-streaming-seo.preview.emergentagent.com
 PORT=3000
 ```
 
@@ -861,7 +861,7 @@ command=node server/ssr.js
 directory=/app/frontend
 autostart=true
 autorestart=true
-environment=NODE_ENV=production,REACT_APP_BACKEND_URL=https://discover-seo-hub.preview.emergentagent.com
+environment=NODE_ENV=production,REACT_APP_BACKEND_URL=https://german-streaming-seo.preview.emergentagent.com
 stdout_logfile=/var/log/supervisor/ssr.out.log
 stderr_logfile=/var/log/supervisor/ssr.err.log
 ```
@@ -1049,9 +1049,9 @@ curl -w "Time: %{time_total}s\n" http://localhost:3000/ist-black-rabbit-sehenswe
 ## DEPLOYMENT URL
 
 Nach erfolgreichem Setup:
-- Preview: https://discover-seo-hub.preview.emergentagent.com
-- Backend: https://discover-seo-hub.preview.emergentagent.com/api
-- Sitemap: https://discover-seo-hub.preview.emergentagent.com/sitemap.xml
+- Preview: https://german-streaming-seo.preview.emergentagent.com
+- Backend: https://german-streaming-seo.preview.emergentagent.com/api
+- Sitemap: https://german-streaming-seo.preview.emergentagent.com/sitemap.xml
 
 ---
 
