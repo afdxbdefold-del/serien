@@ -144,16 +144,19 @@ export default function ArticleInterstitial() {
 
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
+    // Strict 300×600 inventory ("Half Page" / Skyscraper):
+    // - explicit pixel-size on style (NOT width/height attrs, AdSense
+    //   strips them)
+    // - NO data-ad-format attribute. Setting "rectangle" forces the IAB
+    //   Rectangle group (300×250 / 336×280). Setting "auto" lets AdSense
+    //   pick anything that fits. The only way to lock 300×600 is to leave
+    //   data-ad-format unset and have the slot in Ad Manager configured
+    //   for the 300×600 size.
     ins.style.display = 'inline-block';
     ins.style.width = '300px';
     ins.style.height = '600px';
     ins.setAttribute('data-ad-client', config.adClient);
     ins.setAttribute('data-ad-slot', config.adSlot);
-    // Fixed inventory — do NOT set data-ad-format=auto here; the slot's
-    // sizing in Ad Manager controls what creative fills it. Setting
-    // "rectangle" keeps AdSense from collapsing the iframe on narrow
-    // mobile viewports.
-    ins.setAttribute('data-ad-format', 'rectangle');
     slot.appendChild(ins);
 
     const timer = setTimeout(() => {
