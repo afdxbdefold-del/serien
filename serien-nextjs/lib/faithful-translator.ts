@@ -39,12 +39,30 @@ export interface DachLocalizationContext {
   todayIso?: string;
 }
 
+export interface AdditionalSource {
+  /** URL of the corroborating source (for citation in footer). */
+  url: string;
+  /** Plain-text article body. */
+  text: string;
+  /** Original (English) headline of this source. */
+  headline?: string;
+  /** Hostname used in the footer ("variety.com" → "Variety"). */
+  publisher?: string;
+}
+
 export interface FaithfulTranslatorInput {
   sourceText: string;
   sourceHeadline: string;
   sourceUrl: string;
   seriesName: string;
   dach?: DachLocalizationContext;
+  /**
+   * Optional corroborating sources. When ≥1 is supplied, the translator
+   * switches to Multi-Source Synthesis mode: primary source is the
+   * structural backbone; additional sources contribute extra quotes and
+   * cross-validated facts only.
+   */
+  additionalSources?: AdditionalSource[];
 }
 
 export interface FaithfulArticle {
@@ -56,6 +74,13 @@ export interface FaithfulArticle {
   paragraphCount: number;
   quotesPreserved: number;
   notes: string[];
+  /** Set when ≥1 additionalSources was used and the synthesis succeeded. */
+  multiSource?: {
+    sourceCount: number;
+    publishers: string[];
+    crossValidatedFacts: number;
+    contradictionsFlagged: number;
+  };
 }
 
 const SYSTEM_PROMPT =
@@ -66,19 +91,110 @@ const SYSTEM_PROMPT =
   'hinzu, die im Original nicht waren. Du behältst Quotes 1:1 (auf Deutsch). ' +
   'Antworte ausschließlich mit validem JSON, ohne Markdown-Codeblöcke.';
 
+function publisherFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    const root = host.split('.')[0];
+    // Title-case the publisher root (variety → Variety, tvinsider → TVInsider)
+    const known: Record<string, string> = {
+      tvinsider: 'TVInsider',
+      tvline: 'TVLine',
+      variety: 'Variety',
+      deadline: 'Deadline',
+      hollywoodreporter: 'The Hollywood Reporter',
+      thr: 'The Hollywood Reporter',
+      screenrant: 'ScreenRant',
+      ew: 'Entertainment Weekly',
+      collider: 'Collider',
+      indiewire: 'IndieWire',
+      vulture: 'Vulture',
+      decider: 'Decider',
+      ign: 'IGN',
+      gamespot: 'GameSpot',
+    };
+    if (known[root]) return known[root];
+    return root.charAt(0).toUpperCase() + root.slice(1);
+  } catch {
+    return 'Quelle';
+  }
+}
+
 function buildPrompt(input: FaithfulTranslatorInput): string {
-  const { sourceText, sourceHeadline, sourceUrl, seriesName, dach } = input;
+  const { sourceText, sourceHeadline, sourceUrl, seriesName, dach, additionalSources } = input;
   const today = dach?.todayIso ?? new Date().toISOString().slice(0, 10);
+  const isMultiSource = Boolean(additionalSources && additionalSources.length > 0);
   const streamerHint = dach?.streamersDE?.length
     ? `Auf serien.de relevante deutsche Streaming-Plattformen für „${seriesName}": ${dach.streamersDE.join(', ')}. Wenn der Quelltext US-Sender erwähnt (ABC, NBC, CBS, Fox, The CW, Hulu), ersetze sie durch die passenden DACH-Streamer, falls die Serie dort verfügbar ist. Wenn keine DACH-Verfügbarkeit bekannt ist, schreibe „in Deutschland aktuell nicht verfügbar" oder lasse den Empfangshinweis weg.`
     : `Falls der Quelltext US-Sender (ABC, NBC, CBS, Fox, The CW, Hulu) als Empfangshinweis erwähnt: ersetze sie durch „beim jeweiligen Streaming-Anbieter" oder „aktuell nicht in Deutschland verfügbar". US-Sender dürfen nur als Produktionshintergrund stehen.`;
 
-  return `Übersetze den folgenden englischen Artikel TREU ins Deutsche für das deutsche Serien-Magazin serien.de.
+  // Build the additional-source blocks (only first 3 to bound prompt size)
+  const additionalBlocks =
+    isMultiSource && additionalSources
+      ? additionalSources
+          .slice(0, 3)
+          .map((s, idx) => {
+            const pub = s.publisher || publisherFromUrl(s.url);
+            const trimmed = s.text.slice(0, 4000);
+            return `\nZUSATZQUELLE ${idx + 1} (${pub}, ${s.url}):\nORIGINAL-HEADLINE: "${s.headline || ''}"\n"""\n${trimmed}\n"""`;
+          })
+          .join('\n')
+      : '';
 
-QUELLE: ${sourceUrl}
+  const multiSourceRules = isMultiSource
+    ? `
+
+MULTI-SOURCE-SYNTHESE-MODUS AKTIV (${additionalSources!.length} Zusatzquelle${additionalSources!.length === 1 ? '' : 'n'}):
+A. PRIMÄRQUELLE = STRUKTURELLER BACKBONE: Übernimm Absatzstruktur, Reihenfolge der Themen und Erzählfluss aus der Primärquelle.
+B. ZUSATZQUELLEN = NUR ERGÄNZUNG: Nutze sie ausschließlich für:
+   1) Zusätzliche Direktzitate (O-Töne aus anderen Interviews), die in der Primärquelle fehlen — füge sie an thematisch passender Stelle als zusätzlichen Satz in den bestehenden Absatz ein.
+   2) Bestätigung von Fakten (cross-validated facts): Wenn zwei Quellen denselben Fakt nennen, übernimm ihn ohne Hedge.
+   3) Marginale faktische Lücken füllen (z. B. wenn nur Zusatzquelle das Premieren-Datum nennt).
+C. WIDERSPRÜCHE: Wenn Zusatzquelle einer Primärquellen-Aussage WIDERSPRICHT, übernimm die Primärquelle und liste den Widerspruch im JSON-Feld "crossValidation.contradictions" — schreibe ihn NICHT in den Body.
+D. KEINE NEUEN ABSCHNITTE: Du baust den Artikel NICHT umfangreicher. Maximal +20 % Wortzahl gegenüber Primärquelle.
+E. ATTRIBUTION von Direktzitaten: Übernimm Name + Funktion ("sagte Showrunner Dan Erickson zu Variety") — Quellnamen dürfen genannt werden, das ist standard journalistische Attribution.`
+    : '';
+
+  const primaryBlock = `
+PRIMÄRQUELLE: ${sourceUrl}
 SERIE: ${seriesName}
 ORIGINAL-HEADLINE (Englisch): "${sourceHeadline}"
 HEUTE: ${today}
+
+PRIMÄRTEXT (übersetze diesen als strukturellen Backbone):
+"""
+${sourceText.slice(0, MAX_SOURCE_CHARS)}
+"""`;
+
+  const outputFormat = `OUTPUT-FORMAT (striktes JSON):
+{
+  "headline": "Deutsche Headline, 40–70 Zeichen, treue Übersetzung des Originals, keine Click-Bait-Floskeln",
+  "metaDescription": "Deutsche Meta-Description, max 155 Zeichen, fasst Kern zusammen",
+  "leadParagraph": "Erster Absatz, 2–4 Sätze, leichte Paraphrase des Quell-Leads",
+  "bodyParagraphs": [
+    "Zweiter deutscher Absatz (treue Übersetzung)",
+    "Dritter deutscher Absatz (treue Übersetzung)",
+    "..."
+  ],
+  "h2Headings": [
+    { "afterParagraph": 2, "text": "Deutsche H2-Überschrift" }
+  ]${
+    isMultiSource
+      ? `,
+  "crossValidation": {
+    "factsCorroborated": [ "Kurzbeschreibung Fakt 1, der von Primärquelle UND Zusatzquelle bestätigt wird" ],
+    "factsSecondaryOnly": [ "Kurzbeschreibung Fakt 2, der nur in der Zusatzquelle steht und ergänzt wurde" ],
+    "contradictions": [ "Beschreibung Widerspruch zwischen Primär- und Zusatzquelle (NICHT in Body übernommen)" ]
+  }`
+      : ''
+  }
+}
+
+WICHTIG zu h2Headings:
+- Wenn der Quelltext H2-Überschriften enthält, übernimm sie ins JSON-Array. "afterParagraph" = Index des Absatzes (1-basiert), NACH dem die H2 eingefügt wird.
+- Maximal 2 Einträge. Wenn das Original keine H2 hat: leeres Array [].`;
+
+  return `Übersetze den folgenden englischen Artikel TREU ins Deutsche für das deutsche Serien-Magazin serien.de.
+${primaryBlock}
 
 ABSOLUTE REGELN:
 1. STRUKTUR ERHALTEN: Übernimm die Absatzstruktur des Originals 1:1. Wenn das Original 5 Absätze hat, übersetzt du 5 Absätze. Keine neuen Abschnitte, keine zusammengefassten Absätze.
@@ -96,30 +212,10 @@ ${streamerHint}
 - US-Datumsformate (Tuesday, May 5) → DE-Format ("am 5. Mai" oder "am 5. Mai 2026").
 - US-Industrie-Slang (showrunner deal, first-look deal, pickup, pilot order): inhaltlich übersetzen.
 - US-Network-Empfangshinweise: nur als Produktionsfakt einmalig, nicht als Schaut-dort-Empfehlung.
+${multiSourceRules}
+${additionalBlocks}
 
-OUTPUT-FORMAT (striktes JSON):
-{
-  "headline": "Deutsche Headline, 40–70 Zeichen, treue Übersetzung des Originals, keine Click-Bait-Floskeln",
-  "metaDescription": "Deutsche Meta-Description, max 155 Zeichen, fasst Kern zusammen",
-  "leadParagraph": "Erster Absatz, 2–4 Sätze, leichte Paraphrase des Quell-Leads",
-  "bodyParagraphs": [
-    "Zweiter deutscher Absatz (treue Übersetzung)",
-    "Dritter deutscher Absatz (treue Übersetzung)",
-    "..."
-  ],
-  "h2Headings": [
-    { "afterParagraph": 2, "text": "Deutsche H2-Überschrift" }
-  ]
-}
-
-WICHTIG zu h2Headings:
-- Wenn der Quelltext H2-Überschriften enthält, übernimm sie ins JSON-Array. "afterParagraph" = Index des Absatzes (1-basiert), NACH dem die H2 eingefügt wird.
-- Maximal 2 Einträge. Wenn das Original keine H2 hat: leeres Array [].
-
-QUELLTEXT (übersetze diesen):
-"""
-${sourceText.slice(0, MAX_SOURCE_CHARS)}
-"""`;
+${outputFormat}`;
 }
 
 /**
@@ -199,6 +295,41 @@ interface LLMOutput {
   leadParagraph: string;
   bodyParagraphs: string[];
   h2Headings?: Array<{ afterParagraph: number; text: string }>;
+  crossValidation?: {
+    factsCorroborated?: string[];
+    factsSecondaryOnly?: string[];
+    contradictions?: string[];
+  };
+}
+
+/**
+ * Render the AP-style "Mit Berichten von …"-Footer for multi-source synthesis.
+ * Inserted INSIDE contentHtml as a small subtle line — not the same as the
+ * Reporter's Notebook block (which sits separately, fed by TMDB).
+ */
+function renderMultiSourceFooter(input: FaithfulTranslatorInput): string {
+  const all = [
+    { url: input.sourceUrl, publisher: publisherFromUrl(input.sourceUrl) },
+    ...(input.additionalSources || []).map((s) => ({
+      url: s.url,
+      publisher: s.publisher || publisherFromUrl(s.url),
+    })),
+  ];
+  // Dedupe by publisher name (rare case of same outlet twice)
+  const seen = new Set<string>();
+  const unique = all.filter((s) => {
+    const key = s.publisher.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (unique.length < 2) return '';
+  const linked = unique.map(
+    (s) => `<a href="${s.url}" rel="nofollow noopener" target="_blank">${escapeHtml(s.publisher)}</a>`
+  );
+  const last = linked.pop()!;
+  const prefix = linked.length > 0 ? linked.join(', ') + ' und ' : '';
+  return `\n<p class="multi-source-footer text-sm text-gray-500 dark:text-gray-400 mt-4 italic">Mit Berichten von ${prefix}${last}.</p>`;
 }
 
 function buildHtml(out: LLMOutput, dach?: DachLocalizationContext): {
@@ -284,14 +415,35 @@ export async function translateFaithful(
   if (wordCount > TARGET_WORDS_MAX) notes.push(`long:${wordCount}`);
   if (quotesPreserved === 0) notes.push('no-quotes');
 
+  // Append AP-style "Mit Berichten von …"-Footer when ≥1 additional source
+  // was supplied AND the publishers differ from the primary.
+  const isMultiSource = Boolean(input.additionalSources && input.additionalSources.length > 0);
+  let finalHtml = html;
+  let multiSourceMeta: FaithfulArticle['multiSource'] | undefined;
+  if (isMultiSource) {
+    const footer = renderMultiSourceFooter(input);
+    if (footer) finalHtml = `${html}${footer}`;
+    multiSourceMeta = {
+      sourceCount: 1 + (input.additionalSources?.length || 0),
+      publishers: [
+        publisherFromUrl(input.sourceUrl),
+        ...(input.additionalSources || []).map((s) => s.publisher || publisherFromUrl(s.url)),
+      ],
+      crossValidatedFacts: parsed.crossValidation?.factsCorroborated?.length || 0,
+      contradictionsFlagged: parsed.crossValidation?.contradictions?.length || 0,
+    };
+    if (multiSourceMeta.contradictionsFlagged > 0) notes.push(`contradictions:${multiSourceMeta.contradictionsFlagged}`);
+  }
+
   return {
     headline: applyGermanQuotes(parsed.headline.trim()),
     metaDescription: applyGermanQuotes(parsed.metaDescription.trim()),
     leadParagraph: applyGermanQuotes(applyEditorialDiff(parsed.leadParagraph, input.dach)),
-    contentHtml: html,
+    contentHtml: finalHtml,
     wordCount,
     paragraphCount,
     quotesPreserved,
     notes,
+    multiSource: multiSourceMeta,
   };
 }
