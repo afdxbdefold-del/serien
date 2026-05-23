@@ -25,6 +25,7 @@ export interface PostProcessingResult {
   imageProcessed: boolean;
   castImported: number;
   qaGenerated: boolean;
+  notebookAppended: boolean;
 }
 
 /**
@@ -358,6 +359,56 @@ async function processImageForUniqueness(
 }
 
 /**
+ * STEP 11.7: Reporter's Notebook (E-E-A-T)
+ * Appends a verifiable, fact-based "Aus der Redaktion"-block at the bottom of
+ * the article. Pulls live data from TMDB (status, last/next episode, German
+ * watch providers) — pure deterministic output, no LLM.
+ */
+async function appendReportersNotebook(
+  prisma: PrismaClient,
+  articleId: string,
+  seriesTmdbId: number
+): Promise<boolean> {
+  console.log('\n' + '━'.repeat(70));
+  console.log('STEP 11.7: REPORTER\'S NOTEBOOK (E-E-A-T)');
+  console.log('━'.repeat(70));
+
+  if (!seriesTmdbId || seriesTmdbId <= 0) {
+    console.log('⚠️  No seriesTmdbId — skipping notebook');
+    return false;
+  }
+
+  try {
+    const { buildReportersNotebook, applyNotebookToContent } = await import('../reporters-notebook');
+    const article = await prisma.articles.findUnique({
+      where: { id: articleId },
+      select: { contentHtml: true },
+    });
+    if (!article?.contentHtml) {
+      console.log('⚠️  No contentHtml — skipping');
+      return false;
+    }
+
+    const built = await buildReportersNotebook(seriesTmdbId);
+    if (!built.html) {
+      console.log(`⚠️  Notebook skipped: ${built.skipped || 'no html produced'}`);
+      return false;
+    }
+
+    const updated = applyNotebookToContent(article.contentHtml, built.html);
+    await prisma.articles.update({
+      where: { id: articleId },
+      data: { contentHtml: updated },
+    });
+    console.log(`✅ Notebook appended (${built.sentenceCount} facts)`);
+    return true;
+  } catch (error: any) {
+    console.log(`⚠️  Notebook generation failed: ${error.message}`);
+    return false;
+  }
+}
+
+/**
  * STEP 12: Cast Import
  */
 async function importCast(seriesTmdbId: number): Promise<number> {
@@ -401,7 +452,8 @@ export async function runPostProcessing(
     charactersProcessed: false,
     imageProcessed: false,
     castImported: 0,
-    qaGenerated: false
+    qaGenerated: false,
+    notebookAppended: false
   };
 
   // Step 8.5: Actor Extraction
@@ -444,6 +496,13 @@ export async function runPostProcessing(
     config.seriesTmdbId
   );
 
+  // Step 11.7: Reporter's Notebook (E-E-A-T live TMDB facts)
+  result.notebookAppended = await appendReportersNotebook(
+    prisma,
+    config.articleId,
+    config.seriesTmdbId
+  );
+
   // Step 12: Cast Import
   result.castImported = await importCast(config.seriesTmdbId);
 
@@ -456,6 +515,7 @@ export async function runPostProcessing(
   console.log(`   Image Processed: ${result.imageProcessed ? 'Yes' : 'No'}`);
   console.log(`   Cast Imported: ${result.castImported}`);
   console.log(`   Q&A Generated: ${result.qaGenerated ? 'Yes' : 'No'}`);
+  console.log(`   Reporter's Notebook: ${result.notebookAppended ? 'Yes' : 'No'}`);
   console.log('='.repeat(70) + '\n');
 
   return result;
