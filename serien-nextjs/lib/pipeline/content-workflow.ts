@@ -11,6 +11,10 @@ import { discoverGate } from '../discover-gate';
 import { factSafetyCheck } from '../fact-safety-layer';
 import { generateDistinctLead } from '../distinct-lead-generator';
 import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../time-axis-correction';
+import { translateFaithful } from '../faithful-translator';
+
+const FAITHFUL_MIN_SOURCE_CHARS = 600;
+const FAITHFUL_MIN_OUTPUT_WORDS = 250;
 
 export interface ContentGenerationInput {
   facts: string;
@@ -37,15 +41,60 @@ export interface ContentGenerationResult {
 }
 
 /**
- * Generate article content
+ * Generate article content.
+ *
+ * Tries the FAITHFUL TRANSLATOR first if we have a usable full source text
+ * — produces translation that preserves the original journalist's voice,
+ * sentence rhythm, paragraph structure and (most importantly) quotes.
+ *
+ * Falls back to the legacy "rebuilt-from-facts" generator if:
+ *   - no full source text available
+ *   - source too short (< FAITHFUL_MIN_SOURCE_CHARS chars)
+ *   - translator throws (LLM error, JSON parse, etc.)
+ *   - translator output too short (< FAITHFUL_MIN_OUTPUT_WORDS words)
+ *
+ * The returned shape is identical in both paths so the rest of the pipeline
+ * is unaware of which generator produced the article.
  */
 async function generateContent(
   input: ContentGenerationInput
-): Promise<{ content: string; title: string; metaDescription: string }> {
+): Promise<{ content: string; title: string; metaDescription: string; usedFaithful: boolean }> {
   console.log('\n' + '━'.repeat(70));
   console.log('STEP 3: CONTENT GENERATION');
   console.log('━'.repeat(70));
-  
+
+  // -------- Path A: Faithful Translation --------
+  const sourceText = input.fullSourceText?.trim();
+  if (sourceText && sourceText.length >= FAITHFUL_MIN_SOURCE_CHARS) {
+    try {
+      console.log(`🌐 Trying Faithful Translation (source: ${sourceText.length} chars)`);
+      const t = await translateFaithful({
+        sourceText,
+        sourceHeadline: '', // not yet exposed via ContentGenerationInput; LLM derives from text
+        sourceUrl: input.sourceUrl,
+        seriesName: input.seriesName,
+      });
+
+      if (t.wordCount >= FAITHFUL_MIN_OUTPUT_WORDS) {
+        console.log(`✅ Faithful translation OK (${t.wordCount}w, ${t.paragraphCount}p, ${t.quotesPreserved}q)`);
+        console.log(`   Headline: ${t.headline}`);
+        return {
+          content: t.contentHtml,
+          title: t.headline,
+          metaDescription: t.metaDescription,
+          usedFaithful: true,
+        };
+      }
+      console.log(`⚠️  Faithful translation output too short (${t.wordCount} < ${FAITHFUL_MIN_OUTPUT_WORDS}w) — falling back`);
+    } catch (e: any) {
+      console.log(`⚠️  Faithful translation failed: ${e.message} — falling back to rebuilt generator`);
+    }
+  } else {
+    const reason = !sourceText ? 'no source text' : `source too short (${sourceText.length} < ${FAITHFUL_MIN_SOURCE_CHARS}c)`;
+    console.log(`⊘ Skipping Faithful Translation (${reason})`);
+  }
+
+  // -------- Path B: Legacy rebuilt-from-facts --------
   const generated = await generateGermanArticle(
     input.facts,
     input.sourceUrl,
@@ -53,15 +102,16 @@ async function generateContent(
     input.targetWordCount,
     input.seriesName
   );
-  
-  console.log(`✅ Content generated (${generated.wordCount} words)`);
+
+  console.log(`✅ Rebuilt-from-facts (${generated.wordCount} words)`);
   console.log(`📰 Title: ${generated.title}`);
   console.log(`📝 Meta Description: ${generated.metaDescription}`);
-  
+
   return {
     content: generated.content,
     title: generated.title,
-    metaDescription: generated.metaDescription
+    metaDescription: generated.metaDescription,
+    usedFaithful: false,
   };
 }
 
@@ -259,17 +309,30 @@ async function applyDiscoverGate(
 export async function runContentWorkflow(
   input: ContentGenerationInput
 ): Promise<ContentGenerationResult> {
-  // Step 1: Generate content
-  const { content: generatedContent, title, metaDescription } = await generateContent(input);
-  
-  // Step 2: Editorial rewrite
-  const { content: rewrittenContent, title: rewrittenTitle } = await applyEditorialRewrite(
-    generatedContent,
-    title,
-    input.seriesName,
-    input.sourceUrl,
-    input.fullSourceText
-  );
+  // Step 1: Generate content (Faithful Translation preferred, falls back to rebuilt-from-facts)
+  const { content: generatedContent, title, metaDescription, usedFaithful } = await generateContent(input);
+
+  // Step 2: Editorial rewrite — SKIPPED when the faithful translator was used.
+  // The whole point of the faithful path is to preserve the original
+  // journalist's voice; running another paraphrasing pass would re-AI-ify
+  // exactly the sentences we want to keep verbatim.
+  let rewrittenContent = generatedContent;
+  let rewrittenTitle = title;
+  if (!usedFaithful) {
+    const r = await applyEditorialRewrite(
+      generatedContent,
+      title,
+      input.seriesName,
+      input.sourceUrl,
+      input.fullSourceText
+    );
+    rewrittenContent = r.content;
+    rewrittenTitle = r.title;
+  } else {
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 4: EDITORIAL REWRITE  ⊘ skipped (faithful translation preserves voice)');
+    console.log('━'.repeat(70));
+  }
   
   // Step 3: Quality check
   const qualityPassed = await checkQuality(

@@ -12,6 +12,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
+import { translateFaithful } from '../lib/faithful-translator';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
@@ -1284,7 +1285,88 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.addMetadata('trueStoryCertaintyFinal', trueStoryCertainty);
     }
 
-    const structuredContent = await generateStructuredContent({
+    // -------- FAITHFUL TRANSLATION (Path A) --------
+    // For NEWS-type content with enough source text we attempt a faithful
+    // 1:1 translation that preserves the original journalist's sentence
+    // rhythm, paragraph structure and (most importantly) direct quotes.
+    // Falls back transparently to the rebuilt-from-facts path below on any
+    // failure (short source, JSON parse, too-short output, LLM error).
+    let structuredContent: any = null;
+    const FAITHFUL_OK_CONTENT_TYPES = ['NEWS']; // skip RANKING/ENDING_EXPLAINED/TRUE_STORY (own prompts)
+    const sourceLen = (fullSourceText || '').trim().length;
+    const faithfulCandidate = FAITHFUL_OK_CONTENT_TYPES.includes(contentType) && sourceLen >= 600;
+
+    if (faithfulCandidate) {
+      try {
+        console.log(`🌐 Attempting Faithful Translation (source: ${sourceLen}c, type: ${contentType})`);
+        const t = await translateFaithful({
+          sourceText: fullSourceText,
+          sourceHeadline: source.title,
+          sourceUrl: source.url,
+          seriesName: dbSeries.name || dbSeries.title,
+          dach: {
+            streamersDE: (dachContext?.dachStreamers || []).map((s: any) => s.name || s).filter(Boolean),
+            seriesNameDE: dbSeries.name || dbSeries.title,
+            todayIso: new Date().toISOString().slice(0, 10),
+          },
+        });
+
+        if (t.wordCount >= 250) {
+          // Map FaithfulArticle → structuredContent shape so the rest of the
+          // pipeline (sanitizer, USD-converter, etc.) keeps working unchanged.
+          const paragraphs = t.contentHtml
+            .split(/(?=<h2|<\/h2>)/i)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          // Faithful output keeps H2 inline; convert to one-section-per-H2
+          // layout matching the legacy generator. If no H2 → single section.
+          const sections: Array<{ heading: string; paragraphs: string[] }> = [];
+          let currentHeading = '';
+          let currentParas: string[] = [];
+          const pBlocks = t.contentHtml.match(/<(p|h2)>[\s\S]*?<\/\1>/gi) || [];
+          for (const block of pBlocks) {
+            if (block.startsWith('<h2')) {
+              if (currentParas.length > 0 || currentHeading) {
+                sections.push({ heading: currentHeading, paragraphs: currentParas });
+              }
+              currentHeading = block.replace(/<\/?h2>/gi, '').trim();
+              currentParas = [];
+            } else {
+              currentParas.push(block.replace(/<\/?p>/gi, '').trim());
+            }
+          }
+          if (currentParas.length > 0 || currentHeading) {
+            sections.push({ heading: currentHeading, paragraphs: currentParas });
+          }
+          if (sections.length === 0) {
+            sections.push({ heading: '', paragraphs: [t.leadParagraph] });
+          }
+
+          structuredContent = {
+            headline: t.headline,
+            metaDescription: t.metaDescription,
+            lead: t.leadParagraph,
+            sections,
+            qa: [], // post-processing STEP 10 generates Q&A separately
+            _usedFaithful: true,
+          };
+          logger.addMetadata('generator', 'faithful');
+          logger.addMetadata('faithfulWordCount', t.wordCount);
+          logger.addMetadata('faithfulQuotesPreserved', t.quotesPreserved);
+          console.log(`✅ Faithful: ${t.wordCount}w, ${t.paragraphCount}p, ${t.quotesPreserved} quotes preserved`);
+        } else {
+          console.log(`⚠️  Faithful output too short (${t.wordCount} < 250w) — falling back`);
+        }
+      } catch (e: any) {
+        console.log(`⚠️  Faithful translation failed: ${e.message} — falling back to rebuilt generator`);
+      }
+    } else {
+      console.log(`⊘ Skipping Faithful (type=${contentType}, sourceLen=${sourceLen}c)`);
+    }
+
+    // -------- REBUILT-FROM-FACTS (Path B, legacy + non-NEWS types) --------
+    if (!structuredContent) {
+      structuredContent = await generateStructuredContent({
       facts,
       seriesName: dbSeries.name || dbSeries.title,
       originalHeadline: source.title,
@@ -1301,7 +1383,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
           : contentType === 'TRUE_STORY'
             ? Math.max(600, Math.min(sourceWordCount * 1.2, 1000))
             : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
-    });
+      });
+      logger.addMetadata('generator', structuredContent._usedFaithful ? 'faithful' : 'rebuilt');
+    }
     
     console.log(`✅ Generated:`);
     console.log(`   Headline: "${structuredContent.headline}"`);
