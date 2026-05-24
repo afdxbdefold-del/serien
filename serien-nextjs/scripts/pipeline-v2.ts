@@ -1293,7 +1293,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Falls back transparently to the rebuilt-from-facts path below on any
     // failure (short source, JSON parse, too-short output, LLM error).
     let structuredContent: any = null;
-    const FAITHFUL_OK_CONTENT_TYPES = ['NEWS']; // skip RANKING/ENDING_EXPLAINED/TRUE_STORY (own prompts)
+    // Faithful Translator deactivated by default — it copied source-text
+    // aggregator boilerplate (Collider/TVInsider quizzes, AI-summary widgets,
+    // watch-cards, "You are a..." quiz answers) 1:1 into the German body,
+    // triggering Helpful-Content / Discover penalties. Pipeline now falls back
+    // to the legacy Rebuild-from-Facts generator which uses the full source
+    // text as CONTEXT only and writes an independent DE article.
+    // Re-enable via env `ENABLE_FAITHFUL=true` once the boilerplate filter in
+    // lib/full-text-fetcher.ts is hardened.
+    const FAITHFUL_OK_CONTENT_TYPES: string[] =
+      process.env.ENABLE_FAITHFUL === 'true' ? ['NEWS'] : [];
     const sourceLen = (fullSourceText || '').trim().length;
     const faithfulCandidate = FAITHFUL_OK_CONTENT_TYPES.includes(contentType) && sourceLen >= 600;
 
