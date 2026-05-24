@@ -53,8 +53,16 @@ export default function ArticleInterstitial() {
   const [config, setConfig] = useState<InterstitialConfig | null>(null);
   const slotRef = useRef<HTMLDivElement | null>(null);
 
+  // Deactivated 2026-05-24 by user request for Google Discover recovery.
+  // Renders nothing until re-enabled via env flag
+  // `NEXT_PUBLIC_ENABLE_INTERSTITIAL=true`. Hooks above are kept above
+  // this guard to comply with React's rules-of-hooks.
+  const interstitialEnabled = process.env.NEXT_PUBLIC_ENABLE_INTERSTITIAL === 'true';
+
   // Fetch config + decide whether to show
   useEffect(() => {
+    // Disabled-flag short-circuit (see above).
+    if (!interstitialEnabled) return;
     // Hide for bots / crawlers / preview tools — never let paid creatives
     // appear in Google's render snapshot (CWV penalty) and stay AdSense-safe.
     if (isBotUserAgent(navigator.userAgent)) return;
@@ -207,7 +215,7 @@ export default function ArticleInterstitial() {
     return () => { document.body.style.overflow = original; };
   }, [visible]);
 
-  if (!visible || !config) return null;
+  if (!interstitialEnabled || !visible || !config) return null;
 
   return (
     <div
