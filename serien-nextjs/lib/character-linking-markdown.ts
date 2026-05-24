@@ -190,8 +190,28 @@ export async function linkCharactersInMarkdown(
   }
   
   console.log(`   Found ${characters.length} characters`);
-  
-  let linkedMarkdown = markdown;
+
+  // SAFETY: protect any markdown that is already linked OR is a URL/href
+  // from being scanned for character matches. Without this, a previously-
+  // inserted cast link like `[Brooks](/person/154748-jason-brooks)` will
+  // happily expose the word "jason" inside its href to a later regex,
+  // producing nested-link garbage such as
+  // `<a href="/person/154748-[jason](/figur/jason-ioane">Brooks</a>…)`.
+  //
+  // Strategy: tokenise all existing markdown links and bare URLs, run
+  // character linking only on the gaps in between, then restore tokens.
+  const tokens: string[] = [];
+  const stash = (s: string) => {
+    const i = tokens.length;
+    tokens.push(s);
+    return `\u0000MDLINK_${i}\u0000`;
+  };
+  let masked = markdown
+    // existing [text](url)
+    .replace(/\[[^\]]+\]\([^)]+\)/g, (m) => stash(m))
+    // bare http(s)/protocol-relative URLs
+    .replace(/https?:\/\/\S+/g, (m) => stash(m));
+  let linkedMarkdown = masked;
   let linkedCount = 0;
   
   // Sort by name length (longest first) to avoid partial matches
@@ -329,7 +349,12 @@ export async function linkCharactersInMarkdown(
   });
   
   console.log(`   ✅ Total characters linked: ${linkedCount}`);
-  
+
+  // Restore stashed markdown links and bare URLs
+  linkedMarkdown = linkedMarkdown.replace(/\u0000MDLINK_(\d+)\u0000/g, (_m, idx) => {
+    return tokens[Number(idx)] ?? '';
+  });
+
   return {
     linkedMarkdown,
     charactersLinked: linkedCount,

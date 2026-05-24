@@ -115,17 +115,36 @@ export async function linkCastInMarkdown(
       
       while ((match = regex.exec(linkedMarkdown)) !== null) {
         const matchIndex = match.index;
-        
+        const matchText = match[0];
+
         // Check if match is inside a heading
         const beforeMatch = linkedMarkdown.substring(Math.max(0, matchIndex - 150), matchIndex);
         const lastNewline = beforeMatch.lastIndexOf('\n');
         const lineStart = lastNewline === -1 ? beforeMatch : beforeMatch.substring(lastNewline + 1);
-        
+
         // Skip if in heading (## Heading text)
         if (/^\s*#{1,6}\s/.test(lineStart)) {
           continue;
         }
-        
+
+        // SURNAME-CONTEXT GUARD (Mai 2026): when matching a bare last name
+        // (e.g. "Brooks" for cast member "Jason Brooks"), refuse the match
+        // if the adjacent context shows this is actually part of a different
+        // person's name in the text (e.g. "Brooks Nader" → don't claim
+        // "Brooks" for Jason Brooks here).
+        if (strategy.type === 'last') {
+          const tail = linkedMarkdown.slice(matchIndex + matchText.length, matchIndex + matchText.length + 40);
+          // word immediately following is capitalized → looks like another surname
+          if (/^\s+[A-ZÄÖÜ][\wäöüß'-]{2,}/.test(tail)) continue;
+
+          const head = linkedMarkdown.slice(Math.max(0, matchIndex - 40), matchIndex);
+          const priorWord = head.match(/([A-ZÄÖÜ][\wäöüß'-]{2,})\s+$/);
+          if (priorWord && firstName && priorWord[1].toLowerCase() !== firstName.toLowerCase()) {
+            // word immediately before is a different given name
+            continue;
+          }
+        }
+
         // This is the first valid match!
         validMatch = match;
         break;
