@@ -176,7 +176,8 @@ ${sourceText.slice(0, MAX_SOURCE_CHARS)}
     "..."
   ],
   "h2Headings": [
-    { "afterParagraph": 2, "text": "Deutsche H2-Überschrift" }
+    { "afterParagraph": 2, "text": "Deutsche H2-Überschrift, 4–8 Wörter" },
+    { "afterParagraph": 5, "text": "Zweite deutsche H2-Überschrift" }
   ]${
     isMultiSource
       ? `,
@@ -190,8 +191,9 @@ ${sourceText.slice(0, MAX_SOURCE_CHARS)}
 }
 
 WICHTIG zu h2Headings:
-- Wenn der Quelltext H2-Überschriften enthält, übernimm sie ins JSON-Array. "afterParagraph" = Index des Absatzes (1-basiert), NACH dem die H2 eingefügt wird.
-- Maximal 2 Einträge. Wenn das Original keine H2 hat: leeres Array [].`;
+- IMMER 2-3 Einträge. NIE 0 oder 1. "afterParagraph" = Index des Absatzes (1-basiert), NACH dem die H2 eingefügt wird.
+- Verteile gleichmäßig: erste H2 nach Absatz 2-3, zweite nach Absatz 5-6, optional dritte nach Absatz 8-9.
+- KEINE H2 am Ende (also nicht nach dem allerletzten Absatz). Letzter Absatz bleibt immer Closure ohne darauffolgende Section.`;
 
   return `Übersetze den folgenden englischen Artikel TREU ins Deutsche für das deutsche Serien-Magazin serien.de.
 ${primaryBlock}
@@ -200,11 +202,12 @@ ABSOLUTE REGELN:
 1. STRUKTUR ERHALTEN: Übernimm die Absatzstruktur des Originals 1:1. Wenn das Original 5 Absätze hat, übersetzt du 5 Absätze. Keine neuen Abschnitte, keine zusammengefassten Absätze.
 2. STIMME ERHALTEN: Wenn das Original kurze, knackige Sätze hat → kurze deutsche Sätze. Wenn das Original lange Schachtelsätze hat → lange deutsche Sätze. Du imitierst den Rhythmus.
 3. ZITATE 1:1: Direktzitate ("...") werden treu übersetzt und behalten die Attribution. Erfinde keine neuen Zitate.
-4. KEINE NEUE H2: Wenn das Original keine Sub-Headlines hat, fügst du KEINE hinzu. Wenn das Original H2s hat, übersetzt du sie. Maximal 2 H2 pro Artikel, auch wenn das Original mehr hat — dann fasse benachbarte Abschnitte zusammen.
+4. H2-PFLICHT: Generiere IMMER 2 bis 3 H2-Sub-Headlines, die echte Lesefluss-Brüche markieren (auch wenn das Original keine hat). H2-Texte sind 4–8 deutsche Wörter, kein Click-Bait, keine Floskeln. Verteile sie gleichmäßig: H2 nach Absatz 2-3, H2 nach Absatz 5-6, optional H2 nach Absatz 8-9. KEINE H2 nach dem letzten Absatz (das ist immer Closure).
 5. KEIN AI-DEUTSCH: Verboten sind „genau diese/das", „wirklich", „schlicht", „letztlich", „unmissverständlich", „trotz dieses vermeintlichen", „im Schnitt verschwand", „sorgt für". Schreibe natürliches Magazin-Deutsch.
 6. NUR PARAPHRASIERE: Den ALLERERSTEN Satz darfst (und solltest) du leicht paraphrasieren, damit der Lead nicht 1:1 mit dem Original übereinstimmt. Alle anderen Sätze: möglichst wortgetreu.
 7. ENGLISCH KOMPLETT WEG: Kein einziges englisches Wort im Output. Ausnahmen: Eigennamen (Personennamen, Seriennamen, Streamernamen wie "Netflix", "Disney+", "Prime Video").
 8. KEINE GEDANKENSTRICHE: Keine em-dashes (—) oder en-dashes (–) — nutze Komma, Doppelpunkt oder Punkt. ZITATE: nutze im JSON-Output IMMER SINGLE QUOTES (') für Direktzitate, NIEMALS doppelte Anführungszeichen — sonst bricht das JSON. Beispiel: 'Ich war so: Dan! Oh mein Gott.' (mit Apostroph).
+9. BOLD EMPHASIS: Markiere im JSON-Output 2-4 zentrale Schlüssel-Begriffe (Premieren-Daten, Streamer-Name, Hauptfigur, wichtige Zahl) mit **doppelten Sternchen** für Markdown-Bold im finalen Artikel. Nicht übertreiben — max. 1x pro Absatz.
 
 DACH-LOKALISIERUNG:
 ${streamerHint}
@@ -342,9 +345,11 @@ function buildHtml(out: LLMOutput, dach?: DachLocalizationContext): {
   const allParas: string[] = [out.leadParagraph, ...out.bodyParagraphs];
   const cleanedParas = allParas.map((p) => applyEditorialDiff(p, dach)).filter((p) => p.length > 10);
 
-  // H2 lookup: keyed by 1-based paragraph index, capped at 2 entries
+  // Faithful output keeps H2 inline; convert to one-section-per-H2 layout.
   const h2Map = new Map<number, string>();
-  (out.h2Headings || []).slice(0, 2).forEach((h) => {
+  // Cap at 3 entries — generous enough for forced 2-3 H2 rule while
+  // still preventing listicle blowout.
+  (out.h2Headings || []).slice(0, 3).forEach((h) => {
     if (h.text && typeof h.afterParagraph === 'number') h2Map.set(h.afterParagraph, h.text);
   });
 
