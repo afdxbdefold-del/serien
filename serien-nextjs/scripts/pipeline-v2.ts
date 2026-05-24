@@ -1323,16 +1323,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
           const sections: Array<{ heading: string; paragraphs: string[] }> = [];
           let currentHeading = '';
           let currentParas: string[] = [];
-          const pBlocks = t.contentHtml.match(/<(p|h2)>[\s\S]*?<\/\1>/gi) || [];
+          // Match <p>, <p class="...">, <h2>, <h2 class="...">  etc.
+          const pBlocks = t.contentHtml.match(/<(p|h2)\b[^>]*>[\s\S]*?<\/\1>/gi) || [];
           for (const block of pBlocks) {
-            if (block.startsWith('<h2')) {
+            if (/^<h2\b/i.test(block)) {
               if (currentParas.length > 0 || currentHeading) {
                 sections.push({ heading: currentHeading, paragraphs: currentParas });
               }
-              currentHeading = block.replace(/<\/?h2>/gi, '').trim();
+              currentHeading = block.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i, '$1').trim();
               currentParas = [];
             } else {
-              currentParas.push(block.replace(/<\/?p>/gi, '').trim());
+              const text = block.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/i, '$1').trim();
+              if (text) currentParas.push(text);
             }
           }
           if (currentParas.length > 0 || currentHeading) {
@@ -1342,10 +1344,29 @@ export async function runPipelineV2(source: PipelineV2Source) {
             sections.push({ heading: '', paragraphs: [t.leadParagraph] });
           }
 
+          // Build the markdown body the downstream Step 7 expects.
+          // We re-emit our HTML as markdown so markdownToHtml() can rebuild
+          // it with all the standard pipeline tooling (anchor links, etc).
+          const markdownLines: string[] = [];
+          for (const sec of sections) {
+            if (sec.heading) markdownLines.push(`\n## ${sec.heading}\n`);
+            for (const para of sec.paragraphs) {
+              // Convert any inline <a href> back to markdown so footer links
+              // survive Step 7's markdown→HTML round-trip.
+              const md = para.replace(
+                /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi,
+                '[$2]($1)'
+              );
+              markdownLines.push(`${md}\n`);
+            }
+          }
+          const faithfulMarkdown = markdownLines.join('\n').trim();
+
           structuredContent = {
             headline: t.headline,
             metaDescription: t.metaDescription,
             lead: t.leadParagraph,
+            markdown: faithfulMarkdown,
             sections,
             qa: [], // post-processing STEP 10 generates Q&A separately
             _usedFaithful: true,
