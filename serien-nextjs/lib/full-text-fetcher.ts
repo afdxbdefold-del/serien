@@ -17,6 +17,10 @@ export interface FullTextResult {
   publishDate?: Date;
   rawText?: string;
   youtubeVideoIds?: string[];
+  /** Instagram reel/post permalinks discovered in the source HTML. */
+  instagramPermalinks?: string[];
+  /** Twitter/X status URLs discovered in the source HTML. */
+  twitterStatusUrls?: string[];
 }
 
 // Site-specific selectors
@@ -107,6 +111,36 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
       console.log(`   🎬 Found ${youtubeVideoIds.length} YouTube video(s): ${youtubeVideoIds.join(', ')}`);
     }
 
+    // Extract Instagram reel/post permalinks BEFORE removing blockquotes
+    const instagramPermalinks: string[] = [];
+    $('blockquote.instagram-media, blockquote[class*="instagram-media"]').each((_, el) => {
+      const permalink = $(el).attr('data-instgrm-permalink') || '';
+      const clean = permalink.split('?')[0].replace(/\/$/, '');
+      if (clean && /instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+/.test(clean)) {
+        if (!instagramPermalinks.includes(clean)) instagramPermalinks.push(clean);
+      }
+    });
+    // Fallback: bare URLs in source HTML (some publishers embed via <a> only)
+    const igFromText = html.match(/https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+/g) || [];
+    for (const u of igFromText) {
+      const clean = u.split('?')[0].replace(/\/$/, '');
+      if (!instagramPermalinks.includes(clean)) instagramPermalinks.push(clean);
+    }
+    if (instagramPermalinks.length > 0) {
+      console.log(`   📸 Found ${instagramPermalinks.length} Instagram embed(s): ${instagramPermalinks.join(', ')}`);
+    }
+
+    // Extract Twitter/X status URLs
+    const twitterStatusUrls: string[] = [];
+    $('blockquote.twitter-tweet').each((_, el) => {
+      const link = $(el).find('a[href*="twitter.com/"], a[href*="x.com/"]').last().attr('href') || '';
+      const m = link.match(/https?:\/\/(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status\/\d+/);
+      if (m && !twitterStatusUrls.includes(m[0])) twitterStatusUrls.push(m[0]);
+    });
+    if (twitterStatusUrls.length > 0) {
+      console.log(`   🐦 Found ${twitterStatusUrls.length} Twitter/X embed(s): ${twitterStatusUrls.join(', ')}`);
+    }
+
     // Remove unwanted elements
     const removeSelectors = [...DEFAULT_SELECTORS.remove, ...(selectors.remove || [])];
     $(removeSelectors.join(', ')).remove();
@@ -164,6 +198,8 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
       headline: title,
       rawText: fullText,
       youtubeVideoIds,
+      instagramPermalinks,
+      twitterStatusUrls,
     };
     
   } catch (error: any) {

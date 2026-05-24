@@ -19,6 +19,7 @@ import { markdownToHtml } from '../lib/markdown-to-html';
 import { sanitizeArticleContent } from '../lib/content-sanitizer';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
+import { injectSourceEmbeds } from '../lib/source-embeds';
 
 const prisma = new PrismaClient();
 
@@ -110,8 +111,13 @@ async function regen(slug: string) {
   console.log(`   ✅ cast=${castR.castLinked}, chars=${charR.charactersLinked}, streamers=${strR.streamersLinked}`);
 
   const rawHtml = markdownToHtml(markdown);
-  const html = sanitizeArticleContent(rawHtml, out.lead);
-  console.log(`🎨 HTML: ${html.length}c, h2=${(html.match(/<h2/gi) || []).length}, links=${(html.match(/<a\s+href/gi) || []).length}`);
+  const withEmbeds = injectSourceEmbeds(rawHtml, {
+    instagramPermalinks: fetched.instagramPermalinks,
+    twitterStatusUrls: fetched.twitterStatusUrls,
+    youtubeVideoIds: fetched.youtubeVideoIds,
+  });
+  const html = sanitizeArticleContent(withEmbeds, out.lead);
+  console.log(`🎨 HTML: ${html.length}c, h2=${(html.match(/<h2/gi) || []).length}, links=${(html.match(/<a\s+href/gi) || []).length}, ig=${(html.match(/instagram-media/gi) || []).length}, yt-lite=${(html.match(/youtube-lite/gi) || []).length}`);
 
   // Excerpt = lead, short and clean
   const lead = (out.lead || '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/\s+/g, ' ').trim();

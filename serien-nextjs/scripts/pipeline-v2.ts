@@ -17,6 +17,7 @@ import { fetchNotebookFacts } from '../lib/reporters-notebook';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
+import { injectSourceEmbeds } from '../lib/source-embeds';
 import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
 import { blockReasonForSource, blockReasonForTmdbId } from '../lib/series-blocklist';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
@@ -253,6 +254,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let fullSourceText = source.text || source.sourceText || '';
     let sourceWordCount = 0;
     let sourceYoutubeVideoIds: string[] = [];
+    let sourceInstagramPermalinks: string[] = [];
+    let sourceTwitterStatusUrls: string[] = [];
     
     if (source.useFullTextMode) {
       const fullTextResult = await fetchFullArticleText(source.url);
@@ -261,6 +264,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         fullSourceText = fullTextResult.fullText;
         sourceWordCount = fullTextResult.wordCount;
         sourceYoutubeVideoIds = fullTextResult.youtubeVideoIds || [];
+        sourceInstagramPermalinks = fullTextResult.instagramPermalinks || [];
+        sourceTwitterStatusUrls = fullTextResult.twitterStatusUrls || [];
         
         if (fullTextResult.title && fullTextResult.title.length > 5) {
           source.title = fullTextResult.title;
@@ -1805,7 +1810,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 7: Markdown to HTML');
     
-    const contentHtml = markdownToHtml(structuredContent.markdown || '');
+    let contentHtml = markdownToHtml(structuredContent.markdown || '');
+
+    // STEP 7.0a: inject one primary social embed (Instagram > Twitter > YouTube-Lite)
+    // discovered in the source article. Placed after the first H2/<p> section
+    // so the embed acts as visual evidence for the news event. The frontend's
+    // existing Instagram/Twitter loaders + the YouTube Lite-Facade handle the
+    // actual rendering. Only one embed per article to keep CWV/Discover lean.
+    contentHtml = injectSourceEmbeds(contentHtml, {
+      instagramPermalinks: sourceInstagramPermalinks,
+      twitterStatusUrls: sourceTwitterStatusUrls,
+      youtubeVideoIds: sourceYoutubeVideoIds,
+    });
     
     // DEBUG: Check if links survived HTML conversion
     const debugHtmlCharLinks = (contentHtml?.match(/href="\/figur\//g) || []).length;
