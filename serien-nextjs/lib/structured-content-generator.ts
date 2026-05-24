@@ -425,8 +425,94 @@ ERLAUBT bleiben:
 `;
   }
 
-  const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
+  // ───────────────────────────────────────────────────────────────────
+  // SOURCE-TEXT KONTEXT (Mai 2026)
+  // Der vollständige Quelltext kommt jetzt als CONTEXT-Block in den Prompt
+  // (vorher nur Bullet-Fakten → "templated" AI-Output). Wir markieren ihn
+  // KLAR als Quelle zum Verstehen — explizit NICHT zum Übersetzen oder
+  // Übernehmen. Boilerplate-Marker werden ausgeschlossen, damit Aggregator-
+  // Quizze / AI-Summary-Widgets / Watch-Cards nicht in den DE-Artikel
+  // rutschen (Discover-Killer-Pattern).
+  // ───────────────────────────────────────────────────────────────────
+  const sourceContextBlock = (sourceText && sourceText.trim().length > 200)
+    ? `
 
+═══════════════════════════════════════════════════════════════════════
+QUELL-ARTIKEL (NUR KONTEXT — NIEMALS ÜBERSETZEN ODER ÜBERNEHMEN):
+═══════════════════════════════════════════════════════════════════════
+Du erhältst hier den vollständigen Quelltext. Nutze ihn ausschließlich, um
+den Sachverhalt vollständig zu verstehen, Zitate korrekt zu attribuieren
+und Lücken in den Bullet-Fakten zu schließen.
+
+❌ NIEMALS 1:1 übersetzen.
+❌ NIEMALS ganze Absätze ins Deutsche spiegeln.
+❌ Wenn der Quelltext einen Quiz-/Boilerplate-/Aggregator-Block enthält
+   (typische Marker: "Generate a summary", "Try something different",
+   "Show me the facts", "Explain it like", "You are a …", "You thrive in",
+   "You carry the weight", "You build loyalty", "Like Follow Share",
+   "Release Date", "Where to watch", "TV-MA", "Cast See All",
+   "By <Autor> Published" + Byline-Bio, "image via …", interaktive Polls,
+   "Which … are you?"-Quizze, "What To Watch"-Listicles am Artikelende) —
+   diesen Block KOMPLETT IGNORIEREN. Niemals 2nd-Person ("Du bist", "Du
+   gedeiht", "Du passt") in den deutschen Artikel übernehmen.
+❌ Listen am Artikel-Ende ("Related stories", "Trending now") IGNORIEREN.
+✅ Story-Kern (Wer/Was/Wo/Wann/Warum) verstehen.
+✅ 1–2 direkte Zitate aus dem Quelltext einbauen, korrekt attribuiert
+   ("Showrunner X erklärte gegenüber Variety: …").
+✅ Konkrete Details (Zahlen, Daten, Namen) übernehmen, in eigene Worte
+   gefasst und auf Deutsch geschrieben.
+
+QUELLTEXT:
+"""
+${sourceText.trim().slice(0, 18000)}
+"""
+`
+    : '';
+
+  // ───────────────────────────────────────────────────────────────────
+  // ANTI-AI-STIL-HÄRTUNG (Mai 2026)
+  // Discover-Penalty-Schutz: zwingt eigenständige journalistische Stimme
+  // statt Listicle-/Template-Pattern, das KI-Detektoren sofort erkennen.
+  // ───────────────────────────────────────────────────────────────────
+  const antiAiBlock = `
+
+═══════════════════════════════════════════════════════════════════════
+EIGENSTÄNDIGE JOURNALISTISCHE STIMME (PFLICHT):
+═══════════════════════════════════════════════════════════════════════
+Du schreibst einen EIGENSTÄNDIGEN deutschen Artikel — keinen Übersetzungs-
+oder Aggregator-Text. Folgende Stil-Regeln sind verbindlich:
+
+✅ Satz-Varianz (Burstiness): Wechsle Kurzsätze (4–8 Wörter) mit längeren
+   Sätzen (15–25 Wörter). Vermeide gleichlange Reihen.
+✅ Konkret statt abstrakt: "Tommy Norris jagt Bohrlecks in West Texas"
+   statt "Der Protagonist navigiert Konflikte in einem rauen Umfeld".
+✅ Aktive Sprache: "Sheridan kündigt …" statt "Es wurde angekündigt, dass".
+✅ Eine direkte Quote oder ein konkretes Detail pro Section H2.
+✅ Eigener Aufhänger im Lead, NICHT die Quell-Headline paraphrasiert.
+
+❌ KEINE AI-Floskeln:
+   "In diesem Artikel", "Zusammenfassend", "Es ist wichtig zu erwähnen",
+   "Lass uns einen Blick werfen", "Bekanntlich", "Wie bereits erwähnt",
+   "Ohne Zweifel", "In der heutigen Zeit", "Im Wesentlichen", "Letztendlich".
+
+❌ KEINE Listicle-Pattern:
+   "Hier sind 5 Gründe", "Top 3", "Das musst du wissen über",
+   "Alles was du wissen musst", "Schritt 1: … Schritt 2: …".
+
+❌ KEINE generischen Bewertungs-Floskeln:
+   "ein wahres Highlight", "ein Meisterwerk", "absolut sehenswert",
+   "unbedingt anschauen", "Pflichtprogramm", "die beste Serie aller Zeiten",
+   "Fans sind begeistert" (nur wenn konkret belegt mit Zahl oder Quote).
+
+❌ KEINE 2nd-Person-Anrede ("Du", "Du bist", "Du fühlst", "Stell dir vor")
+   — schreibe distanziert-journalistisch in 3. Person.
+
+❌ KEIN Plot-Recap, der nicht direkt zum News-Aufhänger gehört.
+
+`;
+
+  const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.
+${sourceContextBlock}${antiAiBlock}
 Heutiges Datum: ${today}
 Serie: ${seriesName}
 Fakten: ${factsText}
