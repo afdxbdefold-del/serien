@@ -364,15 +364,24 @@ function buildHtml(out: LLMOutput, dach?: DachLocalizationContext): {
   quotesPreserved: number;
 } {
   const parts: string[] = [];
-  const allParas: string[] = [out.leadParagraph, ...out.bodyParagraphs];
+  // IMPORTANT: leadParagraph is NOT included in the body HTML.
+  // It is stored separately as `excerpt`/intro of the article. Including it
+  // here produced a 1:1 duplicate-intro in the DB which had to be stripped
+  // by a fragile on-read sanitizer.
+  const allParas: string[] = [...out.bodyParagraphs];
   const cleanedParas = allParas.map((p) => applyEditorialDiff(p, dach)).filter((p) => p.length > 10);
 
   // Faithful output keeps H2 inline; convert to one-section-per-H2 layout.
+  // Claude counts paragraphs as: leadParagraph = 1, bodyParagraphs[0] = 2, …
+  // Since we no longer include the lead in the body HTML, every
+  // afterParagraph index has to shift by -1 to land in the right slot.
   const h2Map = new Map<number, string>();
   // Cap at 3 entries — generous enough for forced 2-3 H2 rule while
   // still preventing listicle blowout.
   (out.h2Headings || []).slice(0, 3).forEach((h) => {
-    if (h.text && typeof h.afterParagraph === 'number') h2Map.set(h.afterParagraph, h.text);
+    if (h.text && typeof h.afterParagraph === 'number') {
+      h2Map.set(Math.max(1, h.afterParagraph - 1), h.text);
+    }
   });
 
   cleanedParas.forEach((para, idx) => {
