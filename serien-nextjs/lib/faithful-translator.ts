@@ -26,7 +26,7 @@
 
 import { createLLMClient, getLLMConfig, parseLLMJson } from './llm-config';
 
-const MAX_SOURCE_CHARS = 12000;
+const MAX_SOURCE_CHARS = 20000;
 const TARGET_WORDS_MIN = 350;
 const TARGET_WORDS_MAX = 900;
 
