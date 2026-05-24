@@ -656,11 +656,34 @@ async function callLLMStructured(prompt: string, retries = 2, temperature?: numb
             role: 'user',
             content: userPromptBody + `
 
+═══════════════════════════════════════════════════════════════════════
+TRENNUNG LEAD vs. BODY (PFLICHT, sonst Artikel unvollständig):
+═══════════════════════════════════════════════════════════════════════
+Der "lead" wird auf serien.de als eigenständiger Teaser-Block OBERHALB des
+Artikels gerendert (bold, in eigener Box). Er wird NICHT zusätzlich in den
+Body übernommen. Der Body startet direkt mit dem ersten H2.
+
+Das heißt für dich:
+✅ Der Lead muss als selbstständiger Hook funktionieren (Aufmerksamkeit,
+   Spannung, DACH-Anker / Streamer-Mention, kein vollständiges News-Briefing).
+✅ Der BODY (sections.paragraphs) muss VOLLSTÄNDIG eigenständig funktionieren.
+   Jede wichtige Information, jedes Datum, jeder Name, jede Zahl, jede Quote
+   aus dem Lead MUSS auch im Body ausführlich behandelt werden — vorzugsweise
+   in der ersten Section ("paragraphs[0]" der ersten section).
+✅ Der Leser darf KEINEN Sachverhalt verpassen, wenn er nur den Body liest.
+   Stell dir vor, Google Discover zeigt nur den Lead als Snippet und der
+   User klickt — der Body muss dann das gesamte Briefing liefern, nicht
+   bloß weiterspinnen, was im Lead schon stand.
+
+❌ NIEMALS Sachverhalt nur im Lead unterbringen und im Body weglassen.
+❌ NIEMALS im Body auf den Lead referenzieren ("wie oben erwähnt", "der
+   eingangs angesprochene …" o. ä.) — der Body steht inhaltlich für sich.
+
 OUTPUT FORMAT (JSON):
 {
   "headline": "string (max 70 chars)",
   "metaDescription": "string (max 155 chars)",
-  "lead": "string (2-3 Sätze)",
+  "lead": "string (2-3 Sätze, Teaser-Stil)",
   "sections": [
     {
       "h2": "string (max 6 Wörter)",
