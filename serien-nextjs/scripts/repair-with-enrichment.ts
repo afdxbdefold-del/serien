@@ -15,7 +15,6 @@ import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
-import { buildReportersNotebook, applyNotebookToContent } from '../lib/reporters-notebook';
 
 const prisma = new PrismaClient();
 
@@ -112,17 +111,8 @@ async function repair(slug: string) {
   console.log(`   ✅ ${streamerResult.streamersLinked} streamer links added`);
 
   console.log(`🎨 Converting markdown to HTML…`);
-  let html = markdownToHtml(markdown);
+  const html = markdownToHtml(markdown);
   console.log(`   ✅ HTML ${html.length}c, ${(html.match(/<h2/gi) || []).length} h2, ${(html.match(/<a\s+href/gi) || []).length} links`);
-
-  console.log(`📓 Appending Reporter's Notebook…`);
-  const nb = await buildReportersNotebook(art.primarySeriesId);
-  if (nb.html) {
-    html = applyNotebookToContent(html, nb.html);
-    console.log(`   ✅ Notebook appended (${nb.sentenceCount} facts)`);
-  } else {
-    console.log(`   ⚠️  Skipped: ${nb.skipped}`);
-  }
 
   console.log(`💾 Saving to DB…`);
   await prisma.articles.update({

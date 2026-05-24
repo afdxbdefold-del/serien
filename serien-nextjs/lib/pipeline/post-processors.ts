@@ -496,12 +496,10 @@ export async function runPostProcessing(
     config.seriesTmdbId
   );
 
-  // Step 11.7: Reporter's Notebook (E-E-A-T live TMDB facts)
-  result.notebookAppended = await appendReportersNotebook(
-    prisma,
-    config.articleId,
-    config.seriesTmdbId
-  );
+  // Step 11.7: Reporter's Notebook — DISABLED in HTML. The data is now used
+  // only as internal fact-grounding for the Faithful Translator (via the
+  // `dach` context). No visible "Aus der Redaktion"-block is appended.
+  result.notebookAppended = false;
 
   // Step 12: Cast Import
   result.castImported = await importCast(config.seriesTmdbId);

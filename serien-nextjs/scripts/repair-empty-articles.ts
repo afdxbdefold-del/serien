@@ -17,7 +17,6 @@ import { PrismaClient } from '@prisma/client';
 import { translateFaithful } from '../lib/faithful-translator';
 import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { markdownToHtml } from '../lib/markdown-to-html';
-import { buildReportersNotebook, applyNotebookToContent } from '../lib/reporters-notebook';
 
 const prisma = new PrismaClient();
 
@@ -72,13 +71,7 @@ async function repairOne(art: { id: string; slug: string; sourceUrl: string | nu
     }
 
     const md = htmlToMarkdown(t.contentHtml);
-    let html = markdownToHtml(md || '');
-
-    // Re-attach Reporter's Notebook for consistency with the rest of the corpus
-    if (art.primarySeriesId) {
-      const nb = await buildReportersNotebook(art.primarySeriesId);
-      if (nb.html) html = applyNotebookToContent(html, nb.html);
-    }
+    const html = markdownToHtml(md || '');
 
     if (!html || html.length < 200) {
       return { status: 'skip', reason: 'final html too short' };

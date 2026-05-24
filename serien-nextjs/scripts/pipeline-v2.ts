@@ -13,6 +13,7 @@
 import { PrismaClient } from '@prisma/client';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { translateFaithful } from '../lib/faithful-translator';
+import { fetchNotebookFacts } from '../lib/reporters-notebook';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
@@ -1299,15 +1300,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
     if (faithfulCandidate) {
       try {
         console.log(`🌐 Attempting Faithful Translation (source: ${sourceLen}c, type: ${contentType})`);
+        // Fetch TMDB-based fact-grounding (no visible block, only used by the
+        // LLM to detect hallucinations in the source text).
+        const grounding = await fetchNotebookFacts(dbSeries.tmdbId);
         const t = await translateFaithful({
           sourceText: fullSourceText,
           sourceHeadline: source.title,
           sourceUrl: source.url,
           seriesName: dbSeries.name || dbSeries.title,
           dach: {
-            streamersDE: (dachContext?.dachStreamers || []).map((s: any) => s.name || s).filter(Boolean),
+            streamersDE: grounding?.streamersDE?.length
+              ? grounding.streamersDE
+              : (dachContext?.dachStreamers || []).map((s: any) => s.name || s).filter(Boolean),
             seriesNameDE: dbSeries.name || dbSeries.title,
             todayIso: new Date().toISOString().slice(0, 10),
+            seriesStatusDE: grounding?.status || null,
+            lastEpisodeDate: grounding?.lastAirDate || null,
+            nextEpisodeDate: grounding?.nextEpisodeDate || null,
+            numberOfSeasons: grounding?.numberOfSeasons || null,
           },
         });
 

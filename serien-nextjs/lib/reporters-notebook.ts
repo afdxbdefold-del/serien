@@ -240,6 +240,45 @@ export function stripNotebookBlock(html: string): string {
     .replace(/\s+$/g, '');
 }
 
+export interface NotebookFacts {
+  status: string | null;       // "laufend" | "abgeschlossen" | …
+  statusRaw: string | null;    // raw TMDB status
+  inProduction: boolean;
+  firstAirDate: string | null;
+  lastAirDate: string | null;
+  nextEpisodeDate: string | null;
+  nextEpisodeName: string | null;
+  numberOfSeasons: number | null;
+  numberOfEpisodes: number | null;
+  streamersDE: string[];
+}
+
+/**
+ * Internal-use helper. Returns the same TMDB-derived facts that powered the
+ * (now removed) visible "Aus der Redaktion"-block. Used as fact-grounding
+ * input for the Faithful Translator — never rendered to readers.
+ */
+export async function fetchNotebookFacts(tmdbId: number): Promise<NotebookFacts | null> {
+  if (!tmdbId || tmdbId <= 0) return null;
+  const [facts, providers] = await Promise.all([
+    fetchSeriesFacts(tmdbId),
+    fetchProviderFacts(tmdbId),
+  ]);
+  if (!facts) return null;
+  return {
+    status: statusLabel(facts.status, facts.inProduction),
+    statusRaw: facts.status,
+    inProduction: facts.inProduction,
+    firstAirDate: facts.firstAirDate,
+    lastAirDate: facts.lastAirDate,
+    nextEpisodeDate: facts.nextEpisodeDate,
+    nextEpisodeName: facts.nextEpisodeName,
+    numberOfSeasons: facts.numberOfSeasons,
+    numberOfEpisodes: facts.numberOfEpisodes,
+    streamersDE: providers.flatrate,
+  };
+}
+
 export interface NotebookBuildResult {
   html: string | null;
   sentenceCount: number;

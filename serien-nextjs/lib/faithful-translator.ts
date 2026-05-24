@@ -37,6 +37,14 @@ export interface DachLocalizationContext {
   seriesNameDE?: string;
   /** Today's date in `Europe/Berlin` for grounding. */
   todayIso?: string;
+  /** TMDB series status in German (laufend / abgeschlossen / abgesetzt). */
+  seriesStatusDE?: string | null;
+  /** ISO date of the last aired episode. */
+  lastEpisodeDate?: string | null;
+  /** ISO date of the next scheduled episode (if any). */
+  nextEpisodeDate?: string | null;
+  /** Total number of seasons aired. */
+  numberOfSeasons?: number | null;
 }
 
 export interface AdditionalSource {
@@ -127,6 +135,19 @@ function buildPrompt(input: FaithfulTranslatorInput): string {
     ? `Auf serien.de relevante deutsche Streaming-Plattformen für „${seriesName}": ${dach.streamersDE.join(', ')}. Wenn der Quelltext US-Sender erwähnt (ABC, NBC, CBS, Fox, The CW, Hulu), ersetze sie durch die passenden DACH-Streamer, falls die Serie dort verfügbar ist. Wenn keine DACH-Verfügbarkeit bekannt ist, schreibe „in Deutschland aktuell nicht verfügbar" oder lasse den Empfangshinweis weg.`
     : `Falls der Quelltext US-Sender (ABC, NBC, CBS, Fox, The CW, Hulu) als Empfangshinweis erwähnt: ersetze sie durch „beim jeweiligen Streaming-Anbieter" oder „aktuell nicht in Deutschland verfügbar". US-Sender dürfen nur als Produktionshintergrund stehen.`;
 
+  // Build the internal "Fact-Grounding"-block from TMDB data. Used by the
+  // LLM as guard-rails against hallucinated season counts / air dates /
+  // streaming availability. NOT rendered to readers.
+  const groundingLines: string[] = [];
+  if (dach?.seriesStatusDE) groundingLines.push(`- Serienstatus (TMDB, ${today}): ${dach.seriesStatusDE}`);
+  if (dach?.numberOfSeasons) groundingLines.push(`- Aktuell ${dach.numberOfSeasons} ${dach.numberOfSeasons === 1 ? 'Staffel' : 'Staffeln'} ausgestrahlt`);
+  if (dach?.lastEpisodeDate) groundingLines.push(`- Letzte ausgestrahlte Folge: ${dach.lastEpisodeDate}`);
+  if (dach?.nextEpisodeDate) groundingLines.push(`- Nächste Folge laut TMDB: ${dach.nextEpisodeDate}`);
+  if (dach?.streamersDE?.length) groundingLines.push(`- In Deutschland aktuell im Flatrate-Abo bei: ${dach.streamersDE.join(', ')}`);
+  const groundingBlock = groundingLines.length
+    ? `\nINTERNE FAKTEN-GRUNDLAGE (NICHT in den Body kopieren, nur als Korrektiv nutzen — Quellen-Inhalt hat Vorrang, aber widerspricht der Quelltext einem dieser Fakten, korrigiere stillschweigend):\n${groundingLines.join('\n')}\n`
+    : '';
+
   // Build the additional-source blocks (only first 3 to bound prompt size)
   const additionalBlocks =
     isMultiSource && additionalSources
@@ -215,7 +236,7 @@ ${streamerHint}
 - US-Datumsformate (Tuesday, May 5) → DE-Format ("am 5. Mai" oder "am 5. Mai 2026").
 - US-Industrie-Slang (showrunner deal, first-look deal, pickup, pilot order): inhaltlich übersetzen.
 - US-Network-Empfangshinweise: nur als Produktionsfakt einmalig, nicht als Schaut-dort-Empfehlung.
-${multiSourceRules}
+${groundingBlock}${multiSourceRules}
 ${additionalBlocks}
 
 ${outputFormat}`;
