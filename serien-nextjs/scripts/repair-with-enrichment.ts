@@ -91,6 +91,23 @@ async function repair(slug: string) {
   });
   console.log(`   ✅ ${t.wordCount}w, ${t.paragraphCount}p, ${t.quotesPreserved}q`);
 
+  // Truncate the excerpt to ~180 chars (first 1-2 sentences) so the bold
+  // intro on the article page doesn't visually compete with the body's
+  // first paragraph. Also strip markdown emphasis (**) since the excerpt
+  // is rendered as plain text in the page header.
+  const cleanLead = t.leadParagraph
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const sentences = cleanLead.split(/(?<=[.!?])\s+/);
+  let shortExcerpt = sentences[0] || cleanLead;
+  if (shortExcerpt.length < 100 && sentences[1]) {
+    shortExcerpt = (shortExcerpt + ' ' + sentences[1]).trim();
+  }
+  if (shortExcerpt.length > 220) shortExcerpt = shortExcerpt.slice(0, 217).replace(/\s+\S*$/, '') + '…';
+  console.log(`   Excerpt (${shortExcerpt.length}c): ${shortExcerpt.substring(0, 120)}…`);
+
   let markdown = htmlToMarkdown(t.contentHtml);
   console.log(`📝 Markdown: ${markdown.length}c, ${(markdown.match(/^## /gm) || []).length} h2`);
 
@@ -117,9 +134,9 @@ async function repair(slug: string) {
   console.log(`💾 Saving to DB…`);
   await prisma.articles.update({
     where: { id: art.id },
-    data: { contentHtml: html },
+    data: { contentHtml: html, excerpt: shortExcerpt },
   });
-  console.log(`\n✅ DONE. Total contentHtml: ${html.length}c`);
+  console.log(`\n✅ DONE. Total contentHtml: ${html.length}c, excerpt: ${shortExcerpt.length}c`);
 }
 
 async function main() {

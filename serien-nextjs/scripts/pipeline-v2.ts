@@ -2144,6 +2144,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
     console.timeEnd('⏱️  STEP 7.7: Intro Engine');
 
+    // Strip any leftover markdown emphasis from the excerpt — it is rendered
+    // as plain text in the article header and so cannot contain raw `**`.
+    if (typeof finalIntro === 'string') {
+      finalIntro = finalIntro
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     logStep('8_publish');
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));

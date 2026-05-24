@@ -149,6 +149,13 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
     '$1$2</div>'
   );
   
+  // STEP 0c: Convert leftover **bold** markdown that didn't survive the
+  // markdown→HTML pass. This happens when cast/character/streamer linking
+  // injects <a> tags INSIDE a markdown bold span (`**Foo**` becomes
+  // `**<a href="…">Foo</a>**`), which standard markdown parsers refuse to
+  // close across HTML. We finish the job here.
+  sanitized = sanitized.replace(/\*\*([^*\n]{1,200}?)\*\*/g, '<strong>$1</strong>');
+
   // STEP 1: Remove first paragraph if excerpt exists
   // The excerpt/lead is shown separately above the content as bold intro.
   // The contentHtml often contains its own lead as first <p> — always remove it

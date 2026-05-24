@@ -190,9 +190,9 @@ ${sourceText.slice(0, MAX_SOURCE_CHARS)}
 {
   "headline": "Deutsche Headline, 40–70 Zeichen, treue Übersetzung des Originals, keine Click-Bait-Floskeln",
   "metaDescription": "Deutsche Meta-Description, max 155 Zeichen, fasst Kern zusammen",
-  "leadParagraph": "Erster Absatz, 2–4 Sätze, leichte Paraphrase des Quell-Leads",
+  "leadParagraph": "Erster Absatz — maximal 2 kurze Sätze, KEINE 3-Satz-Wand. Pointierte Story-Hook im News-Stil, kein Plot-Recap.",
   "bodyParagraphs": [
-    "Zweiter deutscher Absatz (treue Übersetzung)",
+    "Zweiter deutscher Absatz — direkt mit Quote, konkreten Zahlen oder spezifischer Szenenbeschreibung einsteigen. KEINE Wiederholung der Lead-Aussage in anderen Worten. KEIN „Diese Miniserie begleitet …", KEIN „Diese Serie erzählt …", KEIN abstraktes Plot-Resümee. Wenn das Original abstrakt einsteigt, überspringe den abstrakten Quell-Absatz und starte direkt mit dem ersten konkreten Sach-Absatz des Quelltexts.",
     "Dritter deutscher Absatz (treue Übersetzung)",
     "..."
   ],
