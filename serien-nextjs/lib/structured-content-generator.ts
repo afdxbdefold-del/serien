@@ -744,20 +744,25 @@ function assembleMarkdown(response: any): StructuredContentOutput {
   if (!response.headline || !response.sections || response.sections.length === 0) {
     throw new Error('Invalid LLM response: missing required fields');
   }
-  
-  // Build markdown
-  let markdown = response.lead + '\n\n';
-  
+
+  // IMPORTANT: the `lead` paragraph is stored separately on the article
+  // (`excerpt` field) and rendered above the content as a bold intro block.
+  // We deliberately DO NOT prepend it to the markdown body. Prepending it
+  // produced a duplicate-intro pattern (Excerpt above + Lead as first <p>
+  // below) that the user repeatedly flagged. The article body now starts
+  // straight with the first H2 — matching the legacy serien.de layout.
+  let markdown = '';
+
   response.sections.forEach((section: ContentSection) => {
     // Add H2
     markdown += `## ${section.h2}\n\n`;
-    
+
     // Add paragraphs
     section.paragraphs.forEach((p: string) => {
       markdown += `${p}\n\n`;
     });
   });
-  
+
   return {
     headline: response.headline,
     metaDescription: response.metaDescription || '',
