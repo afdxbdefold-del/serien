@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getJoynData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Joyn","ProSieben","SAT.1","Kabel Eins","sixx","ProSieben MAXX","SAT.1 Gold"],
+      providers: ["Joyn","Joyn Plus","ProSieben","SAT.1"],
+    });
+
     const [
       allJoynSeries,
       joynArticles,
@@ -46,7 +52,7 @@ const getJoynData = unstable_cache(
       // All Joyn series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Joyn', 'ProSieben', 'SAT.1', 'Kabel Eins', 'sixx', 'ProSieben MAXX', 'SAT.1 Gold'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getJoynData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['Joyn', 'ProSieben', 'SAT.1', 'Kabel Eins', 'sixx', 'ProSieben MAXX', 'SAT.1 Gold'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getJoynData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['Joyn', 'ProSieben', 'SAT.1', 'Kabel Eins', 'sixx', 'ProSieben MAXX', 'SAT.1 Gold'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getJoynData = unstable_cache(
       // Recently added Joyn series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Joyn', 'ProSieben', 'SAT.1', 'Kabel Eins', 'sixx', 'ProSieben MAXX', 'SAT.1 Gold'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

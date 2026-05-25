@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getZDFMediathekData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["ZDF Mediathek","ZDF","ZDFneo","ZDFinfo","3sat","ARTE","arte","KiKA"],
+      providers: ["ZDF","ZDF Mediathek","ZDFmediathek"],
+    });
+
     const [
       allZDFMediathekSeries,
       zdfMediathekArticles,
@@ -46,7 +52,7 @@ const getZDFMediathekData = unstable_cache(
       // All ZDF Mediathek series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['ZDF Mediathek', 'ZDF', 'ZDFneo', 'ZDFinfo', '3sat', 'ARTE', 'arte', 'KiKA'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getZDFMediathekData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['ZDF Mediathek', 'ZDF', 'ZDFneo', 'ZDFinfo', '3sat', 'ARTE', 'arte', 'KiKA'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getZDFMediathekData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['ZDF Mediathek', 'ZDF', 'ZDFneo', 'ZDFinfo', '3sat', 'ARTE', 'arte', 'KiKA'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getZDFMediathekData = unstable_cache(
       // Recently added ZDF Mediathek series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['ZDF Mediathek', 'ZDF', 'ZDFneo', 'ZDFinfo', '3sat', 'ARTE', 'arte', 'KiKA'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

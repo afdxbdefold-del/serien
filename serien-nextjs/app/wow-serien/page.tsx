@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getWOWData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["WOW","Sky","Sky Atlantic","Sky One","Sky Deutschland"],
+      providers: ["WOW","Sky","Sky Atlantic","Sky Deutschland","Sky Go"],
+    });
+
     const [
       allWOWSeries,
       wowArticles,
@@ -46,7 +52,7 @@ const getWOWData = unstable_cache(
       // All WOW series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['WOW', 'Sky', 'Sky Atlantic', 'Sky One', 'Sky Deutschland'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getWOWData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['WOW', 'Sky', 'Sky Atlantic', 'Sky One', 'Sky Deutschland'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getWOWData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['WOW', 'Sky', 'Sky Atlantic', 'Sky One', 'Sky Deutschland'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getWOWData = unstable_cache(
       // Recently added WOW series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['WOW', 'Sky', 'Sky Atlantic', 'Sky One', 'Sky Deutschland'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

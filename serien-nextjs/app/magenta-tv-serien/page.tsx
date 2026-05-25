@@ -37,19 +37,15 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getMagentaTVData = unstable_cache(
   async () => {
-    // Resolve the set of MagentaTV-relevant series via the streaming_releases
-    // table (which our /api/cron/tmdb-sync populates daily with TMDB Watch
-    // Provider data for DE), then fan out into the series + articles tables.
-    //
-    // Why this is necessary: TMDB exposes MagentaTV/Telekom only as a Watch
-    // Provider (region=DE), not as an origin Network. Querying
-    // `series.networks` therefore returned almost nothing — the hub looked
-    // empty although ~20 MagentaTV series flow through our pipeline.
-    const magentaReleases = await prisma.streaming_releases.findMany({
-      where: { provider: { in: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] } },
-      select: { tmdbId: true },
+    // Resolve via combined networks+streaming_releases (see
+    // lib/streamer-hub-resolver.ts). Fixes the previous "only 1 series" bug
+    // by widening the source from TMDB origin networks to include
+    // streaming-provider data.
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'],
+      providers: ['MagentaTV', 'Magenta TV', 'Telekom'],
     });
-    const tmdbIds = Array.from(new Set(magentaReleases.map((r) => r.tmdbId)));
 
     const [
       allMagentaTVSeries,

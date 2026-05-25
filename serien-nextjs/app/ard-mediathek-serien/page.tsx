@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getARDMediathekData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["ARD Mediathek","ARD","Das Erste","WDR","NDR","BR","SWR","MDR","HR","RBB","SR","ONE","ARD One"],
+      providers: ["ARD","ARD Mediathek","Das Erste"],
+    });
+
     const [
       allARDMediathekSeries,
       ardMediathekArticles,
@@ -46,7 +52,7 @@ const getARDMediathekData = unstable_cache(
       // All ARD Mediathek series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['ARD Mediathek', 'ARD', 'Das Erste', 'WDR', 'NDR', 'BR', 'SWR', 'MDR', 'HR', 'RBB', 'SR', 'ONE', 'ARD One'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getARDMediathekData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['ARD Mediathek', 'ARD', 'Das Erste', 'WDR', 'NDR', 'BR', 'SWR', 'MDR', 'HR', 'RBB', 'SR', 'ONE', 'ARD One'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getARDMediathekData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['ARD Mediathek', 'ARD', 'Das Erste', 'WDR', 'NDR', 'BR', 'SWR', 'MDR', 'HR', 'RBB', 'SR', 'ONE', 'ARD One'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getARDMediathekData = unstable_cache(
       // Recently added ARD Mediathek series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['ARD Mediathek', 'ARD', 'Das Erste', 'WDR', 'NDR', 'BR', 'SWR', 'MDR', 'HR', 'RBB', 'SR', 'ONE', 'ARD One'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getDiscoveryPlusData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Discovery+","Discovery","Discovery Channel","TLC","DMAX","Animal Planet","Eurosport"],
+      providers: ["Discovery+","Discovery Plus","Discovery"],
+    });
+
     const [
       allDiscoveryPlusSeries,
       discoveryPlusArticles,
@@ -46,7 +52,7 @@ const getDiscoveryPlusData = unstable_cache(
       // All Discovery+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Discovery+', 'Discovery', 'Discovery Channel', 'TLC', 'DMAX', 'Animal Planet', 'Eurosport'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getDiscoveryPlusData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['Discovery+', 'Discovery', 'Discovery Channel', 'TLC', 'DMAX', 'Animal Planet', 'Eurosport'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getDiscoveryPlusData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['Discovery+', 'Discovery', 'Discovery Channel', 'TLC', 'DMAX', 'Animal Planet', 'Eurosport'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getDiscoveryPlusData = unstable_cache(
       // Recently added Discovery+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Discovery+', 'Discovery', 'Discovery Channel', 'TLC', 'DMAX', 'Animal Planet', 'Eurosport'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

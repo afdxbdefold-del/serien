@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getCrunchyrollData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Crunchyroll","Funimation","Anime"],
+      providers: ["Crunchyroll","Funimation"],
+    });
+
     const [
       allCrunchyrollSeries,
       crunchyrollArticles,
@@ -46,7 +52,7 @@ const getCrunchyrollData = unstable_cache(
       // All Crunchyroll series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Crunchyroll', 'Funimation', 'Anime'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getCrunchyrollData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['Crunchyroll', 'Funimation', 'Anime'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getCrunchyrollData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['Crunchyroll', 'Funimation', 'Anime'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getCrunchyrollData = unstable_cache(
       // Recently added Crunchyroll series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Crunchyroll', 'Funimation', 'Anime'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

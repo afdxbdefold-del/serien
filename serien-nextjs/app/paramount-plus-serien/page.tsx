@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getParamountPlusData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Paramount+","Paramount Plus","Paramount Network","CBS","Showtime"],
+      providers: ["Paramount+","Paramount Plus","Paramount"],
+    });
+
     const [
       allParamountPlusSeries,
       paramountPlusArticles,
@@ -46,7 +52,7 @@ const getParamountPlusData = unstable_cache(
       // All Paramount+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Paramount+', 'Paramount Plus', 'Paramount Network', 'CBS', 'Showtime'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getParamountPlusData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['Paramount+', 'Paramount Plus', 'Paramount Network', 'CBS', 'Showtime'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getParamountPlusData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['Paramount+', 'Paramount Plus', 'Paramount Network', 'CBS', 'Showtime'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getParamountPlusData = unstable_cache(
       // Recently added Paramount+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Paramount+', 'Paramount Plus', 'Paramount Network', 'CBS', 'Showtime'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

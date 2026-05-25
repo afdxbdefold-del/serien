@@ -37,6 +37,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getAppleTVData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Apple TV+","Apple TV","AppleTV+"],
+      providers: ["Apple TV+","Apple TV Plus","Apple TV"],
+    });
+
     const [
       allAppleTVSeries,
       appleTVArticles,
@@ -46,7 +52,7 @@ const getAppleTVData = unstable_cache(
       // All Apple TV+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Apple TV+', 'Apple TV', 'AppleTV+'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -74,7 +80,7 @@ const getAppleTVData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['Apple TV+', 'Apple TV', 'AppleTV+'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -110,7 +116,7 @@ const getAppleTVData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['Apple TV+', 'Apple TV', 'AppleTV+'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -127,7 +133,7 @@ const getAppleTVData = unstable_cache(
       // Recently added Apple TV+ series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Apple TV+', 'Apple TV', 'AppleTV+'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

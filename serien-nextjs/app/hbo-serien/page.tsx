@@ -38,6 +38,12 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getHBOData = unstable_cache(
   async () => {
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["HBO","Max","HBO Max"],
+      providers: ["HBO Max","Max","HBO"],
+    });
+
     const [
       allHBOSeries,
       hboArticles,
@@ -47,7 +53,7 @@ const getHBOData = unstable_cache(
       // All HBO Max series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['HBO', 'Max', 'HBO Max'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -75,7 +81,7 @@ const getHBOData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           series: {
-            networks: { hasSome: ['HBO', 'Max', 'HBO Max'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -111,7 +117,7 @@ const getHBOData = unstable_cache(
           ],
           isTrending: true,
           series: {
-            networks: { hasSome: ['HBO', 'Max', 'HBO Max'] }
+            tmdbId: { in: tmdbIds }
           }
         },
         orderBy: { publishedAt: 'desc' },
@@ -128,7 +134,7 @@ const getHBOData = unstable_cache(
       // Recently added HBO Max series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['HBO', 'Max', 'HBO Max'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }
