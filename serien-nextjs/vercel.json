@@ -36,6 +36,10 @@
     {
       "path": "/api/cron/downgrade-stale",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/backfill-streaming-series",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
