@@ -12,7 +12,6 @@ import { unstable_cache } from 'next/cache';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Star, Play, Sparkles, Clock, Filter, Tv, RefreshCw } from 'lucide-react';
-import { generateSeriesSlug } from '@/lib/slug-utils';
 
 // ISR - Revalidate every hour
 export const revalidate = 3600;
@@ -257,10 +256,16 @@ const getNewReleasesData = unstable_cache(
       return null;
     }
 
-    // Enrich releases with slugs + chosen display title; drop entries with no
-    // usable Latin title at all OR that match the Anime/Reality/Foreign block.
+    // Enrich releases with slugs + chosen display title. Drop entries that:
+    //   • are anime/reality/foreign trash (handled by isBlocked above)
+    //   • have no usable Latin display title
+    //   • do NOT have a real series-table entry yet — these would produce 404
+    //     links to /serie/[slug] (e.g. BBQ Brawl, Pop Culture Jeopardy!,
+    //     Love Is Blind: Poland, Bad Thoughts). When TMDB sync fills in the
+    //     series row later, the release reappears here automatically.
     const enrichedReleases = releases.flatMap((release) => {
       const meta = metaByTmdb.get(release.tmdbId);
+      if (!meta?.slug) return [];
       if (isBlocked(release, meta)) return [];
       const displayName = pickTitle(release, meta);
       if (!displayName) return [];
@@ -268,7 +273,7 @@ const getNewReleasesData = unstable_cache(
         {
           ...release,
           name: displayName,
-          slug: meta?.slug || generateSeriesSlug(release.name, release.tmdbId),
+          slug: meta.slug,
           isFreshRelease: release.date >= threeDaysAgo,
         },
       ];
