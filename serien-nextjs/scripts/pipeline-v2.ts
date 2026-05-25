@@ -444,11 +444,23 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     
     // REJECT Feature/Essay articles - they have no news value
+    // EXCEPTION: URLs that explicitly signal an ENDING_EXPLAINED essay (e.g.
+    // "*-ending-explained" on Cinemaholic) are routed through the dedicated
+    // ENDING_EXPLAINED pipeline below, NOT skipped. The classifier may call
+    // these FEATURE_ESSAY because they lack a news hook, but they are a
+    // distinct, valuable content type for serien.de.
     if (classification.content_type === 'FEATURE_ESSAY') {
-      console.log('⚠️  Article skipped: Feature/Essay ohne aktuelle Nachricht');
-      console.log(`   Grund: ${classification.reasoning || 'Keine neue Meldung, nur Analyse/Retrospektive'}`);
-      await logger.fail('Feature/Essay - keine News', 'classification');
-      return null;
+      const isEndingExplainedUrlOverride = /ending-explained/i.test(source.url || '') ||
+        /ending[\s-]?explained|das[\s-]?ende[\s-]?erkl/i.test(source.title || '');
+      if (isEndingExplainedUrlOverride) {
+        console.log('   📝 FEATURE_ESSAY → reclassified as ENDING_EXPLAINED (URL/title signal)');
+        classification.content_type = 'ENDING_EXPLAINED' as any;
+      } else {
+        console.log('⚠️  Article skipped: Feature/Essay ohne aktuelle Nachricht');
+        console.log(`   Grund: ${classification.reasoning || 'Keine neue Meldung, nur Analyse/Retrospektive'}`);
+        await logger.fail('Feature/Essay - keine News', 'classification');
+        return null;
+      }
     }
     
     // REJECT Movie and Mixed content
