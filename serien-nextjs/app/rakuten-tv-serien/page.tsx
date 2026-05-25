@@ -37,6 +37,14 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getRakutenTVData = unstable_cache(
   async () => {
+    // Combo: TMDB origin networks ∪ streaming_releases.provider (DE).
+    // See lib/streamer-hub-resolver.ts.
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Rakuten TV","Rakuten","Rakuten Viki"],
+      providers: ["Rakuten TV","Rakuten"],
+    });
+
     const [
       allRakutenTVSeries,
       rakutenTVArticles,
@@ -46,7 +54,7 @@ const getRakutenTVData = unstable_cache(
       // All Rakuten TV series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Rakuten TV', 'Rakuten', 'Rakuten Viki'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -73,9 +81,7 @@ const getRakutenTVData = unstable_cache(
             { status: 'published' },
             { status: 'PUBLISHED' }
           ],
-          series: {
-            networks: { hasSome: ['Rakuten TV', 'Rakuten', 'Rakuten Viki'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 12,
@@ -109,9 +115,7 @@ const getRakutenTVData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           isTrending: true,
-          series: {
-            networks: { hasSome: ['Rakuten TV', 'Rakuten', 'Rakuten Viki'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 5,
@@ -127,7 +131,7 @@ const getRakutenTVData = unstable_cache(
       // Recently added Rakuten TV series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['Rakuten TV', 'Rakuten', 'Rakuten Viki'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

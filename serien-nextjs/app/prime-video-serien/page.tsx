@@ -37,6 +37,14 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getPrimeVideoData = unstable_cache(
   async () => {
+    // Combo: TMDB origin networks ∪ streaming_releases.provider (DE).
+    // See lib/streamer-hub-resolver.ts.
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["Prime Video","Amazon","Amazon Prime Video"],
+      providers: ["Amazon Prime Video","Prime Video"],
+    });
+
     const [
       allPrimeSeries,
       primeArticles,
@@ -46,7 +54,7 @@ const getPrimeVideoData = unstable_cache(
       // All Prime Video series
       prisma.series.findMany({
         where: {
-          networks: { has: 'Prime Video' }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -73,9 +81,7 @@ const getPrimeVideoData = unstable_cache(
             { status: 'published' },
             { status: 'PUBLISHED' }
           ],
-          series: {
-            networks: { has: 'Prime Video' }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 12,
@@ -109,9 +115,7 @@ const getPrimeVideoData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           isTrending: true,
-          series: {
-            networks: { has: 'Prime Video' }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 5,
@@ -127,7 +131,7 @@ const getPrimeVideoData = unstable_cache(
       // Recently added Prime Video series
       prisma.series.findMany({
         where: {
-          networks: { has: 'Prime Video' },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }

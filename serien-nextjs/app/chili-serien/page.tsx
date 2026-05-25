@@ -37,6 +37,14 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getCHILIData = unstable_cache(
   async () => {
+    // Combo: TMDB origin networks ∪ streaming_releases.provider (DE).
+    // See lib/streamer-hub-resolver.ts.
+    const { resolveStreamerHubTmdbIds } = await import('@/lib/streamer-hub-resolver');
+    const tmdbIds = await resolveStreamerHubTmdbIds({
+      networks: ["CHILI","Chili"],
+      providers: ["CHILI","Chili"],
+    });
+
     const [
       allCHILISeries,
       chiliArticles,
@@ -46,7 +54,7 @@ const getCHILIData = unstable_cache(
       // All CHILI series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['CHILI', 'Chili'] }
+          tmdbId: { in: tmdbIds }
         },
         orderBy: { popularity: 'desc' },
         take: 50,
@@ -73,9 +81,7 @@ const getCHILIData = unstable_cache(
             { status: 'published' },
             { status: 'PUBLISHED' }
           ],
-          series: {
-            networks: { hasSome: ['CHILI', 'Chili'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 12,
@@ -109,9 +115,7 @@ const getCHILIData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           isTrending: true,
-          series: {
-            networks: { hasSome: ['CHILI', 'Chili'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 5,
@@ -127,7 +131,7 @@ const getCHILIData = unstable_cache(
       // Recently added CHILI series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['CHILI', 'Chili'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }
