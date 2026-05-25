@@ -31,6 +31,12 @@ export async function GET(_req: NextRequest) {
     <lastmod>${lm}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${BASE}/serie/${s.slug}/wann-geht-es-weiter</loc>
+    <lastmod>${lm}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
   </url>`;
     })
     .join('\n');
