@@ -351,6 +351,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
         { re: /\b(?:stock|market|nasdaq|dow[\s-]*jones|s&p[\s-]*500|crypto|bitcoin|ethereum)[\s-]*(?:report|close|today)/i, label: 'finance-markets' },
         { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:comedies?|movies?|films?|musicals?)[\s-]*on[\s-]*(?:amazon[\s-]*prime|netflix|hulu|disney|paramount|hbo|max|apple|peacock|starz)/i, label: 'movie-listicle' },
         { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:rewatch|rewatchable|feel[\s-]*good|underrated|forgotten)[\s-]*movies?\b/i, label: 'movie-listicle' },
+        // Ratings / Einschaltquoten — for DACH readers this is US-Nielsen
+        // noise that adds no value AND risks Discover penalties because
+        // the article body inevitably trends toward US-only context.
+        { re: /\b(?:tv|television|cable|broadcast|streaming|primetime|weekly|nightly|sunday|monday|tuesday|wednesday|thursday|friday|saturday)[\s-]*ratings\b/i, label: 'tv-ratings' },
+        { re: /\bratings[\s-]*(?:report|recap|roundup|winner|loser|drop|jump|surge|slide|breakdown|wrap|race|war|battle|king|queen|crown|champion|hit|dud|disaster|flop|update|day|news|tracker|tracker)/i, label: 'tv-ratings' },
+        { re: /\b(?:live[\s-]*\+[\s-]*[37]|l\+sd|l\+3|l\+7|live[\s-]*plus[\s-]*(?:three|seven)|nielsen|household[\s-]*ratings?|key[\s-]*demo|adults?[\s-]*18[\s-]*-[\s-]*49|18[\s-]*-[\s-]*49[\s-]*demo|demo[\s-]*ratings?|total[\s-]*viewers?)\b/i, label: 'nielsen-ratings' },
+        { re: /\b(?:einschaltquot|tv-quote|tv[\s-]*bilanz|quotensieger|quotenrekord|quoten[\s-]*(?:hit|flop|sieg|bombe|krone|krise|könig|king|queen|erfolg)|marktanteil)/i, label: 'de-einschaltquoten' },
+        { re: /\b(?:tops?[\s-]+and[\s-]+flops?|top[\s-]+rated|rating[\s-]*report|how[\s-]*[a-z\s-]{1,30}[\s-]*performed[\s-]*(?:on|with|in)[\s-]*(?:tv|its[\s-]*premiere|the[\s-]*ratings))/i, label: 'tv-ratings' },
       ];
       for (const { re, label } of NON_TV_URL_PATTERNS) {
         const m = combined.match(re);
