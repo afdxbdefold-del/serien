@@ -37,6 +37,20 @@ export const metadata: Metadata = {
 // Cached data fetching
 const getMagentaTVData = unstable_cache(
   async () => {
+    // Resolve the set of MagentaTV-relevant series via the streaming_releases
+    // table (which our /api/cron/tmdb-sync populates daily with TMDB Watch
+    // Provider data for DE), then fan out into the series + articles tables.
+    //
+    // Why this is necessary: TMDB exposes MagentaTV/Telekom only as a Watch
+    // Provider (region=DE), not as an origin Network. Querying
+    // `series.networks` therefore returned almost nothing — the hub looked
+    // empty although ~20 MagentaTV series flow through our pipeline.
+    const magentaReleases = await prisma.streaming_releases.findMany({
+      where: { provider: { in: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] } },
+      select: { tmdbId: true },
+    });
+    const tmdbIds = Array.from(new Set(magentaReleases.map((r) => r.tmdbId)));
+
     const [
       allMagentaTVSeries,
       magentaTVArticles,
@@ -45,9 +59,7 @@ const getMagentaTVData = unstable_cache(
     ] = await Promise.all([
       // All MagentaTV series
       prisma.series.findMany({
-        where: {
-          networks: { hasSome: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] }
-        },
+        where: { tmdbId: { in: tmdbIds } },
         orderBy: { popularity: 'desc' },
         take: 50,
         select: {
@@ -73,9 +85,7 @@ const getMagentaTVData = unstable_cache(
             { status: 'published' },
             { status: 'PUBLISHED' }
           ],
-          series: {
-            networks: { hasSome: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 12,
@@ -109,9 +119,7 @@ const getMagentaTVData = unstable_cache(
             { status: 'PUBLISHED' }
           ],
           isTrending: true,
-          series: {
-            networks: { hasSome: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] }
-          }
+          primarySeriesId: { in: tmdbIds }
         },
         orderBy: { publishedAt: 'desc' },
         take: 5,
@@ -127,7 +135,7 @@ const getMagentaTVData = unstable_cache(
       // Recently added MagentaTV series
       prisma.series.findMany({
         where: {
-          networks: { hasSome: ['MagentaTV', 'Magenta TV', 'Telekom', 'RTL Crime', 'RTL Passion', 'RTL Living'] },
+          tmdbId: { in: tmdbIds },
           firstAirDate: {
             gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
           }
