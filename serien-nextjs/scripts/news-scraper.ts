@@ -410,7 +410,29 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
-  
+
+  // Pre-cache all known TV series slugs from our DB so we can override the
+  // hard "ending-explained must contain season-N" filter for legitimate
+  // single-season series like The Boroughs, where the Cinemaholic URL ends
+  // in `the-boroughs-ending-explained` (no season marker, but a real TV
+  // series we cover). One query at the start of the scrape, then O(1)
+  // membership check during filtering.
+  let knownSeriesSlugs: Set<string> = new Set();
+  if (source.name === 'Cinemaholic') {
+    try {
+      const rows = await prisma.series.findMany({ select: { slug: true, title: true } });
+      knownSeriesSlugs = new Set(
+        rows.flatMap((r) => {
+          const titleSlug = (r.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          return [r.slug.toLowerCase(), titleSlug];
+        }).filter(Boolean)
+      );
+      console.log(`   ℹ️  Loaded ${knownSeriesSlugs.size} known series slugs for Cinemaholic override.`);
+    } catch (e) {
+      console.warn('   ⚠️  Could not pre-cache series slugs for Cinemaholic filter', e);
+    }
+  }
+
   // Cinemaholic-specific URL pre-filter — saves expensive LLM classifier calls
   // for URLs that are obviously movies, listicles, or non-actionable cast guides.
   // Only applied to Cinemaholic source; other sources use full keyword fallback.
@@ -426,14 +448,27 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
     // 2. Hard skip: cast/character guides — usually movie-focused, low article-yield
     if (/cast-and-character-guide|character-guide|cast-guide/.test(path)) return false;
 
-    // 3. "Ending Explained" without season/episode marker → usually a movie
+    // 3. "Ending Explained" without season/episode marker → usually a movie.
+    //    OVERRIDE: if the URL prefix matches a TV series we already cover in
+    //    our `series` table, accept it (e.g. `the-boroughs-ending-explained`
+    //    for the single-season Netflix series The Boroughs).
     if (/ending-explained/.test(path)) {
       const hasSeriesMarker =
         /season-\d|episode-\d|staffel|finale-recap/i.test(path) ||
         /-s\d+(-e\d+)?(-|\/)/i.test(path) || // -s4- or -s02-e05-
         /-s\d+-ending-explained/i.test(path) || // -s4-ending-explained
         /\bseason\s*\d|\bepisode\s*\d|\bs\d+e\d+|\bstaffel\b/i.test(t);
-      if (!hasSeriesMarker) return false;
+
+      // Slug prefix before `-ending-explained`. Strip trailing season/episode
+      // qualifiers so multi-token series titles still match.
+      const slugPrefix = path
+        .replace(/\/+$/, '')
+        .replace(/-ending-explained.*$/, '')
+        .replace(/-s\d+(-e\d+)?$/, '')
+        .replace(/-season-\d+$/, '');
+      const isKnownSeries = slugPrefix.length > 0 && knownSeriesSlugs.has(slugPrefix);
+
+      if (!hasSeriesMarker && !isKnownSeries) return false;
     }
 
     // 4. "Recap" without episode marker → likely a movie recap
