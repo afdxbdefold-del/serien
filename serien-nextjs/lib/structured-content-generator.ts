@@ -509,6 +509,15 @@ oder Aggregator-Text. Folgende Stil-Regeln sind verbindlich:
 
 ❌ KEIN Plot-Recap, der nicht direkt zum News-Aufhänger gehört.
 
+❌ KEINE inhaltliche Wiederholung zwischen Sections.
+   Jeder Sachverhalt — Startdatum, Streamer, Cast, Produktionsphase, Episoden-
+   anzahl, Vertragsdetails — gehört in GENAU EINE Section. Wenn etwas in
+   Section 1 erwähnt wird, darf es in späteren Sections weder paraphrasiert
+   noch erneut zusammengefasst werden. Vertiefen mit NEUEN Details ist
+   erlaubt; gleiche Information mit anderen Worten zu wiederholen ist
+   verboten — das ist ein klassisches AI-Padding-Pattern, das Google
+   sofort als minderwertigen Content erkennt.
+
 `;
 
   const basePrompt = `Schreibe einen strukturierten Artikel über "${originalHeadline}" für serien.de.

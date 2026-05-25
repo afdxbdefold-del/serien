@@ -1858,37 +1858,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     const finalContentHtml = internalLinksResult.updatedContentHtml;
     
-    // ========== STEP 7.6: YOUTUBE EMBED ==========
-    // Inject YouTube videos from source article into content
-    let finalContentWithVideo = finalContentHtml;
-    if (sourceYoutubeVideoIds.length > 0) {
-      console.log(`🎬 Embedding ${sourceYoutubeVideoIds.length} YouTube video(s)...`);
-      // Insert after the first H2 section (after first </p> that follows an <h2>)
-      const firstVideoId = sourceYoutubeVideoIds[0];
-      const youtubeEmbed = `<div class="video-embed-wrapper"><iframe src="https://www.youtube-nocookie.com/embed/${firstVideoId}" title="Video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
-      
-      // Find position after first H2 section (2nd </p> after first <h2>)
-      const h2Idx = finalContentWithVideo.indexOf('<h2>');
-      if (h2Idx !== -1) {
-        // Find 2nd </p> after the h2
-        let pCount = 0;
-        let insertIdx = h2Idx;
-        while (pCount < 2 && insertIdx < finalContentWithVideo.length) {
-          const nextP = finalContentWithVideo.indexOf('</p>', insertIdx + 1);
-          if (nextP === -1) break;
-          insertIdx = nextP + 4; // after </p>
-          pCount++;
-        }
-        if (pCount >= 1) {
-          finalContentWithVideo = finalContentWithVideo.slice(0, insertIdx) + '\n' + youtubeEmbed + '\n' + finalContentWithVideo.slice(insertIdx);
-          console.log(`   ✅ YouTube embed inserted after first section`);
-        }
-      } else {
-        // No H2, append at end
-        finalContentWithVideo += '\n' + youtubeEmbed;
-        console.log(`   ✅ YouTube embed appended at end`);
-      }
-    }
+    // ========== STEP 7.6: YOUTUBE EMBED (OBSOLETE) ==========
+    // Disabled 2026-05-25: this step injected an auto-loading <iframe> for
+    // the source YouTube video, which (a) duplicated the embed already
+    // placed by STEP 7.0a `injectSourceEmbeds()` as a Lite-Facade, and
+    // (b) violated the "no auto-loading iframes" rule. The Lite-Facade
+    // in STEP 7.0a is now the single source of truth for YouTube embeds.
+    const finalContentWithVideo = finalContentHtml;
     
     console.log(`✅ Internal Links injected:`);
     console.log(`   Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
