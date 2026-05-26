@@ -9,6 +9,7 @@ import { generateAuthorSchema } from '@/lib/schema-generator';
 import Breadcrumb from '@/components/Breadcrumb';
 import { generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
+import AuthorArticleGrid from '@/components/AuthorArticleGrid';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,7 +134,8 @@ export default async function AuthorPage({ params }: PageProps) {
     },
   });
 
-  // Get author's articles
+  // Get author's articles (capped at 120 — beyond that we'd need true
+  // server-side pagination; client-side "Mehr anzeigen" handles the rest).
   const articles = await prisma.articles.findMany({
     where: {
       authorId: author.id,
@@ -157,6 +159,7 @@ export default async function AuthorPage({ params }: PageProps) {
       tmdbId: true,
       tmdbType: true,
     },
+    take: 120,
   });
 
   const articleCount = articles.length;
@@ -269,62 +272,7 @@ export default async function AuthorPage({ params }: PageProps) {
               <p className="text-gray-500">Noch keine Artikel veröffentlicht.</p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {articles.map((article) => {
-                const imageUrl = article.heroImagePath || 
-                  article.ogImageUrl || 
-                  (article.tmdbId && article.tmdbType 
-                    ? `/img/card/${article.tmdbType}/${article.tmdbId}` 
-                    : article.heroLocalUrl) || 
-                  '/og-image.png';
-
-                const publishedDate = new Date(article.publishedAt || article.createdAt);
-                const formattedDate = publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric',
-                  month: 'long',
-                  day: 'numeric', });
-
-                return (
-                  <Link
-                    key={article.id}
-                    href={`/${article.slug}`}
-                    className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow group"
-                  >
-                    {/* Image */}
-                    <div className="relative w-full aspect-[16/9] bg-gray-200 overflow-hidden">
-                      <Image
-                        src={imageUrl}
-                        alt={article.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {article.category && (
-                        <span className="absolute top-3 left-3 bg-cyan-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                          {article.category}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5">
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-cyan-600 transition-colors">
-                        {article.title}
-                      </h3>
-                      {article.excerpt && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                          {article.excerpt}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{formattedDate}</span>
-                        {article.readingTime && (
-                          <span>{article.readingTime} Min. Lesezeit</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <AuthorArticleGrid articles={articles} authorName={author.name} />
           )}
         </div>
       </div>
