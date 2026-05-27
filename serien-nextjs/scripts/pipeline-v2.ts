@@ -205,6 +205,25 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  // WEAK-SOURCE HOSTS — pre-LLM block
+  // Hosts whose articles historically deliver high volume but weak DACH
+  // Discover performance. Sources removed from the default RSS list in
+  // news-scraper.ts; this is the second line of defence for cases where
+  // Google News / Trends surfaces a URL pointing to one of them.
+  // ════════════════════════════════════════════════════════════════════════
+  {
+    const WEAK_HOSTS = ['screenrant.com', 'collider.com', 'whats-on-netflix.com'];
+    try {
+      const host = new URL(source.url).host.replace(/^www\./, '').toLowerCase();
+      if (WEAK_HOSTS.includes(host)) {
+        console.log(`⛔ BLOCKED weak source host: ${host}`);
+        await logger.fail(`Weak source host: ${host}`, 'blocklist-source-weak');
+        return null;
+      }
+    } catch { /* malformed URL — let the rest of the pipeline handle it */ }
+  }
+
   const now = new Date();
   
   // Step tracking for precise error logging
