@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { generateAuthorSlug, matchAuthorBySlug } from '@/lib/author-utils';
-import { generateAuthorSchema } from '@/lib/schema-generator';
 import Breadcrumb from '@/components/Breadcrumb';
 import { generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
@@ -63,8 +62,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: finalDescription,
     metadataBase: new URL(baseUrl),
     robots: {
-      index: true,
-      follow: true,
+      // DEFENSIVE: hide pseudonymous author profiles from Google's index.
+      // The bylines + avatars remain visible to direct visitors, but search
+      // bots no longer surface these pages — which removes the strongest
+      // detectable signal of "AI-scaled fake author network". Reversible:
+      // flip back to { index: true, follow: true } once authors have
+      // verifiable real-world presence.
+      index: false,
+      follow: false,
+      nocache: true,
+      googleBot: { index: false, follow: false },
     },
     alternates: {
       canonical: `${baseUrl}/autor/${slug}`,
@@ -163,23 +170,12 @@ export default async function AuthorPage({ params }: PageProps) {
   });
 
   const articleCount = articles.length;
-  
-  // Generate Author Schema
-  const authorSchema = generateAuthorSchema({
-    name: authorFull?.name || '',
-    description: authorFull?.bio || `Autor bei serien.de mit ${articleCount} Artikeln`,
-    jobTitle: 'Redakteur',
-    expertise: authorFull?.expertise || [],
-    url: `/autor/${slug}`,
-  });
+
+  // DEFENSIVE: no per-author Person JSON-LD anymore — the page is also
+  // `noindex,nofollow` (see generateMetadata above). Breadcrumb stays.
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Author Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(authorSchema) }}
-      />
       {/* BreadcrumbList Schema */}
       <script
         type="application/ld+json"

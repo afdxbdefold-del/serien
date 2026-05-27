@@ -14,7 +14,15 @@ export const metadata: Metadata = {
   description: seoDescription(
     'Lerne die Redakteurinnen hinter serien.de kennen. Unabhängige Analysen zu Serien, Streaming und TV – mit transparenten Quellen und klaren redaktionellen Standards.'
   ),
-  robots: { index: true, follow: true },
+  robots: {
+    // DEFENSIVE: also hide the team overview from search — same rationale
+    // as the per-author pages (see /autor/[slug]/page.tsx). Visible to
+    // direct visitors who follow a byline link, but invisible to Google.
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false },
+  },
   alternates: { canonical: 'https://serien.de/autoren' },
   openGraph: {
     title: 'Das serien.de Redaktionsteam',
