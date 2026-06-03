@@ -7,6 +7,7 @@ import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
+import YieldlabHeaderAd from './YieldlabHeaderAd';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -37,6 +38,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
       <SkipLink />
       {isArticlePage && <MobileTopAd />}
       <Header />
+      <YieldlabHeaderAd />
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
