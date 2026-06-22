@@ -474,30 +474,14 @@ export default async function ArticlePage({ params }: PageProps) {
   ];
   const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbItems);
 
-  // Generate VideoObject schema if article has a video/trailer
-  const videoUrl = article.heroVideoUrl || article.trailerLocalUrl || 
-    (article.series?.localTrailerPath && 
-     article.series.localTrailerPath !== 'unavailable' && 
-     article.series.localTrailerPath !== 'SKIP' && 
-     article.series.localTrailerPath.startsWith('http') 
-      ? article.series.localTrailerPath 
-      : null);
+  // VideoObject-Schema bewusst NICHT mehr in News-Artikeln gerendert —
+  // Google klassifizierte einige News dadurch als "video page" statt
+  // "news article", was Top-Stories-Eligibility verschlechtert hat.
+  // TVSeries-Schema auf /serie/[slug] behält seine `trailer`-Property.
 
   // Schema URLs must always be canonical (production), even when running on a
   // Vercel preview deployment.
   const SCHEMA_BASE = 'https://serien.de';
-  const videoSchema = videoUrl ? {
-    '@context': 'https://schema.org',
-    '@type': 'VideoObject',
-    name: `${article.title} - Trailer`,
-    description: article.metaDescription || article.excerpt || `Trailer zu ${article.title}`,
-    thumbnailUrl: imageUrl.startsWith('http') ? imageUrl : `${SCHEMA_BASE}${imageUrl}`,
-    uploadDate: toDate(article.publishedAt || article.createdAt).toISOString(),
-    contentUrl: videoUrl,
-    embedUrl: videoUrl,
-    inLanguage: 'de-DE',
-    publisher: { '@id': 'https://serien.de#organization' },
-  } : null;
 
   // Hero preload URL for LCP optimization. We render an explicit
   // <link rel="preload" as="image"> in <head> so Chromium downloads the
@@ -562,16 +546,6 @@ export default async function ArticlePage({ params }: PageProps) {
           __html: JSON.stringify(breadcrumbSchema),
         }}
       />
-
-      {/* VideoObject Schema */}
-      {videoSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(videoSchema),
-          }}
-        />
-      )}
 
       {/* Article Content Section */}
       <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
