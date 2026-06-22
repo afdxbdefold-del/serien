@@ -224,6 +224,57 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch { /* malformed URL — let the rest of the pipeline handle it */ }
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  // GATE A — DAILY VOLUME CAP
+  // Caps how many articles we publish per UTC-day. 15 picked as Discover-
+  // healthy ceiling for a single-niche DACH outlet (Branchenschnitt 10-20).
+  // Spikes ≥30/day are the most reliable spam-wave signal — this cap kills
+  // them at the earliest gate, before any LLM token is spent.
+  //
+  // Manual runs (--trigger=manual) bypass the cap so editorial overrides
+  // always work. Bot/scheduled runs respect it.
+  // ════════════════════════════════════════════════════════════════════════
+  const DAILY_CAP = 15;
+  if (source.trigger !== 'manual') {
+    const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
+    const todayCount = await prisma.articles.count({
+      where: { status: 'published', publishedAt: { gte: startOfDay } },
+    });
+    if (todayCount >= DAILY_CAP) {
+      console.log(`⛔ DAILY-CAP reached: ${todayCount} ≥ ${DAILY_CAP}`);
+      await logger.fail(`Daily-cap reached (${todayCount}/${DAILY_CAP})`, 'daily-cap');
+      return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // GATE C — TVINSIDER DAILY THROTTLE
+  // tvinsider.com delivered 62 articles in last 7 days (≈ 9/day) — by far
+  // the biggest contributor. Cap to 4 per UTC-day so deadline / variety /
+  // THR / cinemaholic get more headroom and the overall mix is healthier.
+  // ════════════════════════════════════════════════════════════════════════
+  const TVINSIDER_DAILY_CAP = 4;
+  if (source.trigger !== 'manual') {
+    try {
+      const host = new URL(source.url).host.replace(/^www\./, '').toLowerCase();
+      if (host === 'tvinsider.com') {
+        const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
+        const todayTvInsider = await prisma.articles.count({
+          where: {
+            status: 'published',
+            publishedAt: { gte: startOfDay },
+            sourceUrl: { contains: 'tvinsider.com', mode: 'insensitive' },
+          },
+        });
+        if (todayTvInsider >= TVINSIDER_DAILY_CAP) {
+          console.log(`⛔ TVINSIDER-CAP reached: ${todayTvInsider} ≥ ${TVINSIDER_DAILY_CAP}`);
+          await logger.fail(`tvinsider daily cap (${todayTvInsider}/${TVINSIDER_DAILY_CAP})`, 'host-throttle');
+          return null;
+        }
+      }
+    } catch { /* malformed URL */ }
+  }
+
   const now = new Date();
   
   // Step tracking for precise error logging
@@ -782,6 +833,35 @@ export async function runPipelineV2(source: PipelineV2Source) {
       if (blocked) {
         console.log(`⛔ BLOCKED: "${blocked.label}" matched via TMDB-ID ${searchResult.tmdbId}`);
         await logger.fail(`Blocklist (TMDB): ${blocked.label}`, 'blocklist-tmdb');
+        return null;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // GATE B — PER-SERIES MONTHLY CAP
+    // Caps how many articles we publish per series per rolling 30-day window.
+    // Over-coverage (currently 30 series have >5 articles/month, summing to
+    // 334 articles = 27% of total volume) gives diminishing returns — extra
+    // articles cannibalise each other in Discover and SERP. 5/month is the
+    // sweet spot: covers all major story beats (renewal, finale, casting,
+    // streaming-arrival, ending-explained) without dilution.
+    //
+    // Manual runs bypass — editorial overrides always work.
+    // ══════════════════════════════════════════════════════════════════════
+    const PER_SERIES_MONTHLY_CAP = 5;
+    if (source.trigger !== 'manual') {
+      const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const seriesCount = await prisma.articles.count({
+        where: {
+          status: 'published',
+          primarySeriesId: searchResult.tmdbId,
+          publishedAt: { gte: since30 },
+        },
+      });
+      if (seriesCount >= PER_SERIES_MONTHLY_CAP) {
+        console.log(`⛔ PER-SERIES CAP reached: ${seriesCount} ≥ ${PER_SERIES_MONTHLY_CAP} for tmdb:${searchResult.tmdbId}`);
+        await logger.fail(`Per-series cap (${seriesCount}/${PER_SERIES_MONTHLY_CAP}) for tmdb:${searchResult.tmdbId}`, 'per-series-cap');
+        console.timeEnd('⏱️  STEP 3: TMDB Resolution');
         return null;
       }
     }
