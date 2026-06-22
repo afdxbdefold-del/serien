@@ -449,6 +449,7 @@ export default async function ArticlePage({ params }: PageProps) {
     authorExpertise: article.users?.expertise,
     category: article.category || article.contentType || 'Serien-News',
     aboutSeriesSlug: article.series?.slug,
+    aboutSeriesName: article.series?.title || article.series?.name || undefined,
     wordCount: article.contentHtml
       ? article.contentHtml.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
       : undefined,

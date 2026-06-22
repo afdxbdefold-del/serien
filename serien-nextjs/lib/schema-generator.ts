@@ -50,9 +50,17 @@ export function generateImageObject(
     caption: options?.caption || title,
   };
 
-  // Image author resolves to the publisher entity by reference (single source of truth).
+  // Image author: inline a minimal Organization identity. Cross-block `@id`
+  // refs (to the layout `@graph` Organization) work in Google's Rich Results
+  // Test but trigger "unresolved reference" warnings in stricter validators
+  // (Yoast, JSON-LD-Linter). Inlining @type + name keeps the entity self-
+  // describing without duplicating the full Organization definition.
   if (options?.author) {
-    imageObject.author = { '@id': ORG_ID };
+    imageObject.author = {
+      '@type': 'Organization',
+      '@id': ORG_ID,
+      name: options.author,
+    };
   }
 
   if (options?.license) {
@@ -90,6 +98,8 @@ export function generateArticleSchema(data: {
   category?: string;
   /** Optional: TVSeries entity to link via `about` (deep Knowledge-Graph signal). */
   aboutSeriesSlug?: string;
+  /** Required when `aboutSeriesSlug` is set — display name for the TVSeries entity. */
+  aboutSeriesName?: string;
   /** Optional: HTML word count, surfaced as `wordCount`. */
   wordCount?: number;
   /** Optional: tag array, surfaced as comma-separated `keywords`. */
@@ -134,7 +144,18 @@ export function generateArticleSchema(data: {
       }
     ),
     datePublished: data.datePublished,
-    dateModified: data.dateModified,
+    // dateModified: Suppress when it equals (or is within 60 s of) datePublished —
+    // emitting an "update" timestamp that's identical to publication is a noise
+    // signal for Google ("Was this article actually updated?") and triggers
+    // soft Helpful-Content warnings in some validators.
+    ...((() => {
+      const pub = Date.parse(data.datePublished);
+      const mod = Date.parse(data.dateModified);
+      if (!Number.isFinite(pub) || !Number.isFinite(mod)) {
+        return { dateModified: data.dateModified };
+      }
+      return mod - pub > 60_000 ? { dateModified: data.dateModified } : {};
+    })()),
     inLanguage: 'de-DE',
     isAccessibleForFree: true,
     author: (() => {
@@ -200,7 +221,16 @@ export function generateArticleSchema(data: {
       }],
     }),
     ...(data.aboutSeriesSlug && {
-      about: { '@id': `${baseUrl}/serie/${data.aboutSeriesSlug}#tvseries` },
+      // TVSeries entity inlined — must not be a dangling `@id` reference,
+      // because the full TVSeries schema only lives on /serie/[slug] and is
+      // not present on the article page's JSON-LD blocks. Inlining minimal
+      // identity (@type + name + url) gives Google a resolvable entity here.
+      about: {
+        '@type': 'TVSeries',
+        '@id': `${baseUrl}/serie/${data.aboutSeriesSlug}#tvseries`,
+        name: data.aboutSeriesName || data.aboutSeriesSlug,
+        url: `${baseUrl}/serie/${data.aboutSeriesSlug}`,
+      },
     }),
   };
 

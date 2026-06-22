@@ -399,6 +399,31 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`   ⏰ Thema-Alter: nicht ermittelbar ${trigger === 'manual' ? '(manueller Trigger)' : '- wird akzeptiert'}`);
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // TOPIC OUT-OF-SCOPE GATE (Phase B Feb 2026, **VOR LLM** seit Phase C)
+    //   Deterministischer Block für US-Talkshow-/Boulevard-Klatsch (SNL,
+    //   Met-Gala-Outfits, Late-Show-Interviews ohne News-Substanz). Diese
+    //   Artikel haben null DACH-Discover-Wert und kosten E-E-A-T.
+    //
+    //   Vorgezogen vor Step 2 (Classification), damit kein LLM-Token mehr für
+    //   Late-Night-Smalltalk verbrannt wird. checkTopicOutOfScope nutzt nur
+    //   Title + erste 800 Zeichen — alles bereits nach Step 1 verfügbar.
+    // ══════════════════════════════════════════════════════════════════════
+    {
+      const { checkTopicOutOfScope } = await import('../lib/topic-out-of-scope');
+      const leadSample = (fullSourceText || '').slice(0, 800);
+      const topicCheck = checkTopicOutOfScope(source.title, leadSample);
+      if (topicCheck.skip) {
+        console.log(`⚠️  TOPIC-OUT-OF-SCOPE (pre-LLM): "${source.title.slice(0, 80)}"`);
+        console.log(`   Grund: ${topicCheck.reason} (Treffer: "${topicCheck.hit}")`);
+        await logger.fail(
+          `Topic out-of-scope (pre-LLM): ${topicCheck.reason} — "${topicCheck.hit}"`,
+          'topic-out-of-scope',
+        );
+        return null;
+      }
+    }
+
     logStep('2_classification');
 
     // ══════════════════════════════════════════════════════════════════════
@@ -549,27 +574,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // TOPIC OUT-OF-SCOPE GATE (Phase B Feb 2026)
-    //   Selbst wenn der Klassifikator eine in-scope Serie findet, kann das
-    //   ARTIKEL-TOPIC irrelevanter US-Talkshow-/Boulevard-Klatsch sein
-    //   (SNL-Auftritte, Met-Gala-Outfits, Late-Show-Interviews ohne News-
-    //   Substanz). Diese Artikel haben null DACH-Discover-Wert und kosten
-    //   E-E-A-T. Filterung VOR allen LLM-Calls (Step 3+).
+    // TOPIC-OUT-OF-SCOPE wurde nach **vor** Step 2 verschoben (Phase C).
+    // Der Pre-LLM-Gate sitzt direkt nach dem Thema-Alter-Check und spart die
+    // Classification-Tokens für Talkshow-/Boulevard-Themen.
     // ══════════════════════════════════════════════════════════════════════
-    {
-      const { checkTopicOutOfScope } = await import('../lib/topic-out-of-scope');
-      const leadSample = (fullSourceText || '').slice(0, 800);
-      const topicCheck = checkTopicOutOfScope(source.title, leadSample);
-      if (topicCheck.skip) {
-        console.log(`⚠️  TOPIC-OUT-OF-SCOPE: "${source.title.slice(0, 80)}"`);
-        console.log(`   Grund: ${topicCheck.reason} (Treffer: "${topicCheck.hit}")`);
-        await logger.fail(
-          `Topic out-of-scope: ${topicCheck.reason} — "${topicCheck.hit}"`,
-          'topic-out-of-scope',
-        );
-        return null;
-      }
-    }
 
     // ══════════════════════════════════════════════════════════════════════
     // MULTI-SERIES EDITORIAL FILTER
@@ -677,6 +685,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
             OR: [
               { title: { equals: primaryCandidate, mode: 'insensitive' } },
               { name: { equals: primaryCandidate, mode: 'insensitive' } },
+              // EN-originaltitel-Fallback: Cinemaholic & andere internationale
+              // Quellen schreiben über deutsche Releases (z.B. "Achtsam Morden")
+              // unter dem englischen Originaltitel ("Murder Mindfully"). Ohne
+              // diesen Fallback fällt Step 3 hier und der Artikel wird verworfen.
+              { originalName: { equals: primaryCandidate, mode: 'insensitive' } },
             ],
           },
           select: { tmdbId: true, name: true, title: true },
@@ -712,6 +725,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
               OR: [
                 { title: { equals: candidate, mode: 'insensitive' } },
                 { name: { equals: candidate, mode: 'insensitive' } },
+                // EN-Originaltitel-Fallback (siehe Begründung oben).
+                { originalName: { equals: candidate, mode: 'insensitive' } },
               ],
             },
             select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true },
