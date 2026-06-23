@@ -48,20 +48,23 @@ export const DISCOVER_PATTERNS: DiscoverPattern[] = [
   { id: 'seas_03', angle: 'season_update', template: 'Bei {SERIE} verdichten sich die Zeichen auf Staffel {STAFFEL}',            requires: ['SERIE','STAFFEL'],        ctrBoost: 10 },
   { id: 'seas_04', angle: 'season_update', template: '{SERIE} könnte früher zurückkehren als gedacht',                           requires: ['SERIE'],                  ctrBoost: 11 },
 
-  // ─── SURPRISE / COMEBACK (9–12) ────────────────────────────────────
-  { id: 'come_01', angle: 'comeback',    template: 'Kaum jemand sah das kommen: {SERIE} meldet sich zurück',                     requires: ['SERIE'],                  ctrBoost: 13 },
-  { id: 'come_02', angle: 'comeback',    template: 'Ausgerechnet jetzt sorgt {SERIE} wieder für Gesprächsstoff',                 requires: ['SERIE'],                  ctrBoost: 10 },
-  { id: 'come_03', angle: 'comeback',    template: 'Niemand rechnete damit – doch {SERIE} ist wieder da',                        requires: ['SERIE'],                  ctrBoost: 12 },
-  { id: 'come_04', angle: 'trend_momentum', template: 'Plötzlich reden wieder alle über {SERIE}',                                requires: ['SERIE'],                  ctrBoost: 11 },
+  // ─── SURPRISE / COMEBACK ─────────────────────────────────────────────
+  // DEAKTIVIERT (Juni 2026, Anti-HCU): come_01–come_04 produzierten
+  // signature-Buzz „meldet sich zurück" / „kaum jemand sah das kommen" /
+  // „niemand rechnete damit" / „plötzlich reden wieder alle". Diese
+  // Wendungen waren die meistgeklonten Templates im 30d-Corpus und werden
+  // jetzt zusätzlich auf OVERUSED_PHRASES geblockt. Comeback-News werden
+  // ab jetzt aus season_update + nostalgia Patterns bedient.
 
-  // ─── QUALITY / PRAISE (13–16) ──────────────────────────────────────
-  { id: 'qual_01', angle: 'quality_praise', template: 'Warum {SERIE} gerade so stark ankommt',                                   requires: ['SERIE'],                  ctrBoost: 10 },
-  { id: 'qual_02', angle: 'quality_praise', template: '{SERIE} überzeugt aktuell selbst Skeptiker',                              requires: ['SERIE'],                  ctrBoost: 11 },
-  { id: 'qual_03', angle: 'quality_praise', template: 'Kritiker feiern {SERIE} – und das hat Gründe',                           requires: ['SERIE'],                  ctrBoost: 10 },
-  { id: 'qual_04', angle: 'quality_praise', template: '{SERIE} trifft gerade genau den Nerv vieler Zuschauer',                   requires: ['SERIE'],                  ctrBoost: 10 },
+  // ─── QUALITY / PRAISE ────────────────────────────────────────────────
+  // DEAKTIVIERT (Juni 2026, Anti-HCU): qual_01–qual_04 produzierten
+  // signature-Buzz „warum X gerade so stark" / „überzeugt selbst Skeptiker" /
+  // „Kritiker feiern" / „trifft den Nerv". Quality-/Praise-Themen werden
+  // bevorzugt aus dem Source-Title übernommen (preserveOriginalStyle=true).
 
-  // ─── STAR POWER (17–18) ────────────────────────────────────────────
-  { id: 'star_01', angle: 'star_power',  template: 'Wegen {STAR} reden jetzt wieder alle über {SERIE}',                          requires: ['SERIE','STAR'],           ctrBoost: 12 },
+  // ─── STAR POWER (17) ─────────────────────────────────────────────────
+  // star_01 DEAKTIVIERT (Juni 2026, „Wegen X reden jetzt wieder alle über Y"
+  // ist mit OVERUSED_PHRASES → reden wieder alle doppelt geblockt).
   { id: 'star_02', angle: 'star_power',  template: '{STAR} macht {SERIE} plötzlich noch interessanter',                          requires: ['SERIE','STAR'],           ctrBoost: 11 },
 
   // ─── UNDERRATED / HIDDEN GEM (19–20) ───────────────────────────────
@@ -93,9 +96,9 @@ export const DISCOVER_PATTERNS: DiscoverPattern[] = [
 
   // Surprise / Unexpected
   { id: 'nost_13', angle: 'nostalgia',   template: 'Kaum jemand ahnte damals, was aus {STAR} werden würde',                      requires: ['STAR'],                    ctrBoost: 12 },
-  { id: 'nost_14', angle: 'nostalgia',   template: 'Niemand rechnete damit – später wurde {STAR} Kult',                          requires: ['STAR'],                    ctrBoost: 12 },
+  // nost_14 DEAKTIVIERT (Juni 2026, „niemand rechnete damit" Buzz)
   { id: 'nost_15', angle: 'nostalgia',   template: 'Ein einfacher Moment machte {STAR} später berühmt',                          requires: ['STAR'],                    ctrBoost: 11 },
-  { id: 'nost_16', angle: 'nostalgia',   template: 'Ausgerechnet so begann die Karriere von {STAR}',                             requires: ['STAR'],                    ctrBoost: 10 },
+  // nost_16 DEAKTIVIERT (Juni 2026, „ausgerechnet" Buzz)
 
   // Series Legacy
   { id: 'nost_17', angle: 'nostalgia',   template: '{SERIE} verdankt {STAR} mehr, als viele denken',                             requires: ['STAR','SERIE'],            ctrBoost: 12 },
@@ -247,8 +250,14 @@ export function getAllPatternsByAngle(vars: PatternVars): Record<HeadlineAngle, 
 /**
  * Phrases the editor has flagged as overused / robotic. The engine uses
  * DB history to decide how many of these may still be used today.
+ *
+ * Anti-HCU-Pass (Juni 2026): Liste massiv erweitert um die Discover-Buzz-
+ * Marker, die die Headline-Engine v5.1 systematisch reproduziert hatte
+ * (Forensik aus dem 30d-Headline-Corpus). Diese Wendungen sind Hauptindikator
+ * für „Scaled Content" / „AI Footprint" bei SpamBrain.
  */
 export const OVERUSED_PHRASES: Array<{ rx: RegExp; label: string }> = [
+  // Legacy v1 Bans
   { rx: /\boffiziell[\s:!]/i,        label: 'Offiziell' },
   { rx: /\bendlich\b/i,               label: 'endlich' },
   { rx: /\bdoch\s+noch\b/i,           label: 'doch noch' },
@@ -256,6 +265,34 @@ export const OVERUSED_PHRASES: Array<{ rx: RegExp; label: string }> = [
   { rx: /\bausgerechnet\b/i,          label: 'ausgerechnet' },
   { rx: /\bjetzt\s+best(ä|ae)tigt\b/i,label: 'Jetzt bestätigt' },
   { rx: /\berst\b.{1,25},\s*jetzt\b/i,label: 'Erst X, jetzt Y' },
+
+  // Comeback / Trend-Momentum Buzz (Juni 2026)
+  // Hinweis: `\b` vor `ü/ä/ö` ist in JS-Regex (ohne /u-flag) nicht zuverlässig,
+  // daher verwenden wir `(?:^|\W)` als ASCII-sichere Wortgrenze wo nötig.
+  { rx: /\breden\s+(?:\w+\s+){0,2}wieder\b/i,                                   label: 'reden wieder alle' },
+  { rx: /\bsorgt\s+(?:\w+\s+){0,2}wieder\s+f(?:ü|ue)r\s+gespr(?:ä|ae)chsstoff\b/i, label: 'sorgt wieder für Gesprächsstoff' },
+  { rx: /\bkaum\s+jemand\s+sah\s+das\s+kommen\b/i,                              label: 'kaum jemand sah das kommen' },
+  { rx: /\bniemand\s+rechnete\s+damit\b/i,                                      label: 'niemand rechnete damit' },
+  { rx: /\bmeldet\s+sich\s+zur(?:ü|ue)ck\b/i,                                   label: 'meldet sich zurück' },
+  { rx: /\bist\s+wieder\s+da\b/i,                                               label: 'ist wieder da' },
+
+  // Quality-Praise Buzz
+  { rx: /\bwarum\s+.+\s+gerade\s+so\s+stark\b/i,                                label: 'warum X gerade so stark' },
+  { rx: /(?:^|\W)(?:ü|ue)berzeugt\s+aktuell\s+selbst\s+skeptiker(?:$|\W)/i,     label: 'überzeugt selbst Skeptiker' },
+  { rx: /\bkritiker\s+feiern\b/i,                                               label: 'Kritiker feiern' },
+  { rx: /\btrifft\s+gerade\s+(genau\s+)?den\s+nerv\b/i,                         label: 'trifft den Nerv' },
+
+  // Underrated / Hidden-Gem Buzz
+  { rx: /(?:^|\W)unters(?:c|k)h(?:ä|ae)tzteste(?:r|s|n)?\s+hit\b/i,             label: 'unterschätzteste Hit' },
+  { rx: /\bviele\s+(?:ü|ue)bersehen\b/i,                                        label: 'viele übersehen' },
+
+  // Star-Power Buzz
+  { rx: /\bnoch\s+interessanter\b/i,                                            label: 'noch interessanter' },
+
+  // Nostalgia Buzz
+  { rx: /\bsp(?:ä|ae)ter\s+wurde\s+.+\s+kult\b/i,                               label: 'später wurde X Kult' },
+  { rx: /\btv-?legende\b/i,                                                     label: 'TV-Legende' },
+  { rx: /\bschon\s+tv-?geschichte\s+schreibt\b/i,                               label: 'schreibt TV-Geschichte' },
 ];
 
 /** Count how many OVERUSED_PHRASES occur in a headline. */

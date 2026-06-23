@@ -6,10 +6,10 @@
  *     (success / comeback / season_update / quality_praise / star_power /
  *     underrated / controversy / trend_momentum) and feeds only matching
  *     patterns to the LLM.
- *  2. DYNAMIC COOLDOWN — queries the last 20 published headlines and bans
- *     phrases that have been used ≥2× in the last 24h ("Offiziell:",
- *     "Doch noch:", "Plötzlich", "Ausgerechnet", "Jetzt bestätigt",
- *     "Erst X, jetzt Y", "endlich"). Stops the robotic-formula loop.
+ *  2. DYNAMIC COOLDOWN — queries published headlines and bans phrases that
+ *     have been used ≥ 1× in the last 7 days (verschärft Juni 2026 vs. HCU
+ *     SpamBrain — vorher 2× in 24 h). Stops the robotic-formula loop und
+ *     verhindert Site-weite stilistische Footprints.
  *  3. VARIABLE EXTRACTION — auto-fills {STAR}, {PLATTFORM}, {STAFFEL}
  *     from fact-extractor entities + regex so patterns stay natural.
  *  4. 10 candidates instead of 8, angle-diverse, then scored by v5.
@@ -209,42 +209,47 @@ function extractVariables(
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// COOLDOWN — what overused phrases have we already spent today?
+// COOLDOWN — what overused phrases have we already spent this week?
 // ══════════════════════════════════════════════════════════════════════
 /**
- * Scans the last N published headlines and returns phrases that are
- * currently BANNED for this generation because they've been used too
- * often in the last 24h.
+ * Scans recent published headlines and returns phrases that are currently
+ * BANNED for this generation because they've been used too often.
  *
- * Threshold: any phrase used ≥ 2× in the last 24h is banned.
- * Hard cap: phrases used ≥ 4× in the last 48h are banned for 48h.
+ * Verschärft (Juni 2026, Anti-HCU-Pass):
+ *  - Window: 7 Tage (vorher 24 h) — verhindert dass derselbe Buzz-Marker
+ *    sich innerhalb einer Woche replizieren kann.
+ *  - Threshold: 1× im 7d-Fenster reicht für Ban (vorher 2× in 24 h).
+ *  - Hard cap: 2× in 14 Tagen → 14-Tage-Ban.
+ *
+ * Begründung: SpamBrain wertet stilistische Replikation als Site-Footprint.
+ * 24 h waren zu kurz — Templates konnten in 14 von 30 Tagen je 2× erscheinen.
  */
 async function computeBannedPhrases(): Promise<{ banned: string[]; tally: Record<string, number> }> {
-  const since24h = new Date(Date.now() - 24 * 3600 * 1000);
-  const since48h = new Date(Date.now() - 48 * 3600 * 1000);
+  const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+  const since14d = new Date(Date.now() - 14 * 24 * 3600 * 1000);
 
   try {
-    const [last24, last48] = await Promise.all([
+    const [last7d, last14d] = await Promise.all([
       prisma.articles.findMany({
-        where: { publishedAt: { gte: since24h }, status: 'published' },
+        where: { publishedAt: { gte: since7d }, status: 'published' },
         select: { title: true },
       }),
       prisma.articles.findMany({
-        where: { publishedAt: { gte: since48h }, status: 'published' },
+        where: { publishedAt: { gte: since14d }, status: 'published' },
         select: { title: true },
       }),
     ]);
 
-    const tally24: Record<string, number> = {};
-    const tally48: Record<string, number> = {};
-    for (const a of last24) for (const label of countOverusedPhrases(a.title || '')) tally24[label] = (tally24[label] || 0) + 1;
-    for (const a of last48) for (const label of countOverusedPhrases(a.title || '')) tally48[label] = (tally48[label] || 0) + 1;
+    const tally7d: Record<string, number> = {};
+    const tally14d: Record<string, number> = {};
+    for (const a of last7d) for (const label of countOverusedPhrases(a.title || '')) tally7d[label] = (tally7d[label] || 0) + 1;
+    for (const a of last14d) for (const label of countOverusedPhrases(a.title || '')) tally14d[label] = (tally14d[label] || 0) + 1;
 
     const banned = new Set<string>();
-    for (const [phrase, n] of Object.entries(tally24)) if (n >= 2) banned.add(phrase);
-    for (const [phrase, n] of Object.entries(tally48)) if (n >= 4) banned.add(phrase);
+    for (const [phrase, n] of Object.entries(tally7d)) if (n >= 1) banned.add(phrase);
+    for (const [phrase, n] of Object.entries(tally14d)) if (n >= 2) banned.add(phrase);
 
-    return { banned: Array.from(banned), tally: tally24 };
+    return { banned: Array.from(banned), tally: tally7d };
   } catch (err: any) {
     console.warn('   ⚠️  Cooldown-Query fehlgeschlagen, fahre ohne Ban-Liste fort:', err.message);
     return { banned: [], tally: {} };
@@ -374,7 +379,7 @@ export async function generateHeadlines(input: {
 
   // 9) Logging — same format as v5 for dashboard compatibility + angle line
   console.log(`\n   🏆 HEADLINE ENGINE v5.1 (angle=${detectedAngle}) ${explorationMode ? '(EXPLORATION)' : '(CONSERVATIVE)'}`);
-  if (banned.length) console.log(`   🚫 Cooldown-Bans: ${banned.join(', ')}   (24h-tally: ${JSON.stringify(tally)})`);
+  if (banned.length) console.log(`   🚫 Cooldown-Bans: ${banned.join(', ')}   (7d-tally: ${JSON.stringify(tally)})`);
   console.log(`   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`   HOK TOP SPE RSK CON CTR OLR = TOT | angle        | Headline`);
   console.log(`   ─────────────────────────────────────────────────────────────────`);

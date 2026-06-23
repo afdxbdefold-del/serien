@@ -226,15 +226,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
   // ════════════════════════════════════════════════════════════════════════
   // GATE A — DAILY VOLUME CAP
-  // Caps how many articles we publish per UTC-day. 15 picked as Discover-
-  // healthy ceiling for a single-niche DACH outlet (Branchenschnitt 10-20).
-  // Spikes ≥30/day are the most reliable spam-wave signal — this cap kills
-  // them at the earliest gate, before any LLM token is spent.
+  // Caps how many articles we publish per UTC-day. 5/day picked as conservative
+  // Anti-HCU-Pass (Juni 2026, nach SpamBrain-Throttling). Vorher 15/Tag — aber
+  // ein gedrosseltes Crawl-Budget verträgt nur dünnen, hochwertigen Output.
+  // Sobald Discover/Search-Sichtbarkeit nachweisbar erholt ist, wieder anheben.
   //
   // Manual runs (--trigger=manual) bypass the cap so editorial overrides
   // always work. Bot/scheduled runs respect it.
   // ════════════════════════════════════════════════════════════════════════
-  const DAILY_CAP = 15;
+  const DAILY_CAP = 5;
   if (source.trigger !== 'manual') {
     const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
     const todayCount = await prisma.articles.count({
