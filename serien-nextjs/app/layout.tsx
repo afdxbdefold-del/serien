@@ -76,22 +76,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             handshake happens in parallel with the rest of the HTML parse.
             Saves ~300 ms per origin on cold-start mobile (4G). Order: CMP
             first (most critical), GA last. */}
-        <link rel="preconnect" href="https://cmp.gatekeeperconsent.com" crossOrigin="" />
-        <link rel="preconnect" href="https://the.gatekeeperconsent.com" crossOrigin="" />
+        <link rel="preconnect" href="https://fundingchoicesmessages.google.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
-        {/* GateKeeperConsent CMP — MUST load before any ad / analytics script
-            so consent state is established first. `data-cfasync="false"` tells
-            Cloudflare Rocket Loader to leave the tag untouched (CMP must be
-            blocking + render-critical). Plain <script> tags so Next.js does
-            not move them with its Script component strategies. */}
+        {/* Google Funding Choices CMP (TCF 2.2 + Google Consent Mode v2) —
+            ersetzt GateKeeperConsent/Ezoic. Pflicht für DACH-AdSense-Publisher.
+            Lädt die in der Funding-Choices-Konsole konfigurierten Banner
+            (kostenlos für AdSense-Kunden, kein Drittanbieter-Branding).
+            Doku: https://support.google.com/fundingchoices/answer/9180935 */}
         <script
-          data-cfasync="false"
-          src="https://cmp.gatekeeperconsent.com/min.js"
+          async
+          src="https://fundingchoicesmessages.google.com/i/pub-8583619451045805?ers=1"
         />
         <script
-          data-cfasync="false"
-          src="https://the.gatekeeperconsent.com/cmp.min.js"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const i=document.createElement('iframe');i.style='width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;';i.style.display='none';i.name='googlefcPresent';document.body.appendChild(i);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();`,
+          }}
         />
 
         {/* Prevent flash of wrong theme — dark is the site default; light is
