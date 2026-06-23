@@ -564,6 +564,33 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // REJECT PERSONALITY_NEWS (Juni 2026, Anti-HCU)
+    //
+    // Vor dem Anti-HCU-Pass wurden Stories vom PERSÖNLICHEN Leben des Stars
+    // (Memoiren, Übergriffe, Krankheits-Updates, Klagen, Beziehungen) als
+    // Serien-News verkauft („Jeremy Clarkson krebsfrei nach Staffel 5",
+    // „Moshe Kasher (The Pitt) …" usw.). Sie bringen:
+    //   – schwache DACH-Discover-Performance (deutsche User wollen Serien-,
+    //     keine US-Celebrity-Storys)
+    //   – maximales Halluzinations-Risiko bei der Serien-Zuschreibung
+    //   – Buzz-Headline-Druck (alle Beispiele aus den letzten 30 Variety-Titeln)
+    //
+    // Wenn der Star-Bezug WIRKLICH eine Serien-News auslöst (Cast-Exit, neuer
+    // Showrunner, Rückkehr nach Staffel X), klassifiziert der LLM-Classifier
+    // den Artikel als SINGLE_SERIES_NEWS — Personality-News bedeutet explizit
+    // „Story ohne Serien-Event-Anker". Manual-Trigger erlaubt Override.
+    // ══════════════════════════════════════════════════════════════════════
+    if (classification.content_type === 'PERSONALITY_NEWS' && source.trigger !== 'manual') {
+      console.log(`⚠️  Article skipped: PERSONALITY_NEWS — kein Serien-Event-Anker`);
+      console.log(`   Grund: ${classification.reasoning || 'Star-/Celebrity-Story ohne Streaming-Bezug'}`);
+      await logger.fail(
+        `PERSONALITY_NEWS abgelehnt (keine Serien-News): ${(classification.reasoning || '').slice(0, 120)}`,
+        'classification-personality-news',
+      );
+      return null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // TOPIC-OUT-OF-SCOPE wurde nach **vor** Step 2 verschoben (Phase C).
     // Der Pre-LLM-Gate sitzt direkt nach dem Thema-Alter-Check und spart die
     // Classification-Tokens für Talkshow-/Boulevard-Themen.

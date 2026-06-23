@@ -32,9 +32,21 @@ const CLASSIFIER_PROMPT = `You are a strict entertainment content classifier for
 Your ONLY task is to classify incoming articles into ONE of these types:
 
 ✅ ACCEPTED TYPES (BIAS TOWARDS ACCEPTANCE when TV series content is plausible):
-- SINGLE_SERIES_NEWS: ACTUAL NEWS about ONE specific TV series
-  Examples: "Stranger Things Season 5 release date", "Game of Thrones spinoff cancelled", "New cast member announced", "Actor reflects on past role (anniversary, birthday, reunion, retrospective)", "Celebrity criticizes a specific show"
-  MUST contain: A NEW event, announcement, update, development, interview, retrospective, cast reunion, or public commentary
+- SINGLE_SERIES_NEWS: ACTUAL NEWS about ONE specific TV series WHERE THE SERIES IS THE NEWS SUBJECT.
+  ✅ PRIORITY EVENTS (highest value for serien.de's DACH streaming audience):
+     • New season announcement / release date / premiere date
+     • Renewal / cancellation / pickup decisions ("Renewed for Season 5", "cancelled after 2 seasons")
+     • New series order / pilot greenlight / development announcement
+     • Cast change at series level (new actor joins, lead exits)
+     • Streamer / network move (Show moves from Netflix to HBO)
+     • Season finale / episode-level event with series-wide impact
+     • Streaming-platform milestone tied to the series ("Top 10 in DACH for 3 weeks")
+     • Anniversary / reunion / retrospective tied to a SPECIFIC SERIES MOMENT
+  Examples:
+    • "Stranger Things Season 5 release date confirmed"
+    • "Game of Thrones spin-off cancelled"
+    • "Conviction adds Kevin McKidd to cast"
+    • "Severance renewed for Season 3 at Apple TV+"
   
 - MULTI_SERIES_EDITORIAL: Editorial/listicle about MULTIPLE TV series 
   Examples: "Top 10 Netflix series", "Best sci-fi series to watch", "Celebrity's favorite TV shows"
@@ -42,16 +54,25 @@ Your ONLY task is to classify incoming articles into ONE of these types:
   → If the article mentions 2+ different TV series as main subjects → MULTI_SERIES_EDITORIAL
   → STILL set primary_series to the MAIN focus (e.g., if "Spielberg loves Mad Men" → primary_series = "Mad Men")
 
-- PERSONALITY_NEWS: News about a TV actor's PERSONAL life, statements, memoir, abuse allegations,
-  health issues, relationships, lawsuits — where ONE specific TV series provides the actor's
-  "known for" context but is NOT the news subject.
-  Examples:
+- PERSONALITY_NEWS: News about a TV actor's PERSONAL life — even if a series name appears in the title.
+  ⚠️ Anti-HCU Pass (Juni 2026): serien.de's pipeline REJECTS PERSONALITY_NEWS unconditionally
+  (except manual override). Be GENEROUS in classifying as PERSONALITY_NEWS so they get filtered.
+  Mark as PERSONALITY_NEWS when the ARTICLE-CORE-EVENT is:
+    • Health: illness, recovery, surgery, cancer update, mental-health interview, weight, sobriety
+    • Memoir / autobiography / personal essay / open letter
+    • Allegations: abuse, harassment, lawsuit, settlement, criminal charges
+    • Relationships: marriage, divorce, dating, family
+    • Death of the person (obituary), tribute, memorial
+    • Pure career retrospective ("how X became a star") without a series-level event hook
+  Series in the title (e.g. "(Nashville)", "Clarkson's Farm Season 5") is only "known for" CONTEXT,
+  not the news subject. Even when a season number appears in the headline, if the article-core
+  is about the PERSON's life, classify as PERSONALITY_NEWS.
+  Examples (ALL = PERSONALITY_NEWS, even with a series in the title):
     • "Hayden Panettiere (Nashville) details abuse incident in new memoir"
-    • "Jennifer Aniston (Friends) opens up about IVF struggles"
+    • "Jeremy Clarkson reveals cancer is in remission" (his health, not Clarkson's Farm S5)
+    • "Moshe Kasher diagnosed with cancer mid-shoot"
     • "Bryan Cranston (Breaking Bad) sues former agent"
-  CRITICAL: The series name in the headline is CONTEXT, not the subject.
-  → primary_series = the actor's signature show (for tagging/linking only)
-  → Headline must lead with the PERSON, not the series.
+    • "Conan O'Brien retrospective ahead of late-night return"
 
 ⛔ REJECTED TYPES (use ONLY if you are CERTAIN):
 - FEATURE_ESSAY: Pure analysis about ONE series with ZERO news hook — no anniversary, no interview, no recent event
@@ -65,9 +86,9 @@ Your ONLY task is to classify incoming articles into ONE of these types:
 
 CRITICAL RULES:
 1. TV series ONLY - no movies as main subject
-2. NEWS requires a NEW EVENT (release, cancellation, casting, renewal, anniversary, interview, reunion, public commentary, streaming milestone, etc.)
+2. SINGLE_SERIES_NEWS requires a SERIES-LEVEL event (renewal, cancellation, casting, premiere date, finale). A "Star X talks about his life" article is PERSONALITY_NEWS even if Star X is on series Y.
 3. If article mentions MULTIPLE series (even without news) → MULTI_SERIES_EDITORIAL (ACCEPT!)
-4. Actor retrospectives / anniversaries / birthday reunions → SINGLE_SERIES_NEWS (the event IS the news)
+4. Actor retrospectives / anniversaries / birthday reunions → SINGLE_SERIES_NEWS ONLY if anchored to a series-level event (reunion episode, anniversary special, returning series). Pure career retrospective without series event → PERSONALITY_NEWS.
 5. Celebrity talking about their favorite shows = MULTI_SERIES_EDITORIAL (they usually mention multiple)
 6. Streaming-success milestones (views, chart positions) → SINGLE_SERIES_NEWS
 
@@ -271,5 +292,9 @@ Classify this content now.
 }
 
 export function shouldSkipArticle(classification: ClassificationResult): boolean {
+  // Anti-HCU-Pass (Juni 2026): PERSONALITY_NEWS wird in der Pipeline-v2 jetzt
+  // hart abgelehnt (siehe scripts/pipeline-v2.ts) — der Skip-Helper bleibt
+  // konservativ, damit andere Caller (Tests, Admin-UI) den Klassifikations-
+  // Treffer noch sehen können. Der eigentliche Reject erfolgt in der Pipeline.
   return !['SINGLE_SERIES_NEWS', 'MULTI_SERIES_EDITORIAL', 'PERSONALITY_NEWS'].includes(classification.content_type);
 }
