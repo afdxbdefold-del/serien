@@ -44,7 +44,7 @@ export function generateArticleSchema(article: {
     datePublished: article.publishedAt.toISOString(),
     dateModified: article.updatedAt.toISOString(),
     inLanguage: 'de-DE',
-    isAccessibleForFree: true,
+    // `isAccessibleForFree` bewusst weggelassen — siehe schema-generator.ts.
     author: {
       '@type': 'Person',
       name: article.author.name,

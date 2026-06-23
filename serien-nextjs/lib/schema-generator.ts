@@ -157,7 +157,10 @@ export function generateArticleSchema(data: {
       return mod - pub > 60_000 ? { dateModified: data.dateModified } : {};
     })()),
     inLanguage: 'de-DE',
-    isAccessibleForFree: true,
+    // NOTE: `isAccessibleForFree` wurde entfernt — Google Rich-Results-Test
+    // gruppiert jeden Artikel mit diesem Property unter „Paywall-Inhalte",
+    // selbst wenn der Wert `true` ist. Für freie News ist Schema-Default
+    // ohnehin „frei zugänglich" → kein SEO-Nachteil, sauberere Kategorisierung.
     author: (() => {
       const authorName = data.author || 'serien.de Redaktion';
       const authorUrl = data.authorSlug ? `${baseUrl}/autor/${data.authorSlug}` : undefined;
