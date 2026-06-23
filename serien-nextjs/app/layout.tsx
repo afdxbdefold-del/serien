@@ -75,11 +75,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Pre-connect to all critical third-party origins so the TLS+DNS
             handshake happens in parallel with the rest of the HTML parse.
             Saves ~300 ms per origin on cold-start mobile (4G). Order: CMP
-            first (most critical), Ezoic second, GA last. */}
+            first (most critical), GA last. */}
         <link rel="preconnect" href="https://cmp.gatekeeperconsent.com" crossOrigin="" />
         <link rel="preconnect" href="https://the.gatekeeperconsent.com" crossOrigin="" />
-        <link rel="preconnect" href="https://www.ezojs.com" crossOrigin="" />
-        <link rel="preconnect" href="https://ezoicanalytics.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
         {/* GateKeeperConsent CMP — MUST load before any ad / analytics script
@@ -95,21 +93,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           data-cfasync="false"
           src="https://the.gatekeeperconsent.com/cmp.min.js"
         />
-
-        {/* Ezoic Standalone Ads — must load AFTER the GateKeeper CMP (so it
-            can read consent state) and BEFORE the rest of the page renders.
-            `ezstandalone.cmd` queue is initialised inline so any later
-            `ezstandalone.showAds(...)` calls from ad components are safe
-            even if sa.min.js is still loading. */}
-        <script async src="https://www.ezojs.com/ezoic/sa.min.js" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.ezstandalone = window.ezstandalone || {}; ezstandalone.cmd = ezstandalone.cmd || [];`,
-          }}
-        />
-        {/* Ezoic analytics tag — pure tracking script, defer so it never
-            blocks the render-critical path (saves ~880 ms LCP on 4G). */}
-        <script defer src="https://ezoicanalytics.com/analytics.js" />
 
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
@@ -134,9 +117,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <meta name="theme-color" content="#0f0f17" />
-        {/* Ezoic site verification — required for Ezoic dashboard to confirm
-            ownership of serien.de. Must remain in <head> permanently. */}
-        <meta name="ezoic-site-verification" content="yzQjDFf6oMSKH59CPmqpphmHzzbu9s" />
         <link rel="manifest" href="/manifest.json" />
         {/* hreflang — single-language German site; emitted globally so every
             page (including ones that override `alternates`) carries the signal. */}
