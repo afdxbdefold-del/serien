@@ -77,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Saves ~300 ms per origin on cold-start mobile (4G). Order: CMP
             first (most critical), GA last. */}
         <link rel="preconnect" href="https://fundingchoicesmessages.google.com" crossOrigin="" />
+        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
         {/* Google Funding Choices CMP (TCF 2.2 + Google Consent Mode v2) —
@@ -92,6 +93,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const i=document.createElement('iframe');i.style='width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;';i.style.display='none';i.name='googlefcPresent';document.body.appendChild(i);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();`,
           }}
+        />
+
+        {/* Google AdSense Loader — site-wide im <head> per offizieller Google-
+            Empfehlung (https://support.google.com/adsense/answer/9274516).
+            Async + crossorigin blockt nichts, und auf Seiten ohne `<ins
+            class="adsbygoogle">`-Slots wird KEIN Ad gerendert. Dadurch ist
+            site-wide sicher und sauberer als ein per-Page-Loader, der bei
+            jedem Pageview neu nachgeladen wird. Funding-Choices CMP läuft
+            davor und steuert das Consent-Signal via Consent-Mode v2. */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+          crossOrigin="anonymous"
         />
 
         {/* Prevent flash of wrong theme — dark is the site default; light is

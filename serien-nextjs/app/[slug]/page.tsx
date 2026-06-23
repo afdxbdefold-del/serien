@@ -1,7 +1,6 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
-import Script from 'next/script';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
@@ -523,14 +522,10 @@ export default async function ArticlePage({ params }: PageProps) {
         />
       )}
 
-      {/* AdSense loader — scoped to article pages per ads policy. Uses
-          afterInteractive so it doesn't block initial paint or hydration. */}
-      <Script
-        id="adsbygoogle-loader"
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-        crossOrigin="anonymous"
-        strategy="afterInteractive"
-      />
+      {/* AdSense Loader liegt jetzt im Root-Layout-<head> (siehe app/layout.tsx).
+          Auf dieser Article-Page wird er NICHT mehr ein zweites Mal geladen —
+          AdSense erkennt bereits initialisierte Loader und würde sonst eine
+          „adsbygoogle.push() error: already initialized" Warnung loggen. */}
 
       {/* JSON-LD Structured Data with ImageObject */}
       <script
