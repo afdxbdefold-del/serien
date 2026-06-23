@@ -91,7 +91,8 @@ export const DISCOVER_PATTERNS: DiscoverPattern[] = [
   // Forgotten Past
   { id: 'nost_09', angle: 'nostalgia',   template: 'Viele kennen {STAR} nur aus {SERIE} – dabei begann alles ganz anders',        requires: ['STAR','SERIE'],            ctrBoost: 13 },
   { id: 'nost_10', angle: 'nostalgia',   template: 'Vor {SERIE}: So sah die Karriere von {STAR} wirklich aus',                   requires: ['STAR','SERIE'],            ctrBoost: 12 },
-  { id: 'nost_11', angle: 'nostalgia',   template: 'Was viele über {STAR} bis heute nicht wissen',                               requires: ['STAR'],                    ctrBoost: 11 },
+  // nost_11 DEAKTIVIERT (Juni 2026, „Was viele über X bis heute nicht wissen" Buzz —
+  // siehe OVERUSED_PHRASES für Cooldown-Block)
   { id: 'nost_12', angle: 'nostalgia',   template: 'Lange vor {SERIE} fiel {STAR} bereits auf',                                  requires: ['STAR','SERIE'],            ctrBoost: 11 },
 
   // Surprise / Unexpected
@@ -290,6 +291,7 @@ export const OVERUSED_PHRASES: Array<{ rx: RegExp; label: string }> = [
   { rx: /\bnoch\s+interessanter\b/i,                                            label: 'noch interessanter' },
 
   // Nostalgia Buzz
+  { rx: /\bwas\s+viele\s+(?:ü|ue)ber\s+.+\s+(?:bis\s+heute\s+)?nicht\s+wissen\b/i, label: 'was viele bis heute nicht wissen' },
   { rx: /\bsp(?:ä|ae)ter\s+wurde\s+.+\s+kult\b/i,                               label: 'später wurde X Kult' },
   { rx: /\btv-?legende\b/i,                                                     label: 'TV-Legende' },
   { rx: /\bschon\s+tv-?geschichte\s+schreibt\b/i,                               label: 'schreibt TV-Geschichte' },

@@ -32,6 +32,8 @@ const CASES: Case[] = [
   { headline: 'Mark Harmon macht Navy CIS plötzlich noch interessanter', expectedLabels: ['plötzlich', 'noch interessanter'] },
 
   // Nostalgia Buzz
+  { headline: 'Was viele über Mark Harmon bis heute nicht wissen', expectedLabels: ['was viele bis heute nicht wissen'] },
+  { headline: 'Was viele über Nick Robinson und Kennedy bis heute nicht wissen', expectedLabels: ['was viele bis heute nicht wissen'] },
   { headline: 'Niemand rechnete damit – später wurde Mark Harmon Kult', expectedLabels: ['niemand rechnete damit', 'später wurde X Kult'] },
   { headline: 'Kaum zu glauben, wie lange Mark Harmon schon TV-Geschichte schreibt', expectedLabels: ['schreibt TV-Geschichte'] },
   { headline: 'Jahre später wurde Mark Harmon TV-Legende', expectedLabels: ['TV-Legende'] },
