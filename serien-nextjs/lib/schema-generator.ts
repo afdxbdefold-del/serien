@@ -217,12 +217,10 @@ export function generateArticleSchema(data: {
     ...(data.articleBody && {
       articleBody: data.articleBody.slice(0, 5000),
     }),
-    ...(data.sourceUrl && /^https?:\/\//.test(data.sourceUrl) && {
-      isBasedOn: [{
-        '@type': 'NewsArticle',
-        url: data.sourceUrl,
-      }],
-    }),
+    // `isBasedOn` bewusst NICHT mehr emittiert — Google Rich-Results-Test
+    // hat das Feld als sekundäres `NewsArticle`-Entity geparst und „unbenanntes
+    // Element" + 3 Pflichtfeld-Warnungen (image/author/headline) erzeugt. Quell-
+    // Attribution erfolgt stattdessen sichtbar im Artikel-Body via Source-Link.
     ...(data.aboutSeriesSlug && {
       // TVSeries entity inlined — must not be a dangling `@id` reference,
       // because the full TVSeries schema only lives on /serie/[slug] and is

@@ -42,7 +42,7 @@ const CASES: Case[] = [
     },
   },
   {
-    name: 'NewsArticle: isBasedOn set when sourceUrl is http(s)',
+    name: 'NewsArticle: isBasedOn fully OMITTED even when sourceUrl is http(s)',
     fn: () => {
       const s = generateArticleSchema({
         title: 'X', description: 'd', imageUrl: 'https://example.com/x.jpg',
@@ -51,10 +51,7 @@ const CASES: Case[] = [
         slug: 'x',
         sourceUrl: 'https://variety.com/article/example',
       });
-      return Array.isArray(s.isBasedOn)
-        && s.isBasedOn.length === 1
-        && s.isBasedOn[0]['@type'] === 'NewsArticle'
-        && s.isBasedOn[0].url === 'https://variety.com/article/example';
+      return !('isBasedOn' in s);
     },
   },
   {
