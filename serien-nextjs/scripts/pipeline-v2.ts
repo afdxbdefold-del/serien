@@ -213,7 +213,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
   // Google News / Trends surfaces a URL pointing to one of them.
   // ════════════════════════════════════════════════════════════════════════
   {
-    const WEAK_HOSTS = ['screenrant.com', 'collider.com', 'whats-on-netflix.com'];
+    const WEAK_HOSTS = [
+      'screenrant.com',
+      'collider.com',
+      'whats-on-netflix.com',
+      // tvinsider.com (Juni 2026, Anti-HCU): Cloudflare-JS-Challenge verhindert
+      // verlässliches Full-Text-Scraping — Original-Titel werden mit „Just a
+      // moment..." statt echter Headlines geliefert. Heißt die Pipeline läuft
+      // mit minimalem Snippet ins LLM-Generation und produziert dadurch
+      // überdurchschnittlich viele Buzz/Halluzinations-Headlines. 11 von 30
+      // jüngsten Artikeln stammen von hier → strukturelles Trust-Risiko.
+      'tvinsider.com',
+    ];
     try {
       const host = new URL(source.url).host.replace(/^www\./, '').toLowerCase();
       if (WEAK_HOSTS.includes(host)) {
@@ -248,32 +259,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  // GATE C — TVINSIDER DAILY THROTTLE
-  // tvinsider.com delivered 62 articles in last 7 days (≈ 9/day) — by far
-  // the biggest contributor. Cap to 4 per UTC-day so deadline / variety /
-  // THR / cinemaholic get more headroom and the overall mix is healthier.
+  // GATE C ENTFERNT (Juni 2026): tvinsider.com Daily-Throttle ist obsolet,
+  // seit der Host komplett in WEAK_HOSTS steht und vor diesem Gate geblockt
+  // wird (siehe oben). Bei Bedarf via --trigger=manual+--tvinsider explizit
+  // freischaltbar.
   // ════════════════════════════════════════════════════════════════════════
-  const TVINSIDER_DAILY_CAP = 4;
-  if (source.trigger !== 'manual') {
-    try {
-      const host = new URL(source.url).host.replace(/^www\./, '').toLowerCase();
-      if (host === 'tvinsider.com') {
-        const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
-        const todayTvInsider = await prisma.articles.count({
-          where: {
-            status: 'published',
-            publishedAt: { gte: startOfDay },
-            sourceUrl: { contains: 'tvinsider.com', mode: 'insensitive' },
-          },
-        });
-        if (todayTvInsider >= TVINSIDER_DAILY_CAP) {
-          console.log(`⛔ TVINSIDER-CAP reached: ${todayTvInsider} ≥ ${TVINSIDER_DAILY_CAP}`);
-          await logger.fail(`tvinsider daily cap (${todayTvInsider}/${TVINSIDER_DAILY_CAP})`, 'host-throttle');
-          return null;
-        }
-      }
-    } catch { /* malformed URL */ }
-  }
 
   const now = new Date();
   

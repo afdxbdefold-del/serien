@@ -861,8 +861,9 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     // entfernt: hohes Volumen (~430/Monat in Summe), aber schwacher Discover-
     // Ertrag bei DACH-Publikum. Quell-Definitionen bleiben in NEWS_SOURCES
     // bestehen und lassen sich on-demand per --screenrant / --collider /
-    // --whatsOnNetflix triggern.
-    sources = ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline', 'googleNewsStreaming'],
+    // --whatsOnNetflix / --tvinsider triggern. tvinsider raus Juni 2026:
+    // Cloudflare-JS-Challenge → kein Full-Text → Halluzinations-Risiko.
+    sources = ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline', 'googleNewsStreaming'],
     limit = 5,
     dryRun = false,
     onlyNew = true,
@@ -1119,7 +1120,7 @@ if (require.main === module) {
   const cinemaholicOnly = args.includes('--cinemaholic');
   const deadlineOnly = args.includes('--deadline');
   
-  let sources: SourceKey[] = ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider'];
+  let sources: SourceKey[] = ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter'];
   if (screenrantOnly) sources = ['screenrant'];
   if (colliderOnly) sources = ['collider'];
   if (cinemaholicOnly) sources = ['cinemaholic'];

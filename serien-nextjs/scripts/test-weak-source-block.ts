@@ -1,6 +1,6 @@
 /* eslint-disable */
 /** Inline-Unit-Test für die WEAK_HOSTS-Block-Logik aus pipeline-v2.ts */
-const WEAK_HOSTS = ['screenrant.com', 'collider.com', 'whats-on-netflix.com'];
+const WEAK_HOSTS = ['screenrant.com', 'collider.com', 'whats-on-netflix.com', 'tvinsider.com'];
 
 interface Case { url: string; expectBlocked: boolean }
 const cases: Case[] = [
@@ -9,6 +9,8 @@ const cases: Case[] = [
   { url: 'https://collider.com/foundation-season-3/',             expectBlocked: true  },
   { url: 'https://www.collider.com/foundation-season-3/',         expectBlocked: true  },
   { url: 'https://www.whats-on-netflix.com/news/x',               expectBlocked: true  },
+  { url: 'https://www.tvinsider.com/1234567/severance-recap/',    expectBlocked: true  },
+  { url: 'https://tvinsider.com/foo',                             expectBlocked: true  },
   { url: 'https://variety.com/2026/tv/news/foundation',           expectBlocked: false },
   { url: 'https://deadline.com/2026/05/the-boys',                 expectBlocked: false },
   { url: 'https://www.hollywoodreporter.com/tv/tv-news/',         expectBlocked: false },

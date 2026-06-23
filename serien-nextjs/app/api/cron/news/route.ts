@@ -62,12 +62,15 @@ export async function GET(request: NextRequest) {
     
     console.log('[CRON] Starting news import...');
     
-    // Scrape from all 9 configured sources: 3 HTML sites + 4 premium RSS feeds + Netflix Tudum + TVLine.
-    // Premium sources (Deadline, Variety, HR, TVInsider, TVLine) bring journalistic industry
-    // news; Netflix Tudum delivers canonical first-party Netflix headlines.
+    // Scrape from active sources only. Removed (Juni 2026, Anti-HCU):
+    //   - screenrant, collider, whats-on-netflix → schwache DACH-Discover-
+    //     Performance, Volume-Verschmutzung.
+    //   - tvinsider → Cloudflare-JS-Challenge, kein verlässlicher Full-Text.
+    // Premium-Quellen (Deadline, Variety, THR, TVLine, Cinemaholic) + Netflix
+    // Tudum als Canonical-First-Party-Streamer-Quelle bilden den aktuellen Pool.
     const result = await processAllNews({
-      sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline', 'whatsOnNetflix'],
-      limit: 4, // 4 per source × 10 = up to 40 candidates per cron run
+      sources: ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline'],
+      limit: 4, // 4 per source × 6 = up to 24 candidates per cron run
       dryRun: false,
       onlyNew: true,
     });

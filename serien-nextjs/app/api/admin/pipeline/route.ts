@@ -1049,9 +1049,10 @@ export async function POST(request: NextRequest) {
         const { processAllNews, NEWS_SOURCES } = await import('@/scripts/news-scraper');
         debugLog.push(`📰 Quellen: ${Object.keys(NEWS_SOURCES).join(', ')}`);
         
-        // Process only 1 article (the freshest one) from ALL 7 sources
+        // Process only 1 article (the freshest one) from active premium sources.
+        // tvinsider/screenrant/collider/whats-on-netflix nur on-demand via Trigger.
         const result = await processAllNews({
-          sources: ['screenrant', 'collider', 'cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'tvinsider', 'netflixTudum', 'tvline'],
+          sources: ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline'],
           limit: 1, // NUR 1 Artikel
           dryRun: false,
           onlyNew: true,
