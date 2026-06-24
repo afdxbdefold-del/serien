@@ -27,7 +27,8 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
         actor: {
           select: {
             name: true,
-            profilePath: true,
+            // profilePath bewusst nicht selektiert — Schauspieler-Fotos wurden
+            // site-wide entfernt (Juni 2026, Bildrechte).
           },
         },
       },
@@ -67,33 +68,21 @@ export default async function SeriesCharacters({ seriesTmdbId, seriesName }: Ser
             href={`/figur/${character.slug}`}
             className="group bg-gray-50 rounded-lg p-4 hover:bg-blue-50 hover:shadow-md transition-all"
           >
-            <div className="flex items-start gap-3">
-              {character.actor?.profilePath && (
-                <div className="flex-shrink-0">
-                  <Image
-                    src={`/img/tmdb/w185${character.actor.profilePath}`}
-                    alt={character.name}
-                    width={48}
-                    height={72}
-                    className="rounded-md shadow-sm"
-                  />
-                </div>
+            {/* Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte). */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 text-sm mb-1">
+                {character.name}
+              </h3>
+              {character.actor && (
+                <p className="text-xs text-gray-500 line-clamp-1">
+                  {character.actor.name}
+                </p>
               )}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 text-sm mb-1">
-                  {character.name}
-                </h3>
-                {character.actor && (
-                  <p className="text-xs text-gray-500 line-clamp-1">
-                    {character.actor.name}
-                  </p>
-                )}
-                {character.shortDescription && (
-                  <p className="text-xs text-gray-600 line-clamp-2 mt-2">
-                    {character.shortDescription}
-                  </p>
-                )}
-              </div>
+              {character.shortDescription && (
+                <p className="text-xs text-gray-600 line-clamp-2 mt-2">
+                  {character.shortDescription}
+                </p>
+              )}
             </div>
           </Link>
         ))}

@@ -50,35 +50,19 @@ export default async function SeriesCast({ seriesName, cast }: SeriesCastProps) 
       <h2 className="text-lg font-bold text-gray-900 mb-4">
         Besetzung von {seriesName}
       </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {castWithPages.map((actor) => {
+          // Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte).
           const ActorCard = (
-            <div className="group cursor-pointer">
-              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
-                {actor.profile_path ? (
-                  <Image
-                    src={`/img/tmdb/w185${actor.profile_path}`}
-                    alt={actor.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <User className="h-12 w-12 text-gray-400" />
-                  </div>
-                )}
-              </div>
-              <div className="text-sm">
-                <p className="font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                  {actor.name}
+            <div className="group cursor-pointer bg-gray-50 hover:bg-blue-50 rounded-lg p-3 transition-colors h-full">
+              <p className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                {actor.name}
+              </p>
+              {actor.character && (
+                <p className="text-xs text-gray-600 line-clamp-2 mt-1">
+                  als {actor.character}
                 </p>
-                {actor.character && (
-                  <p className="text-xs text-gray-600 line-clamp-1 mt-1">
-                    als {actor.character}
-                  </p>
-                )}
-              </div>
+              )}
             </div>
           );
 

@@ -124,55 +124,30 @@ export default function ActorGrid({ persons }: ActorGridProps) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {filteredPersons.map((person) => (
             <Link
               key={person.id}
               href={`/person/${person.slug}`}
               className="group"
             >
-              <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                {/* Profile Image */}
-                <div className="relative aspect-[2/3] bg-gray-200">
-                  {person.profilePath ? (
-                    <Image
-                      src={getTMDBImageUrl(person.profilePath, 'w185') || ''}
-                      alt={person.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg
-                        className="w-16 h-16 text-gray-400"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                      </svg>
-                    </div>
-                  )}
-                  
-                  {/* Article Count Badge */}
-                  {person._count.article_persons > 0 && (
-                    <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                      {person._count.article_persons} {person._count.article_persons === 1 ? 'Artikel' : 'Artikel'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-blue-600 transition">
+              {/* Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte). */}
+              <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 border border-gray-100 p-4 h-full flex flex-col justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-base mb-1 line-clamp-2 group-hover:text-blue-600 transition">
                     {person.name}
                   </h3>
                   {person.knownFor && (
-                    <p className="text-xs text-gray-500 line-clamp-1">
+                    <p className="text-xs text-gray-500 line-clamp-2">
                       {person.knownFor}
                     </p>
                   )}
                 </div>
+                {person._count.article_persons > 0 && (
+                  <div className="mt-3 text-xs text-gray-400">
+                    {person._count.article_persons} {person._count.article_persons === 1 ? 'Artikel' : 'Artikel'}
+                  </div>
+                )}
               </div>
             </Link>
           ))}

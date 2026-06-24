@@ -109,8 +109,6 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           tmdbId: true,
           name: true,
           slug: true,
-          profilePath: true,
-          localProfilePath: true,
         },
       },
     },
@@ -133,12 +131,9 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
       id: true,
       slug: true,
       name: true,
-      imageUrl: true,
       persons: {
         select: {
           name: true,
-          profilePath: true,
-          localProfilePath: true,
           tmdbId: true,
         }
       }
@@ -357,30 +352,16 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Darsteller & Besetzung
                 </h2>
-                <div className="flex items-start gap-4">
-                  {(character.persons.localProfilePath || character.persons.profilePath) && (
-                    <Link href={`/person/${character.persons.slug}`}>
-                      <Image
-                        src={character.persons.localProfilePath || `/images/persons/${character.persons.tmdbId}.jpg`}
-                        alt={character.persons.name}
-                        width={80}
-                        height={120}
-                        className="rounded-lg shadow-md hover:shadow-lg transition-shadow"
-                      />
-                    </Link>
-                  )}
-                  <div>
-                    <Link
-                      href={`/person/${character.persons.slug}`}
-                      className="text-lg font-semibold text-blue-600 hover:underline"
-                    >
-                      {character.persons.name}
-                    </Link>
-                    <p className="text-sm text-gray-600 mt-1">
-                      spielt {character.name} in {seriesName}.
-                    </p>
-                  </div>
-                </div>
+                {/* Schauspieler-Foto site-wide entfernt (Juni 2026, Bildrechte). */}
+                <Link
+                  href={`/person/${character.persons.slug}`}
+                  className="text-lg font-semibold text-blue-600 hover:underline"
+                >
+                  {character.persons.name}
+                </Link>
+                <p className="text-sm text-gray-600 mt-1">
+                  spielt {character.name} in {seriesName}.
+                </p>
               </section>
             )}
 
@@ -390,47 +371,15 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Weitere Figuren aus {seriesName}
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {relatedCharacters.map((relChar) => (
                     <Link
                       key={relChar.id}
                       href={`/figur/${relChar.slug}`}
-                      className="group text-center"
+                      className="group bg-gray-50 hover:bg-blue-50 rounded-lg p-3 transition-colors"
                     >
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 mb-2 shadow-sm">
-                        {relChar.imageUrl ? (
-                          <Image
-                            src={relChar.imageUrl}
-                            alt={relChar.name}
-                            fill
-                            sizes="(max-width: 640px) 50vw, 25vw"
-                            className="object-cover group-hover:scale-105 transition-transform"
-                          />
-                        ) : relChar.persons?.localProfilePath || relChar.persons?.tmdbId ? (
-                          <Image
-                            src={relChar.persons.localProfilePath || `/images/persons/${relChar.persons.tmdbId}.jpg`}
-                            alt={relChar.name}
-                            fill
-                            sizes="(max-width: 640px) 50vw, 25vw"
-                            className="object-cover group-hover:scale-105 transition-transform"
-                          />
-                        ) : relChar.persons?.profilePath ? (
-                          <Image
-                            src={`/img/tmdb/w185${relChar.persons.profilePath}`}
-                            alt={relChar.name}
-                            fill
-                            sizes="(max-width: 640px) 50vw, 25vw"
-                            className="object-cover group-hover:scale-105 transition-transform"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 line-clamp-1">
+                      {/* Charakter-/Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte). */}
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 line-clamp-2">
                         {relChar.name}
                       </p>
                     </Link>

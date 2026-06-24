@@ -175,37 +175,19 @@ export default function DesktopSeriesLayout({
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
                 Besetzung von {series.name || series.title}
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {cast.map((actor: any) => {
+                  // Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte).
                   const ActorCard = (
-                    <div className="group cursor-pointer">
-                      <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
-                        {actor.profile_path ? (
-                          <Image
-                            src={`/img/tmdb/w185${actor.profile_path}`}
-                            alt={actor.name}
-                            fill
-                            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm">
-                        <p className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {actor.name}
+                    <div className="group cursor-pointer bg-gray-50 dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-lg p-3 transition-colors h-full">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {actor.name}
+                      </p>
+                      {actor.character && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
+                          als {actor.character}
                         </p>
-                        {actor.character && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
-                            als {actor.character}
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </div>
                   );
 
@@ -237,48 +219,22 @@ export default function DesktopSeriesLayout({
                   Alle Figuren →
                 </Link>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {characters.map((character: any) => (
                   <Link
                     key={character.id}
                     href={`/figur/${character.slug}`}
-                    className="group"
+                    className="group bg-gray-50 dark:bg-gray-900 hover:bg-cyan-50 dark:hover:bg-gray-700 rounded-lg p-3 transition-colors"
                   >
-                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 shadow-sm">
-                      {character.imageUrl ? (
-                        <Image
-                          src={character.imageUrl}
-                          alt={character.name}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : character.persons?.profilePath ? (
-                        <Image
-                          src={`/img/tmdb/w185${character.persons.profilePath}`}
-                          alt={character.name}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-sm">
-                      <p className="font-semibold text-gray-900 dark:text-white line-clamp-1 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                        {character.name}
+                    {/* Charakter-Fotos site-wide entfernt (Juni 2026, Bildrechte). */}
+                    <p className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                      {character.name}
+                    </p>
+                    {character.persons?.name && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
+                        {character.persons.name}
                       </p>
-                      {character.persons?.name && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-0.5">
-                          {character.persons.name}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </Link>
                 ))}
               </div>
@@ -437,27 +393,17 @@ export default function DesktopSeriesLayout({
             {cast.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Besetzung</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {cast.slice(0, 6).map((actor: any) => (
-                    <div key={actor.id || actor.name} className="text-center">
-                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2">
-                        {actor.profile_path ? (
-                          <Image
-                            src={`/img/tmdb/w185${actor.profile_path}`}
-                            alt={actor.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <Tv className="h-6 w-6" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1">{actor.name}</div>
-                    </div>
+                {/* Schauspieler-Fotos site-wide entfernt (Juni 2026, Bildrechte). */}
+                <ul className="space-y-2">
+                  {cast.slice(0, 8).map((actor: any) => (
+                    <li key={actor.id || actor.name} className="text-sm text-gray-900 dark:text-white">
+                      <span className="font-medium">{actor.name}</span>
+                      {actor.character && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400"> · als {actor.character}</span>
+                      )}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
           </div>

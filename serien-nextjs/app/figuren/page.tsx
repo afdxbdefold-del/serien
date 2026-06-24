@@ -70,7 +70,7 @@ export default async function FigurenPage({ searchParams }: PageProps) {
       where: finalWhere,
       include: {
         series: { select: { tmdbId: true, name: true, title: true, posterPath: true, slug: true } },
-        persons: { select: { name: true, profilePath: true, slug: true } },
+        persons: { select: { name: true, slug: true } },
       },
       orderBy,
       skip: (currentPage - 1) * PER_PAGE,
@@ -170,29 +170,19 @@ export default async function FigurenPage({ searchParams }: PageProps) {
                     className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow group"
                     data-testid={`figur-card-${character.slug}`}
                   >
-                    <div className="flex items-start gap-3">
-                      {character.persons?.profilePath && (
-                        <Image
-                          src={`/img/tmdb/w185${character.persons.profilePath}`}
-                          alt={character.name} width={50} height={75}
-                          className="rounded-lg shadow-sm flex-shrink-0" loading="lazy"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm line-clamp-2">
-                          {character.name}
-                        </h3>
-                        {character.persons && (
-                          <p className="text-xs text-gray-500 mt-0.5">{character.persons.name}</p>
-                        )}
-                        {seriesName && (
-                          <p className="text-xs text-blue-600 mt-1 line-clamp-1">{seriesName}</p>
-                        )}
-                        {character.shortDescription && (
-                          <p className="text-xs text-gray-600 line-clamp-2 mt-1">{character.shortDescription}</p>
-                        )}
-                      </div>
-                    </div>
+                    {/* Charakter-/Schauspielerfotos site-wide entfernt (Juni 2026, Bildrechte). */}
+                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-sm line-clamp-2">
+                      {character.name}
+                    </h3>
+                    {character.persons && (
+                      <p className="text-xs text-gray-500 mt-0.5">{character.persons.name}</p>
+                    )}
+                    {seriesName && (
+                      <p className="text-xs text-blue-600 mt-1 line-clamp-1">{seriesName}</p>
+                    )}
+                    {character.shortDescription && (
+                      <p className="text-xs text-gray-600 line-clamp-2 mt-1">{character.shortDescription}</p>
+                    )}
                   </Link>
                 );
               })}

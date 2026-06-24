@@ -240,7 +240,8 @@ export default async function SeriesDetailPage({ params }: PageProps) {
       persons: {
         select: {
           name: true,
-          profilePath: true,
+          // profilePath bewusst nicht selektiert — Schauspieler-Fotos wurden
+          // site-wide entfernt (Juni 2026, Bildrechte).
         }
       }
     },
