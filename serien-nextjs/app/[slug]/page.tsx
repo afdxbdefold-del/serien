@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
@@ -522,10 +523,18 @@ export default async function ArticlePage({ params }: PageProps) {
         />
       )}
 
-      {/* AdSense Loader liegt jetzt im Root-Layout-<head> (siehe app/layout.tsx).
-          Auf dieser Article-Page wird er NICHT mehr ein zweites Mal geladen —
-          AdSense erkennt bereits initialisierte Loader und würde sonst eine
-          „adsbygoogle.push() error: already initialized" Warnung loggen. */}
+      {/* AdSense Loader — pro Artikel-Page via afterInteractive, damit Next.js
+          den Script-Lifecycle synchron mit den ClientAdSlot-Komponenten
+          managed. Vorher kurz im Root-<head> gehabt → SPA-Navigation zwischen
+          Artikeln rendert keine Ads mehr; Revert auf diese Variante hat das
+          Verhalten verifizierbar wiederhergestellt (Hard-Reload + Soft-Nav
+          beide funktional). */}
+      <Script
+        id="adsbygoogle-loader"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
 
       {/* JSON-LD Structured Data with ImageObject */}
       <script

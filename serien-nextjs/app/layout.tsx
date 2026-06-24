@@ -95,18 +95,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
-        {/* Google AdSense Loader — site-wide im <head> per offizieller Google-
-            Empfehlung (https://support.google.com/adsense/answer/9274516).
-            Async + crossorigin blockt nichts, und auf Seiten ohne `<ins
-            class="adsbygoogle">`-Slots wird KEIN Ad gerendert. Dadurch ist
-            site-wide sicher und sauberer als ein per-Page-Loader, der bei
-            jedem Pageview neu nachgeladen wird. Funding-Choices CMP läuft
-            davor und steuert das Consent-Signal via Consent-Mode v2. */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-          crossOrigin="anonymous"
-        />
+        {/* AdSense-Loader wurde aus dem Root-<head> entfernt (Juni 2026) —
+            er hat SPA-Navigation zwischen Artikelseiten kaputt gemacht (Ads
+            kamen erst nach F5 wieder). Der Loader sitzt jetzt wieder direkt
+            in `app/[slug]/page.tsx` via <Script strategy="afterInteractive">,
+            sodass Next.js seinen Page-Mount-Lifecycle synchron mit den
+            ClientAdSlot-Komponenten verwaltet. Preconnect bleibt site-wide,
+            damit der TLS-Handshake bei der ersten Artikel-Navigation
+            schon im Hintergrund läuft. */}
 
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
