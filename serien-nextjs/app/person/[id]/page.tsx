@@ -8,8 +8,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import { getTMDBPersonDetails, getTMDBProfileImageUrl } from '@/lib/tmdb-person';
-import { getPersonImageUrl } from '@/lib/image-utils';
+import { getTMDBPersonDetails } from '@/lib/tmdb-person';
 import Image from 'next/image';
 import Link from 'next/link';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -50,7 +49,7 @@ const getPersonFromDB = (tmdbId: number) => unstable_cache(
       tmdbId: true, name: true, slug: true, biography: true, biographyEn: true,
       birthDate: true, deathDate: true, birthPlace: true, knownFor: true,
       popularity: true, socialLinks: true, tvCreditsJson: true,
-      profilePath: true, localProfilePath: true, enrichedAt: true,
+      profilePath: false, localProfilePath: false, enrichedAt: true,
     }
   }),
   [`person-${tmdbId}`],
@@ -72,14 +71,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `${dbPerson.biography.slice(0, 150)}...`
     : `Alle Serien und Filme mit ${dbPerson.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
   const baseUrl = 'https://serien.de';
-  const blobBase = process.env.NEXT_PUBLIC_BLOB_URL || process.env.BLOB_PUBLIC_URL || 'https://bufkykmwsu16ncp5.public.blob.vercel-storage.com';
 
-  // Use Vercel Blob URL (self-hosted) instead of TMDB direct URL
-  const ogImage = tmdbId
-    ? `${blobBase}/persons/${tmdbId}.jpg`
-    : dbPerson.profilePath
-      ? `${baseUrl}/img/person/${tmdbId || 0}`
-      : undefined;
+  // OG-/Twitter-Bilder sind aus Bildrechts-Gründen deaktiviert (Ticket
+  // „Bereinigung der Personen- und Schauspielerseiten", Juni 2026). Social-
+  // Preview rendert dadurch ohne Person-Foto — gewollt.
 
   return {
     title,
@@ -99,13 +94,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url: `${baseUrl}/person/${id}`,
       siteName: 'serien.de',
       locale: 'de_DE',
-      images: ogImage ? [{ url: ogImage, alt: dbPerson.name }] : undefined,
     },
     twitter: {
-      card: 'summary_large_image',
+      card: 'summary',
       title,
       description,
-      images: ogImage ? [ogImage] : undefined,
     },
     alternates: { canonical: `${baseUrl}/person/${id}` },
   };
@@ -124,10 +117,9 @@ export default async function PersonPage({ params }: PageProps) {
 
   if (!dbPerson) notFound();
 
-  const personImageUrl = getPersonImageUrl(
-    dbPerson.localProfilePath, tmdbId,
-    dbPerson.profilePath || tmdbPerson?.profile_path
-  );
+  // Profilbilder wurden aus rechtlichen Gründen (Bildrechte/TMDB-Lizenz) komplett
+  // entfernt — siehe Ticket „Bereinigung der Personen- und Schauspielerseiten".
+  // Die Hub-Seite bleibt als reiner Text-Hub bestehen, alle internen Links sind aktiv.
 
   // Bio paragraphs from DB (AI-generated)
   const bioParagraphs = dbPerson.biography
@@ -188,36 +180,35 @@ export default async function PersonPage({ params }: PageProps) {
       <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white py-8 md:py-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <Breadcrumb items={[{ label: 'Schauspieler', href: '/personen' }, { label: dbPerson.name }]} className="mb-6 text-gray-400 [&_a]:text-gray-400 [&_a:hover]:text-white [&_svg]:text-gray-500" />
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
-            <div className="flex-shrink-0">
-              <Image src={personImageUrl} alt={dbPerson.name} width={150} height={225}
-                className="rounded-lg shadow-2xl w-[120px] h-[180px] sm:w-[150px] sm:h-[225px] md:w-[200px] md:h-[300px] object-cover" priority />
+          {/* Hero — rein typografisch. Kein Profilbild aus Bildrechts-Gründen. */}
+          <div className="max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-3">
+              {dbPerson.knownFor || tmdbPerson?.known_for_department || 'Schauspieler/in'}
+            </p>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-5 leading-tight">{dbPerson.name}</h1>
+            <p className="text-base md:text-lg text-gray-300 mb-4">
+              Karriere, Serienauftritte und Hintergrund — alle Infos kompakt auf einer Seite.
+            </p>
+            {/* Quick facts pills */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {birthday && (
+                <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
+                  * {new Date(birthday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}{age ? ` (${age} Jahre)` : ''}
+                </span>
+              )}
+              {deathday && (
+                <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
+                  † {new Date(deathday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}
+                </span>
+              )}
+              {birthPlace && (
+                <span className="px-3 py-1 bg-white/10 rounded-full text-sm truncate max-w-[250px]">
+                  {birthPlace.split(',').slice(0, 2).join(',')}
+                </span>
+              )}
             </div>
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-2 md:mb-3">{dbPerson.name}</h1>
-              <p className="text-base md:text-xl text-gray-300">
-                {dbPerson.knownFor || tmdbPerson?.known_for_department || 'Schauspieler/in'} · bekannt aus Serien
-              </p>
-              {/* Quick facts pills */}
-              <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
-                {birthday && (
-                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
-                    * {new Date(birthday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}{age ? ` (${age} Jahre)` : ''}
-                  </span>
-                )}
-                {deathday && (
-                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
-                    † {new Date(deathday).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric' })}
-                  </span>
-                )}
-                {birthPlace && (
-                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm truncate max-w-[250px]">
-                    {birthPlace.split(',').slice(0, 2).join(',')}
-                  </span>
-                )}
-              </div>
-              {/* Social Links */}
-              {Object.keys(social).length > 0 && (
+            {/* Social Links */}
+            {Object.keys(social).length > 0 && (
                 <div className="flex gap-3 mt-4 justify-center sm:justify-start">
                   {social.instagram && (
                     <a href={`https://instagram.com/${social.instagram}`} target="_blank" rel="noopener noreferrer"
@@ -239,7 +230,6 @@ export default async function PersonPage({ params }: PageProps) {
                   )}
                 </div>
               )}
-            </div>
           </div>
         </div>
       </div>
@@ -450,7 +440,8 @@ export default async function PersonPage({ params }: PageProps) {
           '@context': 'https://schema.org',
           '@type': 'Person',
           name: dbPerson.name,
-          image: dbPerson.profilePath ? getTMDBProfileImageUrl(dbPerson.profilePath, 'h632') : undefined,
+          // `image` bewusst NICHT gesetzt (Ticket „Bereinigung Personenseiten",
+          // Bildrechte). Person-Schema bleibt sonst vollständig erhalten.
           birthDate: birthday,
           ...(deathday ? { deathDate: deathday } : {}),
           birthPlace: birthPlace ? { '@type': 'Place', name: birthPlace } : undefined,

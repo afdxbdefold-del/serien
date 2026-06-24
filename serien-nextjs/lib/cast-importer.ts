@@ -99,14 +99,17 @@ export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
 
         // Create new person entry
         const slug = createPersonSlug(member.name, member.id);
-        
+
         await prisma.persons.create({
           data: {
             id: `person-${member.id}`,
             tmdbId: member.id,
             slug,
             name: member.name,
-            profilePath: member.profile_path || null,
+            // profilePath dauerhaft NULL (Ticket „Bereinigung Personenseiten",
+            // Juni 2026 — Bildrechte/TMDB-Lizenz). Textdaten werden weiterhin
+            // importiert, Bildpfade nicht mehr.
+            profilePath: null,
             biography: null,
             knownFor: null,
             birthDate: null,
@@ -116,19 +119,8 @@ export async function importSeriesCast(seriesTmdbId: number): Promise<number> {
           },
         });
 
-        // ✅ Upload profile image to Vercel Blob (async)
-        if (member.profile_path) {
-          uploadPersonProfile(member.id, member.profile_path)
-            .then((blobUrl) => {
-              if (blobUrl) {
-                prisma.persons.update({
-                  where: { tmdbId: member.id },
-                  data: { localProfilePath: blobUrl }
-                }).catch(() => {});
-              }
-            })
-            .catch(() => {});
-        }
+        // Profile-Image-Upload zu Vercel Blob deaktiviert — siehe Ticket oben.
+        // uploadPersonProfile() wird nicht mehr aufgerufen.
 
         console.log(`   ✅ Imported: ${member.name}`);
         importedCount++;

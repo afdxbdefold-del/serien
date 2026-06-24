@@ -6,7 +6,6 @@
 
 import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
 
@@ -65,7 +64,7 @@ export default async function PersonenPage({ searchParams }: PageProps) {
       skip: (currentPage - 1) * PER_PAGE,
       take: PER_PAGE,
       select: {
-        id: true, slug: true, name: true, profilePath: true,
+        id: true, slug: true, name: true,
         knownFor: true, popularity: true,
         _count: { select: { article_persons: true } },
       },
@@ -155,39 +154,23 @@ export default async function PersonenPage({ searchParams }: PageProps) {
             <Link href="/personen" className="text-blue-600 hover:underline">Alle anzeigen</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4" data-testid="personen-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="personen-grid">
             {persons.map((person) => (
               <Link key={person.id} href={`/person/${person.slug}`} className="group" data-testid={`person-card-${person.slug}`}>
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                  <div className="relative aspect-[2/3] bg-gray-200">
-                    {person.profilePath ? (
-                      <Image
-                        src={`/img/tmdb/w185${person.profilePath}`}
-                        alt={person.name} fill
-                        sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, 16vw"
-                        className="object-cover" loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      </div>
-                    )}
-                    {person._count.article_persons > 0 && (
-                      <div className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        {person._count.article_persons}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <h3 className="font-medium text-gray-900 text-xs leading-tight line-clamp-2 group-hover:text-blue-600 transition">
+                <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 p-4 h-full flex flex-col justify-between border border-gray-100">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-base leading-tight group-hover:text-blue-600 transition">
                       {person.name}
                     </h3>
                     {person.knownFor && (
-                      <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{person.knownFor}</p>
+                      <p className="text-xs text-gray-500 line-clamp-2 mt-1">{person.knownFor}</p>
                     )}
                   </div>
+                  {person._count.article_persons > 0 && (
+                    <div className="mt-3 text-xs text-gray-400">
+                      {person._count.article_persons} {person._count.article_persons === 1 ? 'Artikel' : 'Artikel'}
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}
