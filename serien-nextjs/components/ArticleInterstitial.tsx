@@ -172,19 +172,25 @@ export default function ArticleInterstitial() {
 
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
-    // Strict 300×600 inventory ("Half Page" / Skyscraper):
-    // - explicit pixel-size on style (NOT width/height attrs, AdSense
-    //   strips them)
-    // - NO data-ad-format attribute. Setting "rectangle" forces the IAB
-    //   Rectangle group (300×250 / 336×280). Setting "auto" lets AdSense
-    //   pick anything that fits. The only way to lock 300×600 is to leave
-    //   data-ad-format unset and have the slot in Ad Manager configured
-    //   for the 300×600 size.
+    // Strict 300×600 inventory ("Half Page" / Skyscraper).
+    //
+    // FIXED-SIZE LOCK (Juni 2026 Bugfix — Slots renderten 300×250 statt 300×600):
+    //   - Slot-Wrapper bekommt explizit `display:inline-block` + Pixel-Box —
+    //     ein block-level Parent (default 100 % breit) verleitet AdSense in
+    //     den Responsive-Modus und kollabiert auf das IAB-Rectangle (300×250).
+    //   - `data-ad-format=""` (LEER, NICHT weggelassen) + `data-full-width-
+    //     responsive="false"` zwingen AdSense in den Fixed-Size-Modus.
+    //   - Inline-CSS auf `<ins>` bleibt die Single-Source-of-Truth für Pixel.
+    slot.style.display = 'inline-block';
+    slot.style.width = '300px';
+    slot.style.height = '600px';
     ins.style.display = 'inline-block';
     ins.style.width = '300px';
     ins.style.height = '600px';
     ins.setAttribute('data-ad-client', config.adClient);
     ins.setAttribute('data-ad-slot', config.adSlot);
+    ins.setAttribute('data-ad-format', '');
+    ins.setAttribute('data-full-width-responsive', 'false');
     slot.appendChild(ins);
 
     const timer = setTimeout(() => {
@@ -196,6 +202,9 @@ export default function ArticleInterstitial() {
     return () => {
       clearTimeout(timer);
       slot.innerHTML = '';
+      slot.style.display = '';
+      slot.style.width = '';
+      slot.style.height = '';
     };
   }, [visible, config]);
 
