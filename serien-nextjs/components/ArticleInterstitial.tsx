@@ -207,7 +207,7 @@ export default function ArticleInterstitial() {
     return () => { document.body.style.overflow = original; };
   }, [visible]);
 
-  if (!interstitialEnabled || !visible || !config) return null;
+  if (!visible || !config) return null;
 
   return (
     <div
