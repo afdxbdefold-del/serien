@@ -72,13 +72,14 @@ export default function ContentWithAds({
     const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
-    const maxAds = 4;
+    const maxAds = 3;
+    const insertEveryNth = 3;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     paragraphs.forEach((el) => {
       paragraphCount++;
 
-      if (paragraphCount % 2 === 0 && adsInserted < maxAds) {
+      if (paragraphCount % insertEveryNth === 0 && adsInserted < maxAds) {
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
