@@ -76,26 +76,20 @@ export default function ContentWithAds({
 
       if (paragraphCount % 2 === 0 && adsInserted < maxAds) {
         const adContainer = document.createElement('div');
-        adContainer.className = 'content-ad-unit my-6 not-prose';
+        adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        // Wrapper bekommt KEINE feste Höhe — sonst entsteht ein riesiges
-        // leeres Loch unterhalb des Creatives, wenn AdSense kleiner ausspielt
-        // als angefragt (z. B. 300×250 statt 300×600). Das innere <ins> hat
-        // bereits inline-block + explizite px-Width+Height → der Browser
-        // reserviert Layout-Space für die geforderte Größe BEVOR
-        // adsbygoogle.push() läuft, dadurch sieht AdSense die korrekte
-        // Geometrie. Wenn AdSense doch kleiner liefert, kollabiert die Box
-        // natürlich mit — kein toter Raum mehr.
-        adContainer.style.cssText = `display:block;text-align:center;margin:24px auto;`;
+        // Google entscheidet selbst über die Größe (responsive auto).
+        // Wrapper nur mit padding 10px oben/unten als visueller Abstand.
+        adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;`;
 
-        // Create fresh <ins> via raw DOM
+        // Create fresh <ins> — Google decides size via auto + responsive
         const ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
-        ins.style.display = 'inline-block';
-        ins.style.width = `${adConfig.width}px`;
-        ins.style.height = `${adConfig.height}px`;
+        ins.style.display = 'block';
         ins.setAttribute('data-ad-client', adConfig.adClient);
         ins.setAttribute('data-ad-slot', adConfig.adSlot);
+        ins.setAttribute('data-ad-format', 'auto');
+        ins.setAttribute('data-full-width-responsive', 'true');
         adContainer.appendChild(ins);
 
         el.after(adContainer);
