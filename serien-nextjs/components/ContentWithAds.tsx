@@ -78,13 +78,15 @@ export default function ContentWithAds({
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit my-6 not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        // Explizite pixel-genaue Box + horizontale Zentrierung via margin:auto.
-        // Vorher: `display:flex;justify-content:center` — AdSense sah die
-        // Flex-Box mit 0 px initial-Height und fiel auf das kleinere Rectangle
-        // (300×250) zurück, obwohl das innere <ins> 300×600 verlangte. Mit
-        // block + width/height in Pixeln existiert der Slot schon BEVOR
-        // adsbygoogle.push() läuft → AdSense ehrt die geforderte Größe.
-        adContainer.style.cssText = `display:block;width:${adConfig.width}px;height:${adConfig.height}px;margin:24px auto;text-align:center;`;
+        // Wrapper bekommt KEINE feste Höhe — sonst entsteht ein riesiges
+        // leeres Loch unterhalb des Creatives, wenn AdSense kleiner ausspielt
+        // als angefragt (z. B. 300×250 statt 300×600). Das innere <ins> hat
+        // bereits inline-block + explizite px-Width+Height → der Browser
+        // reserviert Layout-Space für die geforderte Größe BEVOR
+        // adsbygoogle.push() läuft, dadurch sieht AdSense die korrekte
+        // Geometrie. Wenn AdSense doch kleiner liefert, kollabiert die Box
+        // natürlich mit — kein toter Raum mehr.
+        adContainer.style.cssText = `display:block;text-align:center;margin:24px auto;`;
 
         // Create fresh <ins> via raw DOM
         const ins = document.createElement('ins');
