@@ -72,8 +72,8 @@ export default function ContentWithAds({
     const paragraphs = containerRef.current.querySelectorAll('p');
     let paragraphCount = 0;
     let adsInserted = 0;
-    const maxAds = 3;
-    const insertEveryNth = 3;
+    const maxAds = 2;
+    const insertEveryNth = 4;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     paragraphs.forEach((el) => {
@@ -83,36 +83,33 @@ export default function ContentWithAds({
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;`;
+        // overflow:hidden verhindert horizontales Auslaufen, falls ein Creative
+        // doch breiter als der Container rendern will.
+        adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;overflow:hidden;`;
 
         if (adConfig.provider === 'custom') {
-          // Custom-HTML-Variante (vom Admin im /admin/ads gepflegt).
-          // Wir injizieren die HTML inkl. <script>-Tags via Helper, der die
-          // Scripts neu instanziiert (innerHTML allein führt Scripts nicht aus).
           const variants = adConfig.customHtmlVariants || [];
           const picked = pickAdVariant(variants, adConfig.rotationMode || 'random');
           if (picked) {
-            // Container muss schon im DOM hängen, BEVOR injizierte Scripts laufen,
-            // sonst findet adsbygoogle.push() das <ins> nicht.
             el.after(adContainer);
             injectHtmlWithScripts(adContainer, picked.html);
             adsInserted++;
           }
-          return; // continue forEach
+          return;
         }
 
-        // Default: AdSense In-Article Pattern.
-        // data-ad-layout=in-article + data-ad-format=fluid ist der von Google
-        // vorgesehene Modus für mehrfache Ad-Slots im Artikel-Body — verhindert
-        // das „nur erster Slot füllt sich / Fallback auf 300×250"-Verhalten.
+        // Standard responsive Display-Ad-Pattern (data-ad-format=auto +
+        // data-full-width-responsive=true). Funktioniert mit JEDEM
+        // AdSense-Slot-Typ (Display, In-article, In-feed) und passt sich
+        // automatisch der Container-Breite an. Kein Cutoff, kein fixed-size
+        // fallback. Genau das, was WordPress-Themes auch tun.
         const ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
         ins.style.display = 'block';
-        ins.style.textAlign = 'center';
         ins.setAttribute('data-ad-client', adConfig.adClient);
         ins.setAttribute('data-ad-slot', adConfig.adSlot);
-        ins.setAttribute('data-ad-layout', 'in-article');
-        ins.setAttribute('data-ad-format', 'fluid');
+        ins.setAttribute('data-ad-format', 'auto');
+        ins.setAttribute('data-full-width-responsive', 'true');
         adContainer.appendChild(ins);
 
         el.after(adContainer);
