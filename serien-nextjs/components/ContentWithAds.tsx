@@ -83,9 +83,9 @@ export default function ContentWithAds({
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        // overflow:hidden verhindert horizontales Auslaufen, falls ein Creative
-        // doch breiter als der Container rendern will.
-        adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;overflow:hidden;`;
+        // Wrapper: flex-zentriert, keine eigenen Dimensionen — wie
+        // `ClientAdSlot.tsx` es macht (das überall sonst funktioniert).
+        adContainer.style.cssText = `display:flex;justify-content:center;padding:16px 0;`;
 
         if (adConfig.provider === 'custom') {
           const variants = adConfig.customHtmlVariants || [];
@@ -98,18 +98,17 @@ export default function ContentWithAds({
           return;
         }
 
-        // Standard responsive Display-Ad-Pattern (data-ad-format=auto +
-        // data-full-width-responsive=true). Funktioniert mit JEDEM
-        // AdSense-Slot-Typ (Display, In-article, In-feed) und passt sich
-        // automatisch der Container-Breite an. Kein Cutoff, kein fixed-size
-        // fallback. Genau das, was WordPress-Themes auch tun.
+        // 1:1 dasselbe Pattern wie `ClientAdSlot.tsx` — inline-block + harte
+        // Pixel-Maße + Slot-ID. KEINE data-ad-format, KEINE responsive-Flags,
+        // KEIN in-article-Layout. Funktioniert garantiert mit dem normalen
+        // 300x250-Display-Slot.
         const ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
-        ins.style.display = 'block';
+        ins.style.display = 'inline-block';
+        ins.style.width = `${adConfig.width}px`;
+        ins.style.height = `${adConfig.height}px`;
         ins.setAttribute('data-ad-client', adConfig.adClient);
         ins.setAttribute('data-ad-slot', adConfig.adSlot);
-        ins.setAttribute('data-ad-format', 'auto');
-        ins.setAttribute('data-full-width-responsive', 'true');
         adContainer.appendChild(ins);
 
         el.after(adContainer);
