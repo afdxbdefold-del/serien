@@ -77,3 +77,41 @@ export function pickAdVariant(
   // random (uniform)
   return active[Math.floor(Math.random() * active.length)];
 }
+
+/**
+ * Render arbitrary 3rd-party ad HTML inside a sandboxed iframe (via srcdoc).
+ *
+ * Why iframes?  Many affiliate/ad networks (AWIN, Belboon, Tradedoubler,
+ * Plista, Outbrain, banner exchanges, etc.) use `document.write()` inside
+ * their external `<script src=...>`-snippets. After the host document has
+ * finished loading, `document.write()` either does nothing or wipes the
+ * whole page — modern browsers actively block it post-load. An iframe gives
+ * the snippet its own document context, in which `document.write()` works
+ * exactly like the network expects.
+ *
+ * Trust note: srcdoc is rendered same-origin by default; we add
+ * `sandbox="allow-scripts allow-popups allow-same-origin"` so the iframe
+ * cannot navigate the parent but its scripts run. The HTML comes from an
+ * admin-only DB field — not user content.
+ */
+export function renderAdInIframe(
+  container: HTMLElement,
+  html: string,
+  width: number,
+  height: number,
+): void {
+  container.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin');
+  iframe.setAttribute('frameborder', '0');
+  iframe.setAttribute('scrolling', 'no');
+  iframe.setAttribute('loading', 'lazy');
+  iframe.style.cssText = `display:block;width:${width}px;height:${height}px;border:0;margin:0;padding:0;`;
+  // Wrap the snippet in a minimal HTML document so external scripts have a
+  // body to write into. Match background to keep transparent ads readable
+  // on dark backgrounds; affiliate banners usually expect light bg though,
+  // so we use white as the safe default.
+  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0;background:transparent;}a,img{border:0;text-decoration:none;}</style></head><body>${html}</body></html>`;
+  container.appendChild(iframe);
+}
+

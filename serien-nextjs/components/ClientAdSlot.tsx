@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { injectHtmlWithScripts, pickAdVariant, AdVariant } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe, AdVariant } from '@/lib/ad-html-injector';
 
 declare global {
   interface Window {
@@ -66,13 +66,22 @@ function AdSlotInner({ config }: { config: AdConfig }) {
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
 
-    // Custom HTML provider (Plista, Outbrain, direct deal, anything else):
-    // inject the HTML and ensure embedded <script> tags actually run.
+    // Custom HTML provider (Plista, Outbrain, AWIN, Belboon, direct deal,
+    // anything else): 3rd-party-Snippets nutzen oft document.write() in
+    // externen Scripts, was post-load nicht mehr funktioniert. Wenn ein
+    // externes <script src=...> erkannt wird, rendern wir im sandboxed
+    // iframe (eigener Document-Kontext → document.write() works).
+    // Reine HTML/CSS-Banner injizieren wir direkt.
     if (config.provider === 'custom') {
       const variants = config.customHtmlVariants || [];
       const picked = pickAdVariant(variants, config.rotationMode || 'random');
       if (picked) {
-        injectHtmlWithScripts(container, picked.html);
+        const hasExternalScript = /<script[^>]+src=/i.test(picked.html);
+        if (hasExternalScript) {
+          renderAdInIframe(container, picked.html, config.width, config.height);
+        } else {
+          injectHtmlWithScripts(container, picked.html);
+        }
       }
       return () => {
         container.innerHTML = '';
