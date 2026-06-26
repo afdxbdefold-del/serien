@@ -131,6 +131,30 @@ export default function ContentWithAds({
       }
     });
 
+    // Unfilled-Slot-Cleanup: AdSense markiert nicht gefüllte <ins>-Elemente
+    // mit data-ad-status="unfilled". Wir entfernen diese Wrapper komplett,
+    // damit kein riesiges leeres Loch im Artikel zurückbleibt. Wichtig vor
+    // allem bei mehrfacher Verwendung derselben Custom-HTML-Variante: nur
+    // ein Slot füllt sich, die anderen 3 würden sonst als unsichtbare aber
+    // raumfressende Container im Layout stehen.
+    const cleanupTimer = setTimeout(() => {
+      if (!containerRef.current) return;
+      const wrappers = containerRef.current.querySelectorAll<HTMLElement>('.content-ad-unit');
+      wrappers.forEach((wrapper) => {
+        const insEl = wrapper.querySelector<HTMLElement>('ins.adsbygoogle');
+        if (!insEl) return;
+        const status = insEl.getAttribute('data-ad-status');
+        const iframe = insEl.querySelector<HTMLIFrameElement>('iframe');
+        const iframeHeight = iframe?.offsetHeight ?? 0;
+        // Entfernen wenn AdSense explizit unfilled meldet ODER der iframe
+        // 0 px hoch geblieben ist (kein Creative geladen).
+        if (status === 'unfilled' || (iframe && iframeHeight === 0)) {
+          wrapper.remove();
+        }
+      });
+    }, 3000);
+    timers.push(cleanupTimer);
+
     return () => {
       timers.forEach(t => clearTimeout(t));
     };
