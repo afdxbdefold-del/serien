@@ -53,16 +53,11 @@ export default function ArticleInterstitial() {
   const [config, setConfig] = useState<InterstitialConfig | null>(null);
   const slotRef = useRef<HTMLDivElement | null>(null);
 
-  // Deactivated 2026-05-24 by user request for Google Discover recovery.
-  // Renders nothing until re-enabled via env flag
-  // `NEXT_PUBLIC_ENABLE_INTERSTITIAL=true`. Hooks above are kept above
-  // this guard to comply with React's rules-of-hooks.
-  const interstitialEnabled = process.env.NEXT_PUBLIC_ENABLE_INTERSTITIAL === 'true';
+  // Steuerung erfolgt ausschließlich über den DB-Slot (ad_slots.position='interstitial',
+  // isActive / mobileOnly / desktopOnly). Kein Env-Flag mehr nötig.
 
   // Fetch config + decide whether to show
   useEffect(() => {
-    // Disabled-flag short-circuit (see above).
-    if (!interstitialEnabled) return;
     // Hide for bots / crawlers / preview tools — never let paid creatives
     // appear in Google's render snapshot (CWV penalty) and stay AdSense-safe.
     if (isBotUserAgent(navigator.userAgent)) return;
