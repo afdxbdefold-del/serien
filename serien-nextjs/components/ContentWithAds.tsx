@@ -78,18 +78,24 @@ export default function ContentWithAds({
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        // Google entscheidet selbst über die Größe (responsive auto).
+        // In-Article-Pattern: Google entscheidet komplett über die Größe.
         // Wrapper nur mit padding 10px oben/unten als visueller Abstand.
         adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;`;
 
-        // Create fresh <ins> — Google decides size via auto + responsive
+        // Offizielles AdSense „In-article ad"-Pattern (data-ad-layout=in-article
+        // + data-ad-format=fluid). Dieser Modus ist explizit dafür gemacht,
+        // mehrfach auf einer Seite mit derselben Slot-ID gepusht zu werden —
+        // verhindert genau das „nur erster Slot füllt sich / Fallback auf
+        // 300×250"-Verhalten, das bei mehrfacher Verwendung eines
+        // Display-Slots auftritt.
         const ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
         ins.style.display = 'block';
+        ins.style.textAlign = 'center';
         ins.setAttribute('data-ad-client', adConfig.adClient);
         ins.setAttribute('data-ad-slot', adConfig.adSlot);
-        ins.setAttribute('data-ad-format', 'auto');
-        ins.setAttribute('data-full-width-responsive', 'true');
+        ins.setAttribute('data-ad-layout', 'in-article');
+        ins.setAttribute('data-ad-format', 'fluid');
         adContainer.appendChild(ins);
 
         el.after(adContainer);
