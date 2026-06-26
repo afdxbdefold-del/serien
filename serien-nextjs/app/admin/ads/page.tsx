@@ -13,6 +13,13 @@ const AD_POSITIONS = [
     defaultHeight: 100,
     mobileOnly: true
   },
+  {
+    position: 'below_breadcrumb',
+    name: 'Unter Breadcrumb',
+    description: 'Slot unterhalb der Breadcrumb, oberhalb des Artikel-Titels',
+    defaultWidth: 320,
+    defaultHeight: 100,
+  },
   { 
     position: 'above_intro', 
     name: 'Above Intro', 
