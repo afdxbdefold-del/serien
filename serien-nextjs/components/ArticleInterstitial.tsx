@@ -63,27 +63,9 @@ export default function ArticleInterstitial() {
     if (isBotUserAgent(navigator.userAgent)) return;
     if ((navigator as any).webdriver === true) return; // headless browsers
 
-    // Referrer gate: only show the interstitial to users arriving FROM
-    // another site (Google, social, RSS reader, news aggregator …).
-    // Direct visits (typed URL, bookmark) and same-origin internal navigations
-    // do NOT trigger it — keeps loyal & power users uninterrupted, while
-    // monetising the high-value external-acquisition traffic.
-    try {
-      const ref = document.referrer;
-      if (!ref) return;
-      const refHost = new URL(ref).hostname;
-      const ownHost = window.location.hostname;
-      // Same-origin = internal navigation → skip
-      if (refHost === ownHost) return;
-      // Same registrable domain (www.serien.de → serien.de) → skip
-      const stripWww = (h: string) => h.replace(/^www\./, '');
-      if (stripWww(refHost) === stripWww(ownHost)) return;
-    } catch {
-      // Malformed referrer → treat as no-referrer → skip
-      return;
-    }
-
-    // No session cap — show on every page view (per user request).
+    // Referrer-Gate per User-Anforderung deaktiviert — Interstitial wird
+    // bei JEDEM Aufruf gezeigt (auch direkter Visit, Bookmark, interne
+    // Navigation). mobileOnly-Gate aus dem DB-Slot bleibt aktiv.
 
     let cancelled = false;
     fetch('/api/ads/slots')
