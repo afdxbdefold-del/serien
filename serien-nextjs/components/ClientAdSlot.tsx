@@ -82,19 +82,17 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     // AdSense provider: create fresh <ins> via raw DOM (not React JSX) so
     // adsbygoogle.push() always sees a clean, never-seen-before element.
     //
-    // FIXED-SIZE LOCK (Juni 2026 Bugfix — Slots renderten 300×250 statt 300×600):
-    //   1. Container-DIV (innerHTML-Wrapper) bekommt `display:inline-block` +
-    //      pixel-genaue width/height — so erbt das `<ins>` einen Layout-Kontext
-    //      mit klarer Grenze. Block-level Wrapper (default 100 %) verleitete
-    //      AdSense in den Responsive-Modus und kollabierte 300×600 auf 300×250.
-    //   2. `<ins>` explizit `data-ad-format=""` (LEER) und
-    //      `data-full-width-responsive="false"` — zwingt AdSense in den
-    //      Fixed-Size-Modus und überspringt die IAB-Rectangle-Fallback-Logik.
-    //   3. Inline-CSS auf dem <ins> bleibt der Single-Source-of-Truth für Pixel.
+    // Minimal, AdSense-empfohlenes Pattern für Fixed-Size-Slots:
+    //   - `<ins class="adsbygoogle" style="display:inline-block;width:Xpx;height:Ypx" data-ad-client data-ad-slot>`
+    //   - KEIN `data-ad-format`-Attribut (weder leer noch gesetzt)
+    //   - KEIN `data-full-width-responsive`-Attribut
+    //   - KEIN forced Container-Layout
+    // Diese Variante hat sich gegenüber jedem Hardening-Versuch als robuster
+    // erwiesen — andere Slots laufen damit problemlos. AdSense entscheidet
+    // basierend auf der Console-Slot-Konfiguration; Slot-Größen-Anomalien
+    // (300×250 statt 300×600) müssen in der AdSense Console für die jeweilige
+    // Slot-ID korrigiert werden, nicht im Code.
     container.innerHTML = '';
-    container.style.display = 'inline-block';
-    container.style.width = `${config.width}px`;
-    container.style.height = `${config.height}px`;
 
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
@@ -103,8 +101,6 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     ins.style.height = `${config.height}px`;
     ins.setAttribute('data-ad-client', config.adClient);
     ins.setAttribute('data-ad-slot', config.adSlot);
-    ins.setAttribute('data-ad-format', '');
-    ins.setAttribute('data-full-width-responsive', 'false');
     container.appendChild(ins);
 
     // Retry mechanism: wait for adsbygoogle to be available
@@ -129,12 +125,6 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     return () => {
       clearTimeout(retryTimer);
       container.innerHTML = '';
-      // Layout-Reset: inline-Styles vom Container entfernen, damit ein
-      // Re-Mount mit anderem Config-Size (z. B. 300×250 nach 300×600) keine
-      // veralteten Dimensionen erbt.
-      container.style.display = '';
-      container.style.width = '';
-      container.style.height = '';
     };
   }, [config]);
 
