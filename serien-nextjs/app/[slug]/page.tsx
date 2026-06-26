@@ -635,15 +635,15 @@ export default async function ArticlePage({ params }: PageProps) {
             </figure>
           )}
 
+          {/* Ad Unit - Above Intro */}
+          <ClientAdSlot position="above_intro" className="mb-6" />
+
           {/* Excerpt/Lead - Bold Intro */}
           {article.excerpt && (
             <p data-speakable="summary" className="text-lg md:text-xl text-gray-800 dark:text-gray-200 leading-relaxed font-semibold mb-8">
               {article.excerpt}
             </p>
           )}
-
-          {/* Ad Unit - Above Intro */}
-          <ClientAdSlot position="above_intro" className="mb-6" />
 
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
