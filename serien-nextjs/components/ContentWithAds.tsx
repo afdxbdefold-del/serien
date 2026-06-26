@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { injectHtmlWithScripts, pickAdVariant, AdVariant } from '@/lib/ad-html-injector';
 
 declare global {
   interface Window {
@@ -15,8 +16,11 @@ interface ContentWithAdsProps {
 }
 
 interface AdConfig {
+  provider?: 'adsense' | 'custom';
   adClient: string;
   adSlot: string;
+  customHtmlVariants?: AdVariant[];
+  rotationMode?: 'random' | 'weighted' | 'first';
   width: number;
   height: number;
 }
@@ -78,16 +82,28 @@ export default function ContentWithAds({
         const adContainer = document.createElement('div');
         adContainer.className = 'content-ad-unit not-prose';
         adContainer.setAttribute('data-ad-position', 'in_content');
-        // In-Article-Pattern: Google entscheidet komplett über die Größe.
-        // Wrapper nur mit padding 10px oben/unten als visueller Abstand.
         adContainer.style.cssText = `display:block;padding:10px 0;text-align:center;`;
 
-        // Offizielles AdSense „In-article ad"-Pattern (data-ad-layout=in-article
-        // + data-ad-format=fluid). Dieser Modus ist explizit dafür gemacht,
-        // mehrfach auf einer Seite mit derselben Slot-ID gepusht zu werden —
-        // verhindert genau das „nur erster Slot füllt sich / Fallback auf
-        // 300×250"-Verhalten, das bei mehrfacher Verwendung eines
-        // Display-Slots auftritt.
+        if (adConfig.provider === 'custom') {
+          // Custom-HTML-Variante (vom Admin im /admin/ads gepflegt).
+          // Wir injizieren die HTML inkl. <script>-Tags via Helper, der die
+          // Scripts neu instanziiert (innerHTML allein führt Scripts nicht aus).
+          const variants = adConfig.customHtmlVariants || [];
+          const picked = pickAdVariant(variants, adConfig.rotationMode || 'random');
+          if (picked) {
+            // Container muss schon im DOM hängen, BEVOR injizierte Scripts laufen,
+            // sonst findet adsbygoogle.push() das <ins> nicht.
+            el.after(adContainer);
+            injectHtmlWithScripts(adContainer, picked.html);
+            adsInserted++;
+          }
+          return; // continue forEach
+        }
+
+        // Default: AdSense In-Article Pattern.
+        // data-ad-layout=in-article + data-ad-format=fluid ist der von Google
+        // vorgesehene Modus für mehrfache Ad-Slots im Artikel-Body — verhindert
+        // das „nur erster Slot füllt sich / Fallback auf 300×250"-Verhalten.
         const ins = document.createElement('ins');
         ins.className = 'adsbygoogle';
         ins.style.display = 'block';
