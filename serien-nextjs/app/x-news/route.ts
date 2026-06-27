@@ -38,6 +38,13 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(target, {
     status: 302,
-    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      // Referrer der eingehenden Anfrage NICHT an das Ziel weitergeben.
+      // Browser entfernt den Referer-Header beim Follow des Redirects,
+      // d.h. der Ziel-Artikel sieht keine Quelle (kein "von wo kam der
+      // Klick"). Nützlich um external Referrer-Leaks zu blockieren.
+      'Referrer-Policy': 'no-referrer',
+    },
   });
 }
