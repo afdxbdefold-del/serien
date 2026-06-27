@@ -245,7 +245,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
   // Manual runs (--trigger=manual) bypass the cap so editorial overrides
   // always work. Bot/scheduled runs respect it.
   // ════════════════════════════════════════════════════════════════════════
-  const DAILY_CAP = 5;
+  const DAILY_CAP = 10;
   if (source.trigger !== 'manual') {
     const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
     const todayCount = await prisma.articles.count({
