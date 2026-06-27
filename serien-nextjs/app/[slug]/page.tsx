@@ -570,9 +570,6 @@ export default async function ArticlePage({ params }: PageProps) {
             <Breadcrumb items={[{ label: article.title }]} className="mb-4" />
           )}
 
-          {/* Ad Unit - Below Breadcrumb (above title) */}
-          <ClientAdSlot position="below_breadcrumb" className="mb-4" />
-
           {/* Title */}
           <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 leading-tight text-center">
             {article.title}
