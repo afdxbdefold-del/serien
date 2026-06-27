@@ -455,3 +455,22 @@ section.context p {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Interstitial-Overlay-Schutz: solange ArticleInterstitial sichtbar ist
+   (body bekommt .x-interstitial-open), werden Google Auto-Anchor-Ads,
+   Vignette-Ads und unsere eigenen sticky Bottom-Ads ausgeblendet — sonst
+   überlagern sie den Interstitial (Google nutzt CSS-Max z-index, lässt
+   sich nicht per höherem z-index schlagen). Plus: Page-Scroll lock,
+   damit der User nicht versehentlich hinter dem Overlay scrollt. */
+body.x-interstitial-open {
+  overflow: hidden;
+}
+body.x-interstitial-open #sticky-bottom-ad,
+body.x-interstitial-open .google-anchor,
+body.x-interstitial-open ins.adsbygoogle[data-anchor-status],
+body.x-interstitial-open ins.adsbygoogle[data-side-rail-status],
+body.x-interstitial-open iframe[id*="google_ads_iframe"][style*="position: fixed"],
+body.x-interstitial-open iframe[id*="aswift"][style*="position: fixed"] {
+  display: none !important;
+  visibility: hidden !important;
+}

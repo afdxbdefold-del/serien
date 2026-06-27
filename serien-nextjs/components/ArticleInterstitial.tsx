@@ -192,6 +192,20 @@ export default function ArticleInterstitial() {
     return () => { document.body.style.overflow = original; };
   }, [visible]);
 
+  // Body-Klasse setzen solange Interstitial sichtbar ist — verstecken alle
+  // Google Auto-Anchor- / Vignette-Ads + iOS-Safari Bottom-Sticky-Slots, die
+  // sonst über den Interstitial-Overlay drüber-rendern (Google nutzt CSS-Max
+  // z-index=2147483647, lässt sich nicht überbieten — also blenden wir sie
+  // temporär aus). useLayoutEffect statt useEffect, damit das Verstecken
+  // schon BEIM ersten Paint wirkt, nicht erst eine Frame später.
+  useEffect(() => {
+    if (!visible || !config) return;
+    document.body.classList.add('x-interstitial-open');
+    return () => {
+      document.body.classList.remove('x-interstitial-open');
+    };
+  }, [visible, config]);
+
   if (!visible || !config) return null;
 
   return (
@@ -200,7 +214,7 @@ export default function ArticleInterstitial() {
       aria-modal="true"
       aria-label="Werbung"
       data-testid="article-interstitial"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
       onClick={(e) => {
         // Backdrop click closes
         if (e.target === e.currentTarget) setVisible(false);
