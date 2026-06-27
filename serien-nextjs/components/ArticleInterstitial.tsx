@@ -67,6 +67,18 @@ export default function ArticleInterstitial() {
     // bei JEDEM Aufruf gezeigt (auch direkter Visit, Bookmark, interne
     // Navigation). mobileOnly-Gate aus dem DB-Slot bleibt aktiv.
 
+    // Frequency-Cap: maximal 1× pro Stunde pro Browser. localStorage
+    // speichert den Unix-Timestamp des letzten erfolgreichen Anzeigens.
+    // SSR-safe via try/catch (private-Mode, deaktivierte Storage).
+    const CAP_MS = 60 * 60 * 1000; // 1 Stunde
+    const CAP_KEY = 'interstitial_last_shown';
+    try {
+      const last = parseInt(localStorage.getItem(CAP_KEY) || '0', 10);
+      if (last && Date.now() - last < CAP_MS) {
+        return; // innerhalb der Sperrstunde → nicht zeigen
+      }
+    } catch { /* localStorage blockiert → trotzdem zeigen */ }
+
     let cancelled = false;
     fetch('/api/ads/slots')
       .then((r) => (r.ok ? r.json() : {}))
@@ -106,7 +118,11 @@ export default function ArticleInterstitial() {
   // Inject ad creative once visible
   useEffect(() => {
     if (!visible || !config || !slotRef.current) return;
-    // (No session-cap write — unlimited displays per user request.)
+    // Frequency-Cap: erfolgreich gezeigt → Timestamp persistieren, damit
+    // der nächste Page-View innerhalb 1h diesen Interstitial überspringt.
+    try {
+      localStorage.setItem('interstitial_last_shown', String(Date.now()));
+    } catch { /* private mode / disabled storage */ }
 
     const slot = slotRef.current;
 
