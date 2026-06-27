@@ -42,8 +42,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           Full-Width #121318 BG. Container wird auf md+ ausgeblendet,
           ClientAdSlot selbst respektiert zusätzlich das mobileOnly-Flag
           aus der DB. */}
-      <div className="md:hidden w-full bg-[#121318] flex flex-col items-center py-3 px-2">
-        <span className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 leading-none">Anzeige</span>
+      <div className="md:hidden w-full bg-[#121318] flex justify-center py-3 px-2">
         <ClientAdSlot position="below_breadcrumb" />
       </div>
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
