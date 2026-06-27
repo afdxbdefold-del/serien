@@ -21,13 +21,12 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { createHash, randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function escapeJs(s: string): string {
-  // JSON.stringify reicht für <script>-Kontext, weil keine </script>-Sequenz
-  // in einer URL vorkommen kann. Extra-Paranoia gegen Edge-Cases:
   return JSON.stringify(s).replace(/</g, '\\u003c');
 }
 
@@ -35,8 +34,19 @@ function escapeAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+/**
+ * Stabile, anonyme Visitor-ID: SHA-256(IP + UA + Tagesdatum), 16 Bytes.
+ * Privacy: KEIN reverse-lookup auf IP möglich, IP wird nie roh gespeichert,
+ * Tagesrotation begrenzt die zeitliche Korrelation.
+ */
+function anonVisitorId(ip: string, ua: string): string {
+  const day = new Date().toISOString().slice(0, 10);
+  return createHash('sha256').update(`${ip}|${ua}|${day}`).digest('hex').slice(0, 32);
+}
+
 export async function GET(request: Request) {
   const origin = new URL(request.url).origin;
+  const headers = (request as any).headers as Headers;
 
   const candidates = await prisma.articles.findMany({
     where: {
@@ -54,8 +64,35 @@ export async function GET(request: Request) {
 
   const target = picked ? `${origin}/${picked}` : origin;
 
-  // Minimal-HTML-Interstitial. <script> steht im <head> VOR dem Body, damit
-  // der Replace VOR dem ersten Paint feuert — User sieht keinen Flash.
+  // Fire-and-forget tracking — darf den Redirect NIE bremsen.
+  // Wenn DB hängt, kommt der User trotzdem durch.
+  if (picked) {
+    const ip =
+      headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      headers.get('x-real-ip') ||
+      'unknown';
+    const ua = (headers.get('user-agent') || '').slice(0, 500);
+    const refererRaw = headers.get('referer') || '';
+    const country = headers.get('x-vercel-ip-country') || headers.get('cf-ipcountry') || null;
+    const city = headers.get('x-vercel-ip-city') || null;
+    const vid = anonVisitorId(ip, ua);
+
+    // Asynchron, ohne await — wir blockieren den Response nicht.
+    prisma.analytics_events.create({
+      data: {
+        id: randomUUID(),
+        sessionId: vid,
+        visitorId: vid,
+        event: 'x_news_click',
+        path: `/${picked}`,
+        referrer: refererRaw ? refererRaw.slice(0, 500) : null,
+        userAgent: ua || null,
+        country,
+        city,
+      },
+    }).catch(() => { /* tracking-failure darf nichts brechen */ });
+  }
+
   const html =
     `<!doctype html><html><head>` +
     `<meta charset="utf-8">` +
@@ -71,7 +108,6 @@ export async function GET(request: Request) {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Referrer-Policy': 'no-referrer',
-      // Sicherheitshärtung: kein Embedding/Framing möglich
       'X-Frame-Options': 'DENY',
       'X-Content-Type-Options': 'nosniff',
     },
