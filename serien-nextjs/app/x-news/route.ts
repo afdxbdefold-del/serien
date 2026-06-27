@@ -1,27 +1,22 @@
 /**
  * GET /x-news
  *
- * Zufalls-Redirect auf einen Artikel aus den 20 neuesten Veröffentlichungen.
- * Liefert KEIN 302, sondern eine minimale HTML-Seite mit 4 redundanten
- * Referer-Strip-Layern, damit der Ziel-Artikel garantiert KEINE Quell-URL
- * erfährt — auch nicht in alten Mobile-Browsern oder WebViews:
+ * Zufalls-Redirect auf einen Artikel aus den 20 neuesten Veröffentlichungen,
+ * mit Gold-Standard-Referer-Strip + 2-stufiger IVT-/Fake-Human-Defense:
  *
- *   1. HTTP-Header Referrer-Policy: no-referrer
- *   2. <meta name="referrer" content="no-referrer">
- *   3. <script>window.location.replace(...)</script>  (instant, History-replace
- *      → "Zurück" überspringt /x-news komplett)
- *   4. <meta http-equiv="refresh" content="0;url=...">  (No-JS Fallback)
+ *   - Stufe A (Hard-Block):  UA-Bot ⇒ 204 No Content, kein Tracking, kein
+ *                            Redirect, kein Ad-Impression-Risk.
+ *   - Stufe B (Behavior):    Wenn der nicht-rotierende blockKey schon
+ *                            in `blocked_visitors` steht ⇒ 204.
+ *   - Asynchron nach Response: leichte Verhaltensanalyse (alle 25. Klick),
+ *                              die neue Blocks pflegt.
  *
- * Performance: < 5 KB HTML, kein Loading-UI, JS-Replace feuert vor dem ersten
- * Paint → User sieht ZERO Flash der Interstitial-Seite, nur die finale URL.
- *
- * Verwendungszweck: Newsletter-Footer, Social-Bio-Link, Push-Notifications,
- * 404-CTA. Der externe Referer (Google, Twitter, Newsletter-Provider) wird
- * nie an den Ziel-Artikel oder dessen Trackern (AdSense, GA4) durchgereicht.
+ *   - 4-Layer-Referer-Strip im HTML-Interstitial (keine Quelle leakt).
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createHash, randomUUID } from 'crypto';
+import { checkHardBlock, computeBlockKey, analyzeBehavior } from '@/lib/x-news-fraud';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,25 +24,151 @@ export const revalidate = 0;
 function escapeJs(s: string): string {
   return JSON.stringify(s).replace(/</g, '\\u003c');
 }
-
 function escapeAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-/**
- * Stabile, anonyme Visitor-ID: SHA-256(IP + UA + Tagesdatum), 16 Bytes.
- * Privacy: KEIN reverse-lookup auf IP möglich, IP wird nie roh gespeichert,
- * Tagesrotation begrenzt die zeitliche Korrelation.
- */
 function anonVisitorId(ip: string, ua: string): string {
   const day = new Date().toISOString().slice(0, 10);
   return createHash('sha256').update(`${ip}|${ua}|${day}`).digest('hex').slice(0, 32);
+}
+
+/**
+ * 204 No Content für geblockte Visitors. Kein Redirect, kein HTML, kein Body.
+ * AdSense sieht NIE eine Impression. Stille Verbrennung des Klicks.
+ */
+function blockedResponse(label: string): NextResponse {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'X-Block-Reason': label.slice(0, 80),
+    },
+  });
+}
+
+/**
+ * Async Behavior-Analyzer. Wird sporadisch (1 von 25 Aufrufen) gestartet,
+ * nachdem der Response schon zum Client unterwegs ist. Holt die letzten 24h
+ * Klicks dieses block_key + Folge-Pageviews und schreibt ggf. einen Block.
+ */
+async function runBehaviorAnalysis(blockKey: string, country: string | null): Promise<void> {
+  try {
+    const existing = await prisma.blocked_visitors.findUnique({ where: { blockKey } });
+    if (existing && existing.expiresAt > new Date() && !existing.manualWhitelist) return;
+
+    const since24h = new Date(Date.now() - 24 * 3600 * 1000);
+
+    // Wir suchen alle Klicks dieses blockKey in den letzten 24h. Da blockKey
+    // im `metadata`-JSON liegt, queries wir per JSON-Path.
+    const clicks = await prisma.$queryRaw<Array<{ createdAt: Date; country: string | null }>>`
+      SELECT "createdAt", "country" FROM "analytics_events"
+      WHERE "event" = 'x_news_click'
+        AND "createdAt" >= ${since24h}
+        AND "metadata"->>'block_key' = ${blockKey}
+    `;
+
+    if (clicks.length === 0) return;
+
+    // Folge-Pageviews: gleicher visitorId-Hash (auch über Tagesrotation, daher
+    // hier auch blockKey im metadata-Feld). Nur Events, die NACH dem ersten
+    // x_news_click stattfanden und KEIN x_news_click sind.
+    const firstClick = clicks.reduce((min, c) => (c.createdAt < min ? c.createdAt : min), clicks[0].createdAt);
+    const followUps = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "analytics_events"
+      WHERE "createdAt" >= ${firstClick}
+        AND "event" <> 'x_news_click'
+        AND "metadata"->>'block_key' = ${blockKey}
+      LIMIT 5
+    `;
+
+    const signals = analyzeBehavior({
+      clicks,
+      followUpPageViewsCount: followUps.length,
+      primaryCountry: country,
+    });
+
+    if (signals.score >= 2) {
+      const reasons = [
+        signals.highRate && 'rate>5/24h',
+        signals.rapidInterval && 'interval<3s',
+        signals.zeroEngagement && 'zero-engagement',
+        signals.geoAnomaly && 'geo-anomaly',
+      ].filter(Boolean).join('+');
+      const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      await prisma.blocked_visitors.upsert({
+        where: { blockKey },
+        create: {
+          id: randomUUID(),
+          blockKey,
+          reason: `behavior:${reasons}`,
+          signals: signals as any,
+          expiresAt,
+        },
+        update: {
+          reason: `behavior:${reasons}`,
+          signals: signals as any,
+          blockedAt: new Date(),
+          expiresAt,
+        },
+      });
+    }
+  } catch { /* analysis darf nie crashen */ }
 }
 
 export async function GET(request: Request) {
   const origin = new URL(request.url).origin;
   const headers = (request as any).headers as Headers;
 
+  const ip =
+    headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    headers.get('x-real-ip') ||
+    'unknown';
+  const ua = (headers.get('user-agent') || '').slice(0, 500);
+  const country = headers.get('x-vercel-ip-country') || headers.get('cf-ipcountry') || null;
+
+  // ════════════════════════════════════════════════════════════════════
+  // STUFE A — Hard-Block: UA-Bot Erkennung. Sofort 204, kein Tracking.
+  // Optional: Persistiere den Block für 7 Tage, damit ein flippt-UA-Bot
+  // beim nächsten Versuch über Stufe B sofort gefangen wird.
+  // ════════════════════════════════════════════════════════════════════
+  const hardBlock = checkHardBlock(ua);
+  const blockKey = computeBlockKey(ip, ua);
+
+  if (hardBlock.blocked) {
+    // Async einen 7-Tage-Block schreiben (fire-and-forget)
+    prisma.blocked_visitors.upsert({
+      where: { blockKey },
+      create: {
+        id: randomUUID(),
+        blockKey,
+        reason: `hard-block:${hardBlock.label}`,
+        signals: { ua_label: hardBlock.label } as any,
+        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      },
+      update: {
+        reason: `hard-block:${hardBlock.label}`,
+        blockedAt: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      },
+    }).catch(() => { /* silent */ });
+
+    return blockedResponse(`hard:${hardBlock.label}`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // STUFE B — DB-Block-Lookup. Wenn dieser blockKey schon als Bot oder
+  // verdächtiges Verhalten markiert wurde (und noch nicht expired oder
+  // manuell whitelisted), antworten wir mit 204.
+  // ════════════════════════════════════════════════════════════════════
+  const dbBlock = await prisma.blocked_visitors.findUnique({ where: { blockKey } }).catch(() => null);
+  if (dbBlock && dbBlock.expiresAt > new Date() && !dbBlock.manualWhitelist) {
+    return blockedResponse(`db:${dbBlock.reason}`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // Realer User — Redirect-Logik
+  // ════════════════════════════════════════════════════════════════════
   const candidates = await prisma.articles.findMany({
     where: {
       OR: [{ status: 'published' }, { status: 'PUBLISHED' }],
@@ -64,20 +185,11 @@ export async function GET(request: Request) {
 
   const target = picked ? `${origin}/${picked}` : origin;
 
-  // Fire-and-forget tracking — darf den Redirect NIE bremsen.
-  // Wenn DB hängt, kommt der User trotzdem durch.
+  // Fire-and-forget tracking
   if (picked) {
-    const ip =
-      headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      headers.get('x-real-ip') ||
-      'unknown';
-    const ua = (headers.get('user-agent') || '').slice(0, 500);
     const refererRaw = headers.get('referer') || '';
-    const country = headers.get('x-vercel-ip-country') || headers.get('cf-ipcountry') || null;
-    const city = headers.get('x-vercel-ip-city') || null;
     const vid = anonVisitorId(ip, ua);
 
-    // Asynchron, ohne await — wir blockieren den Response nicht.
     prisma.analytics_events.create({
       data: {
         id: randomUUID(),
@@ -88,9 +200,16 @@ export async function GET(request: Request) {
         referrer: refererRaw ? refererRaw.slice(0, 500) : null,
         userAgent: ua || null,
         country,
-        city,
+        city: headers.get('x-vercel-ip-city') || null,
+        // block_key in metadata für die Behavior-Analyse (nicht-rotierend)
+        metadata: { block_key: blockKey } as any,
       },
     }).catch(() => { /* tracking-failure darf nichts brechen */ });
+
+    // Sporadisch (1 von 25) die Behavior-Analyse auslösen.
+    if (Math.random() < 0.04) {
+      void runBehaviorAnalysis(blockKey, country);
+    }
   }
 
   const html =
