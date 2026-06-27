@@ -215,7 +215,14 @@ export async function GET(request: Request) {
   const html =
     `<!doctype html><html><head>` +
     `<meta charset="utf-8">` +
-    `<meta name="referrer" content="no-referrer">` +
+    // same-origin: externe Referer (Twitter, Google, Newsletter) werden hier
+    // gestoppt — der Ziel-Artikel sieht /x-news als Quelle. Das ist die
+    // optimale Balance:
+    //   1) externer Referer leakt NIE an Ziel/Tracker/AdSense
+    //   2) AdSense sieht eine plausible interne Navigation → zählt normal
+    //   3) "no-referrer" hatte den Nebeneffekt, dass AdSense viele dieser
+    //      Hits als low-quality/direct/suspicious wertete und kaum CPMs ausspielte.
+    `<meta name="referrer" content="same-origin">` +
     `<meta http-equiv="refresh" content="0;url=${escapeAttr(target)}">` +
     `<title>…</title>` +
     `<script>window.location.replace(${escapeJs(target)})</script>` +
@@ -226,7 +233,7 @@ export async function GET(request: Request) {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Referrer-Policy': 'no-referrer',
+      'Referrer-Policy': 'same-origin',
       'X-Frame-Options': 'DENY',
       'X-Content-Type-Options': 'nosniff',
     },
