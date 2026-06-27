@@ -63,6 +63,15 @@ export default function ArticleInterstitial() {
     if (isBotUserAgent(navigator.userAgent)) return;
     if ((navigator as any).webdriver === true) return; // headless browsers
 
+    // CMP-Detection: solange Funding Choices Consent-Banner sichtbar ist,
+    // KEIN Interstitial mounten — User muss erst Consent-Wahl treffen
+    // können, sonst blockieren wir die DSGVO-Pflicht-UI. FC nutzt iframes
+    // mit der Klasse "fc-ab-root" / "fc-consent-root" plus DialogElemente
+    // mit "fc-dialog".
+    const cmpVisible =
+      document.querySelector('iframe.fc-consent-root, iframe.fc-ab-root, .fc-dialog, .fc-consent-root');
+    if (cmpVisible) return;
+
     // Referrer-Gate per User-Anforderung deaktiviert — Interstitial wird
     // bei JEDEM Aufruf gezeigt (auch direkter Visit, Bookmark, interne
     // Navigation). mobileOnly-Gate aus dem DB-Slot bleibt aktiv.
@@ -214,7 +223,7 @@ export default function ArticleInterstitial() {
       aria-modal="true"
       aria-label="Werbung"
       data-testid="article-interstitial"
-      className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
       onClick={(e) => {
         // Backdrop click closes
         if (e.target === e.currentTarget) setVisible(false);
