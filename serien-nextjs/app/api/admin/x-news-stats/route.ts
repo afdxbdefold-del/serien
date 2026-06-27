@@ -15,11 +15,35 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { detectBot } from '@/lib/crawler-logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const EVENT = 'x_news_click';
+
+// Zusätzliche generische Bot-/Crawler-/Suspicious-UA-Heuristiken, die der
+// strenge crawler-logger nicht abdeckt. Lower-cased Substring-Matches.
+const GENERIC_BOT_HINTS = [
+  'bot', 'crawler', 'spider', 'scrap', 'curl/', 'wget/', 'python-requests',
+  'http-client', 'go-http-client', 'okhttp/', 'java/', 'libwww-perl',
+  'headlesschrome', 'phantomjs', 'puppeteer', 'playwright', 'lighthouse',
+  'pagespeed', 'gtmetrix', 'monitor', 'uptimerobot', 'pingdom', 'newrelic',
+  'datadog', 'archive.org', 'wayback',
+];
+
+function classifyUserAgent(ua: string | null): { isBot: boolean; label: string } {
+  if (!ua) return { isBot: true, label: 'no-user-agent' };
+  // First: named bot from crawler-logger (Google, Bing, Twitter, etc.)
+  const named = detectBot(ua);
+  if (named) return { isBot: true, label: named };
+  // Then: generic suspicious patterns
+  const low = ua.toLowerCase();
+  for (const hint of GENERIC_BOT_HINTS) {
+    if (low.includes(hint)) return { isBot: true, label: `generic:${hint}` };
+  }
+  return { isBot: false, label: 'human' };
+}
 
 export async function GET() {
   const now = new Date();
@@ -38,19 +62,38 @@ export async function GET() {
   //    und bucketen in JS — bei ≤ 14 Tagen Volume noch günstig genug.
   const events14d = await prisma.analytics_events.findMany({
     where: { event: EVENT, createdAt: { gte: ago14d } },
-    select: { createdAt: true, path: true, referrer: true, country: true },
+    select: { createdAt: true, path: true, referrer: true, country: true, userAgent: true },
   });
 
-  const perDay: Record<string, number> = {};
+  const perDay: Record<string, { total: number; human: number; bot: number }> = {};
   // 14 Buckets vorinitialisieren (auch leere Tage zeigen)
   for (let i = 13; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
-    perDay[d.toISOString().slice(0, 10)] = 0;
+    perDay[d.toISOString().slice(0, 10)] = { total: 0, human: 0, bot: 0 };
   }
+
+  // Counter für Bot-Analyse über die letzten 7 + 24h Fenster
+  let bot24h = 0, bot7d = 0, bot14d = 0;
+  const botLabels: Record<string, number> = {};
+
   for (const ev of events14d) {
     const day = ev.createdAt.toISOString().slice(0, 10);
-    if (day in perDay) perDay[day]++;
+    const cls = classifyUserAgent(ev.userAgent);
+    if (day in perDay) {
+      perDay[day].total++;
+      if (cls.isBot) perDay[day].bot++;
+      else perDay[day].human++;
+    }
+    if (cls.isBot) {
+      bot14d++;
+      if (ev.createdAt >= ago7d) bot7d++;
+      if (ev.createdAt >= ago24h) bot24h++;
+      botLabels[cls.label] = (botLabels[cls.label] || 0) + 1;
+    }
   }
+
+  const pct = (part: number, total: number) =>
+    total > 0 ? Math.round((part / total) * 1000) / 10 : 0;
 
   // 3. Top destinations (letzte 7 Tage)
   const events7d = events14d.filter((e) => e.createdAt >= ago7d);
@@ -83,6 +126,12 @@ export async function GET() {
       last_24h: last24h,
       last_7d: last7d,
       last_14d: last14d,
+    },
+    bot_traffic: {
+      last_24h: { count: bot24h, pct_of_total: pct(bot24h, last24h) },
+      last_7d:  { count: bot7d,  pct_of_total: pct(bot7d, last7d) },
+      last_14d: { count: bot14d, pct_of_total: pct(bot14d, last14d) },
+      top_bot_labels: topN(botLabels),
     },
     per_day: perDay,
     top_destinations: topN(destBuckets),
