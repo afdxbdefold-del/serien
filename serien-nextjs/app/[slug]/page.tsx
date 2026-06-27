@@ -534,6 +534,13 @@ export default async function ArticlePage({ params }: PageProps) {
         src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
         crossOrigin="anonymous"
         strategy="afterInteractive"
+        // NPA-on-unknown-consent: Wenn der User noch nicht im Funding-
+        // Choices-CMP geklickt hat (oder explizit ablehnt), serviert
+        // AdSense trotzdem nicht-personalisierte Ads (rein kontextuell,
+        // basierend auf Artikel-Inhalt, ohne User-Profile/Cookies).
+        // DSGVO/TDDDG-konform, ~70-80% des Standard-CPM, Zero Gap zwischen
+        // Page-View und Ad-Render.
+        data-npa-on-unknown-consent="1"
       />
 
       {/* JSON-LD Structured Data with ImageObject */}

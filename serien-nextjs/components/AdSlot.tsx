@@ -124,10 +124,13 @@ export async function AdSlot({ position, className = '' }: AdSlotProps) {
 export function AdScriptLoader({ adClient }: { adClient: string }) {
   return (
     <>
-      {/* Load AdSense script synchronously - no defer/async */}
+      {/* Load AdSense script synchronously - no defer/async.
+          data-npa-on-unknown-consent="1": Vor Consent / bei Ablehnung
+          werden non-personalized Ads geladen (DSGVO/TDDDG-konform). */}
       <script
         src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`}
         crossOrigin="anonymous"
+        data-npa-on-unknown-consent="1"
       />
       <script
         dangerouslySetInnerHTML={{
