@@ -106,12 +106,16 @@ export function renderAdInIframe(
   iframe.setAttribute('frameborder', '0');
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('loading', 'lazy');
-  iframe.style.cssText = `display:block;width:${width}px;height:${height}px;border:0;margin:0;padding:0;`;
+  iframe.style.cssText = `display:block;width:${width}px;height:${height}px;border:0;margin:0;padding:0;overflow:hidden;`;
   // Wrap the snippet in a minimal HTML document so external scripts have a
-  // body to write into. Match background to keep transparent ads readable
-  // on dark backgrounds; affiliate banners usually expect light bg though,
-  // so we use white as the safe default.
-  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0;background:transparent;}a,img{border:0;text-decoration:none;}</style></head><body>${html}</body></html>`;
+  // body to write into. CSS-Hardening innerhalb des iframes:
+  //   - `img, a, table { max-width:100% !important }` zwingt Affiliate-
+  //     Creatives (AWIN, Belboon, Amazon-Style), sich der iframe-Breite
+  //     anzupassen, statt rechts überzulaufen.
+  //   - `body { overflow:hidden }` killt horizontale Scrollbars.
+  //   - `<base target="_blank">` öffnet Affiliate-Klicks im neuen Tab,
+  //     damit der User die Hauptseite nicht verlässt.
+  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=${width}"><base target="_blank"><style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;width:${width}px;}img,iframe,video,embed,object{max-width:100%!important;height:auto!important;}a{display:inline-block;max-width:100%;border:0;text-decoration:none;}a img{display:block;}table{max-width:100%!important;}</style></head><body>${html}</body></html>`;
   container.appendChild(iframe);
 }
 
