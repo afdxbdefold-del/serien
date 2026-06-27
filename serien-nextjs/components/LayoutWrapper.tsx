@@ -38,13 +38,13 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
       <SkipLink />
       {isArticlePage && <MobileTopAd />}
       <Header />
-      {/* below_breadcrumb Slot: direkt unter dem Header, mobile-only,
-          Full-Width #121318 BG. Container wird auf md+ ausgeblendet,
-          ClientAdSlot selbst respektiert zusätzlich das mobileOnly-Flag
-          aus der DB. */}
-      <div className="md:hidden w-full bg-[#121318] flex justify-center py-3 px-2">
-        <ClientAdSlot position="below_breadcrumb" />
-      </div>
+      {/* below_breadcrumb Slot: NUR auf Artikelseiten, direkt unter dem
+          Header, mobile-only, Full-Width #121318 BG. */}
+      {isArticlePage && (
+        <div className="md:hidden w-full bg-[#121318] flex justify-center py-3 px-2">
+          <ClientAdSlot position="below_breadcrumb" />
+        </div>
+      )}
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
