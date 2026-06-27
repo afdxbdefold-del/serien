@@ -966,6 +966,12 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         'sammel-recap',
         'plagiarism-similar-article',  // TF-Cosine matched an existing recent article → permanent
         'us-streaming-only',            // News is exclusively US streaming event with token DACH side-note
+        // 'per-series-cap' (Juni 2026): Wenn eine Serie ihr 5-Artikel/Monat
+        // Limit gerissen hat, lockert sich das innerhalb der nächsten 7 Tage
+        // praktisch nie — eine kreisförmige Re-Verarbeitung alle 15 Min
+        // verbrennt nur Source-Slots. Cap hebt sich frühestens nach 30 Tagen
+        // auf, ein 7-Tage-Skip ist konservativ.
+        'per-series-cap',
       ];
       const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -1014,7 +1020,24 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         }) : 0;
         const clsFailedRepeatedly = clsFailCount >= 2;
 
-        if (!exists && !recentSuccess && !detFail && !clsFailedRepeatedly) {
+        // Check 5: 3-STRIKE-RULE — wenn EINE URL ≥3× in 7 Tagen aus IRGENDEINEM
+        // Grund failed (auch nicht-deterministischen), markieren wir sie als
+        // permanent unbrauchbar. Schützt gegen Sources die durch transiente
+        // Fehler kreisen (DNS-Timeouts, partial-scrape-Fehler, Race-Conditions
+        // mit anderen Caps wie daily-cap-during-fill etc.). Konservativ: 3×
+        // bedeutet wirklich permanent broken, einzelne Hiccups gehen durch.
+        const anyFailCount = !exists && !recentSuccess && !detFail && !clsFailedRepeatedly
+          ? await prisma.pipeline_runs.count({
+              where: {
+                inputSource: article.url,
+                status: 'failed',
+                startedAt: { gte: SEVEN_DAYS_AGO },
+              },
+            })
+          : 0;
+        const threeStrikesOut = anyFailCount >= 3;
+
+        if (!exists && !recentSuccess && !detFail && !clsFailedRepeatedly && !threeStrikesOut) {
           newArticles.push(article);
         } else {
           const reason = exists
@@ -1023,7 +1046,9 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
               ? 'recent-success'
               : detFail
                 ? `det-fail:${detFail.errorStep}`
-                : `cls-repeat:${clsFailCount}×`;
+                : clsFailedRepeatedly
+                  ? `cls-repeat:${clsFailCount}×`
+                  : `3-strike:${anyFailCount}×`;
           console.log(`⏭️  SKIP (${reason}): ${article.title.substring(0, 50)}...`);
           stats.skipped++;
         }
