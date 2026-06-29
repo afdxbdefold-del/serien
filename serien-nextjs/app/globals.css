@@ -126,14 +126,31 @@
     @apply text-sm text-gray-700 dark:text-gray-300;
   }
   
-  /* Responsive YouTube/Video Embeds */
-  .article-content iframe,
-  .prose iframe,
-  [class*="content"] iframe {
+  /* Responsive YouTube/Video Embeds — Ad-Iframes (`.content-ad-unit iframe`)
+     sind explizit ausgeschlossen, damit ihre vom Slot konfigurierten
+     Pixel-Maße (inline via `renderAdInIframe()`) erhalten bleiben.
+     Hintergrund: `[class*="content"]` matchte zuvor auch `.content-ad-unit`,
+     wodurch Ads in 16:9 / `height:auto` gezwängt wurden (300×600 wurde zu
+     einem schmalen, abgeschnittenen Streifen). */
+  .article-content iframe:not(.content-ad-unit iframe),
+  .prose iframe:not(.content-ad-unit iframe),
+  [class*="content"] iframe:not(.content-ad-unit iframe) {
     @apply max-w-full h-auto aspect-video rounded-lg;
     width: 100% !important;
     height: auto !important;
     min-height: 200px;
+  }
+
+  /* In-Article Ad-Iframes: respektiere die vom Slot konfigurierten Dimensionen.
+     `renderAdInIframe()` setzt inline `style="width:Xpx;height:Ypx"` auf dem
+     iframe — diese Regel verhindert, dass übergeordnete Embed/Video-Styles
+     greifen, hebt `aspect-video` auf und lässt die inline-Maße durch.
+     Generisch für jede Slot-Größe (300×250, 300×600, 728×90, …). */
+  .content-ad-unit iframe {
+    aspect-ratio: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
   }
   
   /* Prevent any content from overflowing the prose container */
