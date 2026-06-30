@@ -82,6 +82,99 @@ const AD_POSITIONS = [
     defaultWidth: 300,
     defaultHeight: 600,
   },
+  // ─────────────── DESKTOP-ONLY POSITIONS (TheMoneytizer & SSP-Layout) ───────────────
+  // Diese Positionen werden NUR im Desktop-Tab konfiguriert und auf der
+  // Artikelseite ausschließlich ab `lg:` (≥1024 px) bzw. `xl:` (≥1280 px)
+  // gerendert. Im Mobile-Tab erscheinen sie ebenfalls (aus Konsistenz-
+  // Gründen), werden aber auf Mobile-Viewports nie ausgespielt.
+  {
+    position: 'desktop_billboard_header',
+    name: 'Desktop · Billboard Header',
+    description: 'Großformat-Banner ÜBER dem Megabanner Top (z.B. 970×250 Billboard).',
+    defaultWidth: 970,
+    defaultHeight: 250,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_megabanner_top',
+    name: 'Desktop · Megabanner Top',
+    description: '970×90 Leaderboard direkt über Breadcrumb / Titel.',
+    defaultWidth: 970,
+    defaultHeight: 90,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_skyscraper_left',
+    name: 'Desktop · Skyscraper Links',
+    description: 'Sticky-Skyscraper links neben dem Artikel (nur ab xl ≥1280 px).',
+    defaultWidth: 160,
+    defaultHeight: 600,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_skyscraper_right',
+    name: 'Desktop · Skyscraper Rechts',
+    description: 'Sticky-Skyscraper rechts neben dem Artikel (nur ab xl ≥1280 px).',
+    defaultWidth: 160,
+    defaultHeight: 600,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_sidebar_top_rect',
+    name: 'Desktop · Sidebar Top MPU',
+    description: 'Erstes Sidebar-Element rechts neben dem Artikel (300×250 MPU).',
+    defaultWidth: 300,
+    defaultHeight: 250,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_sidebar_halfpage',
+    name: 'Desktop · Sidebar Half Page',
+    description: 'Zweites Sidebar-Element (300×600 Half Page).',
+    defaultWidth: 300,
+    defaultHeight: 600,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_sidebar_megasky',
+    name: 'Desktop · Sidebar Megaskyscraper',
+    description: 'Drittes Sidebar-Element ganz unten in der Sticky-Spalte (300×600 / 300×1050).',
+    defaultWidth: 300,
+    defaultHeight: 600,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_bottom_rect',
+    name: 'Desktop · Bottom Medium Rectangle',
+    description: '300×250 unterhalb der Sidebar/Article-Spalte vor dem Megabanner Bottom.',
+    defaultWidth: 300,
+    defaultHeight: 250,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_megabanner_bottom',
+    name: 'Desktop · Megabanner Bottom',
+    description: '970×250 Megabanner ganz am Ende des Artikels (vor Similar News).',
+    defaultWidth: 970,
+    defaultHeight: 250,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_corner_video',
+    name: 'Desktop · Corner Video',
+    description: 'Fixed bottom-right floating Video-Ad (TheMoneytizer Corner Video, mit Close-Button im Snippet).',
+    defaultWidth: 320,
+    defaultHeight: 180,
+    desktopOnly: true,
+  },
+  {
+    position: 'desktop_footer_slidein',
+    name: 'Desktop · Footer Slide-in',
+    description: 'Fixed bottom Full-Width Slide-in (z.B. 970×90, mit Close-Button im Snippet).',
+    defaultWidth: 970,
+    defaultHeight: 90,
+    desktopOnly: true,
+  },
 ];
 
 interface AdVariant {
@@ -105,6 +198,8 @@ interface AdSlot {
   width: number;
   height: number;
   isActive: boolean;
+  mobileOnly?: boolean;
+  desktopOnly?: boolean;
 }
 
 const DEVICE_DEFAULTS: Record<Device, { width: number; height: number }> = {
@@ -161,6 +256,14 @@ export default function AdsAdminPage() {
             // Eintrag wird nicht auf der Live-Page gerendert (Wrapper hat
             // `lg:hidden`). Wir zeigen ihn im UI trotzdem als Platzhalter
             // an, damit das Admin-UI konsistent bleibt.
+            // Defaults: shared positions bekommen device-spezifische
+            // Standardmaße (Mobile 300×250, Desktop 728×90). Positions die
+            // explizit `desktopOnly: true` markiert sind (z.B. Megabanner
+            // 970×250) behalten ihre individuellen Pos-Defaults auch im
+            // Desktop-Tab — DEVICE_DEFAULTS würde sonst ein 970×250
+            // Billboard auf 728×90 schrumpfen.
+            const useOwnDefaults =
+              device === 'mobile' || pos.desktopOnly === true;
             mergedSlots.push({
               position: pos.position,
               device,
@@ -171,9 +274,11 @@ export default function AdsAdminPage() {
               adSlot: '',
               customHtmlVariants: [],
               rotationMode: 'random',
-              width: device === 'mobile' ? pos.defaultWidth : DEVICE_DEFAULTS.desktop.width,
-              height: device === 'mobile' ? pos.defaultHeight : DEVICE_DEFAULTS.desktop.height,
+              width: useOwnDefaults ? pos.defaultWidth : DEVICE_DEFAULTS.desktop.width,
+              height: useOwnDefaults ? pos.defaultHeight : DEVICE_DEFAULTS.desktop.height,
               isActive: false,
+              mobileOnly: pos.mobileOnly === true,
+              desktopOnly: pos.desktopOnly === true,
             });
           }
         }

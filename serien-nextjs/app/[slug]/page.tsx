@@ -573,7 +573,42 @@ export default async function ArticlePage({ params }: PageProps) {
 
       {/* Article Content Section */}
       <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
-        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl">
+        {/* ─────── Desktop-only Top-of-Article Ads ─────── */}
+        {/* Billboard Header (970×250) ÜBER dem Megabanner Top.
+            Optional/opt-in: rendert nichts, wenn der Slot leer/inaktiv ist. */}
+        <div className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4" data-ad-slot-wrapper="desktop_billboard_header">
+          <ClientAdSlot position="desktop_billboard_header" />
+        </div>
+        {/* Megabanner Top (970×90) direkt über Breadcrumb / Titel. */}
+        <div className="hidden lg:flex w-full justify-center pb-4 px-4" data-ad-slot-wrapper="desktop_megabanner_top">
+          <ClientAdSlot position="desktop_megabanner_top" />
+        </div>
+
+        {/* ─────── Desktop Sticky Skyscrapers (nur ab xl ≥ 1280 px,
+            damit sie nicht mit dem Article-Body kollidieren). Fixed an
+            den Viewport-Rändern, top-24 = unterhalb des Headers. ─── */}
+        <aside
+          className="hidden xl:block fixed left-2 2xl:left-6 top-24 z-30 w-[160px]"
+          aria-label="Werbung Skyscraper links"
+          data-ad-slot-wrapper="desktop_skyscraper_left"
+        >
+          <ClientAdSlot position="desktop_skyscraper_left" />
+        </aside>
+        <aside
+          className="hidden xl:block fixed right-2 2xl:right-6 top-24 z-30 w-[160px]"
+          aria-label="Werbung Skyscraper rechts"
+          data-ad-slot-wrapper="desktop_skyscraper_right"
+        >
+          <ClientAdSlot position="desktop_skyscraper_right" />
+        </aside>
+
+        {/* ─────── Layout-Wrapper: Mobile = single column max-w-3xl
+            (unverändert). Desktop ≥ lg: zweispaltiges Grid
+            [Content max-w-3xl | Sidebar 300px] zentriert in max-w-[1100px]. ─── */}
+        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1100px] lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:gap-8 lg:justify-center">
+
+          {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
+          <div className="w-full lg:max-w-[720px]">
           
           {/* Breadcrumb */}
           {article.series ? (
@@ -776,6 +811,39 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />
+          </div>
+          {/* ─────────────────────────── /MAIN COLUMN ─────────────────────────── */}
+
+          {/* ─────────────────────────── DESKTOP SIDEBAR ─────────────────────────── */}
+          {/* Nur Desktop. Sticky-Container mit 3 TheMoneytizer-Slots.
+              Wenn ein Slot inaktiv ist, rendert ClientAdSlot null und der
+              Container kollabiert (gap auf 0). */}
+          <aside
+            className="hidden lg:block"
+            aria-label="Artikel Sidebar Werbung"
+            data-ad-sidebar="desktop"
+          >
+            <div className="sticky top-24 space-y-6">
+              <div data-ad-slot-wrapper="desktop_sidebar_top_rect">
+                <ClientAdSlot position="desktop_sidebar_top_rect" />
+              </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_halfpage">
+                <ClientAdSlot position="desktop_sidebar_halfpage" />
+              </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_megasky">
+                <ClientAdSlot position="desktop_sidebar_megasky" />
+              </div>
+            </div>
+          </aside>
+          {/* ─────────────────────────── /DESKTOP SIDEBAR ─────────────────────── */}
+        </div>
+
+        {/* ─────── Desktop-only Bottom-of-Article Ads ─────── */}
+        <div className="hidden lg:flex w-full justify-center pb-4 px-4" data-ad-slot-wrapper="desktop_bottom_rect">
+          <ClientAdSlot position="desktop_bottom_rect" />
+        </div>
+        <div className="hidden lg:flex w-full justify-center pb-6 px-4" data-ad-slot-wrapper="desktop_megabanner_bottom">
+          <ClientAdSlot position="desktop_megabanner_bottom" />
         </div>
       </article>
 
@@ -873,6 +941,27 @@ export default async function ArticlePage({ params }: PageProps) {
           Admin — landet bei "Standard"-Tags hier. Verwaltet via
           /admin/global-tags. */}
       <GlobalTags placement="body-end" />
+
+      {/* ─────── Desktop Floating Overlays (Corner Video + Footer Slide-in) ───────
+          Nur Desktop (≥ lg). Beide Slots sind opt-in (in der DB initial
+          inaktiv). TheMoneytizer-Snippets bringen ihren eigenen Close-
+          Button mit — wir wrappen sie nur in fixed-positioned Container.
+          Bot-Schutz: Interstitial-Logik oben filtert bereits Crawler
+          aus, dadurch kein SEO-Risiko durch overlays. */}
+      <div
+        className="hidden lg:block fixed bottom-4 right-4 z-40 pointer-events-auto"
+        aria-label="Werbung Corner Video"
+        data-ad-slot-wrapper="desktop_corner_video"
+      >
+        <ClientAdSlot position="desktop_corner_video" />
+      </div>
+      <div
+        className="hidden lg:flex fixed bottom-0 left-0 right-0 z-30 justify-center pointer-events-auto"
+        aria-label="Werbung Footer Slide-in"
+        data-ad-slot-wrapper="desktop_footer_slidein"
+      >
+        <ClientAdSlot position="desktop_footer_slidein" />
+      </div>
     </div>
   );
 }
