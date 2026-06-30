@@ -3,50 +3,51 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, X, Menu, Loader2, ChevronDown, Tv, Users, PenLine, Compass, Play, Flame, Newspaper } from 'lucide-react';
+import { Search, X, Menu, Loader2 } from 'lucide-react';
 import Logo from './Logo';
 import { ThemeToggle } from './ThemeToggle';
 
 // Streaming providers data
 const STREAMING_PROVIDERS = [
-  { name: 'Netflix', href: '/netflix-serien', badge: 'N', bg: 'bg-red-600' },
-  { name: 'Prime Video', href: '/prime-video-serien', badge: 'P', bg: 'bg-cyan-500' },
-  { name: 'Disney+', href: '/disney-plus-serien', badge: 'D', bg: 'bg-blue-600' },
-  { name: 'HBO Max', href: '/hbo-serien', badge: 'H', bg: 'bg-purple-600' },
-  { name: 'Apple TV+', href: '/apple-tv-serien', badge: 'A', bg: 'bg-gray-800' },
-  { name: 'WOW', href: '/wow-serien', badge: 'W', bg: 'bg-sky-500' },
-  { name: 'RTL+', href: '/rtl-plus-serien', badge: 'R', bg: 'bg-orange-500' },
-  { name: 'Paramount+', href: '/paramount-plus-serien', badge: 'P+', bg: 'bg-blue-700' },
-  { name: 'Joyn', href: '/joyn-serien', badge: 'J', bg: 'bg-pink-500' },
-  { name: 'MagentaTV', href: '/magenta-tv-serien', badge: 'M', bg: 'bg-fuchsia-600' },
-  { name: 'Discovery+', href: '/discovery-plus-serien', badge: 'D+', bg: 'bg-blue-600' },
-  { name: 'Crunchyroll', href: '/crunchyroll-serien', badge: 'CR', bg: 'bg-orange-500' },
-  { name: 'ARD', href: '/ard-mediathek-serien', badge: 'ARD', bg: 'bg-blue-700' },
-  { name: 'ZDF', href: '/zdf-mediathek-serien', badge: 'ZDF', bg: 'bg-orange-500' },
-  { name: 'CHILI', href: '/chili-serien', badge: 'C', bg: 'bg-red-600' },
-  { name: 'Rakuten TV', href: '/rakuten-tv-serien', badge: 'R', bg: 'bg-violet-600' },
-  { name: 'freenet Video', href: '/freenet-video-serien', badge: 'fn', bg: 'bg-green-600' },
-  { name: 'maxdome', href: '/maxdome-serien', badge: 'md', bg: 'bg-teal-600' },
+  { name: 'Netflix', href: '/netflix-serien' },
+  { name: 'Prime Video', href: '/prime-video-serien' },
+  { name: 'Disney+', href: '/disney-plus-serien' },
+  { name: 'HBO Max', href: '/hbo-serien' },
+  { name: 'Apple TV+', href: '/apple-tv-serien' },
+  { name: 'WOW', href: '/wow-serien' },
+  { name: 'RTL+', href: '/rtl-plus-serien' },
+  { name: 'Paramount+', href: '/paramount-plus-serien' },
+  { name: 'Joyn', href: '/joyn-serien' },
+  { name: 'MagentaTV', href: '/magenta-tv-serien' },
+  { name: 'Discovery+', href: '/discovery-plus-serien' },
+  { name: 'Crunchyroll', href: '/crunchyroll-serien' },
+  { name: 'ARD', href: '/ard-mediathek-serien' },
+  { name: 'ZDF', href: '/zdf-mediathek-serien' },
+  { name: 'CHILI', href: '/chili-serien' },
+  { name: 'Rakuten TV', href: '/rakuten-tv-serien' },
+  { name: 'freenet Video', href: '/freenet-video-serien' },
+  { name: 'maxdome', href: '/maxdome-serien' },
 ];
 
-// More menu items
+// More menu items — Icon-/Badge-Spalte entfernt (User-Wunsch: keine Icons im
+// Header-Menü, keine Grossschrift). Nur Label + Beschreibung.
 const MORE_ITEMS = [
-  { name: 'Top 100 Serien', href: '/top-100-serien', icon: Flame, description: 'Täglich aktualisiertes Ranking' },
-  { name: 'Top 100 Netflix', href: '/top-100-netflix', icon: Flame, description: 'Die besten Netflix-Serien' },
-  { name: 'Top 100 Prime Video', href: '/top-100-amazon-prime', icon: Flame, description: 'Die besten Prime-Serien' },
-  { name: 'Top 100 Disney+', href: '/top-100-disney-plus', icon: Flame, description: 'Die besten Disney+ Serien' },
-  { name: 'Beste Crime-Serien', href: '/beste-crime-serien', icon: Flame, description: 'Krimis & Thriller' },
-  { name: 'Beste Comedy-Serien', href: '/beste-comedy-serien', icon: Flame, description: 'Sitcoms & Comedy' },
-  { name: 'Beste Drama-Serien', href: '/beste-drama-serien', icon: Flame, description: 'Prestige & Family Drama' },
-  { name: 'Beste Mystery-Serien', href: '/beste-mystery-serien', icon: Flame, description: 'Rätsel & Twists' },
-  { name: 'Beste Sci-Fi-Serien', href: '/beste-sci-fi-serien', icon: Flame, description: 'Sci-Fi & Fantasy' },
-  { name: 'Trending', href: '/trending', icon: Flame, description: 'Was Deutschland gerade schaut' },
-  { name: 'Serienfinder', href: '/serienfinder', icon: Compass, description: 'Finde deine nächste Serie' },
-  { name: '90 Day Fiancé', href: '/in-90-tagen-zum-altar', icon: Tv, description: 'Franchise Hub' },
-  { name: 'Walking Dead', href: '/the-walking-dead', icon: Tv, description: 'Franchise Hub' },
-  { name: 'Personen', href: '/personen', icon: Users, description: 'Schauspieler & Crew' },
-  { name: 'Figuren', href: '/figuren', icon: Tv, description: 'Beliebte Seriencharaktere' },
-  { name: 'Autoren', href: '/autoren', icon: PenLine, description: 'Unsere Redaktion' },
+  { name: 'Top 100 Serien', href: '/top-100-serien', description: 'Täglich aktualisiertes Ranking' },
+  { name: 'Top 100 Netflix', href: '/top-100-netflix', description: 'Die besten Netflix-Serien' },
+  { name: 'Top 100 Prime Video', href: '/top-100-amazon-prime', description: 'Die besten Prime-Serien' },
+  { name: 'Top 100 Disney+', href: '/top-100-disney-plus', description: 'Die besten Disney+ Serien' },
+  { name: 'Beste Crime-Serien', href: '/beste-crime-serien', description: 'Krimis & Thriller' },
+  { name: 'Beste Comedy-Serien', href: '/beste-comedy-serien', description: 'Sitcoms & Comedy' },
+  { name: 'Beste Drama-Serien', href: '/beste-drama-serien', description: 'Prestige & Family Drama' },
+  { name: 'Beste Mystery-Serien', href: '/beste-mystery-serien', description: 'Rätsel & Twists' },
+  { name: 'Beste Sci-Fi-Serien', href: '/beste-sci-fi-serien', description: 'Sci-Fi & Fantasy' },
+  { name: 'Trending', href: '/trending', description: 'Was Deutschland gerade schaut' },
+  { name: 'Serienfinder', href: '/serienfinder', description: 'Finde deine nächste Serie' },
+  { name: '90 Day Fiancé', href: '/in-90-tagen-zum-altar', description: 'Franchise Hub' },
+  { name: 'Walking Dead', href: '/the-walking-dead', description: 'Franchise Hub' },
+  { name: 'Personen', href: '/personen', description: 'Schauspieler & Crew' },
+  { name: 'Figuren', href: '/figuren', description: 'Beliebte Seriencharaktere' },
+  { name: 'Autoren', href: '/autoren', description: 'Unsere Redaktion' },
 ];
 
 export default function Header() {
@@ -126,74 +127,65 @@ export default function Header() {
                 <Logo className="h-8" />
               </Link>
 
-              {/* Desktop Navigation */}
+              {/* Desktop Navigation — keine Icons, keine Uppercase, keine
+                  farbigen Badges (User-Wunsch: schlichte Textlinks). */}
               <nav className="hidden lg:flex items-center gap-1">
-                {/* NEWS */}
-                <Link 
-                  href="/news" 
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-                  data-testid="nav-news-link"
-                >
-                  NEWS
-                </Link>
-                
-                {/* ALLE NEWS A–Z */}
                 <Link
                   href="/news"
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                  data-testid="nav-news-link"
+                >
+                  News
+                </Link>
+
+                <Link
+                  href="/news"
+                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                   data-testid="nav-news-az-link"
                 >
-                  <Newspaper className="w-4 h-4" />
-                  ALLE NEWS A–Z
+                  Alle News A–Z
                 </Link>
 
-                {/* ALLE SERIEN A–Z */}
                 <Link
                   href="/serien"
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                   data-testid="nav-serien-az-link"
                 >
-                  <Tv className="w-4 h-4" />
-                  ALLE SERIEN A–Z
+                  Alle Serien A–Z
                 </Link>
 
-                {/* TOP 10 */}
-                <Link 
-                  href="/top-10" 
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                <Link
+                  href="/top-10"
+                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                   data-testid="nav-top10-link"
                 >
-                  <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
-                  HEUTE
+                  Top 10 heute
                 </Link>
 
-                {/* NEU HEUTE */}
-                <Link 
-                  href="/neue-serien" 
-                  className="text-white text-sm font-semibold hover:bg-white/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                <Link
+                  href="/neue-serien"
+                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                 >
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">NEU</span>
-                  HEUTE
+                  Neu heute
                 </Link>
 
-                {/* STREAMING Dropdown */}
+                {/* Streaming Dropdown — kein Icon vor dem Label, kein
+                    Chevron-Indikator. Klick auf Label öffnet/schließt. */}
                 <div className="relative">
                   <button
                     onClick={() => setActiveDropdown(activeDropdown === 'streaming' ? null : 'streaming')}
-                    className={`text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+                    className={`text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
                       activeDropdown === 'streaming' ? 'bg-white/20' : 'hover:bg-white/10'
                     }`}
                   >
-                    <Play className="w-4 h-4" fill="currentColor" />
-                    STREAMING
-                    <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === 'streaming' ? 'rotate-180' : ''}`} />
+                    Streaming
                   </button>
 
                   {/* Mega Menu */}
                   {activeDropdown === 'streaming' && (
                     <div className="absolute top-full left-0 mt-2 w-[600px] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 animate-in fade-in slide-in-from-top-2 duration-200">
                       <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400">
                           Streaming-Dienste
                         </h3>
                       </div>
@@ -203,14 +195,9 @@ export default function Header() {
                             key={provider.href}
                             href={provider.href}
                             onClick={() => setActiveDropdown(null)}
-                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                            className="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                           >
-                            <span className={`${provider.bg} text-white text-[10px] font-bold px-2 py-1 rounded min-w-[28px] text-center`}>
-                              {provider.badge}
-                            </span>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
-                              {provider.name}
-                            </span>
+                            {provider.name}
                           </Link>
                         ))}
                       </div>
@@ -218,18 +205,16 @@ export default function Header() {
                         <Link
                           href="/top-10"
                           onClick={() => setActiveDropdown(null)}
-                          className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 font-medium hover:underline"
+                          className="block text-sm text-amber-600 dark:text-amber-400 font-medium hover:underline"
                           data-testid="megamenu-top10-link"
                         >
-                          <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
                           Die Top 10 auf allen Streamern →
                         </Link>
                         <Link
                           href="/neue-serien"
                           onClick={() => setActiveDropdown(null)}
-                          className="flex items-center gap-2 text-sm text-cyan-600 dark:text-cyan-400 font-medium hover:underline"
+                          className="block text-sm text-cyan-600 dark:text-cyan-400 font-medium hover:underline"
                         >
-                          <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">NEU</span>
                           Alle Neuheiten heute ansehen →
                         </Link>
                       </div>
@@ -237,16 +222,15 @@ export default function Header() {
                   )}
                 </div>
 
-                {/* MEHR Dropdown */}
+                {/* Mehr Dropdown */}
                 <div className="relative">
                   <button
                     onClick={() => setActiveDropdown(activeDropdown === 'more' ? null : 'more')}
-                    className={`text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+                    className={`text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
                       activeDropdown === 'more' ? 'bg-white/20' : 'hover:bg-white/10'
                     }`}
                   >
-                    MEHR
-                    <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === 'more' ? 'rotate-180' : ''}`} />
+                    Mehr
                   </button>
 
                   {/* More Dropdown */}
@@ -257,18 +241,13 @@ export default function Header() {
                           key={item.href}
                           href={item.href}
                           onClick={() => setActiveDropdown(null)}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                          className="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
                         >
-                          <div className="w-10 h-10 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
-                            <item.icon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                          <div className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
+                            {item.name}
                           </div>
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
-                              {item.name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {item.description}
-                            </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {item.description}
                           </div>
                         </Link>
                       ))}
@@ -397,62 +376,59 @@ export default function Header() {
             </div>
 
             <nav className="p-4">
-              {/* Main Links */}
+              {/* Main Links — Plain Text, keine Icons, keine Badges, kein
+                  Uppercase. */}
               <div className="space-y-1 mb-6">
-                <Link 
-                  href="/news" 
+                <Link
+                  href="/news"
                   className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                 >
-                  NEWS
+                  News
                 </Link>
                 <Link
                   href="/news"
-                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                   data-testid="mobile-menu-news-az-link"
                 >
-                  <Newspaper className="w-5 h-5 text-gray-400" />
-                  ALLE NEWS A–Z
+                  Alle News A–Z
                 </Link>
                 <Link
                   href="/serien"
-                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                   data-testid="mobile-menu-serien-az-link"
                 >
-                  <Tv className="w-5 h-5 text-gray-400" />
-                  ALLE SERIEN A–Z
+                  Alle Serien A–Z
                 </Link>
-                <Link 
-                  href="/top-10" 
-                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                <Link
+                  href="/top-10"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                   data-testid="mobile-menu-top10-link"
                 >
-                  <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">TOP 10</span>
-                  TOP 10 HEUTE
+                  Top 10 heute
                 </Link>
-                <Link 
-                  href="/neue-serien" 
-                  className="flex items-center gap-2 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">NEU</span>
-                  HEUTE NEU
-                </Link>
-                <Link 
-                  href="/serienfinder" 
+                <Link
+                  href="/neue-serien"
                   className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                   onClick={() => setShowMobileMenu(false)}
                 >
-                  SERIENFINDER
+                  Heute neu
+                </Link>
+                <Link
+                  href="/serienfinder"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  Serienfinder
                 </Link>
               </div>
 
-              {/* Streaming Section */}
+              {/* Streaming Section — kein Badge, kein Uppercase. */}
               <div className="mb-6">
-                <h3 className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <h3 className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
                   Streaming-Dienste
                 </h3>
                 <div className="grid grid-cols-2 gap-1">
@@ -461,20 +437,17 @@ export default function Header() {
                       key={provider.href}
                       href={provider.href}
                       onClick={() => setShowMobileMenu(false)}
-                      className="flex items-center gap-2 px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm"
+                      className="block px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm truncate"
                     >
-                      <span className={`${provider.bg} text-white text-[9px] font-bold px-1.5 py-0.5 rounded min-w-[24px] text-center`}>
-                        {provider.badge}
-                      </span>
-                      <span className="truncate">{provider.name}</span>
+                      {provider.name}
                     </Link>
                   ))}
                 </div>
               </div>
 
-              {/* More Section */}
+              {/* More Section — kein Icon, kein Uppercase. */}
               <div className="mb-6">
-                <h3 className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <h3 className="px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
                   Mehr entdecken
                 </h3>
                 <div className="space-y-1">
@@ -483,10 +456,9 @@ export default function Header() {
                       key={item.href}
                       href={item.href}
                       onClick={() => setShowMobileMenu(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg"
+                      className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
                     >
-                      <item.icon className="w-5 h-5 text-gray-400" />
-                      <span className="font-medium">{item.name}</span>
+                      {item.name}
                     </Link>
                   ))}
                 </div>
