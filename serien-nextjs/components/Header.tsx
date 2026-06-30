@@ -139,14 +139,6 @@ export default function Header() {
                 </Link>
 
                 <Link
-                  href="/news"
-                  className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-                  data-testid="nav-news-az-link"
-                >
-                  Alle News A–Z
-                </Link>
-
-                <Link
                   href="/serien"
                   className="text-white text-sm font-medium hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
                   data-testid="nav-serien-az-link"
@@ -385,14 +377,6 @@ export default function Header() {
                   onClick={() => setShowMobileMenu(false)}
                 >
                   News
-                </Link>
-                <Link
-                  href="/news"
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg font-medium"
-                  onClick={() => setShowMobileMenu(false)}
-                  data-testid="mobile-menu-news-az-link"
-                >
-                  Alle News A–Z
                 </Link>
                 <Link
                   href="/serien"
