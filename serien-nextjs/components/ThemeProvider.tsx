@@ -1,98 +1,55 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, ReactNode } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+// Dark-only Theme-Provider (User-Wunsch: kein Light-Mode mehr).
+// API-Surface bleibt kompatibel mit altem useTheme()-Consumern, gibt
+// aber immer `dark` zurück. ThemeToggle ist deaktiviert/entfernt.
+type Theme = 'dark';
 
 interface ThemeContextType {
   theme: Theme;
-  resolvedTheme: 'light' | 'dark';
-  setTheme: (theme: Theme) => void;
+  resolvedTheme: 'dark';
+  setTheme: (_: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const DARK_CONTEXT: ThemeContextType = {
+  theme: 'dark',
+  resolvedTheme: 'dark',
+  setTheme: () => {},
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
-  const [mounted, setMounted] = useState(false);
-
-  // Get system preference
-  const getSystemTheme = (): 'light' | 'dark' => {
-    if (typeof window === 'undefined') return 'light';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  };
-
-  // Apply theme to document
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement;
-    const resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
-    
-    root.classList.remove('light', 'dark');
-    root.classList.add(resolved);
-    setResolvedTheme(resolved);
-    
-    // Update meta theme-color for mobile browsers
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', resolved === 'dark' ? '#111827' : '#ffffff');
-    }
-  };
-
-  // Initialize theme on mount
+  // Belt-and-suspenders: layout.tsx setzt `class="dark"` schon auf <html>.
+  // Falls irgendetwas (Browser-Extension, Stale-localStorage) das überschreibt,
+  // erzwingen wir es hier nach Mount nochmal hart und säubern Legacy-Keys.
   useEffect(() => {
-    const stored = localStorage.getItem('theme') as Theme | null;
-    // Default to dark mode (user preference). Honors any explicit stored
-    // choice from the theme switcher first.
-    const initialTheme = stored || 'dark';
-    setThemeState(initialTheme);
-    applyTheme(initialTheme);
-    setMounted(true);
-
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme('system');
-      }
-    };
-    
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    const root = document.documentElement;
+    if (!root.classList.contains('dark')) root.classList.add('dark');
+    root.classList.remove('light');
+    try {
+      localStorage.removeItem('theme');
+    } catch {
+      /* localStorage kann in Private-Mode / Embedded-Browsern fehlen */
+    }
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', '#1C1D22');
   }, []);
 
-  // Update theme when changed
-  useEffect(() => {
-    if (mounted) {
-      applyTheme(theme);
-    }
-  }, [theme, mounted]);
-
-  const setTheme = (newTheme: Theme) => {
-    localStorage.setItem('theme', newTheme);
-    setThemeState(newTheme);
-  };
-
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return (
-      <ThemeContext.Provider value={{ theme: 'dark', resolvedTheme: 'dark', setTheme: () => {} }}>
-        {children}
-      </ThemeContext.Provider>
-    );
-  }
-
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={DARK_CONTEXT}>{children}</ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    // Außerhalb des Providers (z.B. in einem reinen Server-Component-Tree)
+    // gibt es nichts zu togglen — wir liefern den Dark-Default statt zu
+    // werfen, damit existierende Consumer nicht crashen.
+    return DARK_CONTEXT;
   }
   return context;
 }

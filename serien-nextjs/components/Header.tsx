@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Search, X, Menu, Loader2 } from 'lucide-react';
 import Logo from './Logo';
-import { ThemeToggle } from './ThemeToggle';
 
 // Streaming providers data
 const STREAMING_PROVIDERS = [
@@ -249,13 +248,8 @@ export default function Header() {
               </nav>
             </div>
 
-            {/* Right - Theme Toggle, Search Icon & Mobile Menu */}
+            {/* Right - Search Icon & Mobile Menu */}
             <div className="flex items-center gap-2">
-              {/* Theme Toggle - Desktop */}
-              <div className="hidden md:block">
-                <ThemeToggle variant="icon" />
-              </div>
-              
               {/* Search Icon */}
               <button 
                 onClick={() => setShowSearch(!showSearch)}
@@ -446,11 +440,6 @@ export default function Header() {
                     </Link>
                   ))}
                 </div>
-              </div>
-
-              {/* Theme Toggle */}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <ThemeToggle variant="menu" />
               </div>
             </nav>
           </div>
