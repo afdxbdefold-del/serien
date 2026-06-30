@@ -11,9 +11,8 @@ type CustomVariant = {
 
 const VALID_DEVICES = new Set(['mobile', 'desktop']);
 
-const normaliseDevice = (raw: unknown): 'mobile' | 'desktop' => {
-  return raw === 'desktop' ? 'desktop' : 'mobile';
-};
+const isValidDevice = (raw: unknown): raw is 'mobile' | 'desktop' =>
+  typeof raw === 'string' && VALID_DEVICES.has(raw);
 
 // GET all ad slots (both devices). Admin UI gruppiert clientseitig nach
 // `device`. Frontend für die Live-Seite holt sich Slots über
@@ -54,7 +53,17 @@ export async function POST(request: NextRequest) {
       rotationMode,
       width, height, isActive,
     } = body;
-    const device = normaliseDevice(body.device);
+    // Device-Default ist 'mobile' wenn KEIN device-Feld geschickt wurde
+    // (Back-compat für alten Admin-Client). Wenn explizit gesetzt aber
+    // ungültig → 400.
+    let device: 'mobile' | 'desktop';
+    if (body.device === undefined || body.device === null) {
+      device = 'mobile';
+    } else if (isValidDevice(body.device)) {
+      device = body.device;
+    } else {
+      return NextResponse.json({ error: 'device muss mobile oder desktop sein' }, { status: 400 });
+    }
 
     if (!position || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -124,14 +133,21 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const position = searchParams.get('position');
-    const device = normaliseDevice(searchParams.get('device'));
+    const rawDevice = searchParams.get('device');
 
     if (!position) {
       return NextResponse.json({ error: 'Position required' }, { status: 400 });
     }
-    if (!VALID_DEVICES.has(device)) {
+    // DELETE muss device EXPLIZIT bekommen — sonst würde der
+    // gegenseitige Slot mitgelöscht (destruktiv). Fehlender device-Param
+    // → 400.
+    if (rawDevice === null) {
+      return NextResponse.json({ error: 'device-Parameter erforderlich (mobile|desktop)' }, { status: 400 });
+    }
+    if (!isValidDevice(rawDevice)) {
       return NextResponse.json({ error: 'device muss mobile oder desktop sein' }, { status: 400 });
     }
+    const device = rawDevice;
 
     await prisma.ad_slots
       .delete({ where: { position_device: { position, device } } })
