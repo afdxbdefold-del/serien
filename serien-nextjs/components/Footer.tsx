@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Tv, Mail, ChevronRight } from 'lucide-react';
+import YieldlabFooterSlot from './YieldlabFooterSlot';
 
 // Social Media Links
 const socialLinks = [
@@ -36,6 +37,9 @@ export default function Footer() {
 
   return (
     <>
+      {/* Yieldlab Header-Bidding Slot (Desktop only, über dem Footer) */}
+      <YieldlabFooterSlot />
+
       {/* Main Footer */}
       <footer className="relative bg-gray-100 dark:bg-gradient-to-b dark:from-[hsl(230,25%,6%)] dark:to-[hsl(230,25%,4%)] text-gray-600 dark:text-gray-400 overflow-hidden border-t border-gray-200 dark:border-transparent">
         {/* Decorative gradient line */}
