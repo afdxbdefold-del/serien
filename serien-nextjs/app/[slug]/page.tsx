@@ -827,10 +827,30 @@ export default async function ArticlePage({ params }: PageProps) {
               Container kollabiert (gap auf 0). */}
           <aside
             className="hidden lg:block"
-            aria-label="Artikel Sidebar Werbung"
+            aria-label="Artikel Sidebar"
             data-ad-sidebar="desktop"
           >
             <div className="sticky top-24 space-y-6">
+              {/* Desktop-only: Serien-Infobox + WhereToStream nach oben in
+                  die Sidebar (User-Wunsch). Auf Mobile rendern dieselben
+                  Komponenten weiter unten unter `lg:hidden`. */}
+              {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+                <SeriesInfobox
+                  seriesId={article.primarySeriesId}
+                  seriesName={article.series.title || article.series.name || ''}
+                  seriesSlug={article.series.slug || ''}
+                />
+              )}
+              {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
+                <WhereToStreamBox
+                  seriesId={article.primarySeriesId}
+                  seriesName={article.series.title || article.series.name || ''}
+                  networks={article.series.networks}
+                  slug={article.series.slug}
+                />
+              )}
+
+              {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots. */}
               <div data-ad-slot-wrapper="desktop_sidebar_top_rect" className="empty:hidden">
                 <ClientAdSlot position="desktop_sidebar_top_rect" />
               </div>
@@ -924,8 +944,10 @@ export default async function ArticlePage({ params }: PageProps) {
         </section>
       </div>
 
-      {/* Serien-Infobox + Streaming-Box — außerhalb von <article> */}
-      <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8">
+      {/* Serien-Infobox + Streaming-Box — auf Mobile/Tablet unter dem
+          Artikel. Auf Desktop (≥lg) rendern dieselben Komponenten im
+          Sidebar-`<aside>` (siehe oben), daher hier `lg:hidden`. */}
+      <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-8 lg:hidden">
         {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
           <SeriesInfobox
             seriesId={article.primarySeriesId}
