@@ -1,0 +1,1 @@
+(self.pbjsChunk=self.pbjsChunk||[]).push([[5],{1252(t,n,e){e.d(n,{p:()=>s});var o=e(1069);function u(t){let n;return(0,o.II)()&&(n=window.googletag.pubads().getSlots().find(function(t){return n=>(0,o.sC)(n,t)}(t))),n}function s(t){const n=u(t);return n?{gptSlot:n.getAdUnitPath(),divId:n.getSlotElementId()}:{}}}}]);

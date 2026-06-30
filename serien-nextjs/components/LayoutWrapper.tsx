@@ -16,6 +16,10 @@ interface LayoutWrapperProps {
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname?.startsWith('/admin');
+  // Ad-Test-Seiten (Yieldlab/Prebid Auction-Tests) sollen isoliert
+  // rendern — KEIN Header, KEIN Footer, KEIN below_breadcrumb-Slot,
+  // damit Vermarkter saubere Auction-Logs sehen.
+  const isAdTestRoute = pathname?.startsWith('/adtest-');
   
   // Check if this is an article page (has a slug, not a special route)
   const specialRoutes = [
@@ -28,7 +32,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   ) && !pathname.includes('-serien');
 
   // Admin routes have their own full-page layout
-  if (isAdminRoute) {
+  if (isAdminRoute || isAdTestRoute) {
     return <>{children}</>;
   }
 

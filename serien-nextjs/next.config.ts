@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
         source: '/ads.txt',
         destination: '/api/ads',
       },
+      // Yieldlab/Vermarkter testen die Seite manchmal über /adtest-prebid.html
+      // — wir mappen den .html-Suffix transparent auf die App-Route.
+      {
+        source: '/adtest-prebid.html',
+        destination: '/adtest-prebid',
+      },
     ];
   },
   

@@ -1,0 +1,1 @@
+(self.pbjsChunk=self.pbjsChunk||[]).push([[769],{8944(t,e,n){n.d(e,{M:()=>i});var c=n(1069);function i(){const t=(0,c.Ot)();try{const e=t.innerHeight||t.document.documentElement.clientHeight||t.document.body.clientHeight||0;return{width:t.innerWidth||t.document.documentElement.clientWidth||t.document.body.clientWidth||0,height:e}}catch(t){return{}}}}}]);
