@@ -493,7 +493,7 @@ export default async function ArticlePage({ params }: PageProps) {
     || null;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[hsl(230,25%,5%)]">
+    <div className="min-h-screen bg-white dark:bg-[#1C1D22]">
       {/* Article-only ad interstitial. Reads its creative from the
           admin-managed ad_slots table (position="interstitial"). Renders
           nothing if the slot is inactive or empty. Appears on every page
@@ -572,7 +572,7 @@ export default async function ArticlePage({ params }: PageProps) {
       />
 
       {/* Article Content Section */}
-      <article className="bg-white dark:bg-[hsl(230,25%,5%)]">
+      <article className="bg-white dark:bg-[#1C1D22]">
         {/* ─────── Desktop-only Top-of-Article Ads ─────── */}
         {/* Billboard Header (970×250) ÜBER dem Megabanner Top.
             `empty:hidden` lässt den Wrapper komplett kollabieren, wenn
