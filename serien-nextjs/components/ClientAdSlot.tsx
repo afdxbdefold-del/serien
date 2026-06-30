@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
 import {
   fetchAdSlots,
   pickSlotForViewport,
@@ -43,23 +43,20 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     // 3rd-party-Snippets nutzen oft document.write() in externen Scripts —
     // wenn ein externes <script src=...> erkannt wird, rendern wir im
     // sandboxed iframe (eigener Document-Kontext → document.write() works).
+    // Custom HTML provider (TheMoneytizer, Plista, Outbrain, AWIN, Belboon,
+    // Direct-Deal Creatives, …): Code wird 1:1 so ausgeliefert wie er im
+    // Admin gespeichert ist — KEIN iframe-Wrapping, KEINE forcierten Größen,
+    // KEINE Style-Overrides. Slot-Maße aus dem Admin sind nur noch
+    // organisatorische Metadaten (Übersicht im Admin-UI), sie werden nicht
+    // mehr aufs DOM angewendet. Ad-Networks dimensionieren ihre Creatives
+    // selbst über das gelieferte Markup.
     if (config.provider === 'custom') {
       const variants = config.customHtmlVariants || [];
       const picked = pickAdVariant(variants, config.rotationMode || 'random');
-      let iframeCleanup: (() => void) | undefined;
       if (picked) {
-        const hasExternalScript = /<script[^>]+src=/i.test(picked.html);
-        if (hasExternalScript) {
-          iframeCleanup = renderAdInIframe(container, picked.html, config.width, config.height);
-        } else {
-          injectHtmlWithScripts(container, picked.html);
-        }
+        injectHtmlWithScripts(container, picked.html);
       }
       return () => {
-        // Reihenfolge ist wichtig: ERST den postMessage-Listener entfernen
-        // (damit nicht ein verspätetes Resize-Event den schon entfernten
-        // Iframe modifiziert), DANN den DOM-Knoten leeren.
-        if (iframeCleanup) iframeCleanup();
         container.innerHTML = '';
       };
     }

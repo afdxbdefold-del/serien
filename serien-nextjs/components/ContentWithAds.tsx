@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
 import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
 
 declare global {
@@ -76,19 +76,10 @@ export default function ContentWithAds({
           const picked = pickAdVariant(variants, adConfig.rotationMode || 'random');
           if (picked) {
             el.after(adContainer);
-            // 3rd-party affiliate/ad-network snippets (AWIN, Belboon, Plista,
-            // Outbrain etc.) verwenden oft document.write() in externen
-            // Scripts — das funktioniert nur in einem eigenen Document-
-            // Kontext, also rendern wir sie in einem sandboxed iframe.
-            // Reine HTML/CSS-Banner ohne <script> könnten direkt injected
-            // werden, aber der iframe-Pfad funktioniert für ALLE Varianten
-            // und ist somit die zuverlässigere Wahl.
-            const hasExternalScript = /<script[^>]+src=/i.test(picked.html);
-            if (hasExternalScript) {
-              renderAdInIframe(adContainer, picked.html, adConfig.width, adConfig.height);
-            } else {
-              injectHtmlWithScripts(adContainer, picked.html);
-            }
+            // Code 1:1 ausliefern wie er im Admin gespeichert ist — kein
+            // iframe-Wrapping, kein erzwungenes Sizing. Ad-Network rendert
+            // sein Creative direkt im Container.
+            injectHtmlWithScripts(adContainer, picked.html);
             adsInserted++;
           }
           return;
