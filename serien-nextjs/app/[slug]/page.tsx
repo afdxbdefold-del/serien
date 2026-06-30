@@ -608,7 +608,7 @@ export default async function ArticlePage({ params }: PageProps) {
         {/* ─────── Layout-Wrapper: Mobile = single column max-w-3xl
             (unverändert). Desktop ≥ lg: zweispaltiges Grid
             [Content max-w-3xl | Sidebar 300px] zentriert in max-w-[1100px]. ─── */}
-        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1100px] lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:gap-8 lg:justify-center">
+        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1100px] lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:gap-8 lg:justify-center bg-[#282A31]">
 
           {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
           <div className="w-full lg:max-w-[720px]">
