@@ -1,7 +1,6 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
-import Script from 'next/script';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
@@ -523,23 +522,28 @@ export default async function ArticlePage({ params }: PageProps) {
         />
       )}
 
-      {/* AdSense Loader — pro Artikel-Page via afterInteractive, damit Next.js
-          den Script-Lifecycle synchron mit den ClientAdSlot-Komponenten
-          managed. Vorher kurz im Root-<head> gehabt → SPA-Navigation zwischen
-          Artikeln rendert keine Ads mehr; Revert auf diese Variante hat das
-          Verhalten verifizierbar wiederhergestellt (Hard-Reload + Soft-Nav
-          beide funktional). */}
-      <Script
-        id="adsbygoogle-loader"
+      {/* AdSense Loader — als raw <script async> direkt im SSR-HTML, NICHT
+          via next/script `afterInteractive`. Grund: `afterInteractive` startet
+          das Script erst NACH der React-Hydration. Auf Twitter-/X-In-App-
+          Browsern (Bulk unseres /x-news-Traffics) dauert die Hydration 5-10 s
+          — viele User bouncen vorher zurück nach X, ohne dass das AdSense-
+          Pixel je gefeuert hat. Resultat: Page-View in unserer DB gezählt,
+          aber NULL bei AdSense. Erklärt die 12k→1k-Gap (~8 % Pixel-Fire-Rate
+          = User die >5s bleiben).
+          
+          Raw <script async> wird vom Browser parallel zum HTML-Parse geladen
+          und sofort beim Eintreffen ausgeführt — Ad-Pixel feuert nach 1-2 s
+          statt 5-10 s. Kein Hydration-Lock, kein next/script-Lifecycle.
+          
+          SPA-Navigation zwischen Artikeln: Da [slug]/page.tsx eine Server
+          Component ist, wird dieser <script>-Tag bei jeder vollständigen
+          Navigation neu im HTML emittiert. Next.js dedupliziert externe
+          Script-URLs nicht automatisch, aber das ist OK — adsbygoogle.js
+          ist idempotent und nutzt ein globales Queue-Array. */}
+      <script
+        async
         src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
         crossOrigin="anonymous"
-        strategy="afterInteractive"
-        // NPA-on-unknown-consent: Wenn der User noch nicht im Funding-
-        // Choices-CMP geklickt hat (oder explizit ablehnt), serviert
-        // AdSense trotzdem nicht-personalisierte Ads (rein kontextuell,
-        // basierend auf Artikel-Inhalt, ohne User-Profile/Cookies).
-        // DSGVO/TDDDG-konform, ~70-80% des Standard-CPM, Zero Gap zwischen
-        // Page-View und Ad-Render.
         data-npa-on-unknown-consent="1"
       />
 
