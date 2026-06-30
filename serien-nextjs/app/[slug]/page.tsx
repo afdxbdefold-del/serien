@@ -606,14 +606,16 @@ export default async function ArticlePage({ params }: PageProps) {
             [Content max-w-3xl | Sidebar 300px] zentriert in max-w-[1100px]. ─── */}
         <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1100px] lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:gap-8 lg:justify-center bg-[#282A31]">
 
-          {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
-          <div className="w-full lg:max-w-[720px]">
-
-          {/* Desktop Megabanner Top (970×90) — jetzt INNERHALB der Content-
-              Box ganz oben, direkt über Breadcrumb (User-Wunsch). */}
-          <div className="hidden lg:flex w-full justify-center pb-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_top">
+          {/* Desktop Megabanner Top (970×90) — zentriert über beiden
+              Grid-Spalten (Main + Sidebar). `lg:col-span-2` lässt den
+              Wrapper die volle Container-Breite einnehmen, `justify-center`
+              zentriert den Banner selbst. Auf Mobile ausgeblendet. */}
+          <div className="hidden lg:flex lg:col-span-2 w-full justify-center pb-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_top">
             <ClientAdSlot position="desktop_megabanner_top" />
           </div>
+
+          {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
+          <div className="w-full lg:max-w-[720px]">
 
           {/* Breadcrumb */}
           {article.series ? (
