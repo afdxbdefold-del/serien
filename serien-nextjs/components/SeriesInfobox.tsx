@@ -27,9 +27,13 @@ interface SeriesInfoboxProps {
   seriesId: number;
   seriesName: string;
   seriesSlug: string;
+  /** Layout-Variante. `default` = breite Anzeige unter dem Artikel (Cover
+   *  links neben den Infos ab md:). `sidebar` = Sidebar/300-px-Spalte, Cover
+   *  oben über den Infos, vollflächig, keine flex-row. */
+  variant?: 'default' | 'sidebar';
 }
 
-export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfoboxProps) {
+export function SeriesInfobox({ seriesId, seriesName, seriesSlug, variant = 'default' }: SeriesInfoboxProps) {
   const [data, setData] = useState<SeriesInfoboxData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,31 +64,53 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
     ? `/img/tmdb/w500${data.posterPath}`
     : null;
 
+  const isSidebar = variant === 'sidebar';
+
   return (
-    <div className="my-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-6 shadow-sm">
+    <div
+      className={
+        isSidebar
+          ? 'rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-4 shadow-sm'
+          : 'my-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-6 shadow-sm'
+      }
+    >
       {/* H3 TITLE (FIXED FORMAT) */}
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-        Mehr zur Serie „{seriesName}"
+      <h3
+        className={
+          isSidebar
+            ? 'text-base font-bold text-gray-900 dark:text-white mb-3 leading-snug'
+            : 'text-xl font-bold text-gray-900 dark:text-white mb-4'
+        }
+      >
+        Mehr zur Serie „{seriesName}“
       </h3>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* VISUAL: Series Poster (medium size) */}
+      <div className={isSidebar ? 'flex flex-col gap-4' : 'flex flex-col md:flex-row gap-6'}>
+        {/* VISUAL: Series Poster. Sidebar = volle Spaltenbreite oben.
+            Default = 128px-Kachel links neben den Infos. */}
         {posterImage && (
-          <div className="flex-shrink-0">
-            <div className="relative w-32 h-48 rounded-lg overflow-hidden shadow-md bg-gray-100 dark:bg-gray-700">
+          <div className={isSidebar ? 'w-full' : 'flex-shrink-0'}>
+            <div
+              className={
+                isSidebar
+                  ? 'relative w-full aspect-[2/3] rounded-lg overflow-hidden shadow-md bg-gray-100 dark:bg-gray-700'
+                  : 'relative w-32 h-48 rounded-lg overflow-hidden shadow-md bg-gray-100 dark:bg-gray-700'
+              }
+            >
               <Image
                 src={posterImage}
                 alt={seriesName}
                 fill
                 className="object-cover"
+                sizes={isSidebar ? '(max-width: 1024px) 0px, 300px' : '128px'}
               />
             </div>
           </div>
         )}
 
-        <div className="flex-1 flex flex-col justify-between">
+        <div className={isSidebar ? 'flex flex-col gap-3' : 'flex-1 flex flex-col justify-between'}>
           {/* META ROW: Scannable, no sentences */}
-          <div className="space-y-2 mb-4">
+          <div className={isSidebar ? 'space-y-1.5' : 'space-y-2 mb-4'}>
             {/* Line 1: Status · Seasons */}
             <div className="text-sm text-gray-700 dark:text-gray-300">
               {data.status && (
@@ -118,16 +144,22 @@ export function SeriesInfobox({ seriesId, seriesName, seriesSlug }: SeriesInfobo
             )}
           </div>
 
-          {/* MINI-HOOK: Single sentence, neutral */}
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Auf der Serienseite findest du Hintergründe, Besetzung und alle aktuellen Infos auf einen Blick.
+          {/* MINI-HOOK: Im Sidebar-Layout kürzer, kompakter. */}
+          <p className={isSidebar ? 'text-xs text-gray-600 dark:text-gray-400' : 'text-sm text-gray-600 dark:text-gray-400 mb-4'}>
+            {isSidebar
+              ? 'Alle Infos zur Serie auf einen Blick.'
+              : 'Auf der Serienseite findest du Hintergründe, Besetzung und alle aktuellen Infos auf einen Blick.'}
           </p>
 
           {/* CTA: Single, prominent button */}
           <div>
             <Link
               href={`/serie/${seriesSlug}`}
-              className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
+              className={
+                isSidebar
+                  ? 'inline-flex items-center w-full justify-center px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg'
+                  : 'inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg'
+              }
             >
               Zur Serien-Übersicht
               <svg 

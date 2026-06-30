@@ -839,6 +839,7 @@ export default async function ArticlePage({ params }: PageProps) {
                   seriesId={article.primarySeriesId}
                   seriesName={article.series.title || article.series.name || ''}
                   seriesSlug={article.series.slug || ''}
+                  variant="sidebar"
                 />
               )}
               {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
