@@ -495,9 +495,11 @@ export default function AdsAdminPage() {
                         <Monitor className="w-3 h-3" /> Desktop
                       </span>
                     )}
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-mono">
-                      {slot.width}x{slot.height}
-                    </span>
+                    {slot.provider === 'adsense' && (
+                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-mono">
+                        {slot.width}x{slot.height}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -724,45 +726,24 @@ function CustomHtmlEditor({
 
   return (
     <div className="space-y-4">
-      {/* Dimensions + rotation mode */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Breite (px) — nur für Platzhalter
-          </label>
-          <input
-            type="number"
-            value={slot.width}
-            onChange={(e) => updateSlot(slot.position, slot.device, 'width', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Höhe (px)
-          </label>
-          <input
-            type="number"
-            value={slot.height}
-            onChange={(e) => updateSlot(slot.position, slot.device, 'height', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Rotation
-          </label>
-          <select
-            value={slot.rotationMode}
-            onChange={(e) => updateSlot(slot.position, slot.device, 'rotationMode', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-            data-testid={`rotation-mode-${slot.position}`}
-          >
-            <option value="random">Zufällig (Random)</option>
-            <option value="weighted">Gewichtet (Weighted)</option>
-            <option value="first">Erste aktive (First)</option>
-          </select>
-        </div>
+      {/* Rotation mode — Breite/Höhe-Felder entfernt: Custom-HTML-Code wird
+          1:1 ans DOM ausgeliefert, das Ad-Network dimensioniert sein
+          Creative selbst. Slot-Maße sind hier keine sinnvolle Konfiguration
+          mehr. */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Rotation
+        </label>
+        <select
+          value={slot.rotationMode}
+          onChange={(e) => updateSlot(slot.position, slot.device, 'rotationMode', e.target.value)}
+          className="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+          data-testid={`rotation-mode-${slot.position}`}
+        >
+          <option value="random">Zufällig (Random)</option>
+          <option value="weighted">Gewichtet (Weighted)</option>
+          <option value="first">Erste aktive (First)</option>
+        </select>
       </div>
 
       {/* Variants */}
