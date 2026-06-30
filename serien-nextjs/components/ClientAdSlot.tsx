@@ -37,19 +37,14 @@ function AdSlotInner({ config }: { config: AdConfig }) {
                    !window.location.hostname.includes('preview');
 
     // Custom HTML provider (TheMoneytizer, Plista, Outbrain, AWIN, Belboon,
-    // Direct-Deal Creatives, …): User-kontrollierter Code, kein AdSense-Policy-
-    // Risiko. Daher AUCH auf Preview/Localhost ausführen, damit Integration
-    // (z.B. TheMoneytizer-iframes) live getestet werden kann.
-    // 3rd-party-Snippets nutzen oft document.write() in externen Scripts —
-    // wenn ein externes <script src=...> erkannt wird, rendern wir im
-    // sandboxed iframe (eigener Document-Kontext → document.write() works).
-    // Custom HTML provider (TheMoneytizer, Plista, Outbrain, AWIN, Belboon,
     // Direct-Deal Creatives, …): Code wird 1:1 so ausgeliefert wie er im
     // Admin gespeichert ist — KEIN iframe-Wrapping, KEINE forcierten Größen,
     // KEINE Style-Overrides. Slot-Maße aus dem Admin sind nur noch
     // organisatorische Metadaten (Übersicht im Admin-UI), sie werden nicht
     // mehr aufs DOM angewendet. Ad-Networks dimensionieren ihre Creatives
-    // selbst über das gelieferte Markup.
+    // selbst über das gelieferte Markup. Daher auch auf Preview/Localhost
+    // live ausgeführt (kein AdSense-Policy-Risiko bei Admin-kontrolliertem
+    // Code).
     if (config.provider === 'custom') {
       const variants = config.customHtmlVariants || [];
       const picked = pickAdVariant(variants, config.rotationMode || 'random');
