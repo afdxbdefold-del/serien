@@ -574,16 +574,12 @@ export default async function ArticlePage({ params }: PageProps) {
       {/* Article Content Section */}
       <article className="dark:bg-[#1C1D22]">
         {/* ─────── Desktop-only Top-of-Article Ads ─────── */}
-        {/* Billboard Header (970×250) ÜBER dem Megabanner Top.
+        {/* Billboard Header (970×250) ÜBER dem Container.
             `empty:hidden` lässt den Wrapper komplett kollabieren, wenn
             ClientAdSlot null rendert (kein aktiver Slot). Verhindert
             visuelle Lücken bei deaktivierten Slots. */}
         <div className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0" data-ad-slot-wrapper="desktop_billboard_header">
           <ClientAdSlot position="desktop_billboard_header" />
-        </div>
-        {/* Megabanner Top (970×90) direkt über Breadcrumb / Titel. */}
-        <div className="hidden lg:flex w-full justify-center pb-4 px-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_top">
-          <ClientAdSlot position="desktop_megabanner_top" />
         </div>
 
         {/* ─────── Desktop Sticky Skyscrapers (nur ab xl ≥ 1280 px,
@@ -612,7 +608,13 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
           <div className="w-full lg:max-w-[720px]">
-          
+
+          {/* Desktop Megabanner Top (970×90) — jetzt INNERHALB der Content-
+              Box ganz oben, direkt über Breadcrumb (User-Wunsch). */}
+          <div className="hidden lg:flex w-full justify-center pb-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_top">
+            <ClientAdSlot position="desktop_megabanner_top" />
+          </div>
+
           {/* Breadcrumb */}
           {article.series ? (
             <Breadcrumb items={[{ label: article.series.title || article.series.name, href: `/serie/${article.series.slug}` }, { label: article.title }]} className="mb-4" />
