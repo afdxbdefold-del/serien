@@ -43,12 +43,20 @@ export async function POST(req: NextRequest) {
 
   const data = { name, html, placement, isActive, hideFromBots, sortOrder };
 
-  const saved = body.id
-    ? await prisma.global_tags.update({ where: { id: body.id }, data })
-    : await prisma.global_tags.create({ data });
+  try {
+    const saved = body.id
+      ? await prisma.global_tags.update({ where: { id: body.id }, data })
+      : await prisma.global_tags.create({ data });
 
-  revalidateTag('global-tags');
-  return NextResponse.json(saved);
+    revalidateTag('global-tags');
+    return NextResponse.json(saved);
+  } catch (err: unknown) {
+    // Prisma "record not found" → 404 statt 500
+    if (typeof err === 'object' && err && 'code' in err && (err as { code: string }).code === 'P2025') {
+      return NextResponse.json({ error: 'tag not found' }, { status: 404 });
+    }
+    throw err;
+  }
 }
 
 export async function DELETE(req: NextRequest) {

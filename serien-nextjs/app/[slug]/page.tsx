@@ -867,6 +867,12 @@ export default async function ArticlePage({ params }: PageProps) {
           />
         )}
       </div>
+
+      {/* Globale Custom-Tags am Ende der Artikelseite (z.B. Late-Loading-
+          Pixel, Tracking-Beacons, Adblock-Detection). Default-Placement im
+          Admin — landet bei "Standard"-Tags hier. Verwaltet via
+          /admin/global-tags. */}
+      <GlobalTags placement="body-end" />
     </div>
   );
 }
