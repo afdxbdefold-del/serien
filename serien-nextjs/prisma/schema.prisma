@@ -47,6 +47,31 @@ model ad_slots {
   updatedAt   DateTime
 }
 
+/// Globale Custom-Tags (Script, iframe, beliebiges HTML), die NUR auf
+/// Artikel-Seiten gerendert werden — z.B. The-Moneytizer-Loader, Header-
+/// Bidding-Wrapper, externe SSP-Pixel, Anti-Adblock-Pings.
+///
+/// Placement-Werte:
+///   - 'head'       → in <head> der Artikelseite (synchron beim Parse)
+///   - 'body-start' → direkt nach <body> (vor allen Inhalten)
+///   - 'body-end'   → ganz unten in <body> (nach Footer)
+///
+/// Bots werden vor dem Rendering UA-gefiltert (gleiche Heuristik wie
+/// ArticleInterstitial), damit Googlebot/SEO-Tools keine paid Creatives
+/// im Snapshot sehen.
+model global_tags {
+  id          String   @id @default(cuid())
+  name        String   // Anzeigename im Admin (z.B. "The Moneytizer Loader")
+  html        String   @db.Text  // Roh-HTML-Snippet (Script, iframe, …)
+  placement   String   @default("body-end") // 'head' | 'body-start' | 'body-end'
+  isActive    Boolean  @default(false)
+  hideFromBots Boolean @default(true)  // UA-Filter aktiv
+  sortOrder   Int      @default(0)     // Reihenfolge bei mehreren Tags am selben Placement
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
 /// Observability for Google Indexing API calls.
 /// Captures every push attempt (publish/update/manual) so the admin dashboard
 /// can verify whether Google is actually receiving notifications and whether

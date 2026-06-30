@@ -20,6 +20,7 @@ import ContentWithAds from '@/components/ContentWithAds';
 import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
+import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
 
@@ -546,6 +547,13 @@ export default async function ArticlePage({ params }: PageProps) {
         crossOrigin="anonymous"
         data-npa-on-unknown-consent="1"
       />
+
+      {/* Globale Custom-Tags (The-Moneytizer-Loader, Header-Bidding-
+          Wrapper, externe SSP-Pixel …). Verwaltet via /admin/global-tags.
+          NUR auf Artikelseiten (dieser Page-Component). Bot-Traffic wird
+          serverseitig gefiltert (UA-Check in lib/global-tags.ts). */}
+      <GlobalTags placement="head" />
+      <GlobalTags placement="body-start" />
 
       {/* JSON-LD Structured Data with ImageObject */}
       <script
