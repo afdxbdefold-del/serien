@@ -35,14 +35,14 @@ function AdSlotInner({ config }: { config: AdConfig }) {
 
     const isProd = window.location.hostname !== 'localhost' &&
                    !window.location.hostname.includes('preview');
-    if (!isProd) return;
 
-    // Custom HTML provider (Plista, Outbrain, AWIN, Belboon, direct deal,
-    // anything else): 3rd-party-Snippets nutzen oft document.write() in
-    // externen Scripts, was post-load nicht mehr funktioniert. Wenn ein
-    // externes <script src=...> erkannt wird, rendern wir im sandboxed
-    // iframe (eigener Document-Kontext → document.write() works).
-    // Reine HTML/CSS-Banner injizieren wir direkt.
+    // Custom HTML provider (TheMoneytizer, Plista, Outbrain, AWIN, Belboon,
+    // Direct-Deal Creatives, …): User-kontrollierter Code, kein AdSense-Policy-
+    // Risiko. Daher AUCH auf Preview/Localhost ausführen, damit Integration
+    // (z.B. TheMoneytizer-iframes) live getestet werden kann.
+    // 3rd-party-Snippets nutzen oft document.write() in externen Scripts —
+    // wenn ein externes <script src=...> erkannt wird, rendern wir im
+    // sandboxed iframe (eigener Document-Kontext → document.write() works).
     if (config.provider === 'custom') {
       const variants = config.customHtmlVariants || [];
       const picked = pickAdVariant(variants, config.rotationMode || 'random');
@@ -58,6 +58,10 @@ function AdSlotInner({ config }: { config: AdConfig }) {
         container.innerHTML = '';
       };
     }
+
+    // AdSense provider: auf Preview/Localhost SKIPPEN (Policy — AdSense
+    // verbietet Test-Domains und kann das Konto sperren).
+    if (!isProd) return;
 
     // AdSense provider: create fresh <ins> via raw DOM (not React JSX) so
     // adsbygoogle.push() always sees a clean, never-seen-before element.
@@ -129,9 +133,14 @@ export default function ClientAdSlot({ position, className = '' }: ClientAdSlotP
 
   if (!config) return null;
 
-  // Dev mode placeholder
-  if (typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' || window.location.hostname.includes('preview'))) {
+  // Dev-Mode-Placeholder NUR für AdSense — Custom-HTML (TheMoneytizer,
+  // Plista, AWIN, …) ist User-kontrolliert und muss auch auf Preview/
+  // Localhost live rendern, damit Integration (z.B. TheMoneytizer
+  // iframe) getestet werden kann. AdSense bleibt im Preview gemockt
+  // wegen Policy/Invalid-Traffic-Risiko.
+  const isPreviewHost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname.includes('preview'));
+  if (isPreviewHost && config.provider !== 'custom') {
     return (
       <div className={`ad-container flex justify-center ${className}`} data-ad-position={position} data-testid={`ad-slot-${position}`}>
         <div className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
