@@ -2,7 +2,27 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 
-// Cache ad slots for 5 minutes
+type CustomVariant = { label?: string; html?: string; weight?: number; isActive?: boolean };
+
+interface PublicSlot {
+  provider: string;
+  adClient: string;
+  adSlot: string;
+  customHtmlVariants?: CustomVariant[];
+  rotationMode: string;
+  width: number;
+  height: number;
+  /**
+   * Device der Konfiguration. Backward-compat-Felder mobileOnly/desktopOnly
+   * werden aus device abgeleitet, damit alter Code (z.B. ClientAdSlot vor
+   * dem Refactor) weiter funktioniert während wir den Frontend-Code
+   * migrieren.
+   */
+  device: 'mobile' | 'desktop';
+  mobileOnly: boolean;
+  desktopOnly: boolean;
+}
+
 const getCachedAdSlots = unstable_cache(
   async () => {
     return prisma.ad_slots.findMany({
@@ -10,20 +30,33 @@ const getCachedAdSlots = unstable_cache(
     });
   },
   ['ad-slots'],
-  { revalidate: 300, tags: ['ad-slots'] }
+  { revalidate: 300, tags: ['ad-slots'] },
 );
 
-// GET active ad slots (public endpoint for frontend)
+/**
+ * Public Endpoint für Frontend-Slot-Lookups.
+ *
+ * Response-Shape (NEU mit Mobile/Desktop-Trennung):
+ *   {
+ *     mobile:  { [position]: PublicSlot },
+ *     desktop: { [position]: PublicSlot },
+ *   }
+ *
+ * Der Client (ClientAdSlot, MobileTopAd …) erkennt den Viewport per
+ * `matchMedia('(max-width: 767px)')` und greift dann auf die jeweilige
+ * Map zu. Wenn eine Position für ein Device gar nicht konfiguriert
+ * wurde, rendert ClientAdSlot nichts (return null).
+ */
 export async function GET() {
   try {
     const adSlots = await getCachedAdSlots();
-    
-    // Convert to a map for easy lookup
-    const slotsMap: Record<string, any> = {};
-    adSlots.forEach(slot => {
-      // Parse customHtmlJson once on the server so the client never
-      // ships JSON.parse() for every slot render.
-      let customHtmlVariants: any[] | undefined;
+    const out: { mobile: Record<string, PublicSlot>; desktop: Record<string, PublicSlot> } = {
+      mobile: {},
+      desktop: {},
+    };
+    for (const slot of adSlots) {
+      const device: 'mobile' | 'desktop' = slot.device === 'desktop' ? 'desktop' : 'mobile';
+      let customHtmlVariants: CustomVariant[] | undefined;
       if (slot.provider === 'custom' && slot.customHtmlJson) {
         try {
           const parsed = JSON.parse(slot.customHtmlJson);
@@ -32,7 +65,7 @@ export async function GET() {
           customHtmlVariants = undefined;
         }
       }
-      slotsMap[slot.position] = {
+      out[device][slot.position] = {
         provider: slot.provider || 'adsense',
         adClient: slot.adClient,
         adSlot: slot.adSlot,
@@ -40,14 +73,14 @@ export async function GET() {
         rotationMode: slot.rotationMode || 'random',
         width: slot.width,
         height: slot.height,
-        mobileOnly: slot.mobileOnly,
-        desktopOnly: slot.desktopOnly,
+        device,
+        mobileOnly: device === 'mobile',
+        desktopOnly: device === 'desktop',
       };
-    });
-    
-    return NextResponse.json(slotsMap);
+    }
+    return NextResponse.json(out);
   } catch (error) {
     console.error('Error fetching ad slots:', error);
-    return NextResponse.json({}, { status: 200 }); // Return empty on error
+    return NextResponse.json({ mobile: {}, desktop: {} }, { status: 200 });
   }
 }

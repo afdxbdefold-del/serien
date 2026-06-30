@@ -25,7 +25,14 @@ datasource db {
 
 model ad_slots {
   id          String   @id
-  position    String   @unique
+  /// Logische Position auf der Page (z.B. "below_intro", "in_content").
+  /// IST NICHT MEHR @unique alleine — dieselbe Position kann pro `device`
+  /// einmal existieren (Mobile + Desktop können komplett unterschiedliche
+  /// Slots, Sizes, Provider, AdSense-IDs etc. haben).
+  position    String
+  /// 'mobile' | 'desktop' — pro Device komplett getrennte Konfiguration.
+  /// ClientAdSlot pickt zur Laufzeit anhand des Viewports.
+  device      String   @default("mobile")
   name        String
   description String?
   // 'adsense' (legacy: render <ins class="adsbygoogle">) or
@@ -41,10 +48,14 @@ model ad_slots {
   width       Int
   height      Int
   isActive    Boolean  @default(true)
+  /// Deprecated: durch `device` ersetzt, werden für Backwards-Compat noch
+  /// vom Admin-UI gesetzt aber nicht mehr als Filter-Source-of-Truth.
   mobileOnly  Boolean  @default(false)
   desktopOnly Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime
+
+  @@unique([position, device])
 }
 
 /// Globale Custom-Tags (Script, iframe, beliebiges HTML), die NUR auf

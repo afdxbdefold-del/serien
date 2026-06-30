@@ -2,27 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe, AdVariant } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe } from '@/lib/ad-html-injector';
+import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle: unknown[];
   }
 }
 
 interface ContentWithAdsProps {
   html: string;
   className?: string;
-}
-
-interface AdConfig {
-  provider?: 'adsense' | 'custom';
-  adClient: string;
-  adSlot: string;
-  customHtmlVariants?: AdVariant[];
-  rotationMode?: 'random' | 'weighted' | 'first';
-  width: number;
-  height: number;
 }
 
 /**
@@ -37,23 +28,16 @@ export default function ContentWithAds({
   const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
   const pathname = usePathname();
 
-  // Fetch ad config once
+  // Fetch ad config once. Picks Mobile- oder Desktop-Slot je nach
+  // Viewport (Source-of-Truth: `device`-Spalte im DB-Slot).
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const res = await fetch('/api/ads/slots');
-        if (res.ok) {
-          const slots = await res.json();
-          const inContentConfig = slots['in_content'];
-          if (inContentConfig) {
-            setAdConfig(inContentConfig);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load in-content ad config:', error);
-      }
-    };
-    loadConfig();
+    const mobile = isMobileViewport();
+    fetchAdSlots()
+      .then((slots) => {
+        const cfg = (mobile ? slots.mobile : slots.desktop)['in_content'];
+        if (cfg) setAdConfig(cfg);
+      })
+      .catch((err) => console.error('Failed to load in-content ad config:', err));
   }, []);
 
   // Inject ads whenever html changes OR pathname changes (SPA navigation)

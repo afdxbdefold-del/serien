@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Trash2, Plus, Eye, EyeOff, Monitor, Smartphone, RefreshCw, Code, Layers } from 'lucide-react';
+import { Save, Trash2, Eye, EyeOff, Monitor, Smartphone, RefreshCw, Code, Layers, Plus } from 'lucide-react';
 
-// Vordefinierte Ad-Positionen mit Beschreibungen
+type Device = 'mobile' | 'desktop';
+
+// Vordefinierte Ad-Positionen mit Beschreibungen. Diese Liste ist
+// device-agnostisch — JEDE Position kann unabhängig für Mobile UND
+// Desktop konfiguriert werden (komplette Trennung im Backend via
+// composite unique `(position, device)`).
 const AD_POSITIONS = [
   { 
     position: 'mobile_top', 
@@ -89,6 +94,7 @@ interface AdVariant {
 interface AdSlot {
   id?: string;
   position: string;
+  device: Device;
   name: string;
   description?: string;
   provider: 'adsense' | 'custom';
@@ -99,15 +105,25 @@ interface AdSlot {
   width: number;
   height: number;
   isActive: boolean;
-  mobileOnly: boolean;
-  desktopOnly: boolean;
 }
+
+const DEVICE_DEFAULTS: Record<Device, { width: number; height: number }> = {
+  // Mobile: typische 300×250 / 300×600 Inventar.
+  mobile: { width: 300, height: 250 },
+  // Desktop: 728×90 Leaderboard / 300×600 Half-Page / 970×250 Billboard.
+  // Wir starten mit Leaderboard als Default, weil das das gängigste
+  // Desktop-Format ist und in fast alle Slots passt.
+  desktop: { width: 728, height: 90 },
+};
+
+const positionKey = (position: string, device: Device) => `${position}__${device}`;
 
 export default function AdsAdminPage() {
   const [slots, setSlots] = useState<AdSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<Device>('mobile');
 
   // Lade existierende Slots
   useEffect(() => {
@@ -117,36 +133,52 @@ export default function AdsAdminPage() {
   const fetchSlots = async () => {
     try {
       const res = await fetch('/api/admin/ads');
-      const data = await res.json();
-      
-      // Merge mit vordefinierten Positionen
-      const mergedSlots = AD_POSITIONS.map(pos => {
-        const existing = data.find((s: AdSlot) => s.position === pos.position);
-        if (existing) {
-          return {
-            ...existing,
-            provider: existing.provider || 'adsense',
-            customHtmlVariants: Array.isArray(existing.customHtmlVariants) ? existing.customHtmlVariants : [],
-            rotationMode: existing.rotationMode || 'random',
-          };
+      const data: AdSlot[] = await res.json();
+
+      // Pro Position × Device EIN Eintrag. Wir mergen die DB-Werte gegen
+      // die kanonische `AD_POSITIONS`-Liste — wenn eine (position, device)
+      // Combo in der DB fehlt, gibt's einen leeren Default-Slot zum
+      // Befüllen. So sieht der Admin SOFORT alle 10 Positionen × 2 Devices
+      // = 20 Slots im UI (10 pro Tab).
+      const mergedSlots: AdSlot[] = [];
+      for (const pos of AD_POSITIONS) {
+        for (const device of ['mobile', 'desktop'] as const) {
+          const existing = data.find(
+            (s) => s.position === pos.position && s.device === device,
+          );
+          if (existing) {
+            mergedSlots.push({
+              ...existing,
+              device,
+              provider: existing.provider || 'adsense',
+              customHtmlVariants: Array.isArray(existing.customHtmlVariants)
+                ? existing.customHtmlVariants
+                : [],
+              rotationMode: existing.rotationMode || 'random',
+            });
+          } else {
+            // mobile_top ist als „mobile only" konzipiert — der Desktop-
+            // Eintrag wird nicht auf der Live-Page gerendert (Wrapper hat
+            // `lg:hidden`). Wir zeigen ihn im UI trotzdem als Platzhalter
+            // an, damit das Admin-UI konsistent bleibt.
+            mergedSlots.push({
+              position: pos.position,
+              device,
+              name: pos.name,
+              description: pos.description,
+              provider: 'adsense',
+              adClient: 'ca-pub-8583619451045805',
+              adSlot: '',
+              customHtmlVariants: [],
+              rotationMode: 'random',
+              width: device === 'mobile' ? pos.defaultWidth : DEVICE_DEFAULTS.desktop.width,
+              height: device === 'mobile' ? pos.defaultHeight : DEVICE_DEFAULTS.desktop.height,
+              isActive: false,
+            });
+          }
         }
-        return {
-          position: pos.position,
-          name: pos.name,
-          description: pos.description,
-          provider: 'adsense' as const,
-          adClient: 'ca-pub-8583619451045805',
-          adSlot: '',
-          customHtmlVariants: [],
-          rotationMode: 'random' as const,
-          width: pos.defaultWidth,
-          height: pos.defaultHeight,
-          isActive: false,
-          mobileOnly: pos.mobileOnly || false,
-          desktopOnly: false,
-        };
-      });
-      
+      }
+
       setSlots(mergedSlots);
     } catch (error) {
       console.error('Error fetching slots:', error);
@@ -166,7 +198,8 @@ export default function AdsAdminPage() {
       return;
     }
 
-    setSaving(slot.position);
+    const key = positionKey(slot.position, slot.device);
+    setSaving(key);
     try {
       const res = await fetch('/api/admin/ads', {
         method: 'POST',
@@ -175,12 +208,15 @@ export default function AdsAdminPage() {
       });
 
       if (res.ok) {
-        setMessage({ type: 'success', text: `${slot.name} gespeichert` });
+        setMessage({
+          type: 'success',
+          text: `${slot.name} (${slot.device}) gespeichert`,
+        });
         fetchSlots();
       } else {
         throw new Error('Save failed');
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Fehler beim Speichern' });
     } finally {
       setSaving(null);
@@ -188,49 +224,43 @@ export default function AdsAdminPage() {
     }
   };
 
-  const handleDelete = async (position: string) => {
-    if (!confirm('Wirklich löschen?')) return;
+  const handleDelete = async (position: string, device: Device) => {
+    if (!confirm(`Slot ${position} (${device}) wirklich löschen?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/ads?position=${position}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `/api/admin/ads?position=${encodeURIComponent(position)}&device=${device}`,
+        { method: 'DELETE' },
+      );
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Gelöscht' });
         fetchSlots();
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Fehler beim Löschen' });
     }
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const updateSlot = (position: string, field: string, value: any) => {
-    setSlots(prev => prev.map(slot => 
-      slot.position === position ? { ...slot, [field]: value } : slot
+  const updateSlot = (position: string, device: Device, field: string, value: unknown) => {
+    setSlots(prev => prev.map(slot =>
+      slot.position === position && slot.device === device
+        ? { ...slot, [field]: value }
+        : slot
     ));
   };
 
-  const parseAdCode = (position: string, adCode: string) => {
-    // Extrahiere Werte aus AdSense-Code
+  const parseAdCode = (position: string, device: Device, adCode: string) => {
     const slotMatch = adCode.match(/data-ad-slot="([^"]+)"/);
     const clientMatch = adCode.match(/data-ad-client="([^"]+)"/);
     const widthMatch = adCode.match(/width[:\s]*(\d+)px/i);
     const heightMatch = adCode.match(/height[:\s]*(\d+)px/i);
 
-    if (slotMatch) {
-      updateSlot(position, 'adSlot', slotMatch[1]);
-    }
-    if (clientMatch) {
-      updateSlot(position, 'adClient', clientMatch[1]);
-    }
-    if (widthMatch) {
-      updateSlot(position, 'width', parseInt(widthMatch[1]));
-    }
-    if (heightMatch) {
-      updateSlot(position, 'height', parseInt(heightMatch[1]));
-    }
+    if (slotMatch) updateSlot(position, device, 'adSlot', slotMatch[1]);
+    if (clientMatch) updateSlot(position, device, 'adClient', clientMatch[1]);
+    if (widthMatch) updateSlot(position, device, 'width', parseInt(widthMatch[1]));
+    if (heightMatch) updateSlot(position, device, 'height', parseInt(heightMatch[1]));
   };
 
   if (loading) {
@@ -256,8 +286,46 @@ export default function AdsAdminPage() {
             Ad-Verwaltung
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Verwalte alle Werbeplätze auf der Artikelseite. Füge AdSense-Codes ein oder konfiguriere sie manuell.
+            Mobile- und Desktop-Slots sind <strong>vollständig getrennt</strong> —
+            pro Tab kannst du komplett unterschiedliche Provider, AdSense-IDs,
+            Maße und Custom-HTML hinterlegen.
           </p>
+        </div>
+
+        {/* Device-Tabs */}
+        <div className="mb-6 flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-800 rounded-xl w-fit">
+          {(['mobile', 'desktop'] as const).map((d) => {
+            const count = slots.filter((s) => s.device === d && s.isActive).length;
+            const total = slots.filter((s) => s.device === d).length;
+            const Icon = d === 'mobile' ? Smartphone : Monitor;
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setActiveTab(d)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === d
+                    ? d === 'mobile'
+                      ? 'bg-blue-500 text-white shadow-lg'
+                      : 'bg-purple-500 text-white shadow-lg'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                data-testid={`device-tab-${d}`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="capitalize">{d}</span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full ${
+                    activeTab === d
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  {count}/{total}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Message */}
@@ -282,14 +350,15 @@ export default function AdsAdminPage() {
           </button>
         </div>
 
-        {/* Ad Slots */}
+        {/* Ad Slots — gefiltert nach activeTab */}
         <div className="space-y-6">
-          {slots.map((slot) => {
+          {slots.filter(s => s.device === activeTab).map((slot) => {
             const posConfig = AD_POSITIONS.find(p => p.position === slot.position);
-            
+            const key = positionKey(slot.position, slot.device);
+
             return (
-              <div 
-                key={slot.position}
+              <div
+                key={key}
                 className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 transition-colors ${
                   slot.isActive 
                     ? 'border-green-500 dark:border-green-600' 
@@ -333,7 +402,7 @@ export default function AdsAdminPage() {
                   <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
                     <button
                       type="button"
-                      onClick={() => updateSlot(slot.position, 'provider', 'adsense')}
+                      onClick={() => updateSlot(slot.position, slot.device, 'provider', 'adsense')}
                       className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         slot.provider === 'adsense'
                           ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
@@ -345,7 +414,7 @@ export default function AdsAdminPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => updateSlot(slot.position, 'provider', 'custom')}
+                      onClick={() => updateSlot(slot.position, slot.device, 'provider', 'custom')}
                       className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         slot.provider === 'custom'
                           ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
@@ -367,7 +436,7 @@ export default function AdsAdminPage() {
                         <textarea
                           placeholder="Füge hier den kompletten AdSense-Code ein..."
                           className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-xs resize-none"
-                          onChange={(e) => parseAdCode(slot.position, e.target.value)}
+                          onChange={(e) => parseAdCode(slot.position, slot.device, e.target.value)}
                         />
                       </div>
 
@@ -380,7 +449,7 @@ export default function AdsAdminPage() {
                           <input
                             type="text"
                             value={slot.adSlot}
-                            onChange={(e) => updateSlot(slot.position, 'adSlot', e.target.value)}
+                            onChange={(e) => updateSlot(slot.position, slot.device, 'adSlot', e.target.value)}
                             placeholder="z.B. 1234567890"
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono"
                             data-testid={`slot-id-${slot.position}`}
@@ -393,7 +462,7 @@ export default function AdsAdminPage() {
                           <input
                             type="number"
                             value={slot.width}
-                            onChange={(e) => updateSlot(slot.position, 'width', parseInt(e.target.value) || 0)}
+                            onChange={(e) => updateSlot(slot.position, slot.device, 'width', parseInt(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                           />
                         </div>
@@ -404,7 +473,7 @@ export default function AdsAdminPage() {
                           <input
                             type="number"
                             value={slot.height}
-                            onChange={(e) => updateSlot(slot.position, 'height', parseInt(e.target.value) || 0)}
+                            onChange={(e) => updateSlot(slot.position, slot.device, 'height', parseInt(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                           />
                         </div>
@@ -415,7 +484,7 @@ export default function AdsAdminPage() {
                           <input
                             type="text"
                             value={slot.adClient}
-                            onChange={(e) => updateSlot(slot.position, 'adClient', e.target.value)}
+                            onChange={(e) => updateSlot(slot.position, slot.device, 'adClient', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
                           />
                         </div>
@@ -429,50 +498,19 @@ export default function AdsAdminPage() {
                     />
                   )}
 
-                  {/* Toggles */}
+                  {/* Toggles — Device wird über die Tabs gesteuert, nicht
+                      mehr über mobileOnly/desktopOnly Checkboxen. */}
                   <div className="flex flex-wrap items-center gap-6 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={slot.isActive}
-                        onChange={(e) => updateSlot(slot.position, 'isActive', e.target.checked)}
+                        onChange={(e) => updateSlot(slot.position, slot.device, 'isActive', e.target.checked)}
                         className="w-5 h-5 rounded border-gray-300 text-green-500 focus:ring-green-500"
                       />
                       <span className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
                         {slot.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        Aktiv
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={slot.mobileOnly}
-                        onChange={(e) => {
-                          updateSlot(slot.position, 'mobileOnly', e.target.checked);
-                          if (e.target.checked) updateSlot(slot.position, 'desktopOnly', false);
-                        }}
-                        className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                      />
-                      <span className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                        <Smartphone className="w-4 h-4" />
-                        Nur Mobile
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={slot.desktopOnly}
-                        onChange={(e) => {
-                          updateSlot(slot.position, 'desktopOnly', e.target.checked);
-                          if (e.target.checked) updateSlot(slot.position, 'mobileOnly', false);
-                        }}
-                        className="w-5 h-5 rounded border-gray-300 text-purple-500 focus:ring-purple-500"
-                      />
-                      <span className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                        <Monitor className="w-4 h-4" />
-                        Nur Desktop
+                        Aktiv (für {slot.device})
                       </span>
                     </label>
                   </div>
@@ -485,7 +523,7 @@ export default function AdsAdminPage() {
                     <div className="flex items-center gap-2">
                       {slot.id && (
                         <button
-                          onClick={() => handleDelete(slot.position)}
+                          onClick={() => handleDelete(slot.position, slot.device)}
                           className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -495,14 +533,14 @@ export default function AdsAdminPage() {
                       <button
                         onClick={() => handleSave(slot)}
                         disabled={
-                          saving === slot.position ||
+                          saving === key ||
                           (slot.provider === 'adsense' && !slot.adSlot) ||
                           (slot.provider === 'custom' && (slot.customHtmlVariants?.length === 0 || !slot.customHtmlVariants?.some(v => v.html?.trim())))
                         }
                         className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                         data-testid={`save-${slot.position}`}
                       >
-                        {saving === slot.position ? (
+                        {saving === key ? (
                           <RefreshCw className="w-4 h-4 animate-spin" />
                         ) : (
                           <Save className="w-4 h-4" />
@@ -557,13 +595,13 @@ function CustomHtmlEditor({
   updateSlot,
 }: {
   slot: AdSlot;
-  updateSlot: (position: string, field: string, value: any) => void;
+  updateSlot: (position: string, device: Device, field: string, value: unknown) => void;
 }) {
   const variants = slot.customHtmlVariants || [];
 
-  const updateVariant = (idx: number, field: keyof AdVariant, value: any) => {
+  const updateVariant = (idx: number, field: keyof AdVariant, value: unknown) => {
     const next = variants.map((v, i) => (i === idx ? { ...v, [field]: value } : v));
-    updateSlot(slot.position, 'customHtmlVariants', next);
+    updateSlot(slot.position, slot.device, 'customHtmlVariants', next);
   };
 
   const addVariant = () => {
@@ -571,12 +609,12 @@ function CustomHtmlEditor({
       ...variants,
       { label: `Variante ${variants.length + 1}`, html: '', weight: 1, isActive: true },
     ];
-    updateSlot(slot.position, 'customHtmlVariants', next);
+    updateSlot(slot.position, slot.device, 'customHtmlVariants', next);
   };
 
   const removeVariant = (idx: number) => {
     const next = variants.filter((_, i) => i !== idx);
-    updateSlot(slot.position, 'customHtmlVariants', next);
+    updateSlot(slot.position, slot.device, 'customHtmlVariants', next);
   };
 
   return (
@@ -590,7 +628,7 @@ function CustomHtmlEditor({
           <input
             type="number"
             value={slot.width}
-            onChange={(e) => updateSlot(slot.position, 'width', parseInt(e.target.value) || 0)}
+            onChange={(e) => updateSlot(slot.position, slot.device, 'width', parseInt(e.target.value) || 0)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
           />
         </div>
@@ -601,7 +639,7 @@ function CustomHtmlEditor({
           <input
             type="number"
             value={slot.height}
-            onChange={(e) => updateSlot(slot.position, 'height', parseInt(e.target.value) || 0)}
+            onChange={(e) => updateSlot(slot.position, slot.device, 'height', parseInt(e.target.value) || 0)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
           />
         </div>
@@ -611,7 +649,7 @@ function CustomHtmlEditor({
           </label>
           <select
             value={slot.rotationMode}
-            onChange={(e) => updateSlot(slot.position, 'rotationMode', e.target.value)}
+            onChange={(e) => updateSlot(slot.position, slot.device, 'rotationMode', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
             data-testid={`rotation-mode-${slot.position}`}
           >
@@ -640,7 +678,7 @@ function CustomHtmlEditor({
 
         {variants.length === 0 && (
           <div className="text-sm text-gray-500 dark:text-gray-400 p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center">
-            Noch keine Varianten. Klicke „Variant hinzufügen" um zu starten.
+            Noch keine Varianten. Klicke „Variant hinzufügen&quot; um zu starten.
           </div>
         )}
 

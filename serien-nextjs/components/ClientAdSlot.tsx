@@ -2,47 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe, AdVariant } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant, renderAdInIframe } from '@/lib/ad-html-injector';
+import {
+  fetchAdSlots,
+  pickSlotForViewport,
+  isMobileViewport,
+  type AdConfig,
+} from '@/lib/ad-slots-client';
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle: unknown[];
   }
-}
-
-interface AdConfig {
-  provider: 'adsense' | 'custom';
-  adClient: string;
-  adSlot: string;
-  customHtmlVariants?: AdVariant[];
-  rotationMode?: 'random' | 'weighted' | 'first';
-  width: number;
-  height: number;
-  mobileOnly: boolean;
-  desktopOnly: boolean;
-}
-
-// Module-level cache for ad slot configs
-let adSlotsCache: Record<string, AdConfig> | null = null;
-let adSlotsFetchPromise: Promise<Record<string, AdConfig>> | null = null;
-
-function fetchAdSlots(): Promise<Record<string, AdConfig>> {
-  if (adSlotsCache) return Promise.resolve(adSlotsCache);
-  if (adSlotsFetchPromise) return adSlotsFetchPromise;
-
-  adSlotsFetchPromise = fetch('/api/ads/slots')
-    .then(res => res.ok ? res.json() : {})
-    .then(data => {
-      adSlotsCache = data;
-      adSlotsFetchPromise = null;
-      return data;
-    })
-    .catch(() => {
-      adSlotsFetchPromise = null;
-      return {};
-    });
-
-  return adSlotsFetchPromise;
 }
 
 interface ClientAdSlotProps {
@@ -148,20 +119,15 @@ function AdSlotInner({ config }: { config: AdConfig }) {
 export default function ClientAdSlot({ position, className = '' }: ClientAdSlotProps) {
   const pathname = usePathname();
   const [config, setConfig] = useState<AdConfig | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 1024);
-    fetchAdSlots().then(slots => {
-      setConfig(slots[position] || null);
+    const mobile = isMobileViewport();
+    fetchAdSlots().then((slots) => {
+      setConfig(pickSlotForViewport(slots, position, mobile));
     });
   }, [position]);
 
   if (!config) return null;
-
-  // Device restrictions
-  if (config.mobileOnly && !isMobile) return null;
-  if (config.desktopOnly && isMobile) return null;
 
   // Dev mode placeholder
   if (typeof window !== 'undefined' &&
@@ -169,14 +135,14 @@ export default function ClientAdSlot({ position, className = '' }: ClientAdSlotP
     return (
       <div className={`ad-container flex justify-center ${className}`} data-ad-position={position} data-testid={`ad-slot-${position}`}>
         <div className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Werbeanzeige ({config.width}x{config.height}) - {position}</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Werbeanzeige {config.device.toUpperCase()} ({config.width}x{config.height}) - {position}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`ad-container flex justify-center ${className}`} data-ad-position={position} data-testid={`ad-slot-${position}`}>
+    <div className={`ad-container flex justify-center ${className}`} data-ad-position={position} data-ad-device={config.device} data-testid={`ad-slot-${position}`}>
       <AdSlotInner key={`${pathname}-${position}`} config={config} />
     </div>
   );

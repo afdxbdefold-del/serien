@@ -2,20 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle: unknown[];
   }
-}
-
-interface AdConfig {
-  adClient: string;
-  adSlot: string;
-  width: number;
-  height: number;
-  mobileOnly: boolean;
-  desktopOnly: boolean;
 }
 
 function MobileAdInner({ config }: { config: AdConfig }) {
@@ -29,7 +21,6 @@ function MobileAdInner({ config }: { config: AdConfig }) {
                    !window.location.hostname.includes('preview');
     if (!isProd) return;
 
-    // Create fresh <ins> via raw DOM
     container.innerHTML = '';
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
@@ -43,7 +34,7 @@ function MobileAdInner({ config }: { config: AdConfig }) {
     const timer = setTimeout(() => {
       try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
+      } catch {
         // ignore
       }
     }, 250);
@@ -57,25 +48,25 @@ function MobileAdInner({ config }: { config: AdConfig }) {
   return <div ref={containerRef} />;
 }
 
+/**
+ * MobileTopAd ist per Definition nur fürs Mobile-Bucket — der Wrapper
+ * hat `lg:hidden`, also nur sichtbar < 1024 px. Wir greifen explizit
+ * auf `slots.mobile['mobile_top']`. Desktop bekommt KEINEN Slot hier
+ * (eine etwaige Desktop-Variante des `mobile_top`-Codes existiert
+ * standardmäßig nicht — wäre sowieso versteckt durch `lg:hidden`).
+ */
 export default function MobileTopAd() {
   const [config, setConfig] = useState<AdConfig | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const res = await fetch('/api/ads/slots');
-        if (res.ok) {
-          const slots = await res.json();
-          if (slots['mobile_top']) {
-            setConfig(slots['mobile_top']);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load ad config:', error);
-      }
-    };
-    loadConfig();
+    if (!isMobileViewport()) return;
+    fetchAdSlots()
+      .then((slots) => {
+        const cfg = slots.mobile['mobile_top'];
+        if (cfg) setConfig(cfg);
+      })
+      .catch((err) => console.error('Failed to load mobile_top ad config:', err));
   }, []);
 
   if (!config) return null;

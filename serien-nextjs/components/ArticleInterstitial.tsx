@@ -2,25 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { injectHtmlWithScripts, pickAdVariant, AdVariant } from '@/lib/ad-html-injector';
+import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
+import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle: unknown[];
   }
 }
 
-interface InterstitialConfig {
-  provider: 'adsense' | 'custom';
-  adClient: string;
-  adSlot: string;
-  customHtmlVariants?: AdVariant[];
-  rotationMode?: 'random' | 'weighted' | 'first';
-  width: number;
-  height: number;
-  mobileOnly: boolean;
-  desktopOnly: boolean;
-}
+type InterstitialConfig = AdConfig;
 
 const DELAY_MS = 0;                                 // show immediately
 const POSITION = 'interstitial';
@@ -81,16 +72,16 @@ export default function ArticleInterstitial() {
     // historische Niveau zu bringen.
 
     let cancelled = false;
-    fetch('/api/ads/slots')
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((slots: Record<string, InterstitialConfig>) => {
+    const mobile = isMobileViewport();
+    fetchAdSlots()
+      .then((slots) => {
         if (cancelled) return;
-        const cfg = slots?.[POSITION];
+        // Device-Bucket entsprechend Viewport: Mobile-User bekommen den
+        // Mobile-Interstitial, Desktop-User den Desktop-Interstitial.
+        // Kein cross-device-Fallback — wenn für das aktuelle Device kein
+        // Slot konfiguriert ist, wird kein Interstitial gezeigt.
+        const cfg = (mobile ? slots.mobile : slots.desktop)[POSITION];
         if (!cfg) return;
-        // Respect device gates
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        if (cfg.mobileOnly && !isMobile) return;
-        if (cfg.desktopOnly && isMobile) return;
 
         // For custom: require at least one active variant with HTML
         if (cfg.provider === 'custom') {
