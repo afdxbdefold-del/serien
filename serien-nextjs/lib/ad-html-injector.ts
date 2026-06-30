@@ -93,29 +93,83 @@ export function pickAdVariant(
  * `sandbox="allow-scripts allow-popups allow-same-origin"` so the iframe
  * cannot navigate the parent but its scripts run. The HTML comes from an
  * admin-only DB field — not user content.
+ *
+ * AUTO-SIZING: Wir geben dem Iframe KEINE fixen Pixel-Maße mehr (User-
+ * Feedback „kannst du aufhören grössen vorzugeben?"). Die im Admin
+ * gespeicherten `width`/`height` werden nur noch als MINIMAL-Startwerte
+ * benutzt, damit der Iframe vor dem ersten Resize nicht 0×0 ist. Ein
+ * ResizeObserver INNERHALB des iframes misst den tatsächlichen Inhalt
+ * (z.B. ein TheMoneytizer-Banner das in 970×250 ausgespielt wird, obwohl
+ * der Slot mit 728×90 konfiguriert war) und postet `width`/`height` per
+ * `postMessage` ans Parent-Fenster. Der Parent passt den Iframe entsprechend
+ * an → keine Cut-Offs, keine schwarzen Ränder.
  */
 export function renderAdInIframe(
   container: HTMLElement,
   html: string,
   width: number,
   height: number,
-): void {
+): () => void {
   container.innerHTML = '';
   const iframe = document.createElement('iframe');
   iframe.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin');
   iframe.setAttribute('frameborder', '0');
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('loading', 'lazy');
-  iframe.style.cssText = `display:block;width:${width}px;height:${height}px;border:0;margin:0;padding:0;overflow:hidden;`;
-  // Wrap the snippet in a minimal HTML document so external scripts have a
-  // body to write into. CSS-Hardening innerhalb des iframes:
-  //   - `img, a, table { max-width:100% !important }` zwingt Affiliate-
-  //     Creatives (AWIN, Belboon, Amazon-Style), sich der iframe-Breite
-  //     anzupassen, statt rechts überzulaufen.
-  //   - `body { overflow:hidden }` killt horizontale Scrollbars.
-  //   - `<base target="_blank">` öffnet Affiliate-Klicks im neuen Tab,
-  //     damit der User die Hauptseite nicht verlässt.
-  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=${width}"><base target="_blank"><style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;width:${width}px;}img,iframe,video,embed,object{max-width:100%!important;height:auto!important;}a{display:inline-block;max-width:100%;border:0;text-decoration:none;}a img{display:block;}table{max-width:100%!important;}</style></head><body>${html}</body></html>`;
+  // Start mit MIN-Maßen aus dem Admin-Slot (verhindert Layout-Shift bei
+  // langsamem Ad-Load), aber `max-width:100%` und `overflow:visible` damit
+  // ein größeres Creative nicht beschnitten wird. Width/Height werden
+  // gleich durch das postMessage-Resize-Protocol überschrieben.
+  iframe.style.cssText = `display:block;width:${width}px;height:${height}px;max-width:100%;border:0;margin:0;padding:0;overflow:visible;`;
+
+  // Unique-Channel pro Iframe-Instanz, damit Multi-Slot-Pages sich nicht
+  // gegenseitig resizen. Cleanup-Listener filtert auf den Channel.
+  const channel = `adframe-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+
+  const onMessage = (evt: MessageEvent) => {
+    if (!evt.data || typeof evt.data !== 'object') return;
+    const data = evt.data as { channel?: string; width?: number; height?: number };
+    if (data.channel !== channel) return;
+    if (typeof data.width === 'number' && data.width > 0) {
+      iframe.style.width = `${Math.ceil(data.width)}px`;
+    }
+    if (typeof data.height === 'number' && data.height > 0) {
+      iframe.style.height = `${Math.ceil(data.height)}px`;
+    }
+  };
+  window.addEventListener('message', onMessage);
+
+  // Resize-Reporter im iframe: lauscht auf alle DOM-Mutations + ResizeObserver,
+  // pusht aktuelle scrollWidth/scrollHeight an Parent. Mehrfache Reports nach
+  // 100/500/1500/3000 ms decken late-loading Affiliate-Snippets ab die erst
+  // nach Script-Fetch ihre Größe kennen.
+  const resizeScript = `
+    (function(){
+      var ch = ${JSON.stringify(channel)};
+      function report(){
+        try{
+          var w = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+          var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+          parent.postMessage({ channel: ch, width: w, height: h }, '*');
+        }catch(e){}
+      }
+      if (window.ResizeObserver){
+        try { new ResizeObserver(report).observe(document.body); } catch(e){}
+      }
+      window.addEventListener('load', report);
+      [50,200,500,1200,2500,5000].forEach(function(ms){ setTimeout(report, ms); });
+    })();
+  `;
+
+  // KEIN festes width auf <body>/<html> mehr — Inhalt definiert die Größe.
+  // `<base target="_blank">` öffnet Affiliate-Klicks im neuen Tab.
+  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0;background:transparent;}body{display:inline-block;}img,iframe,video,embed,object{max-width:100%;height:auto;}a{display:inline-block;border:0;text-decoration:none;}a img{display:block;}</style></head><body>${html}<script>${resizeScript}</script></body></html>`;
   container.appendChild(iframe);
+
+  // Cleanup-Handle: Caller (ClientAdSlot) ruft das bei Unmount auf,
+  // damit der Message-Listener nicht über SPA-Navigation hinaus akkumuliert.
+  return () => {
+    window.removeEventListener('message', onMessage);
+  };
 }
 

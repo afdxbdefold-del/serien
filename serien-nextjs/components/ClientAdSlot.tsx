@@ -46,15 +46,20 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     if (config.provider === 'custom') {
       const variants = config.customHtmlVariants || [];
       const picked = pickAdVariant(variants, config.rotationMode || 'random');
+      let iframeCleanup: (() => void) | undefined;
       if (picked) {
         const hasExternalScript = /<script[^>]+src=/i.test(picked.html);
         if (hasExternalScript) {
-          renderAdInIframe(container, picked.html, config.width, config.height);
+          iframeCleanup = renderAdInIframe(container, picked.html, config.width, config.height);
         } else {
           injectHtmlWithScripts(container, picked.html);
         }
       }
       return () => {
+        // Reihenfolge ist wichtig: ERST den postMessage-Listener entfernen
+        // (damit nicht ein verspätetes Resize-Event den schon entfernten
+        // Iframe modifiziert), DANN den DOM-Knoten leeren.
+        if (iframeCleanup) iframeCleanup();
         container.innerHTML = '';
       };
     }
