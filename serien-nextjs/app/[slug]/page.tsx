@@ -623,12 +623,12 @@ export default async function ArticlePage({ params }: PageProps) {
           )}
 
           {/* Title */}
-          <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 leading-tight text-center">
+          <h1 data-speakable="headline" className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3 leading-tight text-left">
             {article.title}
           </h1>
 
-          {/* Author Meta Line (inline, centered, no avatar) */}
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+          {/* Author Meta Line (inline, left-aligned, no avatar) */}
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-left">
             {article.users && (
               <>
                 <Link
