@@ -32,7 +32,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // React has a known bug where the `muted` JSX prop doesn't apply to the DOM.
-  // We must set it imperatively via ref to guarantee autoplay works.
+  // We must set it imperatively via ref to guarantee the video stays muted
+  // when controls are first used (and so the volumechange-sync below works).
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -42,7 +43,14 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
     // The user can unmute via the built-in <video controls> speaker icon,
     // bypassing our cyan button, so we must hide the button in that case too.
     const sync = () => setIsMuted(v.muted || v.volume === 0);
+    // Track play/pause so we only show „Ton aktivieren" while the video
+    // is actually running — kein verwirrender Unmute-Button auf einem
+    // pausierten Poster.
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
     v.addEventListener('volumechange', sync);
+    v.addEventListener('play', handlePlay);
+    v.addEventListener('pause', handlePause);
 
     // Stop the video on tab/page hide as well (covers bfcache / back-forward navigation).
     const stop = () => {
@@ -54,6 +62,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
 
     return () => {
       v.removeEventListener('volumechange', sync);
+      v.removeEventListener('play', handlePlay);
+      v.removeEventListener('pause', handlePause);
       window.removeEventListener('pagehide', stop);
       // Hard-stop on unmount — Next.js client-side route changes unmount this
       // component, but Chrome occasionally keeps the audio track alive otherwise.
@@ -117,7 +127,9 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
     }
   };
 
-  // For R2 videos: Autoplay immediately with muted + unmute button (like R2VideoPlayer)
+  // For R2 videos: Klick-to-Play (Autoplay deaktiviert). User startet via
+  // <video controls> Play-Button. Bleibt initial muted; nach Play-Click
+  // erscheint die „Ton aktivieren"-Schaltfläche zum Unmute.
   if (isR2Video) {
     return (
       <div className={`relative ${fullWidth ? 'aspect-[16/9] md:aspect-[21/9]' : 'aspect-video'} overflow-hidden bg-black`}>
@@ -139,10 +151,9 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
           playsInline
           controls
-          preload="auto"
+          preload="metadata"
           poster={heroImageUrl}
           onError={(e) => {
             console.error('Video error:', e);
@@ -152,8 +163,8 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
           <source src={videoUrl} type="video/mp4" />
         </video>
         
-        {/* Cyan Unmute Button - centered */}
-        {isMuted && !hasError && (
+        {/* Cyan Unmute Button - nur sichtbar während die Video läuft */}
+        {isMuted && isPlaying && !hasError && (
           <button
             onClick={handleUnmute}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"
@@ -219,12 +230,14 @@ export default function InlineVideoPlayer({ heroImageUrl, trailerUrl, title, ful
               </div>
             </div>
           ) : (
-            /* YouTube Embed */
+            /* YouTube Embed — Autoplay deaktiviert. User klickt nochmal
+               im YT-Player auf Play. Konsistent mit der globalen Regel
+               „kein Auto-Start". */
             <iframe
               className="w-full h-full"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`}
               title={title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
           )}

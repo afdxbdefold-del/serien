@@ -26,7 +26,7 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth = false, autoPlay = true }: DirectVideoPlayerProps) {
+export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, fullWidth = false, autoPlay = false }: DirectVideoPlayerProps) {
   const [showVideo, setShowVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -179,13 +179,13 @@ export default function DirectVideoPlayer({ heroImageUrl, trailerUrl, title, ful
         </div>
       )}
 
-      {/* YouTube Embed */}
+      {/* YouTube Embed — Autoplay deaktiviert (User startet manuell). */}
       {isYouTube && showVideo && (
         <iframe
           className="absolute inset-0 w-full h-full z-10"
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`}
           title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
       )}

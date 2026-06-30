@@ -11,16 +11,21 @@ interface R2VideoPlayerProps {
 export default function R2VideoPlayer({ src, poster }: R2VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    v.play().catch(() => {});
 
-    // Sync local mute state with native player (e.g. when the user toggles the speaker
-    // icon from the built-in <video controls> bar).
+    // Autoplay deaktiviert — User muss explizit via <video controls>
+    // Play-Button starten. Mute-/Play-State syncen, damit die UI sich
+    // korrekt anpasst (z.B. Unmute-Button nur sichtbar wenn Video läuft).
     const sync = () => setIsMuted(v.muted || v.volume === 0);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
     v.addEventListener('volumechange', sync);
+    v.addEventListener('play', handlePlay);
+    v.addEventListener('pause', handlePause);
 
     // Pause when the page is hidden (handles bfcache / back-forward).
     const stop = () => {
@@ -32,6 +37,8 @@ export default function R2VideoPlayer({ src, poster }: R2VideoPlayerProps) {
 
     return () => {
       v.removeEventListener('volumechange', sync);
+      v.removeEventListener('play', handlePlay);
+      v.removeEventListener('pause', handlePause);
       window.removeEventListener('pagehide', stop);
       // Hard-stop on unmount — Chrome occasionally keeps the audio track alive
       // across SPA navigations otherwise.
@@ -57,16 +64,15 @@ export default function R2VideoPlayer({ src, poster }: R2VideoPlayerProps) {
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
         controls
-        autoPlay
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         poster={poster}
       >
         <source src={src} type="video/mp4" />
       </video>
       
-      {isMuted && (
+      {isMuted && isPlaying && (
         <button
           onClick={handleUnmute}
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 transition-colors shadow-lg"

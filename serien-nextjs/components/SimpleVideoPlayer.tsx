@@ -44,15 +44,14 @@ export default function SimpleVideoPlayer({ heroImageUrl, trailerUrl, title }: S
       ) : youtubeId ? (
         <iframe
           className="w-full h-full"
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1`}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0`}
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
       ) : (
         <video
           className="w-full h-full"
           controls
-          autoPlay
           muted
           playsInline
           src={trailerUrl.startsWith('http') ? trailerUrl : `/api/trailer/${trailerUrl}`}

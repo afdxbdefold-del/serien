@@ -30,14 +30,15 @@ export default function MobileHeroWithVideo({
     );
   }
 
-  // Fallback: YouTube embed if no local trailer
+  // Fallback: YouTube embed if no local trailer. Autoplay deaktiviert,
+  // User klickt im YT-Player auf Play.
   if (trailerKey) {
     return (
       <div className="relative w-full aspect-video bg-gray-900">
         <iframe
-          src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1`}
+          src={`https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&autoplay=0`}
           title={`${seriesName} Trailer`}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           className="absolute inset-0 w-full h-full"
         />

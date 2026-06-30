@@ -54,12 +54,11 @@ export default function VideoPlayerModal({ trailerUrl, seriesTitle }: VideoPlaye
               <X className="w-6 h-6 text-white" />
             </button>
 
-            {/* Video Player */}
+            {/* Video Player — Autoplay deaktiviert, User startet via Controls */}
             <div className="relative aspect-video">
               <video
                 src={videoProxyUrl}
                 controls
-                autoPlay
                 className="w-full h-full"
                 preload="metadata"
               >
