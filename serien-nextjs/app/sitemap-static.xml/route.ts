@@ -3,8 +3,8 @@ import prisma from '@/lib/prisma';
 import { GENRES, STREAMERS, DECADES } from '@/app/serien/_lib';
 import { STREAMERS as NEWS_STREAMERS, KINDS as NEWS_KINDS } from '@/app/news/_lib';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 3600;
+// Neon-Cost-Sprint: `force-dynamic` entfernt (static content, seltenes Update).
+export const revalidate = 86400;
 
 const BASE = 'https://serien.de';
 

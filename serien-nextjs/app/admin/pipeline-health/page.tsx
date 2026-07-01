@@ -193,7 +193,10 @@ export default function PipelineHealthPage() {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = setInterval(load, 30_000); // 30s polling
+    // Neon-Cost-Sprint: 30 s bleibt, aber nur wenn Tab sichtbar.
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 60_000);
     return () => clearInterval(id);
   }, [autoRefresh, load]);
 

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 1800;
+// Neon-Cost-Sprint: `force-dynamic` entfernt (override von revalidate).
+export const revalidate = 21600;
 
 const BASE = 'https://serien.de';
 

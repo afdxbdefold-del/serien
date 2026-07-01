@@ -182,5 +182,7 @@ function escapeXml(unsafe: string): string {
   });
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Neon-Cost-Sprint: `force-dynamic` + `revalidate=0` entfernt. Google News
+// crawlt diesen Endpoint aggressiv (mehrmals pro Minute) — vorher war das
+// ein DB-Hit pro Crawl. 5 min ISR liefert immer noch tagesaktuelle News.
+export const revalidate = 300;

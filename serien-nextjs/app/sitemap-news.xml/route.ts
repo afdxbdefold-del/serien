@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
+// Neon-Cost-Sprint: `force-dynamic` entfernt. News-Sitemap darf zeitnaher
+// aktualisieren als andere (Google News crawlt aggressiver), aber 10 min
+// ISR reicht — vorher war es effektiv "jeder Crawler-Ping = DB-Hit".
 export const revalidate = 600;
 
 const BASE = 'https://serien.de';

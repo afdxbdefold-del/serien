@@ -129,11 +129,13 @@ export default function TrailerImportPage() {
   useEffect(() => {
     fetchStats();
     fetchSeries();
-    
+
+    // Neon-Cost-Sprint: 3 s → 60 s + Visibility-Gate. 3 s war extrem
+    // aggressiv — hielt Neon 24/7 wach sobald der Tab offen blieb.
     const interval = setInterval(() => {
-      fetchStats();
-    }, 3000);
-    
+      if (document.visibilityState === 'visible') fetchStats();
+    }, 60000);
+
     return () => clearInterval(interval);
   }, []);
 

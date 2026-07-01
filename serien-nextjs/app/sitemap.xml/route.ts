@@ -8,8 +8,9 @@ import { logCrawlerHit } from '@/lib/crawler-logger';
  * can prioritise indexing per content type.
  */
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 3600;
+// Neon-Cost-Sprint: `force-dynamic` entfernt — hat `revalidate` override.
+// Jetzt: ISR, DB wird alle 6 h einmal befragt statt bei jedem Crawler-Ping.
+export const revalidate = 21600;
 
 const BASE = 'https://serien.de';
 

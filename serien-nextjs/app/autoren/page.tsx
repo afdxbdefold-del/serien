@@ -7,7 +7,8 @@ import { seoTitle, seoDescription } from '@/lib/seo-meta';
 import SeriesAuthorLookup from './SeriesAuthorLookup';
 import GenreExpertsToggle from './GenreExpertsToggle';
 
-export const dynamic = 'force-dynamic';
+// Neon-Cost-Sprint: `force-dynamic` entfernt — Autorenliste ändert sich selten.
+export const revalidate = 21600;
 
 export const metadata: Metadata = {
   title: seoTitle('Das serien.de Redaktionsteam'),

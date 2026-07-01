@@ -251,6 +251,13 @@ function trackEvent(data: TrackEventData & { _ht?: string }) {
       const sessionId = getSessionId();
       if (!visitorId || !sessionId) return;
 
+      // Sampling für hochvolumige Events (Neon-Cost-Sprint Feb 2026):
+      //  - page_view: 100 % (KPI-relevant, muss vollständig sein)
+      //  - internal_click: 25 % (nur für Attribution-Analyse, Sample reicht)
+      //  - page_exit: 100 % (Engagement-Daten, essenziell)
+      //  - andere Events: 100 %
+      if (data.event === 'internal_click' && Math.random() > 0.25) return;
+
       const payload = JSON.stringify({
         visitorId, sessionId,
         _ht: data._ht || generateHumanToken(),
@@ -411,13 +418,15 @@ function AnalyticsTrackerInner() {
     return () => window.removeEventListener('beforeunload', sendExit);
   }, [sendExit]);
 
-  // Heartbeat every 30s
-  useEffect(() => {
-    const heartbeat = setInterval(() => {
-      trackEvent({ event: 'heartbeat', path: pathname });
-    }, 30000);
-    return () => clearInterval(heartbeat);
-  }, [pathname]);
+  // Heartbeat DEAKTIVIERT (Feb 2026, Neon-Cost-Sprint):
+  //  Ein Ping alle 30 s pro offenem Tab hielt Neon 24/7 wach. Bei ~50
+  //  gleichzeitigen Sessions waren das ~144k DB-Writes/Tag NUR für den
+  //  Heartbeat — Neon konnte nie autosuspenden. Live-User-Count wird
+  //  jetzt aus dem `sessions.lastSeenAt`-Timestamp abgeleitet, der
+  //  bereits bei jedem `page_view` aktualisiert wird.
+  //
+  //  Falls doch wieder aktiviert: Intervall auf 5 min, nur bei
+  //  `document.visibilityState === 'visible'`.
 
   return null;
 }

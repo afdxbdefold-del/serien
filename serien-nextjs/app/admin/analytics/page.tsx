@@ -184,7 +184,13 @@ export default function AnalyticsPage() {
   useEffect(() => {
     fetchData();
     if (autoRefresh) {
-      const interval = setInterval(fetchData, 5000);
+      // Neon-Cost-Sprint (Feb 2026): 5 s → 60 s + Visibility-Gate.
+      // Ein offener Admin-Tab hielt Neon 24/7 wach. Jetzt pausiert Polling
+      // im Hintergrund-Tab und läuft nur wenn Tab sichtbar ist.
+      const tick = () => {
+        if (document.visibilityState === 'visible') fetchData();
+      };
+      const interval = setInterval(tick, 60000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);

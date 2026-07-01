@@ -208,7 +208,10 @@ export default function AdminPipelinePage() {
   // Auto-refresh when pipeline is running
   useEffect(() => {
     if (autoRefresh && hasRunningPipeline) {
-      autoRefreshRef.current = setInterval(fetchDashboard, 10000); // 10 seconds
+      // Neon-Cost-Sprint: 10 s → 30 s + Visibility-Gate.
+      autoRefreshRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') fetchDashboard();
+      }, 30000);
     } else if (autoRefreshRef.current) {
       clearInterval(autoRefreshRef.current);
     }
@@ -1811,7 +1814,10 @@ function VideoQueueTab({ token }: { token: string }) {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Refresh every 10s
+    // Neon-Cost-Sprint: 10 s → 60 s + Visibility-Gate.
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchStats();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 

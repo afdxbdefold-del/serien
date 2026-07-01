@@ -5,9 +5,8 @@ import Image from 'next/image';
 import { Flame, TrendingUp, Sparkles, Clock, ExternalLink, Search, Newspaper } from 'lucide-react';
 import { generateSeriesSlug } from '@/lib/slug-utils';
 
-// Force dynamic rendering - no caching
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Neon-Cost-Sprint: `force-dynamic` + `revalidate=0` entfernt. 5 min ISR.
+export const revalidate = 300;
 
 const prisma = new PrismaClient();
 
