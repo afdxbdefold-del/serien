@@ -531,21 +531,28 @@ export default async function ArticlePage({ params }: PageProps) {
           Pixel je gefeuert hat. Resultat: Page-View in unserer DB gezählt,
           aber NULL bei AdSense. Erklärt die 12k→1k-Gap (~8 % Pixel-Fire-Rate
           = User die >5s bleiben).
-          
-          Raw <script async> wird vom Browser parallel zum HTML-Parse geladen
-          und sofort beim Eintreffen ausgeführt — Ad-Pixel feuert nach 1-2 s
-          statt 5-10 s. Kein Hydration-Lock, kein next/script-Lifecycle.
-          
-          SPA-Navigation zwischen Artikeln: Da [slug]/page.tsx eine Server
-          Component ist, wird dieser <script>-Tag bei jeder vollständigen
-          Navigation neu im HTML emittiert. Next.js dedupliziert externe
-          Script-URLs nicht automatisch, aber das ist OK — adsbygoogle.js
-          ist idempotent und nutzt ein globales Queue-Array. */}
+
+          Mobile-Gate (Feb 2026): AdSense-Loader wird NUR bei Mobile-UAs
+          injiziert. Desktop wird komplett mit TheMoneytizer + Yieldlab
+          monetarisiert — kein AdSense (weder Manual-Slots noch Auto Ads).
+          Google hat die Device-Toggle in der Auto-Ads-Console entfernt,
+          daher gateen wir client-side per UA.
+
+          WICHTIG: Gate muss client-side laufen (nicht server-side via
+          `headers()`), weil diese Page mit `revalidate=300` ISR-cached
+          ist — ein Server-Gate würde je nach First-Hit-UA für alle
+          nachfolgenden Requests bis zur Revalidation dasselbe (falsche)
+          HTML liefern.
+
+          Inline-Script mit `dangerouslySetInnerHTML`: läuft synchron
+          während HTML-Parse, bevor React hydratisiert. Injiziert den
+          async-Loader nur wenn `navigator.userAgent` Mobile matched.
+          `.push({})`-Calls in ClientAdSlot.tsx sind gegen fehlenden
+          `window.adsbygoogle` bereits abgesichert (siehe retry-Loop). */}
       <script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-        crossOrigin="anonymous"
-        data-npa-on-unknown-consent="1"
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{if(/Mobile|Android.*Mobile|iPhone|iPod|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent)){var s=document.createElement('script');s.async=true;s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805';s.crossOrigin='anonymous';s.setAttribute('data-npa-on-unknown-consent','1');(document.head||document.documentElement).appendChild(s);}}catch(e){}})();`,
+        }}
       />
 
       {/* Globale Custom-Tags (The-Moneytizer-Loader, Header-Bidding-
