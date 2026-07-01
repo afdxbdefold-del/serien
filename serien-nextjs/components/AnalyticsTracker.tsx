@@ -223,25 +223,56 @@ function generateHumanToken(): string {
   return `h_${token}_${screen}_${tz}`;
 }
 
-async function trackEvent(data: TrackEventData & { _ht?: string }) {
-  try {
-    const visitorId = getVisitorId();
-    const sessionId = getSessionId();
-    if (!visitorId || !sessionId) return;
+/**
+ * Defer non-critical work off the interaction task. Falls back to
+ * `setTimeout(0)` on browsers without `requestIdleCallback` (Safari).
+ * KRITISCH für INP: die gesamte Payload-Konstruktion (localStorage-
+ * Reads, JSON.stringify, human-token) darf NICHT im Click-Task laufen,
+ * sonst zählt Google die Zeit als "Interaction to Next Paint".
+ */
+function runWhenIdle(fn: () => void, timeoutMs = 2000) {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  };
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(fn, { timeout: timeoutMs });
+  } else {
+    setTimeout(fn, 0);
+  }
+}
 
-    await fetch('/api/analytics/track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        visitorId, sessionId, 
+function trackEvent(data: TrackEventData & { _ht?: string }) {
+  // Ganze Payload + Netzwerk-Call in Idle-Callback verschieben. Der
+  // Aufrufer sieht `fire-and-forget` — kein `await`, keine Blockierung.
+  runWhenIdle(() => {
+    try {
+      const visitorId = getVisitorId();
+      const sessionId = getSessionId();
+      if (!visitorId || !sessionId) return;
+
+      const payload = JSON.stringify({
+        visitorId, sessionId,
         _ht: data._ht || generateHumanToken(),
         ...data,
-      }),
-      keepalive: true,
-    });
-  } catch {
-    // Silent fail
-  }
+      });
+
+      // sendBeacon > fetch: läuft komplett off-main-thread, kein
+      // Serialisierungs-Overhead im UI-Task, überlebt page-unload.
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        navigator.sendBeacon('/api/analytics/track', new Blob([payload], { type: 'application/json' }));
+      } else {
+        fetch('/api/analytics/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {
+      // Silent fail
+    }
+  });
 }
 
 function AnalyticsTrackerInner() {
@@ -309,25 +340,43 @@ function AnalyticsTrackerInner() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Track internal link clicks
+  // Track internal link clicks — INP-optimiert:
+  //  - Passive Listener (kein preventDefault möglich, gibt dem Browser
+  //    grünes Licht für sofortige Navigation)
+  //  - Cheap upfront Check (`nodeName === 'A'` → 1 Property-Read),
+  //    danach EINE `.closest()`-Query statt vier
+  //  - Payload-Assembly + fetch laufen bereits in `runWhenIdle`
+  //    (siehe `trackEvent`)
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const link = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement;
-      if (!link || !link.href.includes('serien.de') || link.href === window.location.href) return;
+    const handleClick = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const link = target.closest('a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+      const href = link.href;
+      if (!href.includes('serien.de') || href === window.location.href) return;
 
-      const linkType = link.closest('[data-testid="breadcrumb"]') ? 'breadcrumb'
-        : link.closest('.series-card, [data-testid*="series"]') ? 'series_card'
-        : link.closest('article, .content') ? 'inline_link'
-        : link.closest('nav') ? 'navigation'
-        : 'other';
+      // Cache path/pathname zuerst — nach Idle könnte sich das Element
+      // ändern (SPA-Navigation hat den Link ggf. bereits abgeräumt).
+      const targetUrl = link.pathname;
+      const wrapper = link.closest(
+        '[data-testid="breadcrumb"], .series-card, [data-testid*="series"], article, .content, nav'
+      );
+      let linkType: string = 'other';
+      if (wrapper) {
+        if (wrapper.matches('[data-testid="breadcrumb"]')) linkType = 'breadcrumb';
+        else if (wrapper.matches('.series-card, [data-testid*="series"]')) linkType = 'series_card';
+        else if (wrapper.matches('article, .content')) linkType = 'inline_link';
+        else if (wrapper.matches('nav')) linkType = 'navigation';
+      }
 
       trackEvent({
         event: 'internal_click',
         path: pathname,
-        metadata: { targetUrl: link.pathname, linkType },
+        metadata: { targetUrl, linkType },
       });
     };
-    document.addEventListener('click', handleClick);
+    document.addEventListener('click', handleClick, { passive: true, capture: false });
     return () => document.removeEventListener('click', handleClick);
   }, [pathname]);
 

@@ -60,16 +60,20 @@ export default function Header() {
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside — INP-optimiert:
+  // Listener wird nur registriert wenn ein Dropdown offen ist, statt
+  // permanent auf jeden Tap zu feuern. `pointerdown` + `passive:true`
+  // signalisiert dem Browser dass wir preventDefault nicht brauchen.
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    if (!activeDropdown) return;
+    const handleClickOutside = (event: Event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('pointerdown', handleClickOutside, { passive: true });
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [activeDropdown]);
 
   // Realtime search with debounce
   useEffect(() => {

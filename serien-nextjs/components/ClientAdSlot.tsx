@@ -84,9 +84,13 @@ function AdSlotInner({ config }: { config: AdConfig }) {
     ins.setAttribute('data-ad-slot', config.adSlot);
     container.appendChild(ins);
 
-    // Retry mechanism: wait for adsbygoogle to be available
+    // Retry mechanism: wait for adsbygoogle to be available.
+    // INP-optimiert: max 5 statt 20 Attempts + 500 ms Intervall statt
+    // 200 ms — dämpft die Wahrscheinlichkeit, dass ein Retry-Task
+    // exakt mit einem User-Tap kollidiert (Google misst dann die
+    // gesamte Task-Länge als INP).
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 5;
     let retryTimer: ReturnType<typeof setTimeout>;
     const tryPush = () => {
       attempts++;
@@ -97,11 +101,11 @@ function AdSlotInner({ config }: { config: AdConfig }) {
           // AdSense errors are expected in some cases
         }
       } else if (attempts < maxAttempts) {
-        retryTimer = setTimeout(tryPush, 200);
+        retryTimer = setTimeout(tryPush, 500);
       }
     };
 
-    retryTimer = setTimeout(tryPush, 250);
+    retryTimer = setTimeout(tryPush, 500);
 
     return () => {
       clearTimeout(retryTimer);
