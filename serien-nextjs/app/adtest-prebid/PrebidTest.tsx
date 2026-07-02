@@ -322,10 +322,28 @@ export default function PrebidTest() {
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[data-prebid-loader="${src}"]`)) {
+    // 1. Wenn pbjs schon global existiert, ist prebid geladen — done.
+    if (typeof window !== 'undefined' && window.pbjs) {
       resolve();
       return;
     }
+    // 2. Existierendes Loader-Tag im DOM → warte auf dessen load/error.
+    const existing = document.querySelector(`script[data-prebid-loader="${src}"]`) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      // Falls das Script bereits fertig geladen ist (kein load-Event mehr feuert),
+      // pollen wir kurz auf window.pbjs.
+      let ticks = 0;
+      const poll = setInterval(() => {
+        if (window.pbjs || ticks++ > 50) {
+          clearInterval(poll);
+          if (window.pbjs) resolve();
+        }
+      }, 100);
+      return;
+    }
+    // 3. Frisch injizieren.
     const s = document.createElement('script');
     s.src = src;
     s.async = true;

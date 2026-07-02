@@ -68,6 +68,16 @@ export default function YieldlabFooterSlot() {
     if (initRef.current) return;
     initRef.current = true;
 
+    // Skip auf /adtest-prebid — dort mountet die dedizierte PrebidTest-
+    // Komponente, die eigene Prebid-Config setzt. Zwei parallele
+    // loadScript()-Calls für /prebid.js können racen und `onerror`
+    // fälschlich feuern (dedup via data-attribute reicht nicht wenn beide
+    // Effekte im gleichen Tick starten). Der Footer-Slot wird auf dieser
+    // Debug-Route eh nicht gebraucht.
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/adtest-prebid')) {
+      return;
+    }
+
     let cancelled = false;
 
     const hideSlot = () => {
@@ -165,10 +175,26 @@ export default function YieldlabFooterSlot() {
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[data-prebid-loader="${src}"]`)) {
+    // 1. Wenn pbjs schon global existiert, ist prebid geladen — done.
+    if (typeof window !== 'undefined' && window.pbjs) {
       resolve();
       return;
     }
+    // 2. Existierendes Loader-Tag im DOM → warte auf dessen load/error.
+    const existing = document.querySelector(`script[data-prebid-loader="${src}"]`) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      let ticks = 0;
+      const poll = setInterval(() => {
+        if (window.pbjs || ticks++ > 50) {
+          clearInterval(poll);
+          if (window.pbjs) resolve();
+        }
+      }, 100);
+      return;
+    }
+    // 3. Frisch injizieren.
     const s = document.createElement('script');
     s.src = src;
     s.async = true;
