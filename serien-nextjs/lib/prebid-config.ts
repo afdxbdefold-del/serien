@@ -21,10 +21,25 @@ export const YIELDLAB_TEST_SLOT = {
 } as const;
 
 /**
- * Sellers.json / Schain-Konfiguration.
+ * Sellers.json / Schain-Konfiguration (IAB Supply Chain Object).
  *
- * Platzhalter — ASI/SID müssen vom Vermarkter bestätigt werden.
- * Bei Änderung lediglich `nodes[]` editieren.
+ * Kette ist einnodig: Publisher (AF Consulting, Betreiber von serien.de)
+ * liefert direkt an Yieldlab, kein Reseller dazwischen.
+ *
+ * Feld-Semantik (IAB spec):
+ *  - `asi`   = Domain des NÄCHSTEN Sellers/SSP in der Chain — hier `yieldlab.net`
+ *  - `sid`   = eure Publisher/Seller-ID BEI Yieldlab (numerisch, aus dem
+ *              Yieldlab-Konto-Backend). Muss identisch mit dem `seller_id`-
+ *              Eintrag in `https://yieldlab.net/sellers.json` sein.
+ *              ⚠️  Aktuell mit `supplyId` (35673) belegt — das ist der
+ *              wahrscheinlichste Kandidat, MUSS aber gegen Yieldlab-Portal
+ *              (Konto → Publisher-ID) verifiziert werden.
+ *  - `hp`    = 1 (paid — AF Consulting bekommt Geld für diese Impressions)
+ *  - `rid`   = optional; per-Auction Request-ID (leer lassen für statische Config)
+ *  - `name`  = optional; juristische Entität des Sellers
+ *  - `domain`= optional; Business-Domain des Sellers
+ *
+ * Bei Änderung nur `nodes[]` editieren.
  */
 export const PREBID_SCHAIN_CONFIG = {
   validation: 'strict' as const,
@@ -33,9 +48,12 @@ export const PREBID_SCHAIN_CONFIG = {
     complete: 1,
     nodes: [
       {
-        asi: 'af-consulting.de',
-        sid: 'serien.de',
+        asi: 'yieldlab.net',
+        sid: '35673',
         hp: 1,
+        rid: '',
+        name: 'AF Consulting',
+        domain: 'af-consulting.de',
       },
     ],
   },
