@@ -53,7 +53,7 @@ export const PREBID_SCHAIN_CONFIG = {
         hp: 1,
         rid: '',
         name: 'AF Consulting',
-        domain: 'af-consulting.de',
+        domain: 'afconsulting.info',
       },
     ],
   },
