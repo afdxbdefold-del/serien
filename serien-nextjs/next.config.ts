@@ -45,6 +45,10 @@ const nextConfig: NextConfig = {
         source: '/adtest-prebid.html',
         destination: '/adtest-prebid',
       },
+      {
+        source: '/adtest-gam.html',
+        destination: '/adtest-gam',
+      },
     ];
   },
   
