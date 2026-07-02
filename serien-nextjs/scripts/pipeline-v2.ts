@@ -487,7 +487,32 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 2: CLASSIFICATION');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 2: Classification');
-    
+
+    // ═══════════════════════════════════════════════════════════════════
+    // US-INDUSTRY-EVENT PRE-FILTER (deterministic, kein LLM-Call)
+    // Blockt AAFCA/PGA/DGA/SAG/WGA/GLAAD/etc. Award-News die für DACH-
+    // Publikum irrelevant sind. Läuft VOR dem Classifier → spart LLM-
+    // Budget auf offensichtlich irrelevantem Content. Emmy/Golden Globes
+    // sind bewusst NICHT gefiltert (haben DACH-Awareness).
+    // ═══════════════════════════════════════════════════════════════════
+    try {
+      const { checkUsIndustryEvent } = await import('../lib/us-industry-event-filter');
+      const usEventCheck = checkUsIndustryEvent({
+        headline: source.title,
+        sourceTitle: source.title,
+      });
+      if (usEventCheck.blocked) {
+        console.log(`⛔ US-INDUSTRY-EVENT SKIP: "${source.title.slice(0, 80)}"`);
+        console.log(`   Grund: ${usEventCheck.reason}`);
+        logger.addMetadata('usIndustryEventSignals', usEventCheck.signals);
+        await logger.fail(usEventCheck.reason || 'US-Industry-Event', 'us-industry-event');
+        console.timeEnd('⏱️  STEP 2: Classification');
+        return null;
+      }
+    } catch (error: any) {
+      console.log(`⚠️  US-Industry-Event check skipped: ${error.message}`);
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // FAST TITLE PRE-CHECK - Erkennt Listicles/Editorials am Titel (spart LLM-Kosten)
     // ══════════════════════════════════════════════════════════════════════════
