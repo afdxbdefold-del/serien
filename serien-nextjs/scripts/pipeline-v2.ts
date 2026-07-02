@@ -616,6 +616,64 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // HALLUCINATION GUARD — primary_series muss im Artikel vorkommen
+    //
+    // Der Classifier halluziniert gelegentlich eine primary_series, die im
+    // Original-Artikel gar nicht erwähnt wird. Beispiel:
+    //   Titel: „Ryan Gosling landet als Astronaut auf Prime Video"
+    //   Classifier: primary_series = „Snoopy in Space"
+    //     (LLM assoziiert Astronaut + Prime + Space fälschlich mit Snoopy)
+    // Ergebnis: Artikel wurde unter Snoopy in Space publiziert — 100 %
+    // Falschzuordnung, hoher Discover-Trust-Schaden.
+    //
+    // Fix: mindestens EIN nicht-triviales Token der primary_series muss
+    // als Substring in Titel oder erste ~800 Zeichen des Bodys auftauchen.
+    // Sonst → Hard-Skip als Halluzination. Manual-Trigger erlaubt Override.
+    // ══════════════════════════════════════════════════════════════════════
+    if (
+      classification.primary_series &&
+      classification.content_type === 'SINGLE_SERIES_NEWS' &&
+      source.trigger !== 'manual'
+    ) {
+      // Stopwords aus dem Series-Titel raus (Artikel/Präpositionen/…)
+      const STOPWORDS = new Set([
+        'the', 'a', 'an', 'and', 'of', 'in', 'on', 'to', 'for', 'with',
+        'die', 'der', 'das', 'ein', 'eine', 'und', 'oder', 'auf', 'im', 'am',
+        'im', 'am', 'zu', 'von', 'aus', 'bei',
+      ]);
+      const seriesTokens = classification.primary_series
+        .toLowerCase()
+        .split(/[^a-z0-9äöüß]+/i)
+        .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+
+      // Serie mit z.B. nur Zahlen/Kürzeln (9-1-1, CSI, ER): skip Check
+      // um False-Positives zu vermeiden.
+      if (seriesTokens.length > 0) {
+        const scanText = (
+          source.title + ' ' + (fullSourceText || '').slice(0, 800)
+        ).toLowerCase();
+        const hits = seriesTokens.filter((t) => scanText.includes(t));
+
+        if (hits.length === 0) {
+          console.log(
+            `⛔ HALLUCINATION-GUARD: primary_series="${classification.primary_series}" ` +
+              `nicht im Artikel-Titel/Body erwähnt (Tokens gesucht: ${seriesTokens.join(', ')})`,
+          );
+          logger.addMetadata('hallucinationGuard', {
+            primarySeries: classification.primary_series,
+            seriesTokens,
+            scannedChars: scanText.length,
+          });
+          await logger.fail(
+            `Classifier-Halluzination: "${classification.primary_series}" nicht im Artikel`,
+            'classifier-hallucination',
+          );
+          return null;
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // TOPIC-OUT-OF-SCOPE wurde nach **vor** Step 2 verschoben (Phase C).
     // Der Pre-LLM-Gate sitzt direkt nach dem Thema-Alter-Check und spart die
     // Classification-Tokens für Talkshow-/Boulevard-Themen.
