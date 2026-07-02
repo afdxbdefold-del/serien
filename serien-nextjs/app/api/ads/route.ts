@@ -12,6 +12,7 @@ const ADS_TXT = `OWNERDOMAIN=serien.de
 MANAGERDOMAIN=themoneytizer.com
 google.com, pub-8583619451045805, DIRECT, f08c47fec0942fa0
 themoneytizer.com,131755,DIRECT
+yieldlab.net, 35673, DIRECT
 improvedigital.com, 1602_131755, DIRECT
 improvedigital.com, 1033_131755, DIRECT
 smartadserver.com, 1097, RESELLER
