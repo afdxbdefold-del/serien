@@ -100,7 +100,7 @@ export default function PrebidTest() {
         //    bevor der CMP einen TCData-String geliefert hat.
         setStatus('waiting-consent');
         setStatusDetail('warte auf IAB-TCF __tcfapi …');
-        const tcData = await waitForTcfConsent(5000);
+        const tcData = await waitForTcfConsent(8000);
         if (cancelled) return;
         console.log('[prebid-test] Consent config loaded', {
           gdprApplies: tcData?.gdprApplies,
@@ -372,46 +372,63 @@ interface TcData {
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
     const start = Date.now();
-    if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi !== 'function') {
-      console.warn('[prebid-test] no window.__tcfapi present');
-      resolve(null);
-      return;
-    }
 
-    const tcfapi = (
-      window as unknown as {
-        __tcfapi: (
-          cmd: string,
-          version: number,
-          cb: (data: TcData, success: boolean) => void,
-        ) => void;
+    // Funding Choices installiert `__tcfapi` erst NACH Script-Load, kann
+    // 500-2000 ms nach Page-Ready dauern. Erst pollen bis's da ist,
+    // DANN auf Consent-Data pollen. InMobi Choice hat einen synchronen
+    // Stub im <head>, für den ist der Poll-Loop instant erledigt.
+    const waitForApi = () => {
+      const apiPresent = typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi === 'function';
+      if (apiPresent) {
+        startTcDataPoll();
+        return;
       }
-    ).__tcfapi;
+      if (Date.now() - start > timeoutMs) {
+        console.warn('[prebid-test] window.__tcfapi never installed within', timeoutMs, 'ms');
+        resolve(null);
+        return;
+      }
+      setTimeout(waitForApi, 100);
+    };
 
-    const poll = () => {
-      tcfapi('getTCData', 2, (data, success) => {
-        const ready =
-          success &&
-          data &&
-          (data.eventStatus === 'tcloaded' ||
-            data.eventStatus === 'useractioncomplete' ||
-            data.cmpStatus === 'loaded');
-        if (ready) {
-          resolve(data);
-          return;
+    const startTcDataPoll = () => {
+      const tcfapi = (
+        window as unknown as {
+          __tcfapi: (
+            cmd: string,
+            version: number,
+            cb: (data: TcData, success: boolean) => void,
+          ) => void;
         }
-        if (Date.now() - start > timeoutMs) {
-          // Wir warten nicht ewig — wenn der User noch nicht entschieden
-          // hat, returnen wir das aktuell beste TCData-Objekt (kann
-          // gdprApplies=true / tcString='' sein → Yieldlab antwortet
-          // wahrscheinlich mit no-bid, was korrekt ist).
-          resolve(data || null);
-          return;
-        }
+      ).__tcfapi;
+
+      const poll = () => {
+        tcfapi('getTCData', 2, (data, success) => {
+          const ready =
+            success &&
+            data &&
+            (data.eventStatus === 'tcloaded' ||
+              data.eventStatus === 'useractioncomplete' ||
+              data.cmpStatus === 'loaded');
+          if (ready) {
+            resolve(data);
+            return;
+          }
+          if (Date.now() - start > timeoutMs) {
+            // Wir warten nicht ewig — wenn der User noch nicht entschieden
+            // hat, returnen wir das aktuell beste TCData-Objekt (kann
+            // gdprApplies=true / tcString='' sein → Yieldlab antwortet
+            // wahrscheinlich mit no-bid, was korrekt ist).
+            resolve(data || null);
+            return;
+          }
         setTimeout(poll, 200);
       });
     };
     poll();
+    };
+
+    waitForApi();
   });
 }
 

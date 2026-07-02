@@ -120,7 +120,7 @@ export default function GamTest() {
         //    auf /adtest-* Routen forciert). Kein Bid-Request ohne TCString.
         setStatus('waiting-consent');
         setStatusDetail('warte auf IAB-TCF __tcfapi …');
-        const tcData = await waitForTcfConsent(5000);
+        const tcData = await waitForTcfConsent(8000);
         if (cancelled) return;
         console.log('[gam-test] Consent config loaded', {
           gdprApplies: tcData?.gdprApplies,
@@ -344,34 +344,49 @@ function loadScript(src: string, extraAttrName?: string, extraAttrVal?: string):
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
     const start = Date.now();
-    if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi !== 'function') {
-      console.warn('[gam-test] no window.__tcfapi present');
-      resolve(null);
-      return;
-    }
-    const tcfapi = (window as unknown as {
-      __tcfapi: (cmd: string, ver: number, cb: (d: TcData, ok: boolean) => void) => void;
-    }).__tcfapi;
 
-    const poll = () => {
-      tcfapi('getTCData', 2, (data, success) => {
-        const ready =
-          success &&
-          data &&
-          (data.eventStatus === 'tcloaded' ||
-            data.eventStatus === 'useractioncomplete' ||
-            data.cmpStatus === 'loaded');
-        if (ready) {
-          resolve(data);
-          return;
-        }
-        if (Date.now() - start > timeoutMs) {
-          resolve(data || null);
-          return;
-        }
-        setTimeout(poll, 200);
-      });
+    // Funding Choices installiert `__tcfapi` async nach Script-Load —
+    // erst pollen bis's da ist, DANN Consent-Daten holen.
+    const waitForApi = () => {
+      if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi === 'function') {
+        startTcDataPoll();
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        console.warn('[gam-test] window.__tcfapi never installed within', timeoutMs, 'ms');
+        resolve(null);
+        return;
+      }
+      setTimeout(waitForApi, 100);
     };
-    poll();
+
+    const startTcDataPoll = () => {
+      const tcfapi = (window as unknown as {
+        __tcfapi: (cmd: string, ver: number, cb: (d: TcData, ok: boolean) => void) => void;
+      }).__tcfapi;
+
+      const poll = () => {
+        tcfapi('getTCData', 2, (data, success) => {
+          const ready =
+            success &&
+            data &&
+            (data.eventStatus === 'tcloaded' ||
+              data.eventStatus === 'useractioncomplete' ||
+              data.cmpStatus === 'loaded');
+          if (ready) {
+            resolve(data);
+            return;
+          }
+          if (Date.now() - start > timeoutMs) {
+            resolve(data || null);
+            return;
+          }
+          setTimeout(poll, 200);
+        });
+      };
+      poll();
+    };
+
+    waitForApi();
   });
 }
