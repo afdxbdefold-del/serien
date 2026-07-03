@@ -82,28 +82,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
-          {/* CMP-Switch: Desktop (≥1024 px) bekommt InMobi Choice — das ist
-              die CMP die TheMoneytizer bei voller Desktop-Monetarisierung
-              empfiehlt (eigenes Vendor-Set, höhere CPMs bei Direct-Deal-
-              Tags). Mobile/Tablet bleibt auf Google Funding Choices, weil
-              das mit AdSense+AdMob am tightesten verzahnt ist (Consent-Mode
-              v2 wird automatisch durchgereicht). Beide CMPs sind TCF-2.2-
-              kompatibel und installieren `window.__tcfapi` so dass AdSense,
-              TheMoneytizer, Yieldlab/Prebid einheitlich consenten können.
-              Der Check ist synchron im <head>, daher ist `__tcfapi` schon
-              verfügbar bevor irgendein Ad-Script lädt — keine Race-Conditions.
+          {/* CMP-Switch: Desktop (≥1024 px) UND /adtest-* Test-Routen bekommen
+              InMobi Choice (TheMoneytizer's CMP). Mobile/Tablet bleibt auf
+              Google Funding Choices.
 
-              SONDERFALL `/adtest-*` (Feb 2026): Auf den internen Prebid-/
-              GAM-Test-Routen wird IMMER Funding Choices geladen, egal
-              Viewport. Grund: TheMoneytizer's InMobi-Choice CMP hat
-              Yieldlab (IAB Vendor 70) nicht in seiner Vendor-Whitelist
-              → kein Consent → Yieldlab liefert `no-bid`. Google Funding
-              Choices kennt Yieldlab (im AdSense-Portal freigeschaltet).
-              → Auf /adtest-* Route bekommen wir Yieldlab-Consent und
-              können echte Bids testen. */}
+              WARUM /adtest-* wieder InMobi (Feb 2026 Revert):
+              Wir haben kurz auf Funding Choices umgestellt weil TheMoneytizer's
+              InMobi-CMP Yieldlab-Vendor nicht drin hat. Aber FC ist in deinem
+              AdSense-Portal nur für bestimmte URL-Patterns konfiguriert und
+              installiert `__tcfapi` auf /adtest-* Pfaden gar nicht — dadurch
+              wurden Test-Seiten unbrauchbar (Auction abgebrochen). Zurück
+              zu InMobi damit die Pages laufen. Yieldlab-Consent-Problem muss
+              anderweitig gelöst werden (eigener InMobi-Choice-Account mit
+              Yieldlab in Vendor-List). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var isDesktop=window.matchMedia&&window.matchMedia('(min-width: 1024px)').matches;var isAdTest=window.location.pathname.indexOf('/adtest-')===0;if(isDesktop&&!isAdTest){/* InMobi Choice. Consent Manager Tag v3.0 (for TCF 2.3) */
+            __html: `(function(){var isDesktop=window.matchMedia&&window.matchMedia('(min-width: 1024px)').matches;var isAdTest=window.location.pathname.indexOf('/adtest-')===0;if(isDesktop||isAdTest){/* InMobi Choice. Consent Manager Tag v3.0 (for TCF 2.3) */
 (function(){var host="www.themoneytizer.de";var element=document.createElement('script');var firstScript=document.getElementsByTagName('script')[0];var url='https://cmp.inmobi.com'.concat('/choice/','6Fv0cGNfc_bw8','/',host,'/choice.js?tag_version=V3');var uspTries=0;var uspTriesLimit=3;element.async=true;element.type='text/javascript';element.src=url;firstScript.parentNode.insertBefore(element,firstScript);function makeStub(){var TCF_LOCATOR_NAME='__tcfapiLocator';var queue=[];var win=window;var cmpFrame;function addFrame(){var doc=win.document;var otherCMP=!!(win.frames[TCF_LOCATOR_NAME]);if(!otherCMP){if(doc.body){var iframe=doc.createElement('iframe');iframe.style.cssText='display:none';iframe.name=TCF_LOCATOR_NAME;doc.body.appendChild(iframe);}else{setTimeout(addFrame,5);}}return !otherCMP;}function tcfAPIHandler(){var gdprApplies;var args=arguments;if(!args.length){return queue;}else if(args[0]==='setGdprApplies'){if(args.length>3&&args[2]===2&&typeof args[3]==='boolean'){gdprApplies=args[3];if(typeof args[2]==='function'){args[2]('set',true);}}}else if(args[0]==='ping'){var retr={gdprApplies:gdprApplies,cmpLoaded:false,cmpStatus:'stub'};if(typeof args[2]==='function'){args[2](retr);}}else{if(args[0]==='init'&&typeof args[3]==='object'){args[3]=Object.assign(args[3],{tag_version:'V3'});}queue.push(args);}}function postMessageEventHandler(event){var msgIsString=typeof event.data==='string';var json={};try{if(msgIsString){json=JSON.parse(event.data);}else{json=event.data;}}catch(ignore){}var payload=json.__tcfapiCall;if(payload){window.__tcfapi(payload.command,payload.version,function(retValue,success){var returnMsg={__tcfapiReturn:{returnValue:retValue,success:success,callId:payload.callId}};if(msgIsString){returnMsg=JSON.stringify(returnMsg);}if(event&&event.source&&event.source.postMessage){event.source.postMessage(returnMsg,'*');}},payload.parameter);}}while(win){try{if(win.frames[TCF_LOCATOR_NAME]){cmpFrame=win;break;}}catch(ignore){}if(win===window.top){break;}win=win.parent;}if(!cmpFrame){addFrame();win.__tcfapi=tcfAPIHandler;win.addEventListener('message',postMessageEventHandler,false);}}makeStub();var uspStubFunction=function(){var arg=arguments;if(typeof window.__uspapi!==uspStubFunction){setTimeout(function(){if(typeof window.__uspapi!=='undefined'){window.__uspapi.apply(window.__uspapi,arg);}},500);}};var checkIfUspIsReady=function(){uspTries++;if(window.__uspapi===uspStubFunction&&uspTries<uspTriesLimit){console.warn('USP is not accessible');}else{clearInterval(uspInterval);}};if(typeof window.__uspapi==='undefined'){window.__uspapi=uspStubFunction;var uspInterval=setInterval(checkIfUspIsReady,6000);}})();}else{/* Google Funding Choices (Mobile/Tablet) */var s=document.createElement('script');s.async=true;s.src='https://fundingchoicesmessages.google.com/i/pub-8583619451045805?ers=1';(document.head||document.documentElement).appendChild(s);function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){var i=document.createElement('iframe');i.style='width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;';i.style.display='none';i.name='googlefcPresent';document.body.appendChild(i);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();}})();`,
           }}
         />
