@@ -879,3 +879,23 @@ model hallucination_log {
   @@index([kind])
 }
 
+// Ad-Fraud Firewall Aggregat-Log. Middleware POSTet blocked Requests
+// als upsert-Increment: eine Row pro (Tag, Grund, Land, Pfad-Prefix).
+// So bleibt die Zeilenzahl klein (keine 1-Row-pro-Request-Explosion),
+// gleichzeitig können wir im Admin nach Grund/Land/Tag aggregieren.
+// Neon-Cost-optimized: max ~50 Rows/Tag statt Millionen.
+model ad_fraud_blocks_daily {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @db.Date
+  reason    String   // 'hostile-bot-ua' | 'high-fraud-country'
+  country   String   @default("")
+  botUa     String   @default("") // erster hostile-Pattern-Match, für Debug
+  count     Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, reason, country, botUa])
+  @@index([date])
+  @@index([reason])
+}
+
+

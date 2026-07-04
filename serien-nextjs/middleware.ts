@@ -134,11 +134,29 @@ export function middleware(request: NextRequest) {
   // ========================================================================
   const uaAd = request.headers.get('user-agent') || '';
   const goodBot = detectBot(uaAd);
+  const origin_early = request.nextUrl.origin;
+
+  const fireBlockLog = (reason: string, country: string, botSignal: string) => {
+    // Fire-and-forget an internen Endpoint. Edge Runtime hat kein
+    // eingebautes waitUntil hier, aber `keepalive: true` erhöht die
+    // Wahrscheinlichkeit dass der Request durchläuft.
+    fetch(`${origin_early}/api/track/adfraud-block`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, country, botSignal: botSignal.slice(0, 80) }),
+      // @ts-expect-error keepalive is Fetch API, TS lib types lag
+      keepalive: true,
+    }).catch(() => {});
+  };
 
   if (!goodBot) {
     // Nur Non-Search-Bot-Traffic wird geprüft — Googlebot etc. müssen
     // die volle Page sehen.
     if (isHostileBot(uaAd)) {
+      // Erstes matchendes hostile pattern loggen für Debug/Stats
+      const matched = HOSTILE_BOT_PATTERNS.find((re) => re.test(uaAd));
+      const sig = matched ? matched.source.replace(/[/\\^$.*+?()[\]{}|]/g, '').slice(0, 60) : 'unknown';
+      fireBlockLog('hostile-bot-ua', '', sig);
       return new NextResponse(null, {
         status: 204,
         headers: { 'x-block-reason': 'hostile-bot-ua' },
@@ -147,6 +165,7 @@ export function middleware(request: NextRequest) {
 
     const country = request.headers.get('x-vercel-ip-country') || '';
     if (country && HIGH_FRAUD_COUNTRIES.has(country.toUpperCase())) {
+      fireBlockLog('high-fraud-country', country.toUpperCase(), '');
       return new NextResponse(null, {
         status: 204,
         headers: {
@@ -156,6 +175,7 @@ export function middleware(request: NextRequest) {
       });
     }
   }
+
 
   // ========================================================================
   // LEGACY DUPLICATE-SLUG REDIRECTS (permanent, 301)
