@@ -36,6 +36,62 @@ const BOT_PATTERNS: Array<[string, RegExp]> = [
   ['Google-InspectionTool',  /Google-InspectionTool/i],
 ];
 
+// Hostile bots die AdSense-Impressions verbrennen → hart mit 204 blocken
+// bevor die HTML-Page überhaupt gerendert wird. Legitimate Search-Engines
+// (Google/Bing/DuckDuck etc.) sind bewusst NICHT hier — sie kriegen die
+// Page normal weil wir SEO-Signal brauchen. Diese Liste ist der Grund
+// warum AdSense uns wegen Invalid Traffic gesperrt hat: China-/Asia-
+// Botnetze + Http-Client-Scraper laden Artikel und counten als Ad-Views.
+const HOSTILE_BOT_PATTERNS: RegExp[] = [
+  /Bytespider/i,                    // ByteDance/TikTok Scraper (CN)
+  /YisouSpider/i,                   // Yisou/Aliyun (CN)
+  /Sogou (web spider|inst spider)/i, // Sogou (CN)
+  /MJ12bot/i,                       // Majestic (excessive crawler)
+  /DotBot/i,                        // Moz DotBot (excessive)
+  /MegaIndex/i,                     // MegaIndex (RU)
+  /BLEXBot/i,                       // WebMeUp
+  /SEOkicks/i,
+  /SISTRIX Crawler/i,
+  /DataForSeoBot/i,
+  /Adsbot/i,                        // Amazonbot / diverse Ad-Scanner
+  /Amazonbot/i,
+  /ImagesiftBot/i,
+  /HeadlessChrome/i,                // Puppeteer-Default (klarer Bot-Signal)
+  /PhantomJS/i,
+  /Selenium/i,
+  /(python-requests|python-urllib|Go-http-client|Java\/|Go 1\.|okhttp|axios|node-fetch|libwww-perl|curl\/|wget\/)/i,
+];
+
+// Länder mit hoher IVT-Rate laut AdSense-Payouts + Botnet-Präsenz.
+// Bei generischer Browser-UA (nicht als Search-Bot erkannt) aus diesen
+// Ländern → 204 zurückgeben. serien.de ist DACH-fokussiert, echte User
+// aus diesen Regionen sind für uns statistisch irrelevant.
+const HIGH_FRAUD_COUNTRIES = new Set([
+  'CN', // China
+  'HK', // Hongkong
+  'MO', // Macau
+  'VN', // Vietnam
+  'ID', // Indonesien
+  'IN', // Indien
+  'PK', // Pakistan
+  'BD', // Bangladesch
+  'MY', // Malaysia
+  'PH', // Philippinen
+  'TH', // Thailand
+  'MM', // Myanmar
+  'KH', // Kambodscha
+  'LK', // Sri Lanka
+  'NP', // Nepal
+  'NG', // Nigeria
+  'EG', // Ägypten
+  'IR', // Iran (auch häufig Botnet-Origin)
+]);
+
+function isHostileBot(ua: string): boolean {
+  if (!ua) return true; // leerer UA = eindeutiger Bot
+  return HOSTILE_BOT_PATTERNS.some((re) => re.test(ua));
+}
+
 function detectBot(ua: string): string | null {
   for (const [id, re] of BOT_PATTERNS) {
     if (re.test(ua)) return id;
@@ -55,6 +111,50 @@ export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (path.startsWith('/api/') || path.startsWith('/_next/') || path.startsWith('/favicon')) {
     return NextResponse.next();
+  }
+
+  // ========================================================================
+  // AD-FRAUD FIREWALL (Feb 2026) — kritisch nach AdSense-Sperre wegen IVT
+  //
+  // AdSense hat unser Konto wegen zu vieler bot-generierter Ad-Impressions
+  // gesperrt (v.a. CN/Asia-Botnetze). Bevor die HTML-Page mit AdSense-Tags
+  // an Bots ausgeliefert wird → hier hart 204 zurückgeben. Läuft VOR ISR-
+  // Cache, damit auch gecachte Artikel nicht mehr an Bots geliefert werden.
+  //
+  // Strategie:
+  //  1. Good-Bot-Check zuerst (Googlebot, Bingbot, …) → durchlassen (SEO!)
+  //  2. Hostile-Bot-UA → 204
+  //  3. Generischer Browser-UA aus High-Fraud-Country → 204
+  //     (echte DACH-User werden nicht getroffen, User aus DE/AT/CH/EU
+  //      passieren unauffällig)
+  //
+  // Verifikation via `x-vercel-ip-country` Header — Vercel Edge liefert
+  // Land-Code aus dem GeoIP-Lookup. In Dev/Local ist der Header leer,
+  // dann greift nur die UA-basierte Regel.
+  // ========================================================================
+  const uaAd = request.headers.get('user-agent') || '';
+  const goodBot = detectBot(uaAd);
+
+  if (!goodBot) {
+    // Nur Non-Search-Bot-Traffic wird geprüft — Googlebot etc. müssen
+    // die volle Page sehen.
+    if (isHostileBot(uaAd)) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: { 'x-block-reason': 'hostile-bot-ua' },
+      });
+    }
+
+    const country = request.headers.get('x-vercel-ip-country') || '';
+    if (country && HIGH_FRAUD_COUNTRIES.has(country.toUpperCase())) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          'x-block-reason': 'high-fraud-country',
+          'x-block-country': country,
+        },
+      });
+    }
   }
 
   // ========================================================================
