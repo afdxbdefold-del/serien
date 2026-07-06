@@ -41,7 +41,32 @@ export const YIELDLAB_TEST_SLOT = {
  *
  * Bei Änderung nur `nodes[]` editieren.
  */
-export const PREBID_SCHAIN_CONFIG = {
+/**
+ * SCHAIN-Varianten – schneller Umschalter für A/B-Tests mit Yieldlab.
+ *
+ * VARIANT `v1_yieldlab_direct` (alte Version):
+ *   1-Node-Chain mit `asi: yieldlab.net`. Ergab bislang serverseitig `noBid`.
+ *
+ * VARIANT `v2_alliance_chain` (neu, aktiv):
+ *   2-Node-Chain über AF Consulting → Advertising Alliance.
+ *   Publisher (serien.de) verkauft an AF Consulting, AF Consulting reicht
+ *   an Advertising Alliance (Aggregator) weiter, die dann die Yieldlab-
+ *   Nachfrage bringt.
+ *
+ * Wechseln: einfach `PREBID_SCHAIN_VARIANT` unten umsetzen.
+ */
+export const PREBID_SCHAIN_VARIANT: 'v1_yieldlab_direct' | 'v2_alliance_chain' =
+  'v2_alliance_chain';
+
+/**
+ * Publisher-ID von serien.de bei AF Consulting.
+ * ⚠️ Falls AF Consulting eine andere numerische/alphanumerische ID vergibt,
+ *    hier eintragen. Aktuell defaultet auf der Publisher-Domain "serien.de",
+ *    was für viele Reseller-Setups ausreicht.
+ */
+const AFC_PUBLISHER_ID_FOR_SERIEN_DE = 'serien.de';
+
+const SCHAIN_V1_YIELDLAB_DIRECT = {
   validation: 'strict' as const,
   config: {
     ver: '1.0',
@@ -58,6 +83,31 @@ export const PREBID_SCHAIN_CONFIG = {
     ],
   },
 } as const;
+
+const SCHAIN_V2_ALLIANCE_CHAIN = {
+  validation: 'strict' as const,
+  config: {
+    ver: '1.0',
+    complete: 1,
+    nodes: [
+      {
+        asi: 'afconsulting.info',
+        sid: AFC_PUBLISHER_ID_FOR_SERIEN_DE,
+        hp: 1,
+      },
+      {
+        asi: 'advertising-alliance.de',
+        sid: 'afconsulting',
+        hp: 1,
+      },
+    ],
+  },
+} as const;
+
+export const PREBID_SCHAIN_CONFIG =
+  PREBID_SCHAIN_VARIANT === 'v2_alliance_chain'
+    ? SCHAIN_V2_ALLIANCE_CHAIN
+    : SCHAIN_V1_YIELDLAB_DIRECT;
 
 /** Auction-Timeout in ms */
 export const PREBID_TIMEOUT_MS = 1200;
