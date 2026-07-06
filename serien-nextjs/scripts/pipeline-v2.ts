@@ -61,7 +61,6 @@ const EDITORIAL_AUTHORS = [
   'author_004', // Marie Weber
   'author_005', // Lena Bergmann
   'author_006', // Emma Mueller
-  'author_007', // Anna Schneider
   'author_008', // Nina Wolf
   'author_009', // Mia Braun
   'author_010', // Lea Zimmermann

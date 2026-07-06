@@ -44,12 +44,6 @@ const AUTHORS_DATA = [
     role: "author",
   },
   {
-    id: "author_007",
-    email: "anna.schneider@serien.de",
-    name: "Anna Schneider",
-    role: "author",
-  },
-  {
     id: "author_008",
     email: "nina.wolf@serien.de",
     name: "Nina Wolf",
