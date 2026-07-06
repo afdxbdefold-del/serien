@@ -73,16 +73,43 @@ type Status =
   | 'no-bid'
   | 'error';
 
+/**
+ * URL-Overrides für schnelle A/B-Tests von Slot-IDs.
+ * Beispiel: /adtest-prebid?slot=99999999&supply=35673
+ * Kein Reload nötig → einfach andere ID in URL, Enter drücken.
+ */
+function readSlotFromUrl() {
+  if (typeof window === 'undefined') return YIELDLAB_TEST_SLOT;
+  const p = new URLSearchParams(window.location.search);
+  const slot = p.get('slot')?.trim();
+  const supply = p.get('supply')?.trim();
+  const size = p.get('size')?.trim(); // z.B. "300x250"
+  const parsedSize = size?.match(/^(\d+)x(\d+)$/);
+  return {
+    ...YIELDLAB_TEST_SLOT,
+    adslotId: slot || YIELDLAB_TEST_SLOT.adslotId,
+    supplyId: supply || YIELDLAB_TEST_SLOT.supplyId,
+    size: parsedSize
+      ? ([parseInt(parsedSize[1], 10), parseInt(parsedSize[2], 10)] as [number, number])
+      : YIELDLAB_TEST_SLOT.size,
+  };
+}
+
 export default function PrebidTest() {
   const [status, setStatus] = useState<Status>('idle');
   const [statusDetail, setStatusDetail] = useState<string>('');
   const [bids, setBids] = useState<PbjsBid[]>([]);
+  const [activeSlot, setActiveSlot] = useState(YIELDLAB_TEST_SLOT);
   const slotRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
+
+    // URL-Overrides einlesen (?slot=…&supply=…&size=300x250)
+    const slotCfg = readSlotFromUrl();
+    setActiveSlot(slotCfg);
 
     let cancelled = false;
 
@@ -148,18 +175,18 @@ export default function PrebidTest() {
           // 4) AdUnit
           const adUnits = [
             {
-              code: YIELDLAB_TEST_SLOT.containerId,
+              code: slotCfg.containerId,
               mediaTypes: {
                 banner: {
-                  sizes: [YIELDLAB_TEST_SLOT.size],
+                  sizes: [slotCfg.size],
                 },
               },
               bids: [
                 {
                   bidder: 'yieldlab',
                   params: {
-                    adslotId: YIELDLAB_TEST_SLOT.adslotId,
-                    supplyId: YIELDLAB_TEST_SLOT.supplyId,
+                    adslotId: slotCfg.adslotId,
+                    supplyId: slotCfg.supplyId,
                   },
                 },
               ],
@@ -173,12 +200,12 @@ export default function PrebidTest() {
           setStatusDetail(`Auction läuft (timeout ${PREBID_TIMEOUT_MS} ms) …`);
           pbjs.requestBids({
             timeout: PREBID_TIMEOUT_MS,
-            adUnitCodes: [YIELDLAB_TEST_SLOT.containerId],
+            adUnitCodes: [slotCfg.containerId],
             bidsBackHandler: () => {
               if (cancelled) return;
               try {
                 const responses = pbjs.getBidResponses();
-                const winners = pbjs.getHighestCpmBids(YIELDLAB_TEST_SLOT.containerId);
+                const winners = pbjs.getHighestCpmBids(slotCfg.containerId);
                 console.log('[prebid-test] Bid responses:', responses);
                 console.log('[prebid-test] Winning bids:', winners);
 
@@ -196,7 +223,7 @@ export default function PrebidTest() {
                 setStatusDetail(
                   `Winning CPM ${winner.cpm} ${winner.currency} (bidder=${winner.bidder}, adId=${winner.adId})`,
                 );
-                renderWinningBid(winner, pbjs);
+                renderWinningBid(winner, pbjs, slotCfg);
               } catch (err) {
                 console.error('[prebid-test] bidsBackHandler error', err);
                 setStatus('error');
@@ -263,9 +290,12 @@ export default function PrebidTest() {
           <strong>Detail:</strong> {statusDetail || '—'}
         </div>
         <div>
-          <strong>adslotId:</strong> {YIELDLAB_TEST_SLOT.adslotId} ·{' '}
-          <strong>supplyId:</strong> {YIELDLAB_TEST_SLOT.supplyId} ·{' '}
-          <strong>size:</strong> {YIELDLAB_TEST_SLOT.size[0]}×{YIELDLAB_TEST_SLOT.size[1]}
+          <strong>adslotId:</strong> {activeSlot.adslotId} ·{' '}
+          <strong>supplyId:</strong> {activeSlot.supplyId} ·{' '}
+          <strong>size:</strong> {activeSlot.size[0]}×{activeSlot.size[1]}
+        </div>
+        <div style={{ marginTop: 6, color: '#888', fontSize: 11 }}>
+          URL-Overrides: <code>?slot=…&amp;supply=…&amp;size=300x250</code>
         </div>
         {bids.length > 0 && (
           <div data-testid="prebid-winning-bid" style={{ marginTop: 8, color: '#0a7' }}>
@@ -277,12 +307,12 @@ export default function PrebidTest() {
       {/* DER eigentliche Test-Slot. Prebid rendert das Creative in einen
           iframe innerhalb dieses Containers. */}
       <div
-        id={YIELDLAB_TEST_SLOT.containerId}
+        id={activeSlot.containerId}
         ref={slotRef}
         data-testid="prebid-slot"
         style={{
-          width: 300,
-          minHeight: 250,
+          width: activeSlot.size[0],
+          minHeight: activeSlot.size[1],
           border: '1px dashed #999',
           display: 'flex',
           alignItems: 'center',
@@ -292,7 +322,7 @@ export default function PrebidTest() {
           background: '#fff',
         }}
       >
-        Slot · 300×250 · wartet auf Bid …
+        Slot · {activeSlot.size[0]}×{activeSlot.size[1]} · wartet auf Bid …
       </div>
 
       <details style={{ marginTop: 24, fontSize: 12, color: '#555' }}>
@@ -432,10 +462,14 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   });
 }
 
-function renderWinningBid(bid: PbjsBid, pbjs: PbjsApi) {
-  const container = document.getElementById(YIELDLAB_TEST_SLOT.containerId);
+function renderWinningBid(
+  bid: PbjsBid,
+  pbjs: PbjsApi,
+  slotCfg: typeof YIELDLAB_TEST_SLOT,
+) {
+  const container = document.getElementById(slotCfg.containerId);
   if (!container) {
-    console.error('[prebid-test] container nicht gefunden:', YIELDLAB_TEST_SLOT.containerId);
+    console.error('[prebid-test] container nicht gefunden:', slotCfg.containerId);
     return;
   }
   // Vorhandenen Placeholder-Text entfernen
