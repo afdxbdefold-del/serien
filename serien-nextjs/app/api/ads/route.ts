@@ -953,7 +953,9 @@ lijit.com, 554656, RESELLER
 sonobi.com, 0f8997d5a7, RESELLER, d1a215d9eb5aee9e
 trustedstack.com, TSLAU41Q2, RESELLER
 pmc.com, 1243696, RESELLER, 8dd52f825890bb44
-triplelift.com, 14717, RESELLER, 6c33edb13117fd86`;
+triplelift.com, 14717, RESELLER, 6c33edb13117fd86
+connectad.io, 586, RESELLER, 85ac85a30c93b3e5
+adform.com, 768, RESELLER, 9f5210a2f0999e32`;
 
 export async function GET() {
   return new NextResponse(ADS_TXT, {
