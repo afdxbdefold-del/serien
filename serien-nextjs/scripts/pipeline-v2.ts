@@ -1905,6 +1905,30 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch (error: any) {
       console.log(`⚠️  US-only-streaming check skipped: ${error.message}`);
     }
+
+    // Non-DACH streaming gate (deterministic). Fängt UK/FR/IT/AU/JP etc. ab.
+    // Zwei Trigger:
+    //   (a) Artikel gibt selbst zu, dass es KEIN Deutschland-Startdatum gibt
+    //       ("Startdatum für Deutschland steht noch aus") — immer blocken.
+    //   (b) Headline nennt Non-DACH-Territorium ("britischer Sender") +
+    //       Non-DACH-Provider (Sky Kids UK, BBC iPlayer, Canal+, Viaplay …)
+    //       + kein DACH-Provider im Lead.
+    try {
+      const { checkNonDachStreaming } = await import('../lib/non-dach-streaming-filter');
+      const nonDachCheck = checkNonDachStreaming({
+        headline: structuredContent.headline || '',
+        body: structuredContent.markdown || '',
+        sourceTitle: source.title || '',
+        metaDescription: structuredContent.metaDescription || '',
+      });
+      if (nonDachCheck.blocked) {
+        logger.addMetadata('nonDachCheck', nonDachCheck.signals);
+        await logger.fail(nonDachCheck.reason, 'non-dach-streaming-only');
+        return null;
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Non-DACH-streaming check skipped: ${error.message}`);
+    }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 
     // ========== STEP 5.2: AUTO-RETRY BEI NIEDRIGER QUALITÄT ==========
