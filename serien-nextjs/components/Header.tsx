@@ -121,7 +121,9 @@ export default function Header() {
     <>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#00b4d8]">
-        <div className="container mx-auto px-6 md:px-12">
+        {/* Header bewusst OHNE `container` — soll auf allen Screens
+            volle Breite behalten (User-Vorgabe). */}
+        <div className="w-full mx-auto px-6 md:px-12">
           <div className="flex items-center justify-between h-16">
             {/* Left - Logo & Nav */}
             <div className="flex items-center gap-6" ref={dropdownRef}>

@@ -7,6 +7,26 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}'
   ],
   theme: {
+    /**
+     * Container-Breite global begrenzt.
+     * Bis inkl. xl (1280px) verhält sich `container` wie im Tailwind-Default
+     * (100% der jeweiligen Breakpoint-Breite). Ab 2xl (1536px+) wird die
+     * Container-Breite auf 1280px gecapt — sonst wird der Content auf
+     * großen Bildschirmen unangenehm breit und schlecht lesbar.
+     *
+     * Ausnahme: Der Site-Header nutzt bewusst KEIN `container`, sondern
+     * `w-full` (siehe components/Header.tsx), um voll breit zu bleiben.
+     */
+    container: {
+      center: true,
+      screens: {
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+        '2xl': '1280px',
+      },
+    },
     extend: {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
