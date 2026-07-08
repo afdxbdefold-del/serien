@@ -164,6 +164,16 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       {/* Top-10 Streamer Carousel — directly between hero carousel and feed */}
       {top10Blocks.length > 0 && <StreamerTop10Carousel platforms={top10Blocks} />}
 
+      {/* Desktop Megabanner Top (728×250) — zwischen Top-10-Carousel und H1.
+          `empty:hidden` lässt den Wrapper komplett kollabieren, wenn der
+          Slot inaktiv ist. */}
+      <div
+        className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
+        data-ad-slot-wrapper="desktop_megabanner_top"
+      >
+        <ClientAdSlot position="desktop_megabanner_top" />
+      </div>
+
       {/* H1 for all users */}
       <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
         <div className="container mx-auto px-6 md:px-12">
@@ -295,7 +305,14 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 ))}
               </div>
 
-              {/* Ads are restricted to article pages — no AdUnit on the homepage */}
+              {/* In-Content Ad (300×250 Desktop) — nach den ersten
+                  6 News-Cards, zwischen den beiden Card-Reihen. */}
+              <div
+                className="hidden lg:flex w-full justify-center my-6 empty:hidden empty:!my-0"
+                data-ad-slot-wrapper="in_content"
+              >
+                <ClientAdSlot position="in_content" />
+              </div>
 
               {/* Remaining News Cards */}
               {filteredGridNews.length > 6 && (
@@ -343,6 +360,24 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                   </button>
                 </div>
               )}
+
+              {/* Desktop Bottom Rect (300×250) — unter dem News-Grid,
+                  vor dem finalen Megabanner. */}
+              <div
+                className="hidden lg:flex w-full justify-center mt-10 empty:hidden empty:!mt-0"
+                data-ad-slot-wrapper="desktop_bottom_rect"
+              >
+                <ClientAdSlot position="desktop_bottom_rect" />
+              </div>
+
+              {/* Desktop Megabanner Bottom (728×250) — nach allem
+                  Content, vor Footer. */}
+              <div
+                className="hidden lg:flex w-full justify-center mt-6 empty:hidden empty:!mt-0"
+                data-ad-slot-wrapper="desktop_megabanner_bottom"
+              >
+                <ClientAdSlot position="desktop_megabanner_bottom" />
+              </div>
             </div>
           </div>
           </div>
