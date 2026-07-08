@@ -573,33 +573,11 @@ export default async function ArticlePage({ params }: PageProps) {
 
       {/* Article Content Section */}
       <article className="dark:bg-[#1C1D22]">
-        {/* ─────── Desktop-only Top-of-Article Ads ─────── */}
-        {/* Billboard Header (970×250) ÜBER dem Container.
-            `empty:hidden` lässt den Wrapper komplett kollabieren, wenn
-            ClientAdSlot null rendert (kein aktiver Slot). Verhindert
-            visuelle Lücken bei deaktivierten Slots. */}
-        <div className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0" data-ad-slot-wrapper="desktop_billboard_header">
-          <ClientAdSlot position="desktop_billboard_header" />
-        </div>
-
-        {/* ─────── Desktop Sticky Skyscrapers (nur ab xl ≥ 1280 px,
-            damit sie nicht mit dem Article-Body kollidieren). Fixed an
-            den Viewport-Rändern, top-24 = unterhalb des Headers.
-            empty:hidden → kein leerer fixed-Block. ─── */}
-        <aside
-          className="hidden xl:block fixed left-2 2xl:left-6 top-24 z-30 w-[160px] empty:hidden"
-          aria-label="Werbung Skyscraper links"
-          data-ad-slot-wrapper="desktop_skyscraper_left"
-        >
-          <ClientAdSlot position="desktop_skyscraper_left" />
-        </aside>
-        <aside
-          className="hidden xl:block fixed right-2 2xl:right-6 top-24 z-30 w-[160px] empty:hidden"
-          aria-label="Werbung Skyscraper rechts"
-          data-ad-slot-wrapper="desktop_skyscraper_right"
-        >
-          <ClientAdSlot position="desktop_skyscraper_right" />
-        </aside>
+        {/* Positionsgebundene Desktop-Ads (Billboard Header, Skyscraper
+            links/rechts, Corner Video, Footer Slide-in) werden nicht mehr
+            hier gerendert, sondern global im LayoutWrapper — dadurch
+            erscheinen sie auf ALLEN Public-Seiten, nicht nur auf
+            Artikelseiten. Siehe components/GlobalDesktopAds.tsx. */}
 
         {/* ─────── Layout-Wrapper: Mobile = single column max-w-3xl
             (unverändert). Desktop ≥ lg: zweispaltiges Grid
@@ -972,26 +950,8 @@ export default async function ArticlePage({ params }: PageProps) {
           /admin/global-tags. */}
       <GlobalTags placement="body-end" />
 
-      {/* ─────── Desktop Floating Overlays (Corner Video + Footer Slide-in) ───────
-          Nur Desktop (≥ lg). Beide Slots sind opt-in (in der DB initial
-          inaktiv). TheMoneytizer-Snippets bringen ihren eigenen Close-
-          Button mit — wir wrappen sie nur in fixed-positioned Container.
-          Bot-Schutz: Interstitial-Logik oben filtert bereits Crawler
-          aus, dadurch kein SEO-Risiko durch overlays. */}
-      <div
-        className="hidden lg:block fixed bottom-4 right-4 z-40 pointer-events-auto empty:hidden"
-        aria-label="Werbung Corner Video"
-        data-ad-slot-wrapper="desktop_corner_video"
-      >
-        <ClientAdSlot position="desktop_corner_video" />
-      </div>
-      <div
-        className="hidden lg:flex fixed bottom-0 left-0 right-0 z-30 justify-center pointer-events-auto empty:hidden"
-        aria-label="Werbung Footer Slide-in"
-        data-ad-slot-wrapper="desktop_footer_slidein"
-      >
-        <ClientAdSlot position="desktop_footer_slidein" />
-      </div>
+      {/* Corner Video + Footer Slide-in: siehe GlobalDesktopAds.tsx
+          (jetzt global im LayoutWrapper). */}
     </div>
   );
 }

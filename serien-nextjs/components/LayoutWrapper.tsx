@@ -8,6 +8,7 @@ import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
 import ClientAdSlot from './ClientAdSlot';
+import GlobalDesktopAds from './GlobalDesktopAds';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -49,6 +50,11 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           <ClientAdSlot position="below_breadcrumb" />
         </div>
       )}
+      {/* Globale Desktop-Ads (Billboard Header, Skyscraper links/rechts,
+          Corner Video, Footer Slide-in). Rendert auf ALLEN Public-Seiten,
+          nicht nur Artikel. Content-abhängige Slots (Megabanner, In-Content,
+          Sidebar Halfpage, Bottom-Rect) bleiben auf der Artikelseite. */}
+      <GlobalDesktopAds />
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
