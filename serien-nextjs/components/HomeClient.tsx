@@ -174,7 +174,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
       {/* News Feed Section */}
       <div className="container mx-auto px-6 md:px-12 pt-6 pb-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-[1000px] mx-auto">
           {/* Tabs */}
           <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Optionen">
             <button

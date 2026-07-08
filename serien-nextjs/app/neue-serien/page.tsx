@@ -452,7 +452,7 @@ export default async function NeueSerienPage({
           <div className="absolute inset-0 bg-[url('/patterns/grid.svg')] opacity-10" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           
-          <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-20">
+          <div className="relative max-w-[1000px] mx-auto px-4 py-16 sm:py-20">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
                 <Sparkles className="w-4 h-4 text-emerald-300" />
@@ -523,7 +523,7 @@ export default async function NeueSerienPage({
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="max-w-[1000px] mx-auto px-4 py-12">
           
           {/* Quick Jump Navigation */}
           <div className="mb-10 overflow-x-auto pb-2">

@@ -226,7 +226,7 @@ export default async function DiscoveryPlusSerienPage() {
           <div className="absolute inset-0 bg-[url('/patterns/grid.svg')] opacity-10" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           
-          <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-24">
+          <div className="relative max-w-[1000px] mx-auto px-4 py-16 sm:py-24">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
                 <Play className="w-4 h-4 text-blue-400" fill="currentColor" />
@@ -261,7 +261,7 @@ export default async function DiscoveryPlusSerienPage() {
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-4 py-12 space-y-16">
+        <div className="max-w-[1000px] mx-auto px-4 py-12 space-y-16">
           
           {/* Trending Section */}
           {trendingArticles.length > 0 && (

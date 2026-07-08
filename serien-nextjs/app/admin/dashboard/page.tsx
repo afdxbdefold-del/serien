@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">serien.de Admin</h1>
             <p className="text-sm text-gray-500">
@@ -85,7 +85,7 @@ export default function AdminDashboardPage() {
 
       {/* Navigation */}
       <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-4 overflow-x-auto">
             {[
               { id: 'dashboard', label: '📊 Dashboard', href: null },
@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />

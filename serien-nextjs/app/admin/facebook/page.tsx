@@ -101,7 +101,7 @@ export default function FacebookAdminPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <Facebook className="h-7 w-7 text-blue-600" />
             <div>
@@ -119,7 +119,7 @@ export default function FacebookAdminPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {loading && !data ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />

@@ -339,7 +339,7 @@ export default function SeoAuditPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950" data-testid="seo-audit-page">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/admin/dashboard" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" data-testid="back-to-dashboard">
               <ArrowLeft className="w-5 h-5" />
@@ -393,7 +393,7 @@ export default function SeoAuditPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-cyan-500" /></div>
         ) : !crawlRun ? (

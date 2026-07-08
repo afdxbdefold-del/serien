@@ -90,7 +90,7 @@ export default function TopListPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaFaq) }} />
 
       <header className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 py-14">
+        <div className="max-w-[1000px] mx-auto px-6 py-14">
           <nav className="text-xs text-slate-400 mb-6">
             <Link href="/" className="hover:text-slate-200">Startseite</Link>
             <span className="mx-2">/</span>
@@ -110,7 +110,7 @@ export default function TopListPage({
 
       {platformNavEnabled && platforms.length > 0 && (
         <section className="bg-white border-b border-slate-200 sticky top-0 z-10 backdrop-blur" data-testid="platform-nav">
-          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-2 overflow-x-auto">
+          <div className="max-w-[1000px] mx-auto px-6 py-3 flex items-center gap-2 overflow-x-auto">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Streamer:</span>
             {platforms.map(([p, n]) => (
               <span
@@ -125,7 +125,7 @@ export default function TopListPage({
         </section>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-16">
+      <div className="max-w-[1000px] mx-auto px-6 py-10 space-y-16">
         <section aria-labelledby="heading-top10" data-testid="top10-section">
           <h2 id="heading-top10" className="text-2xl font-bold text-slate-900 mb-6">{topLabel}</h2>
           <ol className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

@@ -83,7 +83,7 @@ export default function StreamerTop10Carousel({ platforms }: Props) {
       aria-labelledby="top10-heading"
       data-testid="home-top10-carousel"
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1000px] mx-auto">
         {/* Header: title + tabs */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-5">
           <div>

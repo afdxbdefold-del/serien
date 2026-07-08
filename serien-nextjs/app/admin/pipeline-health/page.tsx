@@ -224,7 +224,7 @@ export default function PipelineHealthPage() {
   return (
     <div className="min-h-screen bg-slate-50" data-testid="pipeline-health-page">
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1000px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
               href="/admin/dashboard"
@@ -276,7 +276,7 @@ export default function PipelineHealthPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-[1000px] mx-auto px-6 py-8 space-y-6">
         {/* Status banner */}
         <div
           className={`rounded-xl border px-5 py-4 flex items-center justify-between ${healthBadge.cls}`}

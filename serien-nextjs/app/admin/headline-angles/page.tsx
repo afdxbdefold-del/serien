@@ -88,7 +88,7 @@ export default function HeadlineAnglesPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1000px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
               href="/admin/dashboard"
@@ -128,7 +128,7 @@ export default function HeadlineAnglesPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8" data-testid="headline-angles-page">
+      <main className="max-w-[1000px] mx-auto px-6 py-8 space-y-8" data-testid="headline-angles-page">
         {loading && (
           <div className="flex items-center gap-3 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" /> lade Daten…

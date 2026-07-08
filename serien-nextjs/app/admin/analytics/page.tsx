@@ -246,7 +246,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 md:p-8" data-testid="analytics-dashboard">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-[1000px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

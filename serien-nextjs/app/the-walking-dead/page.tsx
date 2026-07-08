@@ -245,7 +245,7 @@ export default async function WalkingDeadFranchiseHub() {
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/80 via-transparent to-transparent" />
         
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-[1000px] mx-auto">
             <div className="flex items-center gap-2 mb-3">
               <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
                 FRANCHISE HUB
@@ -291,7 +291,7 @@ export default async function WalkingDeadFranchiseHub() {
       </div>
       
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-[1000px] mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           
           {/* Serien nach Kategorien */}

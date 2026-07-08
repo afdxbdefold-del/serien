@@ -298,7 +298,7 @@ export default function TrailerImportPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-[1000px] mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/admin/pipeline" className="text-gray-500 hover:text-gray-700">
@@ -325,7 +325,7 @@ export default function TrailerImportPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-[1000px] mx-auto px-4 py-6 space-y-6">
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

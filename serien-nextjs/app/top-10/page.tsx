@@ -245,7 +245,7 @@ export default async function Top10Page() {
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-gray-200 dark:border-gray-800">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-amber-500/10" />
-        <div className="relative max-w-7xl mx-auto px-6 md:px-12 py-14 sm:py-20">
+        <div className="relative max-w-[1000px] mx-auto px-6 md:px-12 py-14 sm:py-20">
           <div className="inline-flex items-center gap-2 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-full px-3 py-1 text-xs font-bold tracking-widest uppercase mb-5">
             <TrendingUp className="w-3.5 h-3.5" />
             Tägliches Ranking
@@ -280,7 +280,7 @@ export default async function Top10Page() {
       </section>
 
       {/* Platform sections */}
-      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12 space-y-16">
+      <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-12 space-y-16">
         {populated.map(({ p }) => (
           <PlatformSection key={p.id} p={p} />
         ))}

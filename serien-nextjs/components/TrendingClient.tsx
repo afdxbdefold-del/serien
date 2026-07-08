@@ -220,7 +220,7 @@ function TrendingClientInner({ series }: TrendingClientProps) {
   return (
     <div className="min-h-screen bg-white">
       <main className="container mx-auto px-6 md:px-12 py-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-[1000px] mx-auto">
           {/* Hero Section */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
