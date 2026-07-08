@@ -6,6 +6,7 @@ import NewsCard from './NewsCard';
 import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
 import StreamerTop10Carousel, { type PlatformBlock } from './StreamerTop10Carousel';
+import ClientAdSlot from './ClientAdSlot';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -172,9 +173,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         </div>
       </section>
 
-      {/* News Feed Section */}
+      {/* News Feed Section — mit Desktop-Sidebar analog Artikelseite */}
       <div className="container mx-auto px-6 md:px-12 pt-6 pb-8">
-        <div className="max-w-[1000px] mx-auto">
+        <div className="max-w-[1000px] mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
+          {/* ─────────────── MAIN COLUMN ─────────────── */}
+          <div className="min-w-0">
           {/* Tabs */}
           <div className="inline-flex p-1 bg-gray-100 dark:bg-[hsl(230,25%,10%)] rounded-full mb-6" role="tablist" aria-label="News Optionen">
             <button
@@ -268,7 +271,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
           {/* Content: All News (no tabs) */}
           <div id="news-feed">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredGridNews.slice(0, 6).map((item: any, index: number) => (
                   <NewsCard 
                     key={item.id}
@@ -296,7 +299,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
 
               {/* Remaining News Cards */}
               {filteredGridNews.length > 6 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {filteredGridNews.slice(6).map((item: any) => (
                     <NewsCard 
                       key={item.id}
@@ -342,6 +345,16 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               )}
             </div>
           </div>
+          </div>
+          {/* ─────────────── SIDEBAR (Desktop only) ─────────────── */}
+          <aside className="hidden lg:block" aria-label="Werbung Sidebar">
+            <div
+              className="sticky top-24 empty:hidden"
+              data-ad-slot-wrapper="desktop_sidebar_halfpage"
+            >
+              <ClientAdSlot position="desktop_sidebar_halfpage" />
+            </div>
+          </aside>
         </div>
 
     </main>
