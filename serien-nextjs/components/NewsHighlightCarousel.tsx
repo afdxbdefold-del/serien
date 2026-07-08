@@ -111,7 +111,7 @@ export default function NewsHighlightCarousel({ news }: NewsHighlightCarouselPro
   return (
     <section 
       ref={containerRef}
-      className="relative w-full bg-gray-900 dark:bg-[#16171B]"
+      className="relative w-full max-w-[1000px] mx-auto bg-gray-900 dark:bg-[#16171B]"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
