@@ -383,11 +383,20 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           </div>
           {/* ─────────────── SIDEBAR (Desktop only) ─────────────── */}
           <aside className="hidden lg:block" aria-label="Werbung Sidebar">
-            <div
-              className="sticky top-24 empty:hidden"
-              data-ad-slot-wrapper="desktop_sidebar_halfpage"
-            >
-              <ClientAdSlot position="desktop_sidebar_halfpage" />
+            {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots. Identische
+                Reihenfolge wie auf der Artikelseite: top_rect → halfpage →
+                megasky. `empty:hidden` lässt inaktive Slots vollständig
+                kollabieren, damit im Stack keine leeren Lücken entstehen. */}
+            <div className="sticky top-24 space-y-4">
+              <div data-ad-slot-wrapper="desktop_sidebar_top_rect" className="empty:hidden">
+                <ClientAdSlot position="desktop_sidebar_top_rect" />
+              </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_halfpage" className="empty:hidden">
+                <ClientAdSlot position="desktop_sidebar_halfpage" />
+              </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_megasky" className="empty:hidden">
+                <ClientAdSlot position="desktop_sidebar_megasky" />
+              </div>
             </div>
           </aside>
         </div>
