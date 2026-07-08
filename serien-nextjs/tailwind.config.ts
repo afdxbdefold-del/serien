@@ -9,9 +9,9 @@ const config: Config = {
   theme: {
     /**
      * Container-Breite global begrenzt.
-     * Bis inkl. xl (1280px) verhält sich `container` wie im Tailwind-Default
-     * (100% der jeweiligen Breakpoint-Breite). Ab 2xl (1536px+) wird die
-     * Container-Breite auf 1280px gecapt — sonst wird der Content auf
+     * Bis inkl. md (768px) verhält sich `container` wie im Tailwind-Default
+     * (100% der jeweiligen Breakpoint-Breite). Ab lg (1024px+) wird die
+     * Container-Breite auf 1000px gecapt — sonst wird der Content auf
      * großen Bildschirmen unangenehm breit und schlecht lesbar.
      *
      * Ausnahme: Der Site-Header nutzt bewusst KEIN `container`, sondern
@@ -22,9 +22,9 @@ const config: Config = {
       screens: {
         sm: '640px',
         md: '768px',
-        lg: '1024px',
-        xl: '1280px',
-        '2xl': '1280px',
+        lg: '1000px',
+        xl: '1000px',
+        '2xl': '1000px',
       },
     },
     extend: {
