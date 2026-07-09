@@ -10,6 +10,7 @@ import MobileTopAd from './MobileTopAd';
 import ClientAdSlot from './ClientAdSlot';
 import GlobalDesktopAds from './GlobalDesktopAds';
 import { ThemePageAdTop, ThemePageAdBottom } from './ThemePageAds';
+import ThemePageSidebar from './ThemePageSidebar';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -89,9 +90,27 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           Homepage und Artikelseite haben ihren eigenen Inline-Ad-Stack;
           Legal-/Konto-Seiten bewusst ohne Content-Ads. */}
       {isThemePage && <ThemePageAdTop />}
-      <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
-        {children}
-      </main>
+      {isThemePage ? (
+        /* Themenseiten bekommen dieselbe Grid-Struktur wie die Startseite:
+           Content-Column links (1fr, gecapt auf 1000 px durch Themen-
+           seiten-eigene max-w-Container), Sidebar-Column rechts 300 px.
+           Grid ist zentriert bei max-w-[1332px] (1000 + 32 gap + 300).
+           Damit müssen die ~30 einzelnen Themenseiten NICHT angefasst
+           werden — sie sitzen einfach in der linken Cell. */
+        <main
+          id="main-content"
+          className="flex-1 lg:mx-auto lg:max-w-[1332px] lg:w-full lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8 lg:px-6"
+          role="main"
+          tabIndex={-1}
+        >
+          <div className="min-w-0">{children}</div>
+          <ThemePageSidebar />
+        </main>
+      ) : (
+        <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
+          {children}
+        </main>
+      )}
       {/* Zusätzlicher Megabanner Bottom auf Themenseiten — analog Top. */}
       {isThemePage && <ThemePageAdBottom />}
       <Footer />
