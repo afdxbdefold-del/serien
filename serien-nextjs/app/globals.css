@@ -491,3 +491,16 @@ body.x-interstitial-open iframe[id*="aswift"][style*="position: fixed"] {
   display: none !important;
   visibility: hidden !important;
 }
+
+/* Global Content-Container-Cap.
+   Alle Public-Seiten rendern innerhalb <main id="main-content">. Damit
+   ist der Content-Bereich global auf 1000 px begrenzt und viewport-
+   zentriert, unabhängig davon ob die einzelne Seite eigene max-w-
+   Container hat. Header und Footer bleiben full-width, weil sie
+   außerhalb von #main-content stehen. */
+#main-content {
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
