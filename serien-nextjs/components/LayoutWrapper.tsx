@@ -37,11 +37,23 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   // damit Vermarkter saubere Auction-Logs sehen.
   const isAdTestRoute = pathname?.startsWith('/adtest-');
   
-  // Check if this is an article page (has a slug, not a special route)
+  // Non-Article-Routen: alle bekannten Public-Routen, die KEINE Artikel-
+  // Detail-Slugs sind. Diese Liste ist positive Whitelist — was hier NICHT
+  // drin steht und keinen Bindestrich in einem "-serien"-Suffix hat, wird
+  // als Artikel behandelt (isArticlePage=true → Grid-Layout des Artikels).
+  //
+  // Wichtig: /news, /trending, /top-10, /top-100-*, /the-walking-dead,
+  // /in-90-tagen-zum-altar etc. sind Themen-Hubs, KEINE Artikel.
   const specialRoutes = [
-    '/', '/about', '/datenschutz', '/impressum', '/kalender', '/serienfinder',
-    '/autoren', '/autor', '/figur', '/figuren', '/person', '/personen', 
-    '/serie', '/genre', '/neue-serien', '/admin'
+    '/', '/about', '/datenschutz', '/impressum', '/nutzungsbedingungen',
+    '/redaktionelle-richtlinien', '/einstellungen',
+    '/kalender', '/serienfinder', '/serien', '/neue-serien', '/news',
+    '/trending', '/figuren', '/figur', '/personen', '/person', '/autoren',
+    '/autor', '/serie', '/genre', '/admin',
+    '/top-10', '/top-100-serien', '/top-100-netflix', '/top-100-amazon-prime',
+    '/top-100-disney-plus',
+    '/the-walking-dead', '/in-90-tagen-zum-altar',
+    '/x-news',
   ];
   const isArticlePage = pathname && !specialRoutes.some(route => 
     pathname === route || pathname.startsWith(route + '/')

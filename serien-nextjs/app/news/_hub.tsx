@@ -55,7 +55,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
 
       {/* Header */}
       <section className="bg-gradient-to-b from-cyan-600 to-cyan-800 text-white py-10 sm:py-14">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-[1000px] mx-auto px-4">
           <nav className="text-xs sm:text-sm text-cyan-100/90 mb-3 flex items-center gap-2">
             <Link href="/" className="hover:underline">Home</Link>
             <span>/</span>
@@ -74,7 +74,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
 
       {/* Filter pills */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-[64px] z-30 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-gray-900/80">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="max-w-[1000px] mx-auto px-4 py-3">
           <div
             className="flex gap-2 overflow-x-auto no-scrollbar"
             data-testid="news-filter-bar"
@@ -99,7 +99,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
       </div>
 
       {/* Article grid */}
-      <section className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      <section className="max-w-[1000px] mx-auto px-4 py-8 sm:py-12">
         {articles.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-gray-600 dark:text-gray-400">Keine News in diesem Filter.</p>
@@ -113,7 +113,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
         ) : (
           <>
             <div
-              className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2"
               data-testid="news-list"
             >
               {articles.map((a) => (
