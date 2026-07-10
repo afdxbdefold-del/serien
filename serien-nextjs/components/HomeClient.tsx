@@ -380,7 +380,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               </div>
             </div>
           </div>
-          </div>
           {/* ─────────────── SIDEBAR (Desktop only) ─────────────── */}
           <aside className="hidden lg:block" aria-label="Werbung Sidebar">
             {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots. Identische
@@ -400,6 +399,7 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
             </div>
           </aside>
         </div>
+      </div>
 
     </main>
   );
