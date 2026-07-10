@@ -9,6 +9,7 @@ import { fetchNewsArticles } from './_data';
 import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
 import NewsCard from './_card';
 import NewsLoadMore from '@/components/NewsLoadMore';
+import ThemePageSidebar from '@/components/ThemePageSidebar';
 
 interface Props {
   h1: string;
@@ -98,34 +99,40 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
         </div>
       </div>
 
-      {/* Article grid */}
-      <section className="max-w-[1000px] mx-auto px-4 py-8 sm:py-12">
-        {articles.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-600 dark:text-gray-400">Keine News in diesem Filter.</p>
-            <Link
-              href="/news"
-              className="inline-block mt-4 text-cyan-600 dark:text-cyan-400 hover:underline"
-            >
-              Zu allen aktuellen Serien-News →
-            </Link>
-          </div>
-        ) : (
-          <>
-            <div
-              className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2"
-              data-testid="news-list"
-            >
-              {articles.map((a) => (
-                <NewsCard key={a.id} article={a} />
-              ))}
+      {/* Article grid + Sidebar (analog Startseite / Artikelseite):
+          Grid ist genau 1000 px breit, viewport-zentriert.
+          Content-Column links (~676 px), Sidebar-Column rechts (300 px).
+          Cards deshalb max. 2-spaltig, nicht 3, damit sie in ~676 px passen. */}
+      <section className="max-w-[1000px] mx-auto px-4 py-8 sm:py-12 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
+        <div className="min-w-0">
+          {articles.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-gray-600 dark:text-gray-400">Keine News in diesem Filter.</p>
+              <Link
+                href="/news"
+                className="inline-block mt-4 text-cyan-600 dark:text-cyan-400 hover:underline"
+              >
+                Zu allen aktuellen Serien-News →
+              </Link>
             </div>
+          ) : (
+            <>
+              <div
+                className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2"
+                data-testid="news-list"
+              >
+                {articles.map((a) => (
+                  <NewsCard key={a.id} article={a} />
+                ))}
+              </div>
 
-            {cursor && (
-              <NewsLoadMore initialCursor={cursor} filterSlug={filterSlug} />
-            )}
-          </>
-        )}
+              {cursor && (
+                <NewsLoadMore initialCursor={cursor} filterSlug={filterSlug} />
+              )}
+            </>
+          )}
+        </div>
+        <ThemePageSidebar />
       </section>
     </main>
   );
