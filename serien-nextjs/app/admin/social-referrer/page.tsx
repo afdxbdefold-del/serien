@@ -72,7 +72,15 @@ export default function SocialReferrerPage() {
 
   const load = async () => {
     try {
-      const r = await fetch('/api/admin/social-referrer-stats', { credentials: 'include' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+      if (!token) {
+        setErr('Nicht eingeloggt — bitte /admin/login öffnen.');
+        setLoading(false);
+        return;
+      }
+      const r = await fetch('/api/admin/social-referrer-stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setStats(await r.json());
       setErr(null);

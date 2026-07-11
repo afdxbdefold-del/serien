@@ -8,12 +8,27 @@
  *  - Top-UA-Families pro Source
  *  - Daily-Timeline
  */
-import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
 import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+);
+
+async function verifyAdmin(req: NextRequest): Promise<boolean> {
+  const auth = req.headers.get('authorization');
+  if (!auth?.startsWith('Bearer ')) return false;
+  try {
+    const { payload } = await jwtVerify(auth.substring(7), JWT_SECRET);
+    return payload.role === 'admin';
+  } catch {
+    return false;
+  }
+}
 
 function todayUtc(): Date {
   const d = new Date();
@@ -26,11 +41,9 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const h = await headers();
-    const isAdmin = h.get('cookie')?.includes('adminAuth=');
-    if (!isAdmin) {
+    if (!(await verifyAdmin(req))) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
