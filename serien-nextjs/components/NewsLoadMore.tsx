@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Clock, Loader2 } from 'lucide-react';
+import NewsAdCard from '@/app/news/_ad_card';
 
 interface ApiItem {
   id: string;
@@ -70,45 +71,48 @@ export default function NewsLoadMore({ initialCursor, filterSlug }: Props) {
     <>
       {items.length > 0 && (
         <div className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-          {items.map((a) => {
+          {items.map((a, i) => {
             const img = pickImage(a);
             return (
-              <Link
-                key={a.id}
-                href={`/${a.slug}`}
-                className="group block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-                data-testid={`news-card-${a.slug}`}
-              >
-                <div className="relative aspect-[16/9] bg-gray-200 dark:bg-gray-800">
-                  {img && (
-                    <Image
-                      src={img}
-                      alt={a.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  )}
-                </div>
-                <div className="p-4 sm:p-5">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                    {a.title}
-                  </h3>
-                  {a.excerpt && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-2">{a.excerpt}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                    <Clock className="w-3 h-3" />
-                    <span>{formatDate(a.publishedAt)}</span>
-                    {a.seriesName && (
-                      <>
-                        <span>•</span>
-                        <span className="truncate text-cyan-600 dark:text-cyan-400">{a.seriesName}</span>
-                      </>
+              <Fragment key={a.id}>
+                <Link
+                  href={`/${a.slug}`}
+                  className="group block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+                  data-testid={`news-card-${a.slug}`}
+                >
+                  <div className="relative aspect-[16/9] bg-gray-200 dark:bg-gray-800">
+                    {img && (
+                      <Image
+                        src={img}
+                        alt={a.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                     )}
                   </div>
-                </div>
-              </Link>
+                  <div className="p-4 sm:p-5">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                      {a.title}
+                    </h3>
+                    {a.excerpt && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-2">{a.excerpt}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatDate(a.publishedAt)}</span>
+                      {a.seriesName && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate text-cyan-600 dark:text-cyan-400">{a.seriesName}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+                {/* In-Feed Ad alle 6 Load-More-Cards. */}
+                {(i + 1) % 6 === 0 && i < items.length - 1 && <NewsAdCard />}
+              </Fragment>
             );
           })}
         </div>

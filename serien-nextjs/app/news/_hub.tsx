@@ -5,11 +5,14 @@
  * H1, intro, JSON-LD CollectionPage, and a client island for "Mehr laden".
  */
 import Link from 'next/link';
+import { Fragment } from 'react';
 import { fetchNewsArticles } from './_data';
 import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
 import NewsCard from './_card';
+import NewsAdCard from './_ad_card';
 import NewsLoadMore from '@/components/NewsLoadMore';
 import ThemePageSidebar from '@/components/ThemePageSidebar';
+import ClientAdSlot from '@/components/ClientAdSlot';
 
 interface Props {
   h1: string;
@@ -73,6 +76,17 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
         </div>
       </section>
 
+      {/* Billboard direkt unter dem Cyan-Hero, über den Filter-Pills.
+          Above-Fold-Premium-Slot. Nur Desktop (mobile hat keine
+          970×250-Design-Kompatibilität). `empty:hidden` kollabiert
+          bei inaktivem Slot komplett — kein leerer Balken. */}
+      <div
+        className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
+        data-ad-slot-wrapper="news_billboard_top"
+      >
+        <ClientAdSlot position="news_billboard_top" />
+      </div>
+
       {/* Filter pills */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-[64px] z-30 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-gray-900/80">
         <div className="max-w-[1000px] mx-auto px-4 py-3">
@@ -121,8 +135,15 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
                 className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2"
                 data-testid="news-list"
               >
-                {articles.map((a) => (
-                  <NewsCard key={a.id} article={a} />
+                {articles.map((a, i) => (
+                  <Fragment key={a.id}>
+                    <NewsCard article={a} />
+                    {/* In-Feed Ad alle 6 Cards — nicht am Ende, damit die
+                        Ad nicht direkt vor "Mehr laden" hängt. */}
+                    {(i + 1) % 6 === 0 && i < articles.length - 1 && (
+                      <NewsAdCard />
+                    )}
+                  </Fragment>
                 ))}
               </div>
 
