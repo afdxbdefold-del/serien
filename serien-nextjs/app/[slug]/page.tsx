@@ -523,31 +523,6 @@ export default async function ArticlePage({ params }: PageProps) {
         />
       )}
 
-      {/* AdSense Loader — als raw <script async> direkt im SSR-HTML, NICHT
-          via next/script `afterInteractive`. Grund: `afterInteractive` startet
-          das Script erst NACH der React-Hydration. Auf Twitter-/X-In-App-
-          Browsern (Bulk unseres /x-news-Traffics) dauert die Hydration 5-10 s
-          — viele User bouncen vorher zurück nach X, ohne dass das AdSense-
-          Pixel je gefeuert hat. Resultat: Page-View in unserer DB gezählt,
-          aber NULL bei AdSense. Erklärt die 12k→1k-Gap (~8 % Pixel-Fire-Rate
-          = User die >5s bleiben).
-
-          Raw <script async> wird vom Browser parallel zum HTML-Parse geladen
-          und sofort beim Eintreffen ausgeführt — Ad-Pixel feuert nach 1-2 s
-          statt 5-10 s. Kein Hydration-Lock, kein next/script-Lifecycle.
-
-          SPA-Navigation zwischen Artikeln: Da [slug]/page.tsx eine Server
-          Component ist, wird dieser <script>-Tag bei jeder vollständigen
-          Navigation neu im HTML emittiert. Next.js dedupliziert externe
-          Script-URLs nicht automatisch, aber das ist OK — adsbygoogle.js
-          ist idempotent und nutzt ein globales Queue-Array. */}
-      <script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-        crossOrigin="anonymous"
-        data-npa-on-unknown-consent="1"
-      />
-
       {/* Globale Custom-Tags (The-Moneytizer-Loader, Header-Bidding-
           Wrapper, externe SSP-Pixel …). Verwaltet via /admin/global-tags.
           NUR auf Artikelseiten (dieser Page-Component). Bot-Traffic wird

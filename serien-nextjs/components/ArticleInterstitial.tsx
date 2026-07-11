@@ -5,12 +5,6 @@ import { X } from 'lucide-react';
 import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
 import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
 
-declare global {
-  interface Window {
-    adsbygoogle: unknown[];
-  }
-}
-
 type InterstitialConfig = AdConfig;
 
 const DELAY_MS = 0;                                 // show immediately
@@ -131,47 +125,17 @@ export default function ArticleInterstitial() {
     //    required for fixed slots, otherwise the iframe stays 0×0.
     // 3. Push 250ms after appendChild — AdSense needs the iframe to be
     //    in the DOM with measurable layout before push() succeeds.
-    // ──────────────────────────────────────────────────────────────────
-    const host = window.location.hostname;
-    const isProd =
-      host !== 'localhost' &&
-      !host.includes('127.0.0.1') &&
-      !host.includes('preview') &&
-      !host.includes('emergentagent');
-
+    // Interstitial rendert ausschließlich Custom-HTML (TheMoneytizer etc.).
+    // AdSense-Pfad entfernt (Feb 2026).
     slot.innerHTML = '';
+    if (config.provider !== 'custom') return;
 
-    if (!isProd) {
-      const placeholder = document.createElement('div');
-      placeholder.style.cssText =
-        'width:300px;height:600px;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 10px,#e5e7eb 10px,#e5e7eb 20px);border:2px dashed #9ca3af;border-radius:10px;color:#374151;font-family:system-ui,sans-serif;font-size:13px;text-align:center;padding:16px;';
-      placeholder.textContent = `AdSense-Slot ${config.adSlot} · 300×600 (nur in Production aktiv)`;
-      slot.appendChild(placeholder);
-      return;
-    }
-
-    const ins = document.createElement('ins');
-    ins.className = 'adsbygoogle';
-    // Minimal AdSense-empfohlenes Pattern für Fixed-Size (300×600 Half Page).
-    // Keine zusätzlichen data-ad-format / data-full-width-responsive
-    // Attribute — die haben in dieser Architektur regelmäßig 300×250
-    // Fallback-Creatives statt 300×600 produziert. Slot-Größen-Konflikte
-    // werden in der AdSense Console gelöst, nicht im Code.
-    ins.style.display = 'inline-block';
-    ins.style.width = '300px';
-    ins.style.height = '600px';
-    ins.setAttribute('data-ad-client', config.adClient);
-    ins.setAttribute('data-ad-slot', config.adSlot);
-    slot.appendChild(ins);
-
-    const timer = setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch { /* AdSense retries internally */ }
-    }, 250);
+    const variants = config.customHtmlVariants || [];
+    const picked = pickAdVariant(variants, config.rotationMode || 'random');
+    if (!picked) return;
+    injectHtmlWithScripts(slot, picked.html);
 
     return () => {
-      clearTimeout(timer);
       slot.innerHTML = '';
     };
   }, [visible, config]);

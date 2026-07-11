@@ -79,7 +79,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Viewport-Check, welcher CMP tatsächlich geladen wird. */}
         <link rel="preconnect" href="https://fundingchoicesmessages.google.com" crossOrigin="" />
         <link rel="preconnect" href="https://cmp.inmobi.com" crossOrigin="" />
-        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
           {/* CMP-Switch: Desktop (≥1024 px) UND /adtest-* Test-Routen bekommen
