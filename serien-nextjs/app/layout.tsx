@@ -160,7 +160,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('config', 'G-K7T0SF14YX');
           `}
         </Script>
-        
+
+        {/* Mouseflow Session Recording & Heatmaps
+            afterInteractive: läuft nach LCP/Hydration, blockiert weder TBT
+            noch INP. Der offizielle Snippet-Loader hängt sein eigenes
+            <script> via createElement in <head> — wir kapseln das über
+            next/script, damit Next.js Duplicate-Loads bei SPA-Navigation
+            verhindert. */}
+        <Script id="mouseflow-init" strategy="afterInteractive">
+          {`
+            window._mfq = window._mfq || [];
+            (function() {
+              var mf = document.createElement("script");
+              mf.type = "text/javascript"; mf.defer = true;
+              mf.src = "//cdn.mouseflow.com/projects/c476aa06-9f93-4b50-b190-1ced7e66bd93.js";
+              document.getElementsByTagName("head")[0].appendChild(mf);
+            })();
+          `}
+        </Script>
+
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"
