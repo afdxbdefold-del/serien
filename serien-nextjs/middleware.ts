@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { classifySocialReferrer } from './lib/social-referrer-classifier';
 
 const INDEXNOW_KEY = '8e6827d79c19f8cbe91089129c21e303';
 
@@ -290,6 +291,24 @@ export function middleware(request: NextRequest) {
       httpOnly: false,
       sameSite: 'lax',
     });
+  }
+
+  // (e) Social-Referrer Truth-Klassifikation — KEIN BLOCKING, nur Log.
+  // Loggt Traffic mit angeblichem FB/X/IG/TT-Referrer inkl. Verdict
+  // (echt / verdächtig / fake) für /admin/social-referrer.
+  // Admin- und Bot-Traffic ausschließen um Noise zu vermeiden.
+  if (!bot && !path.startsWith('/admin')) {
+    const country = request.headers.get('x-vercel-ip-country') || '';
+    const classification = classifySocialReferrer(referer, ua, request.headers, country);
+    if (classification) {
+      fetch(`${origin}/api/track/social-referrer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(classification),
+        // @ts-expect-error keepalive is Fetch API, TS lib types lag
+        keepalive: true,
+      }).catch(() => {});
+    }
   }
 
   return response;

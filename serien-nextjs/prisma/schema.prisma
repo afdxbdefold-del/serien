@@ -898,4 +898,28 @@ model ad_fraud_blocks_daily {
   @@index([reason])
 }
 
+// Social-Referrer Truth-Klassifikation (Feb 2026).
+// Loggt (KEIN BLOCKING) alle Requests mit angeblichem Social-Referrer
+// (facebook.com, t.co, instagram.com …) mit einer Klassifikation:
+// 'real' | 'suspicious' | 'fake' — basierend auf Header-Signalen
+// (Sec-Fetch-*, Client-Hints, In-App-UA-Marker, Referrer-Format).
+// Aggregiert pro (Tag, Source, Verdict, Country, UA-Family, SignalsKey)
+// damit die Zeilenzahl klein bleibt.
+model social_referrer_daily {
+  id            Int      @id @default(autoincrement())
+  date          DateTime @db.Date
+  claimedSource String   // 'facebook' | 'x' | 'instagram' | 'tiktok' | ...
+  verdict       String   // 'real' | 'suspicious' | 'fake'
+  country       String   @default("")
+  uaFamily      String   @default("other")
+  signalsKey    String   @default("none") // pipe-joined Signal-Codes
+  count         Int      @default(1)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([date, claimedSource, verdict, country, uaFamily, signalsKey], map: "social_referrer_daily_key")
+  @@index([date])
+  @@index([claimedSource])
+  @@index([verdict])
+}
+
 
