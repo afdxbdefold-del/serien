@@ -21,12 +21,13 @@ export default function ContentWithAds({ html, className = '' }: ContentWithAdsP
   const [adConfig, setAdConfig] = useState<AdConfig | null>(null);
   const pathname = usePathname();
 
-  // Slot-Config einmalig fetchen und Device-Variante picken.
+  // Slot-Config einmalig fetchen. Mobile-Sperre: KEINE Ads auf Mobile
+  // (User-Vorgabe Feb 2026). Ergo nur Desktop-in_content laden.
   useEffect(() => {
-    const mobile = isMobileViewport();
+    if (isMobileViewport()) return;
     fetchAdSlots()
       .then((slots) => {
-        const cfg = (mobile ? slots.mobile : slots.desktop)['in_content'];
+        const cfg = slots.desktop['in_content'];
         if (cfg && cfg.provider === 'custom') setAdConfig(cfg);
       })
       .catch((err) => console.error('Failed to load in-content ad config:', err));

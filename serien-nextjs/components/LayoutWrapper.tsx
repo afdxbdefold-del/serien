@@ -83,15 +83,9 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <ThemeProvider>
       <SkipLink />
-      {isArticlePage && <MobileTopAd />}
+      {/* MobileTopAd + below_breadcrumb wurden Feb 2026 entfernt:
+          Auf Mobile werden GAR KEINE Ads mehr ausgeliefert (User-Vorgabe). */}
       <Header />
-      {/* below_breadcrumb Slot: NUR auf Artikelseiten, direkt unter dem
-          Header, mobile-only, Full-Width #121318 BG. */}
-      {isArticlePage && (
-        <div className="md:hidden w-full bg-[#121318] flex justify-center py-3 px-2">
-          <ClientAdSlot position="below_breadcrumb" />
-        </div>
-      )}
       {/* Globale Desktop-Ads (Billboard Header, Skyscraper links/rechts,
           Corner Video, Footer Slide-in). Rendert auf ALLEN Public-Seiten,
           nicht nur Artikel. Content-abhängige Slots (Megabanner, In-Content,

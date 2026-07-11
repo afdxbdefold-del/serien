@@ -18,7 +18,7 @@ import ClientAdSlot from '@/components/ClientAdSlot';
 export default function NewsAdCard() {
   return (
     <div
-      className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden flex items-center justify-center min-h-[280px] empty:hidden"
+      className="hidden md:flex bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden items-center justify-center min-h-[280px] empty:hidden"
       data-ad-slot-wrapper="news_infeed"
       aria-label="Werbeanzeige"
     >

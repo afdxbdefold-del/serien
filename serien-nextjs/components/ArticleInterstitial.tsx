@@ -43,6 +43,10 @@ export default function ArticleInterstitial() {
 
   // Fetch config + decide whether to show
   useEffect(() => {
+    // Mobile-Sperre: auf Mobile werden GAR KEINE Ads ausgeliefert
+    // (User-Vorgabe Feb 2026). Interstitial ergo Desktop-only.
+    if (isMobileViewport()) return;
+
     // Hide for bots / crawlers / preview tools — never let paid creatives
     // appear in Google's render snapshot (CWV penalty) and stay AdSense-safe.
     if (isBotUserAgent(navigator.userAgent)) return;

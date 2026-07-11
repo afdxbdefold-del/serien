@@ -57,9 +57,11 @@ export default function ClientAdSlot({ position, className = '' }: ClientAdSlotP
   const [config, setConfig] = useState<AdConfig | null>(null);
 
   useEffect(() => {
-    const mobile = isMobileViewport();
+    // Mobile-Sperre: auf Mobile (< 768 px) werden GAR KEINE Ads
+    // ausgeliefert (User-Vorgabe Feb 2026). Slot bleibt hier stumm.
+    if (isMobileViewport()) return;
     fetchAdSlots().then((slots) => {
-      setConfig(pickSlotForViewport(slots, position, mobile));
+      setConfig(pickSlotForViewport(slots, position, false));
     });
   }, [position]);
 

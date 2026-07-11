@@ -29,6 +29,9 @@ export default function RecommendedContentTMN() {
   const injected = useRef(false);
 
   useEffect(() => {
+    // Mobile-Sperre: KEINE Ads/Recommendations auf Mobile
+    // (User-Vorgabe Feb 2026). Widget ist Desktop-only.
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
     if (!ref.current || injected.current) return;
     injectHtmlWithScripts(ref.current, TMN_RECOMMENDED_HTML);
     injected.current = true;
@@ -37,7 +40,7 @@ export default function RecommendedContentTMN() {
   return (
     <section
       aria-label="Empfohlene Inhalte"
-      className="w-full py-8 md:py-10"
+      className="hidden md:block w-full py-8 md:py-10"
       data-tmn-slot="recommended-content-16"
     >
       <div className="max-w-[1000px] mx-auto px-4">
