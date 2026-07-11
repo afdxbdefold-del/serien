@@ -23,7 +23,15 @@ export default function AdFraudStatsPage() {
 
   const load = async () => {
     try {
-      const r = await fetch('/api/admin/adfraud-stats', { credentials: 'include' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+      if (!token) {
+        setErr('Nicht eingeloggt — bitte /admin/login öffnen.');
+        setLoading(false);
+        return;
+      }
+      const r = await fetch('/api/admin/adfraud-stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: Stats = await r.json();
       setStats(data);
