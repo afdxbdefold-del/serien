@@ -179,6 +179,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
 
+        {/* Ezoic Standalone SDK + Analytics.
+            Gatekeeper-CMP-Zeilen bewusst NICHT eingebaut — Site nutzt bereits
+            InMobi Choice (Desktop) + Google Funding Choices (Mobile). Ein
+            dritter CMP würde __tcfapi-Race-Conditions, doppelte Consent-
+            Overlays und Yieldlab-Prebid-noBids verursachen.
+            Ezoic fällt hier auf die bestehende TCF-Consent-Kette zurück.
+            Alle drei Scripts als afterInteractive → blockieren weder LCP
+            noch INP. */}
+        <Script
+          id="ezoic-sa"
+          src="https://www.ezojs.com/ezoic/sa.min.js"
+          strategy="afterInteractive"
+        />
+        <Script id="ezstandalone-init" strategy="afterInteractive">
+          {`
+            window.ezstandalone = window.ezstandalone || {};
+            ezstandalone.cmd = ezstandalone.cmd || [];
+          `}
+        </Script>
+        <Script
+          id="ezoic-analytics"
+          src="https://ezoicanalytics.com/analytics.js"
+          strategy="afterInteractive"
+        />
+
         {/* Global Schema.org markup */}
         <script
           type="application/ld+json"
