@@ -27,6 +27,7 @@
  */
 
 import ClientAdSlot from './ClientAdSlot';
+import CornerVideoTMN from './CornerVideoTMN';
 
 export default function GlobalDesktopAds() {
   return (
@@ -60,14 +61,16 @@ export default function GlobalDesktopAds() {
         <ClientAdSlot position="desktop_skyscraper_right" />
       </aside>
 
-      {/* Corner Video — 320×180. Fixed rechts unten. z-40 (über
-          Footer-Slidein), da beide gleichzeitig aktiv sein können. */}
+      {/* Corner Video — 320×180. HARDCODED TheMoneytizer 141665-38.
+          Nicht mehr via DB-Slot, damit das Format nicht aus Versehen im
+          Admin deaktiviert wird. Fixed rechts unten, z-40 (über Footer-
+          Slidein), da beide gleichzeitig aktiv sein können. */}
       <div
-        className="hidden lg:block fixed bottom-4 right-4 z-40 pointer-events-auto empty:hidden"
+        className="hidden lg:block fixed bottom-4 right-4 z-40 pointer-events-auto"
         aria-label="Werbung Corner Video"
-        data-ad-slot-wrapper="desktop_corner_video"
+        data-ad-slot-wrapper="desktop_corner_video_tmn"
       >
-        <ClientAdSlot position="desktop_corner_video" />
+        <CornerVideoTMN />
       </div>
 
       {/* Footer Slide-in — 728×90. Fixed am unteren Bildschirmrand,
