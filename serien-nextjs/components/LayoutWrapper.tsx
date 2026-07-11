@@ -10,6 +10,7 @@ import MobileTopAd from './MobileTopAd';
 import ClientAdSlot from './ClientAdSlot';
 import GlobalDesktopAds from './GlobalDesktopAds';
 import { ThemePageAdTop, ThemePageAdBottom } from './ThemePageAds';
+import RecommendedContentTMN from './RecommendedContentTMN';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -106,6 +107,10 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
       </main>
       {/* Zusätzlicher Megabanner Bottom auf Themenseiten — analog Top. */}
       {isThemePage && <ThemePageAdBottom />}
+      {/* Recommended-Content Widget (TheMoneytizer Format 16) — auf
+          allen Public-Seiten außer Legal-/Konto-Seiten. Läuft direkt
+          vor dem Footer, im 1000-px-Content-Container. */}
+      {!isLegalPage && <RecommendedContentTMN />}
       <Footer />
       <PushNotificationPrompt />
     </ThemeProvider>
