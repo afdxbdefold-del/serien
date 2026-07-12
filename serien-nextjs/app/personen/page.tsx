@@ -28,8 +28,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return {
     title: `Schauspieler & Stars - Alle Serien-Darsteller${suffix} | serien.de`,
     description: 'Entdecke alle Schauspieler und Stars aus deinen Lieblingsserien. Profile, Rollen, News und mehr.',
-    robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
-    other: { 'googlebot-news': 'noindex' },
+    // Feb 2026: Personen-Sektion bekommt keinen organischen Traffic —
+    // noindex,nofollow spart Crawl-Budget und hält die Person-Seiten aus
+    // dem Google-Index.
+    robots: { index: false, follow: false },
     alternates: { canonical },
   };
 }

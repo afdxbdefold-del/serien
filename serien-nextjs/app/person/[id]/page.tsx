@@ -80,15 +80,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    // Feb 2026: Person-Detail-Seiten liefern keinen organischen Traffic —
+    // hart noindex,nofollow damit Google Crawl-Budget für die relevanten
+    // Content-Seiten (Artikel, Serien, News) spart.
     robots: {
-      index: hasContent,
-      follow: true,
-      ...(hasContent ? { 'max-image-preview': 'large' as const, 'max-snippet': -1, 'max-video-preview': -1 } : {}),
-    },
-    // Profile pages are NOT news. Keep them out of Google News app/tab.
-    // Regular Search indexing is unaffected.
-    other: {
-      'googlebot-news': 'noindex',
+      index: false,
+      follow: false,
     },
     openGraph: {
       title, description, type: 'profile',
