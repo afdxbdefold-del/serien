@@ -28,8 +28,9 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return {
     title: `Serienfiguren - Charaktere & Rollen${suffix} | serien.de`,
     description: 'Alle wichtigen Serienfiguren im Überblick: Rolle, Bedeutung und Hintergrund zu den Charakteren deiner Lieblingsserien.',
-    robots: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 },
-    other: { 'googlebot-news': 'noindex' },
+    // Feb 2026: Figuren-Sektion bekommt keinen organischen Traffic —
+    // noindex,nofollow spart Crawl-Budget.
+    robots: { index: false, follow: false },
     alternates: { canonical },
   };
 }

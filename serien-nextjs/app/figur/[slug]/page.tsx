@@ -59,16 +59,11 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
   return {
     title,
     description,
+    // Feb 2026: Figur-Detail-Seiten liefern keinen organischen Traffic —
+    // hart noindex,nofollow (spart Crawl-Budget für Artikel/Serien/News).
     robots: {
-      index: true,
-      follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-      'max-video-preview': -1,
-    },
-    // Character pages are NOT news. Keep them out of Google News app/tab.
-    other: {
-      'googlebot-news': 'noindex',
+      index: false,
+      follow: false,
     },
     alternates: {
       canonical: `${baseUrl}/figur/${character.slug}`,
