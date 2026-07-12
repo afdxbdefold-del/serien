@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { classifySocialReferrer } from './lib/social-referrer-classifier';
 
 const INDEXNOW_KEY = '8e6827d79c19f8cbe91089129c21e303';
 
@@ -271,50 +270,15 @@ export function middleware(request: NextRequest) {
     }).catch(() => {});
   }
 
-  // (b) Server-side Referrer capture
-  const referer = request.headers.get('referer') || '';
-  if (referer) {
-    response.cookies.set('_ssref', referer, {
-      path: '/',
-      maxAge: 60, // Only valid for 60s (just for the initial page load)
-      httpOnly: false,
-      sameSite: 'lax',
-    });
-  }
+  // (b) Server-side Referrer capture — DEAKTIVIERT (Feb 2026).
+  // Cookies _ssref/_ssrc dienten dem eigenen Live-Analytics-Tracker,
+  // der komplett abgestellt wurde. Keine Konsumenten mehr → keine
+  // Cookie-Setzung mehr → weniger Set-Cookie-Header-Overhead.
 
-  // (d) User-Agent based Discover detection
-  const isDiscover = DISCOVER_UA_PATTERNS.some(p => ua.includes(p));
-  if (isDiscover) {
-    response.cookies.set('_ssrc', 'discover', {
-      path: '/',
-      maxAge: 60,
-      httpOnly: false,
-      sameSite: 'lax',
-    });
-  }
-
-  // (e) Social-Referrer Truth-Klassifikation — KEIN BLOCKING, nur Log.
-  // Loggt Traffic mit angeblichem FB/X/IG/TT-Referrer inkl. Verdict
-  // (echt / verdächtig / fake) für /admin/social-referrer.
-  // Admin- und Bot-Traffic ausschließen um Noise zu vermeiden.
-  //
-  // Cost-Optimierung (Feb 2026): 20 % Sampling — wir loggen nur jeden
-  // 5. Match. Die Verhältnisse real/suspicious/fake bleiben statistisch
-  // stabil (die Absolutwerte im Dashboard sind ×5 hochzurechnen). Das
-  // spart ~80 % der Edge Requests + Function Invocations für diese Route.
-  if (!bot && !path.startsWith('/admin') && Math.random() < 0.2) {
-    const country = request.headers.get('x-vercel-ip-country') || '';
-    const classification = classifySocialReferrer(referer, ua, request.headers, country);
-    if (classification) {
-      fetch(`${origin}/api/track/social-referrer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(classification),
-        // @ts-expect-error keepalive is Fetch API, TS lib types lag
-        keepalive: true,
-      }).catch(() => {});
-    }
-  }
+  // (e) Social-Referrer Truth-Klassifikation — DEAKTIVIERT (Feb 2026).
+  // Aggregat-Klassifikation ohne exakte Referrer-URLs lieferte für die
+  // User-Anforderung ("wo genau auf Facebook") keinen Mehrwert. Modul
+  // komplett entfernt inkl. /api/track/social-referrer + /admin/social-referrer.
 
   return response;
 }

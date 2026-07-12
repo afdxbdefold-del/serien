@@ -1,7 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
 import LayoutWrapper from '@/components/LayoutWrapper';
-import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 import { Inter } from 'next/font/google';
 
@@ -207,7 +206,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen text-gray-900 dark:text-gray-100 transition-colors`}>
-        <AnalyticsTracker />
         <LayoutWrapper>{children}</LayoutWrapper>
         {/* Server-rendered footer nav for Google crawler (visible in first HTML pass) */}
         <nav aria-label="Rechtliche Informationen" className="sr-only">

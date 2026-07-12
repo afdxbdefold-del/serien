@@ -89,7 +89,6 @@ export default function AdminDashboardPage() {
           <div className="flex space-x-4 overflow-x-auto">
             {[
               { id: 'dashboard', label: '📊 Dashboard', href: null },
-              { id: 'analytics', label: '📈 Live Analytics', href: '/admin/analytics' },
               { id: 'discover', label: '🎯 Discover Analytics', href: '/admin/discover-analytics' },
               { id: 'headlines', label: '✏️ Headline Analytics', href: '/admin/headline-analytics' },
               { id: 'headline-angles', label: '🎭 Headline Angles', href: '/admin/headline-angles' },
