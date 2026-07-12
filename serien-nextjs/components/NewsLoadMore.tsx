@@ -4,7 +4,7 @@ import { useState, useTransition, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Clock, Loader2 } from 'lucide-react';
-import NewsAdCard from '@/app/news/_ad_card';
+import NewsAdCard from '@/components/InfeedAdCard';
 
 interface ApiItem {
   id: string;

@@ -396,6 +396,9 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
               <div data-ad-slot-wrapper="desktop_sidebar_megasky" className="empty:hidden">
                 <ClientAdSlot position="desktop_sidebar_megasky" />
               </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_megasky_2" className="empty:hidden">
+                <ClientAdSlot position="desktop_sidebar_megasky_2" />
+              </div>
             </div>
           </aside>
         </div>

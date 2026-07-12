@@ -41,12 +41,15 @@ export default function ContentWithAds({ html, className = '' }: ContentWithAdsP
     const oldAds = containerRef.current.querySelectorAll('.content-ad-unit');
     oldAds.forEach((el) => el.remove());
 
-    // Nach jedem 4. Absatz einen Ad einfügen, maximal 2.
+    // Nach jedem 4. Absatz einen Ad einfügen. Standard maxAds=2. Bei
+    // Longform-Artikeln (mehr als 20 Absätze) erlauben wir 3 Ads,
+    // damit auch der letzte Content-Block einen Slot bekommt.
     const paragraphs = containerRef.current.querySelectorAll('p');
+    const totalParagraphs = paragraphs.length;
+    const maxAds = totalParagraphs > 20 ? 3 : 2;
+    const insertEveryNth = 4;
     let paragraphCount = 0;
     let adsInserted = 0;
-    const maxAds = 2;
-    const insertEveryNth = 4;
 
     paragraphs.forEach((el) => {
       paragraphCount++;

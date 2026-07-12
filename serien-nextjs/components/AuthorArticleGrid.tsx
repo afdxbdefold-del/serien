@@ -7,9 +7,10 @@
  * batches reveal with one click. The Show-More button is intentionally a
  * <button>, not a link, so it doesn't pollute the URL bar.
  */
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import InfeedAdCard from './InfeedAdCard';
 
 interface ArticleCard {
   id: string;
@@ -43,7 +44,7 @@ export default function AuthorArticleGrid({ articles, authorName }: Props) {
   return (
     <>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="author-article-grid">
-        {shown.map((article) => {
+        {shown.map((article, i) => {
           const imageUrl =
             article.heroImagePath ||
             article.ogImageUrl ||
@@ -58,38 +59,41 @@ export default function AuthorArticleGrid({ articles, authorName }: Props) {
           });
 
           return (
-            <Link
-              key={article.id}
-              href={`/${article.slug}`}
-              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow group"
-            >
-              <div className="relative w-full aspect-[16/9] bg-gray-200 overflow-hidden">
-                <Image
-                  src={imageUrl}
-                  alt={article.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                {article.category && (
-                  <span className="absolute top-3 left-3 bg-cyan-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                    {article.category}
-                  </span>
-                )}
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-cyan-600 transition-colors">
-                  {article.title}
-                </h3>
-                {article.excerpt && (
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-3">{article.excerpt}</p>
-                )}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{formattedDate}</span>
-                  {article.readingTime && <span>{article.readingTime} Min. Lesezeit</span>}
+            <Fragment key={article.id}>
+              <Link
+                href={`/${article.slug}`}
+                className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow group"
+              >
+                <div className="relative w-full aspect-[16/9] bg-gray-200 overflow-hidden">
+                  <Image
+                    src={imageUrl}
+                    alt={article.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {article.category && (
+                    <span className="absolute top-3 left-3 bg-cyan-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                      {article.category}
+                    </span>
+                  )}
                 </div>
-              </div>
-            </Link>
+                <div className="p-5">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-cyan-600 transition-colors">
+                    {article.title}
+                  </h3>
+                  {article.excerpt && (
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">{article.excerpt}</p>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{formattedDate}</span>
+                    {article.readingTime && <span>{article.readingTime} Min. Lesezeit</span>}
+                  </div>
+                </div>
+              </Link>
+              {/* In-Feed Ad alle 6 Cards. */}
+              {(i + 1) % 6 === 0 && i < shown.length - 1 && <InfeedAdCard />}
+            </Fragment>
           );
         })}
       </div>

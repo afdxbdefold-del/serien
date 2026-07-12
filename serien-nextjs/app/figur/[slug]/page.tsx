@@ -11,6 +11,7 @@ import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import Breadcrumb from '@/components/Breadcrumb';
+import ClientAdSlot from '@/components/ClientAdSlot';
 
 // ISR - Revalidate every 5 minutes
 export const revalidate = 300;
@@ -387,6 +388,11 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
                 </div>
               </section>
             )}
+
+            {/* Mid-Content Ad zwischen Related Characters und Q&A. */}
+            <div className="hidden md:flex justify-center empty:hidden">
+              <ClientAdSlot position="in_content" />
+            </div>
 
             {/* Q&A */}
             {qa && qa.length > 0 && (

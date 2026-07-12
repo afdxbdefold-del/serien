@@ -9,7 +9,7 @@ import { Fragment } from 'react';
 import { fetchNewsArticles } from './_data';
 import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
 import NewsCard from './_card';
-import NewsAdCard from './_ad_card';
+import NewsAdCard from '@/components/InfeedAdCard';
 import NewsLoadMore from '@/components/NewsLoadMore';
 import ThemePageSidebar from '@/components/ThemePageSidebar';
 import ClientAdSlot from '@/components/ClientAdSlot';

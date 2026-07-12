@@ -12,6 +12,7 @@ import { getTMDBPersonDetails } from '@/lib/tmdb-person';
 import Image from 'next/image';
 import Link from 'next/link';
 import Breadcrumb from '@/components/Breadcrumb';
+import ClientAdSlot from '@/components/ClientAdSlot';
 import { unstable_cache } from 'next/cache';
 
 export const revalidate = 300;
@@ -301,6 +302,11 @@ export default async function PersonPage({ params }: PageProps) {
                 </div>
               </section>
             )}
+
+            {/* Mid-Content Ad zwischen Rollen und Filmografie. */}
+            <div className="hidden md:flex justify-center empty:hidden">
+              <ClientAdSlot position="in_content" />
+            </div>
 
             {/* FULL FILMOGRAPHY */}
             {displayCredits.length > 0 && (

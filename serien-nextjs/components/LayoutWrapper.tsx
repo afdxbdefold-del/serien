@@ -101,6 +101,17 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
       </main>
       {/* Zusätzlicher Megabanner Bottom auf Themenseiten — analog Top. */}
       {isThemePage && <ThemePageAdBottom />}
+      {/* above_recommended: 728×250 Leaderboard direkt vor dem TMN-
+          Recommended-Content-Widget. Extrem hohe Viewability weil jeder
+          User bis in diese Zone scrollt. Nur Desktop (Mobile ad-frei). */}
+      {!isLegalPage && (
+        <div
+          className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
+          data-ad-slot-wrapper="above_recommended"
+        >
+          <ClientAdSlot position="above_recommended" />
+        </div>
+      )}
       {/* Recommended-Content Widget (TheMoneytizer Format 16) — auf
           allen Public-Seiten außer Legal-/Konto-Seiten. Läuft direkt
           vor dem Footer, im 1000-px-Content-Container. */}

@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Fragment } from 'react';
 import Breadcrumb from '@/components/Breadcrumb';
 import { ArrowLeft, Clock, ChevronRight } from 'lucide-react';
 import { Metadata } from 'next';
@@ -20,6 +21,7 @@ import ContentWithAds from '@/components/ContentWithAds';
 import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
+import InfeedAdCard from '@/components/InfeedAdCard';
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
@@ -686,21 +688,24 @@ export default async function ArticlePage({ params }: PageProps) {
                 Mehr zu „{article.series.title || article.series.name}"
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {seriesArticles.map((news) => (
-                  <NewsCard
-                    key={news.id}
-                    slug={news.slug}
-                    title={news.title}
-                    excerpt={news.excerpt}
-                    heroImageUrl={news.heroImageUrl || (news.heroImagePath ? `/${news.heroImagePath.replace(/^\//, '')}` : undefined)}
-                    heroLocalUrl={news.heroLocalUrl}
-                    cardImageUrl={news.cardImageUrl}
-                    tmdbId={news.tmdbId}
-                    tmdbType={news.tmdbType}
-                    publishedAt={news.publishedAt}
-                    category={news.category}
-                    networks={news.series?.networks as string[] || []}
-                  />
+                {seriesArticles.map((news, i) => (
+                  <Fragment key={news.id}>
+                    <NewsCard
+                      slug={news.slug}
+                      title={news.title}
+                      excerpt={news.excerpt}
+                      heroImageUrl={news.heroImageUrl || (news.heroImagePath ? `/${news.heroImagePath.replace(/^\//, '')}` : undefined)}
+                      heroLocalUrl={news.heroLocalUrl}
+                      cardImageUrl={news.cardImageUrl}
+                      tmdbId={news.tmdbId}
+                      tmdbType={news.tmdbType}
+                      publishedAt={news.publishedAt}
+                      category={news.category}
+                      networks={news.series?.networks as string[] || []}
+                    />
+                    {/* In-Feed Ad nach der 2. Card im 3-Col-Grid. */}
+                    {i === 1 && i < seriesArticles.length - 1 && <InfeedAdCard />}
+                  </Fragment>
                 ))}
               </div>
             </section>
@@ -814,6 +819,9 @@ export default async function ArticlePage({ params }: PageProps) {
               <div data-ad-slot-wrapper="desktop_sidebar_megasky" className="empty:hidden">
                 <ClientAdSlot position="desktop_sidebar_megasky" />
               </div>
+              <div data-ad-slot-wrapper="desktop_sidebar_megasky_2" className="empty:hidden">
+                <ClientAdSlot position="desktop_sidebar_megasky_2" />
+              </div>
             </div>
           </aside>
           {/* ─────────────────────────── /DESKTOP SIDEBAR ─────────────────────── */}
@@ -834,20 +842,23 @@ export default async function ArticlePage({ params }: PageProps) {
           <section aria-labelledby="similar-news">
             <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Neue News</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedNews.map((news) => (
-                <NewsCard
-                  key={news.id}
-                  slug={news.slug}
-                  title={news.title}
-                  excerpt={news.excerpt}
-                  heroLocalUrl={news.heroLocalUrl}
-                  cardImageUrl={news.cardImageUrl}
-                  tmdbId={news.tmdbId}
-                  tmdbType={news.tmdbType}
-                  publishedAt={news.publishedAt}
-                  category={news.category}
-                  networks={news.series?.networks as string[] || []}
-                />
+              {relatedNews.map((news, i) => (
+                <Fragment key={news.id}>
+                  <NewsCard
+                    slug={news.slug}
+                    title={news.title}
+                    excerpt={news.excerpt}
+                    heroLocalUrl={news.heroLocalUrl}
+                    cardImageUrl={news.cardImageUrl}
+                    tmdbId={news.tmdbId}
+                    tmdbType={news.tmdbType}
+                    publishedAt={news.publishedAt}
+                    category={news.category}
+                    networks={news.series?.networks as string[] || []}
+                  />
+                  {/* In-Feed Ad nach der 2. Card. */}
+                  {i === 1 && i < relatedNews.length - 1 && <InfeedAdCard />}
+                </Fragment>
               ))}
             </div>
           </section>
