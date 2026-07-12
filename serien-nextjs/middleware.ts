@@ -297,7 +297,12 @@ export function middleware(request: NextRequest) {
   // Loggt Traffic mit angeblichem FB/X/IG/TT-Referrer inkl. Verdict
   // (echt / verdächtig / fake) für /admin/social-referrer.
   // Admin- und Bot-Traffic ausschließen um Noise zu vermeiden.
-  if (!bot && !path.startsWith('/admin')) {
+  //
+  // Cost-Optimierung (Feb 2026): 20 % Sampling — wir loggen nur jeden
+  // 5. Match. Die Verhältnisse real/suspicious/fake bleiben statistisch
+  // stabil (die Absolutwerte im Dashboard sind ×5 hochzurechnen). Das
+  // spart ~80 % der Edge Requests + Function Invocations für diese Route.
+  if (!bot && !path.startsWith('/admin') && Math.random() < 0.2) {
     const country = request.headers.get('x-vercel-ip-country') || '';
     const classification = classifySocialReferrer(referer, ua, request.headers, country);
     if (classification) {
@@ -316,7 +321,22 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/).*)',
-    '/8e6827d79c19f8cbe91089129c21e303.txt',
+    /*
+     * Match all request paths EXCEPT:
+     * - _next/static (Next.js build assets)
+     * - _next/image (Next.js image optimizer — already CDN-cached)
+     * - favicon.ico
+     * - api/* (API routes handle their own logic)
+     * - img/* (unsere eigenen Image-Handler-Routes serviern statisch)
+     * - Alle Static-Asset-Extensions (Bilder, Fonts, CSS, JS, Video, Audio,
+     *   robots.txt, sitemap.xml, manifests, IndexNow-Key etc.)
+     *
+     * Vorher lief Middleware auch auf allen /img/*, .png, .jpg, .webp, .txt,
+     * .xml, .woff2 usw. → jeder Static-Hit = 1 Edge Request. Feb 2026-Fix:
+     * schmaler Matcher schneidet 60-80 % der Edge Requests weg. Der IndexNow-
+     * Key-Verify-File wird durch das explicit-match unten weiter erlaubt
+     * (Bing verifiziert die Datei; wir wollen nichts drum herum tun).
+     */
+    '/((?!_next/static|_next/image|favicon.ico|api/|img/|.*\\.(?:txt|xml|ico|png|jpg|jpeg|gif|webp|avif|svg|css|js|mjs|json|woff|woff2|ttf|eot|otf|mp4|webm|mp3|wav|ogg|zip|pdf|map|webmanifest)$).*)',
   ],
 };

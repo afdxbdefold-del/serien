@@ -93,9 +93,12 @@ export default function SocialReferrerPage() {
 
   useEffect(() => {
     load();
+    // Polling alle 5 min statt jede Minute (Cost-Optimierung Feb 2026).
+    // Admin-Tabs die dauerhaft offen bleiben produzierten sonst 1440
+    // Function-Aufrufe pro Tag pro Tab.
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') load();
-    }, 60000);
+    }, 300000);
     return () => clearInterval(id);
   }, []);
 

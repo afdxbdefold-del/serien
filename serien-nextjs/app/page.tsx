@@ -7,8 +7,9 @@ import { unstable_cache } from 'next/cache';
 import { getCurrentTop10 } from '@/lib/ranking-queries';
 import type { FlixpatrolPlatform } from '@/lib/flixpatrol-scraper';
 
-// ISR - Revalidate every 60 seconds for fresh content
-export const revalidate = 60;
+// ISR — 5 min. Homepage-Content ist News-basiert und verträgt problemlos
+// 5 min Cache. Vorher 60 s → 1440 SSR-Runs/Tag. Jetzt 288/Tag (5× weniger).
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
@@ -198,7 +199,7 @@ const getHomepageData = unstable_cache(
     return { articles, series, seriesCount, articlesCount, streamingSeries };
   },
   ['homepage-data'],
-  { revalidate: 60, tags: ['homepage'] }
+  { revalidate: 300, tags: ['homepage'] }
 );
 
 export default async function Page() {

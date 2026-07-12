@@ -16,9 +16,17 @@ const nextConfig: NextConfig = {
   
   // Optimized images
   images: {
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    formats: ['image/webp'],
+    // Reduzierte Größenmatrix (Feb 2026, Kostenoptimierung).
+    // Vorher 6 × 8 = 48 Varianten × (webp+avif) = 96 Transforms/Bild.
+    // Jetzt 4 × 4 = 16 Varianten × webp = 16 Transforms/Bild.
+    // Zusammen mit minimumCacheTTL:1 Jahr → ~80 % weniger Transformations.
+    deviceSizes: [640, 828, 1080, 1920],
+    imageSizes: [64, 128, 256, 384],
+    // 1 Jahr Edge-Cache pro optimierter Größe. Ohne Setzen: 60 s Default →
+    // fast jeder Refresh löst neue Transformation aus. Für News-Site sind
+    // Bilder unveränderlich (URL enthält Hash oder eindeutigen Path).
+    minimumCacheTTL: 31536000,
     // Fix: Some mobile browsers (Brave) trigger a download for optimized images
     // when Next.js defaults to `Content-Disposition: attachment`. Force `inline`
     // so the browser always renders the image instead of saving it.

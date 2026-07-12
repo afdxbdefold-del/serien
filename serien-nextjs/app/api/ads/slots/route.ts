@@ -78,7 +78,17 @@ export async function GET() {
         desktopOnly: device === 'desktop',
       };
     }
-    return NextResponse.json(out);
+    return NextResponse.json(out, {
+      headers: {
+        // Vercel Edge Network cached diese Response für 5 min. Bei Cache-Hit
+        // läuft die Function GAR NICHT — spart ~90 % Function Invocations
+        // dieser Route (bei ~200k Client-Aufrufen/Tag: von 200k → ~500/Tag).
+        // Kein Ad-Revenue-Risiko: die Slot-Config enthält keine User-Daten,
+        // und die eigentliche Ad-Auktion läuft im TheMoneytizer-Client-JS.
+        // Bei Admin-Änderung: max. 5 min Propagations-Delay (akzeptabel).
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800',
+      },
+    });
   } catch (error) {
     console.error('Error fetching ad slots:', error);
     return NextResponse.json({ mobile: {}, desktop: {} }, { status: 200 });

@@ -48,7 +48,8 @@ export default function AdFraudStatsPage() {
     const tick = () => {
       if (document.visibilityState === 'visible') load();
     };
-    const id = setInterval(tick, 60000);
+    // Polling alle 5 min statt jede Minute (Cost-Optimierung Feb 2026).
+    const id = setInterval(tick, 300000);
     return () => clearInterval(id);
   }, []);
 
