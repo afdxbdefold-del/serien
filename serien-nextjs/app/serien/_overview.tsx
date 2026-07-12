@@ -154,43 +154,43 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
   };
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white dark:bg-gray-950">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
 
       <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumb */}
-        <nav className="text-xs text-gray-500 mb-4" aria-label="Breadcrumb" data-testid="breadcrumb">
+        <nav className="text-xs text-gray-500 dark:text-gray-400 mb-4" aria-label="Breadcrumb" data-testid="breadcrumb">
           <ol className="flex items-center gap-2">
             <li>
-              <Link href="/" className="hover:text-gray-900">serien.de</Link>
+              <Link href="/" className="hover:text-gray-900 dark:hover:text-white">serien.de</Link>
             </li>
             <li aria-hidden>›</li>
             <li>
-              <Link href="/serien" className="hover:text-gray-900">Serien</Link>
+              <Link href="/serien" className="hover:text-gray-900 dark:hover:text-white">Serien</Link>
             </li>
             {(filters.genre || filters.streamer || filters.jahrzehnt) && (
               <>
                 <li aria-hidden>›</li>
-                <li className="text-gray-900 font-medium">{title.replace('Alle Serien', 'Alle')}</li>
+                <li className="text-gray-900 dark:text-white font-medium">{title.replace('Alle Serien', 'Alle')}</li>
               </>
             )}
           </ol>
         </nav>
 
         <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2" data-testid="page-title">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2" data-testid="page-title">
             {title}
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {total.toLocaleString('de-DE')} Serien — sortiert nach {sortLabel.toLowerCase()}
           </p>
         </header>
 
         {/* Filter sidebar (top-of-page editorial style) */}
-        <section className="border border-gray-200 rounded-2xl p-5 md:p-6 mb-8 bg-gray-50/50" aria-label="Filter">
+        <section className="border border-gray-200 dark:border-gray-800 rounded-2xl p-5 md:p-6 mb-8 bg-gray-50/50 dark:bg-gray-900/40" aria-label="Filter">
           <div className="flex items-center gap-2 mb-4">
             <FilterIcon className="h-4 w-4 text-cyan-500" />
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Filtern nach</h2>
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Filtern nach</h2>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
@@ -245,7 +245,7 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
                 </FilterPill>
               ))}
               <div className="h-3" />
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-1.5">
                 Sortieren
               </div>
               {SORT_OPTIONS.map((o) => (
@@ -262,11 +262,11 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
           </div>
 
           {(filters.genre || filters.streamer || filters.jahrzehnt || filters.status || filters.sort) && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
               <Link
                 href={resetHref}
                 data-testid="reset-filters"
-                className="text-xs text-cyan-700 hover:text-cyan-900 underline-offset-2 hover:underline"
+                className="text-xs text-cyan-700 dark:text-cyan-400 hover:text-cyan-900 dark:hover:text-cyan-300 underline-offset-2 hover:underline"
               >
                 Alle Filter zurücksetzen
               </Link>
@@ -276,25 +276,25 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
 
         {/* Series list */}
         <section aria-label="Serien-Liste" className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {sortLabel === 'A–Z' ? 'Alle Serien (A–Z)' : `${sortLabel} Serien`}
           </h2>
 
           {items.length === 0 ? (
-            <div className="text-center py-12 text-gray-500" data-testid="empty-state">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="empty-state">
               Keine Serien gefunden. Versuche andere Filter.
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
               {items.map((s) => {
                 const poster = tmdbPoster(s.posterPath);
                 return (
                   <li key={s.tmdbId} className="py-4" data-testid={`series-item-${s.slug}`}>
                     <Link
                       href={`/serie/${s.slug}`}
-                      className="flex gap-4 group hover:bg-gray-50/60 -mx-3 px-3 py-2 rounded-xl transition-colors"
+                      className="flex gap-4 group hover:bg-gray-50/60 dark:hover:bg-gray-900/50 -mx-3 px-3 py-2 rounded-xl transition-colors"
                     >
-                      <div className="flex-shrink-0 w-[88px] sm:w-[110px] aspect-[2/3] relative rounded-lg overflow-hidden bg-gray-100">
+                      <div className="flex-shrink-0 w-[88px] sm:w-[110px] aspect-[2/3] relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
                         {poster ? (
                           <Image
                             src={poster}
@@ -305,16 +305,16 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
                             unoptimized
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
                             <Tv className="h-8 w-8" />
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-cyan-700 transition-colors line-clamp-2">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors line-clamp-2">
                           {s.title}
                         </h3>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
                           {s.firstAirDate && (
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
@@ -327,20 +327,20 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
                             </span>
                           ) : null}
                           {s.voteAverage ? (
-                            <span className="inline-flex items-center gap-1 text-amber-600">
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <Star className="h-3 w-3 fill-current" />
                               {s.voteAverage.toFixed(1)}
                             </span>
                           ) : null}
                           {s.networks && s.networks.length > 0 && (
-                            <span className="text-gray-500">{s.networks.slice(0, 2).join(', ')}</span>
+                            <span className="text-gray-500 dark:text-gray-500">{s.networks.slice(0, 2).join(', ')}</span>
                           )}
                         </div>
                         {s.genres && s.genres.length > 0 && (
-                          <div className="mt-1 text-xs text-gray-500">{s.genres.slice(0, 3).join(' · ')}</div>
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">{s.genres.slice(0, 3).join(' · ')}</div>
                         )}
                         {s.overview && (
-                          <p className="mt-2 text-sm text-gray-700 line-clamp-2 sm:line-clamp-3">{s.overview}</p>
+                          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-2 sm:line-clamp-3">{s.overview}</p>
                         )}
                       </div>
                     </Link>
@@ -354,14 +354,14 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
         {/* Pagination */}
         {totalPages > 1 && (
           <nav className="mt-8 flex items-center justify-between" aria-label="Paginierung" data-testid="pagination">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               Seite {page} von {totalPages}
             </div>
             <div className="flex gap-2">
               {page > 1 && (
                 <Link
                   href={link({ page: String(page - 1) })}
-                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
                   data-testid="pagination-prev"
                 >
                   ← Zurück
@@ -370,7 +370,7 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
               {page < totalPages && (
                 <Link
                   href={link({ page: String(page + 1) })}
-                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
                   data-testid="pagination-next"
                 >
                   Weiter →
@@ -387,7 +387,7 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
 function FilterColumn({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">{label}</h3>
+      <h3 className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-2">{label}</h3>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -410,8 +410,8 @@ function FilterPill({
       data-testid={testid}
       className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
         active
-          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 font-semibold'
-          : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
+          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-500 font-semibold'
+          : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
       }`}
     >
       {children}
