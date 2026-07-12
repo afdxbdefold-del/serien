@@ -175,4 +175,3 @@ export async function GET(request: NextRequest, context: RouteParams) {
 }
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';

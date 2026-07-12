@@ -137,9 +137,9 @@ export function middleware(request: NextRequest) {
   const origin_early = request.nextUrl.origin;
 
   const fireBlockLog = (reason: string, country: string, botSignal: string) => {
-    // Fire-and-forget an internen Endpoint. Edge Runtime hat kein
-    // eingebautes waitUntil hier, aber `keepalive: true` erhöht die
-    // Wahrscheinlichkeit dass der Request durchläuft.
+    // Fire-and-forget an internen Endpoint. 10 % Sampling (Feb 2026 Cost-Opt.):
+    // spart 90 % der Extra-Function-Invocations. Dashboard-Werte × 10 hochrechnen.
+    if (Math.random() >= 0.1) return;
     fetch(`${origin_early}/api/track/adfraud-block`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -250,12 +250,13 @@ export function middleware(request: NextRequest) {
     request: { headers: requestHeaders },
   });
 
-  // Crawler tracking: fire-and-forget POST to internal endpoint.
-  // Middleware runs on every request (no ISR caching), so this catches every bot hit.
+  // Crawler tracking: fire-and-forget POST an internen Endpoint.
+  // 10 % Sampling (Feb 2026 Cost-Opt.) — spart 90 % der Extra-Function-Calls.
+  // Dashboard-Werte × 10 hochrechnen. Middleware läuft auf jedem Request,
+  // Bot-Traffic sind ~30-50 % aller Hits → ohne Sampling extrem teuer.
   const ua = request.headers.get('user-agent') || '';
   const bot = detectBot(ua);
-  if (bot) {
-    // fetch is non-blocking here; response is already routed.
+  if (bot && Math.random() < 0.1) {
     fetch(`${origin}/api/track/crawler`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

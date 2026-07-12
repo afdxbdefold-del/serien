@@ -52,7 +52,7 @@ export async function GET(
         return new NextResponse(imageBuffer, {
           headers: {
             'Content-Type': response.headers.get('Content-Type') || 'image/jpeg',
-            'Cache-Control': 'public, max-age=86400, s-maxage=604800',
+            'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
           },
         });
       }
@@ -87,7 +87,7 @@ export async function GET(
             return new NextResponse(imageBuffer, {
               headers: {
                 'Content-Type': imageResponse.headers.get('Content-Type') || 'image/jpeg',
-                'Cache-Control': 'public, max-age=86400, s-maxage=604800',
+                'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
               },
             });
           }

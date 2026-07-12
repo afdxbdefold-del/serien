@@ -185,7 +185,10 @@ export async function GET(request: NextRequest, context: RouteParams) {
           return new Response(buf, {
             headers: {
               'Content-Type': 'image/jpeg',
-              'Cache-Control': 'public, max-age=86400',
+              // 30 Tage Cache statt 1 Tag — branded-fallback ist teuer zu
+              // regenerieren (Canvas-Render + Font-Load). Ändert sich nur
+              // bei Series-Metadata-Update; SWR fängt kurze Delays ab.
+              'Cache-Control': 'public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=604800',
               'X-Hero-Source': 'branded-fallback',
             },
           });
@@ -218,4 +221,3 @@ export async function GET(request: NextRequest, context: RouteParams) {
 }
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
