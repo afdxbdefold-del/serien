@@ -130,10 +130,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* AdSense loader is scoped to /[slug] (article pages) — not loaded
             in root layout per ads policy "only on article pages". */}
 
-        {/* Google Analytics 4 (G-K7T0SF14YX) — afterInteractive to avoid TBT */}
+        {/* Google Analytics 4 (G-5500N1BENS) — afterInteractive to avoid TBT */}
         <Script
           id="ga4-loader"
-          src="https://www.googletagmanager.com/gtag/js?id=G-K7T0SF14YX"
+          src="https://www.googletagmanager.com/gtag/js?id=G-5500N1BENS"
           strategy="afterInteractive"
         />
         <Script
@@ -144,7 +144,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-K7T0SF14YX');
+            gtag('config', 'G-5500N1BENS');
           `}
         </Script>
 
