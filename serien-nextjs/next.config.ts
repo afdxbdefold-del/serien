@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Standalone Output für Docker-Migration (Hetzner + Coolify, Feb 2026).
+  // Erzeugt .next/standalone/ mit minimaler node_modules-Kopie → Docker-Image
+  // schrumpft von ~1.5 GB auf ~180 MB.
+  output: 'standalone',
+
   typescript: {
     ignoreBuildErrors: true,
   },
