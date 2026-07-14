@@ -2,22 +2,26 @@
  * NewsSidebar — spezielle Sidebar für /news und /news/[filter].
  *
  * Layout (Desktop only, hidden < lg):
- *   1. TheMoneytizer MPU-Top    (Format 2, 300×250)
- *   2. Content-Box: Trending    (letzte 7 Tage, `isTrending=true`, Top 5)
- *   3. TheMoneytizer Skyscraper (Format 4, 300×600)
+ *   1. TheMoneytizer MREC Top     (Format 2, 300×250)
+ *   2. Content-Box: Trending      (letzte 7 Tage, `isTrending=true`, Top 5)
+ *   3. TheMoneytizer Half Page    (Format 3, 300×600)
+ *   4. Content-Box: Streamer-Nav  (kompakte Quicklinks zu /news/{streamer})
+ *   5. TheMoneytizer Skyscraper   (Format 4, 300×600 simple)
+ *   6. TheMoneytizer MREC Bottom  (Format 19, 300×250)
  *
  * Warum eigene Sidebar? Auf `/news` will der User Direktvermarktung via
- * TheMoneytizer statt Header-Bidding-Slots (Yieldlab). Andere Themen-Hubs
- * behalten die generische `ThemePageSidebar`.
+ * TheMoneytizer statt Yieldlab/Prebid. Andere Themen-Hubs (Streamer-Landings,
+ * Genre, Top-Listen) behalten `ThemePageSidebar` unverändert.
  *
  * Server Component — lädt Trending-Artikel via Prisma. TMN-Slots sind
  * Client-Islands via `TMNSidebarSlot`.
  */
 import Link from 'next/link';
 import Image from 'next/image';
-import { Flame, Clock } from 'lucide-react';
+import { Flame, Clock, Tv } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import TMNSidebarSlot from './TMNSidebarSlot';
+import { STREAMERS } from '@/app/news/_lib';
 
 interface TrendingItem {
   id: string;
@@ -32,8 +36,6 @@ async function fetchTrending(): Promise<TrendingItem[]> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Trending-flagged Artikel der letzten 7 Tage, fallback auf normalste
-  // "neueste published"-Artikel wenn zu wenige Trending-Marker existieren.
   const trending = await prisma.articles.findMany({
     where: {
       status: 'published',
@@ -54,7 +56,6 @@ async function fetchTrending(): Promise<TrendingItem[]> {
 
   if (trending.length >= 5) return trending;
 
-  // Fallback: mit neuesten aus 7 Tagen auffüllen (keine Dubletten)
   const seenIds = new Set(trending.map((t) => t.id));
   const filler = await prisma.articles.findMany({
     where: {
@@ -96,9 +97,9 @@ export default async function NewsSidebar() {
       aria-label="News-Sidebar"
       data-context="news-sidebar"
     >
-      <div className="sticky top-24 space-y-6">
-        {/* 1. TheMoneytizer MPU 300×250 */}
-        <TMNSidebarSlot formatId={2} label="Werbung MPU Top" />
+      <div className="space-y-6">
+        {/* 1. TheMoneytizer MREC Top (Format 2, 300×250) */}
+        <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
 
         {/* 2. Content-Box: Trending News letzte 7 Tage */}
         {trending.length > 0 && (
@@ -164,8 +165,41 @@ export default async function NewsSidebar() {
           </section>
         )}
 
-        {/* 3. TheMoneytizer Skyscraper 300×600 */}
+        {/* 3. TheMoneytizer Half Page (Format 3, 300×600) */}
+        <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
+
+        {/* 4. Content-Box: Streamer-Quicklinks */}
+        <section
+          aria-label="Nach Streamer filtern"
+          data-testid="news-sidebar-streamers"
+          className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/50 p-4"
+        >
+          <header className="flex items-center gap-2 mb-3">
+            <Tv className="h-4 w-4 text-cyan-500" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+              News nach Streamer
+            </h2>
+          </header>
+          <ul className="grid grid-cols-2 gap-1.5">
+            {STREAMERS.slice(0, 8).map((s) => (
+              <li key={s.slug}>
+                <Link
+                  href={`/news/${s.slug}`}
+                  data-testid={`news-sidebar-streamer-${s.slug}`}
+                  className="block px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-cyan-400 dark:hover:border-cyan-500 hover:text-cyan-700 dark:hover:text-cyan-400 transition-colors truncate"
+                >
+                  {s.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* 5. TheMoneytizer Skyscraper (Format 4, 300×600 simple) */}
         <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
+
+        {/* 6. TheMoneytizer MREC Bottom (Format 19, 300×250) */}
+        <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
       </div>
     </aside>
   );
