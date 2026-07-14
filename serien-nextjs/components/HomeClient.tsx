@@ -7,6 +7,7 @@ import CurrentlyStreaming from './CurrentlyStreaming';
 import NewsHighlightCarousel from './NewsHighlightCarousel';
 import StreamerTop10Carousel, { type PlatformBlock } from './StreamerTop10Carousel';
 import ClientAdSlot from './ClientAdSlot';
+import TMNSidebarSlot from './TMNSidebarSlot';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -167,12 +168,8 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
       {/* Desktop Megabanner Top (728×250) — zwischen Top-10-Carousel und H1.
           `empty:hidden` lässt den Wrapper komplett kollabieren, wenn der
           Slot inaktiv ist. */}
-      <div
-        className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
-        data-ad-slot-wrapper="desktop_megabanner_top"
-      >
-        <ClientAdSlot position="desktop_megabanner_top" />
-      </div>
+      {/* Megabanner Top (TMN F1) + Bottom (TMN F28) rendert LayoutWrapper
+          global — hier NICHT nochmal, sonst Duplicate-Ad-Requests. */}
 
       {/* H1 for all users */}
       <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">
@@ -361,44 +358,21 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                 </div>
               )}
 
-              {/* Desktop Bottom Rect (300×250) — unter dem News-Grid,
-                  vor dem finalen Megabanner. */}
-              <div
-                className="hidden lg:flex w-full justify-center mt-10 empty:hidden empty:!mt-0"
-                data-ad-slot-wrapper="desktop_bottom_rect"
-              >
-                <ClientAdSlot position="desktop_bottom_rect" />
-              </div>
-
-              {/* Desktop Megabanner Bottom (728×250) — nach allem
-                  Content, vor Footer. */}
-              <div
-                className="hidden lg:flex w-full justify-center mt-6 empty:hidden empty:!mt-0"
-                data-ad-slot-wrapper="desktop_megabanner_bottom"
-              >
-                <ClientAdSlot position="desktop_megabanner_bottom" />
-              </div>
+              {/* Desktop Bottom Rect + Megabanner Bottom entfernt Feb 2026:
+                  Beide Positionen sind nun global via LayoutWrapper (TMN F28
+                  Megabanner Bottom). Verhindert Duplicate-Ad-Requests. */}
             </div>
           </div>
           {/* ─────────────── SIDEBAR (Desktop only) ─────────────── */}
           <aside className="hidden lg:block" aria-label="Werbung Sidebar">
-            {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots. Identische
-                Reihenfolge wie auf der Artikelseite: top_rect → halfpage →
-                megasky. `empty:hidden` lässt inaktive Slots vollständig
-                kollabieren, damit im Stack keine leeren Lücken entstehen. */}
+            {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots hardgecodet
+                (Feb 2026): F2 MREC Top, F3 Half Page, F4 Skyscraper, F19
+                MREC Bottom. Identisch zu /news und Artikelseite. */}
             <div className="sticky top-24 space-y-4">
-              <div data-ad-slot-wrapper="desktop_sidebar_top_rect" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_top_rect" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_halfpage" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_halfpage" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_megasky" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_megasky" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_megasky_2" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_megasky_2" />
-              </div>
+              <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
+              <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
+              <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
+              <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
             </div>
           </aside>
         </div>

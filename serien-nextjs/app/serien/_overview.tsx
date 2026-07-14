@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { Star, Calendar, Tv, Filter as FilterIcon } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import FilterPillButton from './_filter-pill-button';
+import TMNSidebarSlot from '@/components/TMNSidebarSlot';
 import {
   STREAMERS,
   GENRES,
@@ -280,11 +281,14 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
           )}
         </section>
 
-        {/* Series list */}
-        <section aria-label="Serien-Liste" className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {sortLabel === 'A–Z' ? 'Alle Serien (A–Z)' : `${sortLabel} Serien`}
-          </h2>
+        {/* Series list + Sidebar Grid (Desktop ≥ lg). Filter-Section oben
+            bleibt volle Breite; hier splittet 2-Spalten-Grid Content + Ads. */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
+          {/* Series list */}
+          <section aria-label="Serien-Liste" className="space-y-4 min-w-0">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {sortLabel === 'A–Z' ? 'Alle Serien (A–Z)' : `${sortLabel} Serien`}
+            </h2>
 
           {items.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="empty-state">
@@ -355,36 +359,47 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
               })}
             </ul>
           )}
-        </section>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <nav className="mt-8 flex items-center justify-between" aria-label="Paginierung" data-testid="pagination">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Seite {page} von {totalPages}
-            </div>
-            <div className="flex gap-2">
-              {page > 1 && (
-                <Link
-                  href={link({ page: String(page - 1) })}
-                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
-                  data-testid="pagination-prev"
-                >
-                  ← Zurück
-                </Link>
-              )}
-              {page < totalPages && (
-                <Link
-                  href={link({ page: String(page + 1) })}
-                  className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
-                  data-testid="pagination-next"
-                >
-                  Weiter →
-                </Link>
-              )}
-            </div>
-          </nav>
-        )}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <nav className="mt-8 flex items-center justify-between" aria-label="Paginierung" data-testid="pagination">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Seite {page} von {totalPages}
+              </div>
+              <div className="flex gap-2">
+                {page > 1 && (
+                  <Link
+                    href={link({ page: String(page - 1) })}
+                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                    data-testid="pagination-prev"
+                  >
+                    ← Zurück
+                  </Link>
+                )}
+                {page < totalPages && (
+                  <Link
+                    href={link({ page: String(page + 1) })}
+                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                    data-testid="pagination-next"
+                  >
+                    Weiter →
+                  </Link>
+                )}
+              </div>
+            </nav>
+          )}
+        </section>
+        {/* ─── SIDEBAR (Desktop ≥ lg): TMN Format 2 / 3 / 4 / 19 ─── */}
+        <aside className="hidden lg:block" aria-label="Werbung Sidebar">
+          <div className="sticky top-24 space-y-4">
+            <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
+            <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
+            <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
+            <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
+          </div>
+        </aside>
+      </div>
+      {/* /Series list + Sidebar Grid */}
       </div>
     </main>
   );
