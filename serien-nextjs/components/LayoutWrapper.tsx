@@ -7,7 +7,6 @@ import { ThemeProvider } from './ThemeProvider';
 import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
-import ClientAdSlot from './ClientAdSlot';
 import GlobalDesktopAds from './GlobalDesktopAds';
 import { ThemePageAdTop, ThemePageAdBottom } from './ThemePageAds';
 import RecommendedContentTMN from './RecommendedContentTMN';
@@ -91,27 +90,14 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           nicht nur Artikel. Content-abhängige Slots (Megabanner, In-Content,
           Sidebar Halfpage, Bottom-Rect) bleiben auf der Artikelseite. */}
       <GlobalDesktopAds />
-      {/* Zusätzlicher Megabanner Top NUR auf Themenseiten
-          (Streamer-Landings, Genre-Seiten, Top-Listen, Übersichten).
-          Homepage und Artikelseite haben ihren eigenen Inline-Ad-Stack;
-          Legal-/Konto-Seiten bewusst ohne Content-Ads. */}
-      {isThemePage && <ThemePageAdTop />}
+      {/* Megabanner Top (TheMoneytizer Format 1) — auf ALLEN Public-
+          Seiten außer Legal-/Konto-Seiten (Feb 2026 User-Vorgabe). */}
+      {!isLegalPage && <ThemePageAdTop />}
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
-      {/* Zusätzlicher Megabanner Bottom auf Themenseiten — analog Top. */}
-      {isThemePage && <ThemePageAdBottom />}
-      {/* above_recommended: 728×250 Leaderboard direkt vor dem TMN-
-          Recommended-Content-Widget. Extrem hohe Viewability weil jeder
-          User bis in diese Zone scrollt. Nur Desktop (Mobile ad-frei). */}
-      {!isLegalPage && (
-        <div
-          className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
-          data-ad-slot-wrapper="above_recommended"
-        >
-          <ClientAdSlot position="above_recommended" />
-        </div>
-      )}
+      {/* Megabanner Bottom (TheMoneytizer Format 28) — analog Top. */}
+      {!isLegalPage && <ThemePageAdBottom />}
       {/* Recommended-Content Widget (TheMoneytizer Format 16) — auf
           allen Public-Seiten außer Legal-/Konto-Seiten. Läuft direkt
           vor dem Footer, im 1000-px-Content-Container. */}

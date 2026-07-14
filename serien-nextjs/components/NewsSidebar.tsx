@@ -97,7 +97,7 @@ export default async function NewsSidebar() {
       aria-label="News-Sidebar"
       data-context="news-sidebar"
     >
-      <div className="space-y-6">
+      <div className="sticky top-24 space-y-6">
         {/* 1. TheMoneytizer MREC Top (Format 2, 300×250) */}
         <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
 

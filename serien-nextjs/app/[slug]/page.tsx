@@ -21,6 +21,8 @@ import ContentWithAds from '@/components/ContentWithAds';
 import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
+import TMNSidebarSlot from '@/components/TMNSidebarSlot';
+import TMNInText from '@/components/TMNInText';
 import InfeedAdCard from '@/components/InfeedAdCard';
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
@@ -561,13 +563,8 @@ export default async function ArticlePage({ params }: PageProps) {
             [Content ~660px | Sidebar 300px] zentriert in max-w-[1000px]. ─── */}
         <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1000px] lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6 lg:justify-center bg-[#282A31]">
 
-          {/* Desktop Megabanner Top (970×90) — zentriert über beiden
-              Grid-Spalten (Main + Sidebar). `lg:col-span-2` lässt den
-              Wrapper die volle Container-Breite einnehmen, `justify-center`
-              zentriert den Banner selbst. Auf Mobile ausgeblendet. */}
-          <div className="hidden lg:flex lg:col-span-2 w-full justify-center pb-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_top">
-            <ClientAdSlot position="desktop_megabanner_top" />
-          </div>
+          {/* Megabanner Top (TMN F1) rendert LayoutWrapper global — hier NICHT
+              nochmal. Verhindert Duplicate-Ad-Requests auf Artikelseiten. */}
 
           {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
           <div className="w-full lg:max-w-[720px]">
@@ -663,6 +660,10 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
+
+          {/* TheMoneytizer In-Text (Format 11) — hardgecodet, zwischen Intro
+              und Article-Body. Ersetzt frühere below_intro-Duplikate. */}
+          <TMNInText />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
@@ -809,31 +810,21 @@ export default async function ArticlePage({ params }: PageProps) {
                 />
               )}
 
-              {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots. */}
-              <div data-ad-slot-wrapper="desktop_sidebar_top_rect" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_top_rect" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_halfpage" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_halfpage" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_megasky" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_megasky" />
-              </div>
-              <div data-ad-slot-wrapper="desktop_sidebar_megasky_2" className="empty:hidden">
-                <ClientAdSlot position="desktop_sidebar_megasky_2" />
-              </div>
+              {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots (hardgecodet
+                  Feb 2026): F2 MREC Top, F3 Half Page, F4 Skyscraper, F19
+                  MREC Bottom. Alle 4 auf jeder Artikelseite. */}
+              <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
+              <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
+              <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
+              <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
             </div>
           </aside>
           {/* ─────────────────────────── /DESKTOP SIDEBAR ─────────────────────── */}
         </div>
 
-        {/* ─────── Desktop-only Bottom-of-Article Ads ─────── */}
-        <div className="hidden lg:flex w-full justify-center pb-4 px-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_bottom_rect">
-          <ClientAdSlot position="desktop_bottom_rect" />
-        </div>
-        <div className="hidden lg:flex w-full justify-center pb-6 px-4 empty:hidden empty:!pb-0" data-ad-slot-wrapper="desktop_megabanner_bottom">
-          <ClientAdSlot position="desktop_megabanner_bottom" />
-        </div>
+        {/* Megabanner Bottom (TMN F28) rendert LayoutWrapper global — hier
+            NICHT nochmal. `desktop_bottom_rect` (extra MREC) wurde entfernt,
+            da Format 28 die Bottom-Position bereits abdeckt. */}
       </article>
 
       {/* Ähnliche News — außerhalb von <article> */}

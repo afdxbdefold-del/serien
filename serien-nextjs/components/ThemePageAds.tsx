@@ -1,59 +1,60 @@
 'use client';
 
 /**
- * ThemePageAds
+ * Megabanner-Ads (TheMoneytizer Format 1 + 28) — hardgecodet.
  *
- * Rendert zusätzliche Inline-Ad-Slots für "Themen-/Landing-Pages" —
- * also alle Public-Seiten, die KEINE der folgenden Kategorien sind:
- *   - Homepage (`/`) — hat schon eigenen Inline-Ad-Stack (HomeClient)
- *   - Artikeldetail (`isArticlePage`) — hat schon eigenen Ad-Stack im
- *     Grid-Layout (`app/[slug]/page.tsx`)
- *   - Legal-/Konto-Seiten (impressum, datenschutz, nutzungsbedingungen,
- *     redaktionelle-richtlinien, about, einstellungen) — dort bewusst
- *     KEINE zusätzlichen Content-Ads, nur globale Slots.
- *   - Admin (`/admin/*`) und Ad-Test-Routen (`/adtest-*`) — komplett aus
- *     der Werbe-Auslieferung raus (bereits im LayoutWrapper gehandled).
+ *   • ThemePageAdTop    → Format 1  (728×90 zentriert, direkt unter dem Billboard)
+ *   • ThemePageAdBottom → Format 28 (728×90 zentriert, direkt vor dem Footer-Bereich)
  *
- * Ergibt sich als "alle anderen": Streamer-Landings (netflix-serien,
- * prime-video-serien, disney-plus-serien, …), Genre-Seiten
- * (beste-crime-serien, beste-comedy-serien, …), Top-Listen (top-10,
- * top-100-*, in-90-tagen-zum-altar, the-walking-dead, …), Trend-/News-
- * /Serien-Übersichten (trending, news, serien, neue-serien, figuren,
- * personen, serienfinder, kalender, autoren).
- *
- * Enthaltene Slots — bewusst nur die Inline-Container, die layout-neutral
- * sind (kein Sidebar-Grid nötig):
- *
- *   TOP:    `desktop_megabanner_top`     (728×250 zentriert unter Header)
- *   BOTTOM: `desktop_megabanner_bottom`  (728×250 zentriert vor Footer)
- *
- * Ein zusätzlicher `in_content`-Slot in der Mitte der Seite ist nicht
- * möglich ohne in die jeweilige Themenseiten-Komponente einzugreifen,
- * weil "die Mitte" strukturabhängig ist.
+ * Werden im LayoutWrapper auf ALLEN Public-Seiten (nicht Legal/Admin) gerendert.
+ * Der Namen-Prefix "ThemePage…" ist historisch — sie laufen jetzt überall.
  */
+import { useEffect, useRef } from 'react';
+import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
 
-import ClientAdSlot from './ClientAdSlot';
+const TOP_HTML = `<div id="141665-1"><script src="//ads.themoneytizer.com/s/gen.js?type=1"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=1"></script></div>`;
+const BOTTOM_HTML = `<div id="141665-28"><script src="//ads.themoneytizer.com/s/gen.js?type=28"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=28"></script></div>`;
+
+function TMNMegabanner({ html, label, formatId, containerCls }: { html: string; label: string; formatId: number; containerCls: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const injected = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
+    if (!ref.current || injected.current) return;
+    injectHtmlWithScripts(ref.current, html);
+    injected.current = true;
+  }, [html]);
+
+  return (
+    <div
+      className={containerCls}
+      aria-label={label}
+      data-tmn-slot={`megabanner-${formatId}`}
+    >
+      <div ref={ref} />
+    </div>
+  );
+}
 
 export function ThemePageAdTop() {
   return (
-    <div
-      className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
-      data-ad-slot-wrapper="desktop_megabanner_top"
-      data-context="theme-page"
-    >
-      <ClientAdSlot position="desktop_megabanner_top" />
-    </div>
+    <TMNMegabanner
+      html={TOP_HTML}
+      label="Werbung Megabanner Top"
+      formatId={1}
+      containerCls="hidden lg:flex w-full justify-center pt-4 pb-2 px-4"
+    />
   );
 }
 
 export function ThemePageAdBottom() {
   return (
-    <div
-      className="hidden lg:flex w-full justify-center pt-6 pb-4 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
-      data-ad-slot-wrapper="desktop_megabanner_bottom"
-      data-context="theme-page"
-    >
-      <ClientAdSlot position="desktop_megabanner_bottom" />
-    </div>
+    <TMNMegabanner
+      html={BOTTOM_HTML}
+      label="Werbung Megabanner Bottom"
+      formatId={28}
+      containerCls="hidden lg:flex w-full justify-center pt-6 pb-4 px-4"
+    />
   );
 }

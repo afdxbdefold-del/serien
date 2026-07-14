@@ -1,87 +1,52 @@
 'use client';
 
 /**
- * GlobalDesktopAds
+ * GlobalDesktopAds — hardcoded TheMoneytizer Ad-Slots.
  *
- * Rendert die POSITIONSGEBUNDENEN Desktop-Ad-Slots — d.h. die Slots, die
- * NICHT an spezifischen Content-Blöcken hängen, sondern an festen
- * Bildschirm-/Layout-Positionen. Diese Slots gehören daher NICHT in eine
- * spezifische Page-Komponente (z.B. `app/[slug]/page.tsx`), sondern in den
- * globalen LayoutWrapper — damit sie auf ALLEN Public-Seiten erscheinen
- * (Homepage, Streamer-Landingpages, Genre-Seiten, Autoren, Artikel, etc.).
+ * Rendert auf ALLEN Public-Seiten (nicht Legal/Admin/AdTest) die globalen
+ * TMN-Formate, die layout-unabhängig sind:
  *
- * Content-abhängige Slots (`desktop_megabanner_top`, `_bottom`, `in_content`,
- * `desktop_bottom_rect`, `desktop_sidebar_halfpage`) bleiben bewusst auf
- * der Artikelseite, weil sie zwischen Content-Blöcken sitzen.
+ *   • Format 31 — Billboard              (oberhalb Content, zentriert)
+ *   • Format 20 — Double Megasky Floating (fixed right, sticky)
+ *   • Format 38 — Corner Video           (fixed bottom-right, via CornerVideoTMN)
+ *   • Format 6  — Footer Slide-in         (fixed bottom, zentriert)
  *
- * ALLE Slots sind ausschließlich Desktop (User-Vorgabe):
- *   - Billboard Header:   ≥ lg  (1024 px)
- *   - Skyscraper l/r:     ≥ xl  (1280 px), damit sie nicht mit dem
- *                                zentrierten 1000 px-Container kollidieren
- *   - Corner Video:       ≥ lg  (1024 px)
- *   - Footer Slide-in:    ≥ lg  (1024 px)
+ * Alle nur Desktop (≥ lg = 1024 px), Mobile-Sperre zusätzlich per matchMedia
+ * innerhalb der Widget-Komponenten.
  *
- * `empty:hidden` sorgt dafür, dass leere Wrapper (inaktiver Slot →
- * ClientAdSlot rendert null) komplett kollabieren — keine leeren
- * Layout-Löcher.
+ * KEIN DB-Fetch mehr — alle Slots hardgecodet, damit sie nicht aus Versehen
+ * im Admin deaktiviert werden können.
  */
-
-import ClientAdSlot from './ClientAdSlot';
 import CornerVideoTMN from './CornerVideoTMN';
+import TMNBillboard from './TMNBillboard';
+import TMNSlideInFooter from './TMNSlideInFooter';
+import TMNDoubleMegasky from './TMNDoubleMegasky';
 
 export default function GlobalDesktopAds() {
   return (
     <>
-      {/* Billboard Header — 970×250. Sitzt direkt unter dem Header,
-          zentriert, volle Bildschirmbreite. */}
-      <div
-        className="hidden lg:flex w-full justify-center pt-4 pb-2 px-4 empty:hidden empty:!pt-0 empty:!pb-0"
-        data-ad-slot-wrapper="desktop_billboard_header"
-      >
-        <ClientAdSlot position="desktop_billboard_header" />
-      </div>
+      {/* 1. Billboard (Format 31) — direkt unter dem Header, volle Breite,
+          zentriert. Erster Ad-Kontakt beim Pageload. */}
+      <TMNBillboard />
 
-      {/* Skyscraper links — 160×600. Fixed am linken Viewport-Rand,
-          nur ab xl (1280 px) sichtbar, damit er nicht mit dem 1000 px-
-          Content-Container kollidiert. */}
-      <aside
-        className="hidden xl:block fixed left-2 2xl:left-6 top-24 z-30 w-[160px] empty:hidden"
-        aria-label="Werbung Skyscraper links"
-        data-ad-slot-wrapper="desktop_skyscraper_left"
-      >
-        <ClientAdSlot position="desktop_skyscraper_left" />
-      </aside>
+      {/* 2. Double Megasky Floating (Format 20) — fixed rechts,
+          top-Offset für Header-Höhe. Positionierung kommt vom TMN-Widget
+          selbst (siehe eingebettetes <style>). Auf Bildschirmen ≥ xl
+          nur sinnvoll, weil sonst Content-Overlay. */}
+      <TMNDoubleMegasky />
 
-      {/* Skyscraper rechts — 160×600. Fixed am rechten Viewport-Rand. */}
-      <aside
-        className="hidden xl:block fixed right-2 2xl:right-6 top-24 z-30 w-[160px] empty:hidden"
-        aria-label="Werbung Skyscraper rechts"
-        data-ad-slot-wrapper="desktop_skyscraper_right"
-      >
-        <ClientAdSlot position="desktop_skyscraper_right" />
-      </aside>
-
-      {/* Corner Video — 320×180. HARDCODED TheMoneytizer 141665-38.
-          Nicht mehr via DB-Slot, damit das Format nicht aus Versehen im
-          Admin deaktiviert wird. Fixed rechts unten, z-40 (über Footer-
-          Slidein), da beide gleichzeitig aktiv sein können. */}
+      {/* 3. Corner Video (Format 38) — fixed bottom-right, 320×180. */}
       <div
         className="hidden lg:block fixed bottom-4 right-4 z-40 pointer-events-auto"
         aria-label="Werbung Corner Video"
-        data-ad-slot-wrapper="desktop_corner_video_tmn"
+        data-tmn-slot-wrapper="corner-video"
       >
         <CornerVideoTMN />
       </div>
 
-      {/* Footer Slide-in — 728×90. Fixed am unteren Bildschirmrand,
-          zentriert, volle Bildschirmbreite. */}
-      <div
-        className="hidden lg:flex fixed bottom-0 left-0 right-0 z-30 justify-center pointer-events-auto empty:hidden"
-        aria-label="Werbung Footer Slide-in"
-        data-ad-slot-wrapper="desktop_footer_slidein"
-      >
-        <ClientAdSlot position="desktop_footer_slidein" />
-      </div>
+      {/* 4. Footer Slide-in (Format 6) — fixed am unteren Bildschirmrand,
+          zentriert, ganze Breite. */}
+      <TMNSlideInFooter />
     </>
   );
 }
