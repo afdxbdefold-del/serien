@@ -1,7 +1,25 @@
+/**
+ * /serien/genre/[genre] — clean Genre-Landing-Page.
+ *
+ * SEO (Feb 2026 Serienfinder-Fix):
+ *  - Clean URL /serien/genre/drama → index, follow, self-canonical
+ *  - Zusatz-Filter (?streamer=...&sort=...) → noindex, follow,
+ *    canonical → /serien/genre/drama
+ *  - Ungültige genre-Slugs → 404
+ */
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import SerienOverview from '../../_overview';
-import { SITE_BASE, SerienFilters, GENRES, buildHref, buildTitle, buildDescription } from '../../_lib';
+import {
+  SITE_BASE,
+  SerienFilters,
+  GENRES,
+  buildTitle,
+  buildDescription,
+  hasIndexBreakingParams,
+  cleanCanonicalPath,
+  areFiltersValid,
+} from '../../_lib';
 
 interface PageProps {
   params: Promise<{ genre: string }>;
@@ -20,14 +38,22 @@ function resolve(params: { genre: string }, sp: Omit<SerienFilters, 'genre'>): S
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const f = resolve(await params, await searchParams);
-  if (!f) return { title: 'Serien | serien.de' };
+  if (!f || !areFiltersValid(f)) {
+    return { title: 'Nicht gefunden | serien.de', robots: { index: false, follow: false } };
+  }
+
+  const isCombined = hasIndexBreakingParams(f, 'genre');
+  const canonical = `${SITE_BASE}${cleanCanonicalPath(f, 'genre')}`;
   const title = buildTitle(f);
-  const canonical = `${SITE_BASE}${buildHref(f, {}, { forcePrimary: 'genre' })}`;
   const description = buildDescription(f);
+
   return {
     title: `${title} im Überblick | serien.de`,
     description,
     alternates: { canonical },
+    robots: isCombined
+      ? { index: false, follow: true, googleBot: { index: false, follow: true } }
+      : undefined,
     openGraph: { title: `${title} | serien.de`, description, url: canonical, type: 'website' },
   };
 }
@@ -36,6 +62,8 @@ export default async function SerienGenrePage({ params, searchParams }: PageProp
   const resolvedParams = await params;
   const f = resolve(resolvedParams, await searchParams);
   if (!f) notFound();
+  // Ungültige Sekundär-Filter → 404 statt Soft-Redirect
+  if (!areFiltersValid(f)) notFound();
   return (
     <SerienOverview
       filters={f}

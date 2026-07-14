@@ -11,6 +11,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Star, Calendar, Tv, Filter as FilterIcon } from 'lucide-react';
 import prisma from '@/lib/prisma';
+import FilterPillButton from './_filter-pill-button';
 import {
   STREAMERS,
   GENRES,
@@ -196,67 +197,72 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
             <FilterColumn label="Genres">
               {GENRES.map((g) => (
-                <FilterPill
+                <FilterPillButton
                   key={g.slug}
                   href={link({ genre: filters.genre === g.slug ? undefined : g.slug })}
                   active={filters.genre === g.slug}
                   testid={`filter-genre-${g.slug}`}
+                  ariaLabel={`Genre ${g.label} ${filters.genre === g.slug ? 'entfernen' : 'auswählen'}`}
                 >
                   {g.label}
-                </FilterPill>
+                </FilterPillButton>
               ))}
             </FilterColumn>
 
             <FilterColumn label="Streamer">
               {STREAMERS.map((s) => (
-                <FilterPill
+                <FilterPillButton
                   key={s.slug}
                   href={link({ streamer: filters.streamer === s.slug ? undefined : s.slug })}
                   active={filters.streamer === s.slug}
                   testid={`filter-streamer-${s.slug}`}
+                  ariaLabel={`Streamer ${s.label} ${filters.streamer === s.slug ? 'entfernen' : 'auswählen'}`}
                 >
                   {s.label}
-                </FilterPill>
+                </FilterPillButton>
               ))}
             </FilterColumn>
 
             <FilterColumn label="Jahrzehnt">
               {DECADES.map((d) => (
-                <FilterPill
+                <FilterPillButton
                   key={d}
                   href={link({ jahrzehnt: filters.jahrzehnt === String(d) ? undefined : String(d) })}
                   active={filters.jahrzehnt === String(d)}
                   testid={`filter-decade-${d}`}
+                  ariaLabel={`Jahrzehnt ${d}er ${filters.jahrzehnt === String(d) ? 'entfernen' : 'auswählen'}`}
                 >
                   {d}er
-                </FilterPill>
+                </FilterPillButton>
               ))}
             </FilterColumn>
 
             <FilterColumn label="Status">
               {STATUS_FILTERS.map((s) => (
-                <FilterPill
+                <FilterPillButton
                   key={s.slug}
                   href={link({ status: filters.status === s.slug ? undefined : s.slug })}
                   active={filters.status === s.slug}
                   testid={`filter-status-${s.slug}`}
+                  ariaLabel={`Status ${s.label} ${filters.status === s.slug ? 'entfernen' : 'auswählen'}`}
                 >
                   {s.label}
-                </FilterPill>
+                </FilterPillButton>
               ))}
               <div className="h-3" />
               <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-1.5">
                 Sortieren
               </div>
               {SORT_OPTIONS.map((o) => (
-                <FilterPill
+                <FilterPillButton
                   key={o.slug}
                   href={link({ sort: o.slug === 'popularity' ? undefined : o.slug })}
                   active={(filters.sort ?? 'popularity') === o.slug}
                   testid={`sort-${o.slug}`}
+                  ariaLabel={`Sortierung ${o.label}`}
                 >
                   {o.label}
-                </FilterPill>
+                </FilterPillButton>
               ))}
             </FilterColumn>
           </div>
@@ -390,31 +396,5 @@ function FilterColumn({ label, children }: { label: string; children: React.Reac
       <h3 className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-2">{label}</h3>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
-  );
-}
-
-function FilterPill({
-  href,
-  active,
-  testid,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  testid?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      data-testid={testid}
-      className={`px-2.5 py-1 rounded-full border text-xs transition-all ${
-        active
-          ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-500 font-semibold'
-          : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
-      }`}
-    >
-      {children}
-    </Link>
   );
 }

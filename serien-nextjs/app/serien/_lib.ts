@@ -143,3 +143,83 @@ export function buildDescription(f: SerienFilters): string {
     `Mit Bewertungen, Staffel-Infos und aktuellen News auf serien.de.`
   );
 }
+
+/**
+ * SEO — Feb 2026 Serienfinder-Indexation-Fix.
+ *
+ * Google indexiert aktuell tausende dünne Filter-Kombinationen wie
+ * `/serien/genre/news?jahrzehnt=2020&sort=alphabetical&status=returning`.
+ * Wir markieren jede kombinierte Filter-URL als noindex und canonicalisieren
+ * sie auf die dazugehörige "clean" Landing-Page.
+ *
+ * Diese Helper bestimmen ob eine Filterkombination "indexable" ist und wie
+ * ihr sauberer Canonical-Pfad lautet.
+ */
+
+/** Wird auf einer indexierbaren Landing-Page ausgeführt: /serien, /serien/genre/X,
+ *  /serien/streamer/X oder /serien/jahrzehnt/X. `pathPrimary` gibt den Primär-
+ *  Filter an, der über den Pfad statt Query realisiert ist. Alle sonstigen
+ *  Filter-Parameter machen die URL "kombiniert" und damit noindex-Pflicht. */
+export function hasIndexBreakingParams(
+  f: SerienFilters,
+  pathPrimary: 'none' | 'genre' | 'streamer' | 'jahrzehnt'
+): boolean {
+  // Alle Filter-Keys, die eine Kombination markieren würden.
+  const filterKeys: (keyof SerienFilters)[] = ['genre', 'streamer', 'jahrzehnt', 'status', 'sort'];
+  for (const k of filterKeys) {
+    const v = f[k];
+    if (!v) continue;
+    // `sort=popularity` ist der Default → gilt als "kein Filter"
+    if (k === 'sort' && v === 'popularity') continue;
+    // Der Primary-Filter aus dem Pfad ist erlaubt
+    if (pathPrimary !== 'none' && k === pathPrimary) continue;
+    return true;
+  }
+  return false;
+}
+
+/** Liefert den sauberen Canonical-Pfad ohne Query-Parameter. */
+export function cleanCanonicalPath(
+  f: SerienFilters,
+  pathPrimary: 'none' | 'genre' | 'streamer' | 'jahrzehnt'
+): string {
+  if (pathPrimary === 'genre' && f.genre) return `/serien/genre/${f.genre}`;
+  if (pathPrimary === 'streamer' && f.streamer) return `/serien/streamer/${f.streamer}`;
+  if (pathPrimary === 'jahrzehnt' && f.jahrzehnt) return `/serien/jahrzehnt/${f.jahrzehnt}er`;
+  return '/serien';
+}
+
+/** Prüft ob alle übergebenen Filter-Werte gültig sind. Ungültige Werte
+ *  → Aufrufer soll `notFound()` triggern. */
+export function areFiltersValid(f: SerienFilters): boolean {
+  if (f.genre && !GENRES.some((g) => g.slug === f.genre)) return false;
+  if (f.streamer && !STREAMERS.some((s) => s.slug === f.streamer)) return false;
+  if (f.jahrzehnt) {
+    const d = parseInt(f.jahrzehnt, 10);
+    if (isNaN(d) || !DECADES.includes(d)) return false;
+  }
+  if (f.status && !STATUS_FILTERS.some((s) => s.slug === f.status)) return false;
+  if (f.sort && !SORT_OPTIONS.some((o) => o.slug === f.sort)) return false;
+  return true;
+}
+
+/** Gibt an ob genau ein einziger Filter (genre / streamer / jahrzehnt) gesetzt
+ *  ist und sonst nichts (auch kein sort/status). Dann kann von `/serien?...`
+ *  auf die clean Landing-Page redirected werden. */
+export function singlePrimaryFilterOnly(f: SerienFilters): 'genre' | 'streamer' | 'jahrzehnt' | null {
+  const set = {
+    genre: !!f.genre,
+    streamer: !!f.streamer,
+    jahrzehnt: !!f.jahrzehnt,
+  };
+  const primaryCount = Object.values(set).filter(Boolean).length;
+  if (primaryCount !== 1) return null;
+  // Sekundär-Filter dürfen nicht gesetzt sein
+  if (f.status) return null;
+  if (f.sort && f.sort !== 'popularity') return null;
+  if (f.page && f.page !== '1') return null;
+  if (set.genre) return 'genre';
+  if (set.streamer) return 'streamer';
+  if (set.jahrzehnt) return 'jahrzehnt';
+  return null;
+}
