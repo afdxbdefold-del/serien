@@ -11,7 +11,7 @@ import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
 import NewsCard from './_card';
 import NewsAdCard from '@/components/InfeedAdCard';
 import NewsLoadMore from '@/components/NewsLoadMore';
-import ThemePageSidebar from '@/components/ThemePageSidebar';
+import NewsSidebar from '@/components/NewsSidebar';
 import ClientAdSlot from '@/components/ClientAdSlot';
 
 interface Props {
@@ -153,7 +153,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
             </>
           )}
         </div>
-        <ThemePageSidebar />
+        <NewsSidebar />
       </section>
     </main>
   );
