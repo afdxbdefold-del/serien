@@ -4,42 +4,6 @@
       "maxDuration": 300
     }
   },
-  "crons": [
-    {
-      "path": "/api/cron/news",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/releases",
-      "schedule": "15 */2 * * *"
-    },
-    {
-      "path": "/api/cron/youtube",
-      "schedule": "30 */3 * * *"
-    },
-    {
-      "path": "/api/cron/videos",
-      "schedule": "45 */3 * * *"
-    },
-    {
-      "path": "/api/cron/seo",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/tmdb-sync",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/flixpatrol",
-      "schedule": "15 4 * * *"
-    },
-    {
-      "path": "/api/cron/downgrade-stale",
-      "schedule": "30 3 * * *"
-    },
-    {
-      "path": "/api/cron/backfill-streaming-series",
-      "schedule": "0 */2 * * *"
-    }
-  ]
+  "crons": []
 }
+
