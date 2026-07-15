@@ -12,13 +12,22 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
+# WICHTIG: Coolify injiziert oft NODE_ENV=production als Build-Variable.
+# Das führt dazu, dass yarn/npm die devDependencies (tailwindcss, webpack-plugins,
+# postcss, autoprefixer, typescript etc.) NICHT installiert → Build bricht mit
+# "Cannot find module 'tailwindcss'" ab. Wir überschreiben das explizit für
+# den Install-Step und erzwingen production=false.
+ENV NODE_ENV=development
+ENV YARN_PRODUCTION=false
+ENV NPM_CONFIG_PRODUCTION=false
+
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 COPY prisma ./prisma
 
-RUN if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-    else echo "⚠️  No lockfile — falling back to yarn install (Builds nicht reproduzierbar!)"; yarn install; fi
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile --production=false; \
+    elif [ -f package-lock.json ]; then npm ci --include=dev; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile --prod=false; \
+    else echo "⚠️  No lockfile — falling back to yarn install (Builds nicht reproduzierbar!)"; yarn install --production=false; fi
 
 # ==============================================================================
 # STAGE 2: Build
