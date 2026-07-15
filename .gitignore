@@ -10,10 +10,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Lock files (zu groß für Git)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Lock files — MÜSSEN committed werden für reproduzierbare Docker-Builds
+# (Hetzner-Migration Feb 2026). Vorher versehentlich ignoriert.
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
 # Next.js
 .next/
