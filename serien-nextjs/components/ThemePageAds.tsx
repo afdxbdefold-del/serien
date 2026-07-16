@@ -43,7 +43,7 @@ export function ThemePageAdTop() {
       html={TOP_HTML}
       label="Werbung Megabanner Top"
       formatId={1}
-      containerCls="hidden lg:flex w-full justify-center pt-4 pb-2 px-4"
+      containerCls="hidden lg:flex w-full max-w-[1000px] mx-auto justify-center pt-4 pb-2 px-4"
     />
   );
 }
