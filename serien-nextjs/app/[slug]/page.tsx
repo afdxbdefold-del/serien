@@ -22,7 +22,6 @@ import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import TMNSidebarSlot from '@/components/TMNSidebarSlot';
-import TMNInText from '@/components/TMNInText';
 import InfeedAdCard from '@/components/InfeedAdCard';
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
@@ -660,10 +659,6 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Ad Unit - Below Intro */}
           <ClientAdSlot position="below_intro" className="mb-8" />
-
-          {/* TheMoneytizer In-Text (Format 11) — hardgecodet, zwischen Intro
-              und Article-Body. Ersetzt frühere below_intro-Duplikate. */}
-          <TMNInText />
 
           {/* Article Body with Ads between paragraphs */}
           <section aria-labelledby="article-content">
