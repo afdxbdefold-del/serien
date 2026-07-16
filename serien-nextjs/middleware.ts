@@ -128,8 +128,9 @@ export function middleware(request: NextRequest) {
   //     (echte DACH-User werden nicht getroffen, User aus DE/AT/CH/EU
   //      passieren unauffällig)
   //
-  // Verifikation via `x-vercel-ip-country` Header — Vercel Edge liefert
-  // Land-Code aus dem GeoIP-Lookup. In Dev/Local ist der Header leer,
+  // Verifikation via `cf-ipcountry` Header — Cloudflare setzt den auf allen
+  // proxied Zones. Fallback auf `x-vercel-ip-country` bleibt drin für den
+  // Notfall-Rollback nach Vercel. In Dev/Local ist der Header leer,
   // dann greift nur die UA-basierte Regel.
   // ========================================================================
   const uaAd = request.headers.get('user-agent') || '';
@@ -163,7 +164,11 @@ export function middleware(request: NextRequest) {
       });
     }
 
-    const country = request.headers.get('x-vercel-ip-country') || '';
+    const country = (
+      request.headers.get('cf-ipcountry') ||           // Cloudflare (Proxied Zone) — Post-Hetzner-Migration primär
+      request.headers.get('x-vercel-ip-country') ||    // Vercel Edge (Legacy, für Rollback)
+      ''
+    );
     if (country && HIGH_FRAUD_COUNTRIES.has(country.toUpperCase())) {
       fireBlockLog('high-fraud-country', country.toUpperCase(), '');
       return new NextResponse(null, {

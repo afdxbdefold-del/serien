@@ -125,7 +125,7 @@ export async function GET(request: Request) {
     headers.get('x-real-ip') ||
     'unknown';
   const ua = (headers.get('user-agent') || '').slice(0, 500);
-  const country = headers.get('x-vercel-ip-country') || headers.get('cf-ipcountry') || null;
+  const country = headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country') || null;
 
   // ════════════════════════════════════════════════════════════════════
   // STUFE A — Hard-Block: UA-Bot Erkennung. Sofort 204, kein Tracking.
