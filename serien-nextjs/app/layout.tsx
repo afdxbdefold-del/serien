@@ -201,6 +201,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>
           <a href="/autoren">Autoren</a>
         </nav>
+        {/* Matomo Analytics (self-hosted via speedcache.io, Site-ID 37).
+            lazyOnload → lädt erst nach vollständigem Page-Load, blockiert
+            weder LCP noch die Ad-Auction. */}
+        <Script id="matomo-analytics" strategy="lazyOnload">
+          {`
+            var _paq = window._paq = window._paq || [];
+            _paq.push(['trackPageView']);
+            _paq.push(['enableLinkTracking']);
+            (function() {
+              var u="https://analytics1.speedcache.io/";
+              _paq.push(['setTrackerUrl', u+'matomo.php']);
+              _paq.push(['setSiteId', '37']);
+              var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+              g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+            })();
+          `}
+        </Script>
       </body>
     </html>
   );
