@@ -60,11 +60,11 @@ const getPersonFromDB = (tmdbId: number) => unstable_cache(
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const tmdbId = parsePersonId(id);
-  if (!tmdbId) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: false } };
+  if (!tmdbId) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: true } };
 
   const dbPerson = await getPersonFromDB(tmdbId);
 
-  if (!dbPerson) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: false } };
+  if (!dbPerson) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: true } };
 
   const hasContent = dbPerson.biography && dbPerson.biography.length > 100;
   const title = `${dbPerson.name} – Serien, Filme & News | serien.de`;
@@ -80,12 +80,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    // Feb 2026: Person-Detail-Seiten liefern keinen organischen Traffic —
-    // hart noindex,nofollow damit Google Crawl-Budget für die relevanten
-    // Content-Seiten (Artikel, Serien, News) spart.
+    // Feb 2026 (User-Direktive): noindex,follow — die Seite selbst wird
+    // nicht indiziert, aber Google darf den Links zu Artikeln/Serien folgen.
     robots: {
       index: false,
-      follow: false,
+      follow: true,
     },
     openGraph: {
       title, description, type: 'profile',

@@ -59,11 +59,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const primaryNetwork = series.networks && series.networks.length > 0 ? series.networks[0] : 'Streaming';
   const canonicalSlug = series.slug || slug;
 
-  const articleCount = (series as any)._count?.articles ?? 0;
-  const popularity = (series as any).popularity ?? 0;
-  const isKarteileichen = articleCount === 0 && popularity < 5;
-  const shouldIndex = !!canonicalSlug && !canonicalSlug.startsWith('-') && !isKarteileichen;
-
   const rawTitle = `„${seriesName}" (${primaryNetwork}) News – Serien-Updates`;
   const rawDescription = `Aktuelle News zur Serie „${seriesName}" bei ${primaryNetwork} – gebündelt auf einer Seite.`;
   const ogTitle = seoTitle(rawTitle);
@@ -73,7 +68,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: ogTitle,
     description: ogDescription,
     alternates: { canonical: `${baseUrl}/serie/${canonicalSlug}` },
-    robots: shouldIndex ? undefined : { index: false, follow: true },
+    // User-Direktive (Feb 2026): ALLE Serien-Seiten sind noindex,follow.
+    // News-Hub-Konzept — die Seite ist nur Sammlung/Navigation zu Artikeln,
+    // hat selbst keinen originären Content mehr. Google folgt aber den
+    // Links zu den Artikeln (deshalb follow, nicht nofollow).
+    robots: { index: false, follow: true },
     openGraph: {
       title: ogTitle,
       description: ogDescription,

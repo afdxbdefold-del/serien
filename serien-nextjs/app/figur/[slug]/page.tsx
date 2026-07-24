@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
   if (!character) {
     return {
       title: 'Figur nicht gefunden',
-      robots: { index: false, follow: false },
+      robots: { index: false, follow: true },
     };
   }
 
@@ -59,11 +59,11 @@ export async function generateMetadata({ params }: CharacterPageProps): Promise<
   return {
     title,
     description,
-    // Feb 2026: Figur-Detail-Seiten liefern keinen organischen Traffic —
-    // hart noindex,nofollow (spart Crawl-Budget für Artikel/Serien/News).
+    // Feb 2026 (User-Direktive): noindex,follow — Figuren-Seiten nicht
+    // indiziert, aber Links intern werden weiter verfolgt.
     robots: {
       index: false,
-      follow: false,
+      follow: true,
     },
     alternates: {
       canonical: `${baseUrl}/figur/${character.slug}`,

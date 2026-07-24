@@ -87,6 +87,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates: { canonical },
+    // Feb 2026 (User-Direktive): alle Serien-Unterseiten noindex,follow.
+    robots: { index: false, follow: true },
     openGraph: {
       title,
       description,
