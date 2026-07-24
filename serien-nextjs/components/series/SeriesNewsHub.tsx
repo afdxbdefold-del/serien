@@ -79,7 +79,7 @@ export default function SeriesNewsHub({
       {/* Headline */}
       <header className="mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-          {seriesName}
+          „{seriesName}"
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Alle News zur Serie
@@ -142,7 +142,7 @@ export default function SeriesNewsHub({
       {/* News-Feed */}
       <section aria-label="News zur Serie" data-testid="series-news-feed">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          News zu {seriesName}
+          News zu „{seriesName}"
         </h2>
 
         {articles.length === 0 ? (

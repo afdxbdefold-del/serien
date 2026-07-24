@@ -64,8 +64,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const isKarteileichen = articleCount === 0 && popularity < 5;
   const shouldIndex = !!canonicalSlug && !canonicalSlug.startsWith('-') && !isKarteileichen;
 
-  const rawTitle = `${seriesName} (${primaryNetwork}) News – Serien-Updates`;
-  const rawDescription = `Aktuelle News zur Serie ${seriesName} bei ${primaryNetwork} – gebündelt auf einer Seite.`;
+  const rawTitle = `„${seriesName}" (${primaryNetwork}) News – Serien-Updates`;
+  const rawDescription = `Aktuelle News zur Serie „${seriesName}" bei ${primaryNetwork} – gebündelt auf einer Seite.`;
   const ogTitle = seoTitle(rawTitle);
   const ogDescription = seoDescription(rawDescription);
 
