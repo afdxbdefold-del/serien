@@ -97,6 +97,12 @@ const SYSTEM_PROMPT =
   'ins Deutsche übersetzen. Du erfindest NICHTS dazu. Du kürzt nicht. Du ' +
   'änderst die Absatzstruktur nicht. Du fügst keine SEO-H2-Überschriften ' +
   'hinzu, die im Original nicht waren. Du behältst Quotes 1:1 (auf Deutsch). ' +
+  'PFLICHTREGEL: Serientitel MÜSSEN im Fließtext, in H2-Überschriften, in ' +
+  'Headline und Meta-Description IMMER in typografischen Anführungszeichen ' +
+  'stehen — Form: „Serientitel". NIEMALS ohne Anführungszeichen, NIEMALS mit ' +
+  'geraden ASCII-Zeichen ("). Beispiel korrekt: „Stuart Fails to Save the ' +
+  'Universe" bekommt eine zweite Staffel. Beispiel falsch: Stuart Fails to ' +
+  'Save the Universe bekommt eine zweite Staffel. ' +
   'Antworte ausschließlich mit validem JSON, ohne Markdown-Codeblöcke.';
 
 function publisherFromUrl(url: string): string {
@@ -314,6 +320,43 @@ function applyGermanQuotes(s: string): string {
   });
 }
 
+/**
+ * Wraps every mention of the series title in German typographic quotes
+ * („…"), unless it's already wrapped in quotes (any style). Applied to
+ * headlines, meta, lead, and body — enforces the editorial rule that
+ * series titles must ALWAYS appear quoted.
+ *
+ * Handles both the original (English) title and, if provided, the German
+ * TMDB title. Case-insensitive match, preserves original casing.
+ */
+function enforceSeriesTitleQuotes(
+  text: string,
+  seriesName: string,
+  seriesNameDE?: string
+): string {
+  if (!text || !seriesName) return text;
+
+  const candidates = [seriesName, seriesNameDE]
+    .filter((n): n is string => typeof n === 'string' && n.trim().length >= 2)
+    // longest first, damit "Stuart Fails to Save the Universe" vor "Stuart" gematched wird
+    .sort((a, b) => b.length - a.length);
+
+  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  let out = text;
+  for (const name of candidates) {
+    // Match: nicht direkt hinter/vor öffnendem/schließendem Anführungszeichen
+    // (,„,‚,',",»,‹,',`) — vermeidet Doppel-Wrapping.
+    // Wortgrenze davor/danach, damit "The" nicht in "Theatre" gematched wird.
+    const re = new RegExp(
+      `(?<![„‚"'‹»«\\w])(${escapeRegex(name)})(?![\\w"'‘’‚’‹›»«])`,
+      'gi'
+    );
+    out = out.replace(re, (match) => `\u201E${match}\u201C`);
+  }
+  return out;
+}
+
 interface LLMOutput {
   headline: string;
   metaDescription: string;
@@ -357,7 +400,11 @@ function renderMultiSourceFooter(input: FaithfulTranslatorInput): string {
   return `\n<p class="multi-source-footer text-sm text-gray-500 dark:text-gray-400 mt-4 italic">Mit Berichten von ${prefix}${last}.</p>`;
 }
 
-function buildHtml(out: LLMOutput, dach?: DachLocalizationContext): {
+function buildHtml(
+  out: LLMOutput,
+  dach?: DachLocalizationContext,
+  seriesName?: string
+): {
   html: string;
   wordCount: number;
   paragraphCount: number;
@@ -385,10 +432,19 @@ function buildHtml(out: LLMOutput, dach?: DachLocalizationContext): {
   });
 
   cleanedParas.forEach((para, idx) => {
-    parts.push(`<p>${applyGermanQuotes(escapeHtml(para))}</p>`);
+    // 1. HTML-escape → 2. Serientitel in „…" wrappen → 3. LLM-'-Quotes → „…"
+    const escaped = escapeHtml(para);
+    const withSeries = seriesName
+      ? enforceSeriesTitleQuotes(escaped, seriesName, dach?.seriesNameDE)
+      : escaped;
+    parts.push(`<p>${applyGermanQuotes(withSeries)}</p>`);
     const oneBased = idx + 1;
     if (h2Map.has(oneBased)) {
-      parts.push(`<h2>${applyGermanQuotes(escapeHtml(h2Map.get(oneBased)!))}</h2>`);
+      const h2Escaped = escapeHtml(h2Map.get(oneBased)!);
+      const h2WithSeries = seriesName
+        ? enforceSeriesTitleQuotes(h2Escaped, seriesName, dach?.seriesNameDE)
+        : h2Escaped;
+      parts.push(`<h2>${applyGermanQuotes(h2WithSeries)}</h2>`);
     }
   });
 
@@ -445,7 +501,7 @@ export async function translateFaithful(
     throw new Error(`Faithful translation failed after ${attempt} attempts: ${lastErr?.message}`);
   }
 
-  const { html, wordCount, paragraphCount, quotesPreserved } = buildHtml(parsed, input.dach);
+  const { html, wordCount, paragraphCount, quotesPreserved } = buildHtml(parsed, input.dach, input.seriesName);
   const notes: string[] = [];
   if (wordCount < TARGET_WORDS_MIN) notes.push(`short:${wordCount}`);
   if (wordCount > TARGET_WORDS_MAX) notes.push(`long:${wordCount}`);
@@ -472,9 +528,19 @@ export async function translateFaithful(
   }
 
   return {
-    headline: applyGermanQuotes(parsed.headline.trim()),
-    metaDescription: applyGermanQuotes(parsed.metaDescription.trim()),
-    leadParagraph: applyGermanQuotes(applyEditorialDiff(parsed.leadParagraph, input.dach)),
+    headline: applyGermanQuotes(
+      enforceSeriesTitleQuotes(parsed.headline.trim(), input.seriesName, input.dach?.seriesNameDE)
+    ),
+    metaDescription: applyGermanQuotes(
+      enforceSeriesTitleQuotes(parsed.metaDescription.trim(), input.seriesName, input.dach?.seriesNameDE)
+    ),
+    leadParagraph: applyGermanQuotes(
+      enforceSeriesTitleQuotes(
+        applyEditorialDiff(parsed.leadParagraph, input.dach),
+        input.seriesName,
+        input.dach?.seriesNameDE
+      )
+    ),
     contentHtml: finalHtml,
     wordCount,
     paragraphCount,
