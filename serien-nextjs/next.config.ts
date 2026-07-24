@@ -222,6 +222,16 @@ const nextConfig: NextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
+          },
+          {
+            // Chrome deprecated `unload`-Events per Default seit v128.
+            // TMN-Bidder (Amazon TAM/Sushi, LiveRamp) verwenden aber noch
+            // window.addEventListener('unload'). Ohne dieses Opt-in blockt
+            // Chrome die Handler → Console-Warnings + verlorene Viewability-
+            // Signale bei manchen Bidder-Integrationen.
+            // 'unload=*' = allow für own origin + alle iframes/subframes.
+            key: 'Permissions-Policy',
+            value: 'unload=*'
           }
         ]
       },
