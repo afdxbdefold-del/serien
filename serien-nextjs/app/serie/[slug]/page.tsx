@@ -3,10 +3,7 @@ import prisma from '@/lib/prisma';
 import { Metadata } from 'next';
 import { generateSeriesSchema, generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
-import { generateRelevanceContext, generateStatusContext } from '@/lib/editorial-hook';
-import { getSeriesQA } from '@/lib/series-qa-action';
-import MobileSeriesLayout from '@/components/series/MobileSeriesLayout';
-import DesktopSeriesLayout from '@/components/series/DesktopSeriesLayout';
+import SeriesNewsHub from '@/components/series/SeriesNewsHub';
 import { unstable_cache } from 'next/cache';
 
 interface PageProps {
@@ -15,8 +12,14 @@ interface PageProps {
 
 export const revalidate = 300;
 
+// ─────────────────────────────────────────────────────────────────────────
+// Series-Detail-Page = **News-Hub** (Feb 2026).
+// Keine Cast-/Charakter-/Q&A-/Trailer-/LLM-Bausteine mehr — nur eine
+// kompakte Info-Box + Liste der jüngsten News zur Serie. Alle Heavy-
+// Content-Module wurden entfernt (Google-Discover-Fokus: dünne Serien-
+// Meta-Pages werden nicht bevorzugt; News mit klarer Zuordnung schon).
+// ─────────────────────────────────────────────────────────────────────────
 
-// Cache helper: resolve slug to series metadata
 const getSeriesMeta = (slug: string) => unstable_cache(
   async () => {
     const possibleTmdbId = parseInt(slug.split('-')[0]);
@@ -46,74 +49,37 @@ const getSeriesMeta = (slug: string) => unstable_cache(
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const series = await getSeriesMeta(slug);
-  
-  if (!series) {
-    notFound();
-  }
-  
-  const tmdbId = series.tmdbId;
 
-  // Schema/metadata URLs are always canonical (https://serien.de) — never the
-  // Vercel preview origin, so social cards and search engines see the public
-  // domain regardless of the build environment.
+  if (!series) notFound();
+
+  const tmdbId = series.tmdbId;
   const baseUrl = 'https://serien.de';
   const seriesName = series.name || series.title;
   const ogImage = `/img/og/${series.tmdbType}/${tmdbId}`;
-  
-  // Get primary network for title
-  const primaryNetwork = series.networks && series.networks.length > 0 
-    ? series.networks[0] 
-    : 'Streaming';
-
-  // Use canonical slug for URLs
+  const primaryNetwork = series.networks && series.networks.length > 0 ? series.networks[0] : 'Streaming';
   const canonicalSlug = series.slug || slug;
 
-  // noindex for broken slugs (non-Latin titles that generated invalid slugs like "-2661")
-  // AND for "Karteileichen" series — no articles AND low TMDB popularity → no SEO value,
-  // costs crawl budget, dilutes site quality signals.
   const articleCount = (series as any)._count?.articles ?? 0;
   const popularity = (series as any).popularity ?? 0;
   const isKarteileichen = articleCount === 0 && popularity < 5;
   const shouldIndex = !!canonicalSlug && !canonicalSlug.startsWith('-') && !isKarteileichen;
 
-  const rawTitle = `${seriesName} (${primaryNetwork}): News, Staffeln & aktueller Serien-Status`;
-  const rawDescription = `Alle aktuellen News, Trailer und Infos zur Serie ${seriesName} – mit Serien-Status, Staffeln und Einordnung.`;
-  const finalTitle = seoTitle(rawTitle);
-  const finalDescription = seoDescription(rawDescription);
-  const ogTitle = seoTitle(seriesName);
-  const ogDescription = seoDescription(series.overview || `Alle Neuigkeiten zu ${seriesName}`);
+  const rawTitle = `${seriesName} (${primaryNetwork}) News – Serien-Updates`;
+  const rawDescription = `Aktuelle News zur Serie ${seriesName} bei ${primaryNetwork} – gebündelt auf einer Seite.`;
+  const ogTitle = seoTitle(rawTitle);
+  const ogDescription = seoDescription(rawDescription);
 
   return {
-    title: finalTitle,
-    description: finalDescription,
-    metadataBase: new URL(baseUrl),
-    robots: {
-      index: shouldIndex,
-      follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-      'max-video-preview': -1,
-    },
-    // Series hub pages are NOT news. Articles about the series are.
-    other: {
-      'googlebot-news': 'noindex',
-    },
-    alternates: {
-      canonical: `${baseUrl}/serie/${canonicalSlug}`,
-    },
+    title: ogTitle,
+    description: ogDescription,
+    alternates: { canonical: `${baseUrl}/serie/${canonicalSlug}` },
+    robots: shouldIndex ? undefined : { index: false, follow: true },
     openGraph: {
       title: ogTitle,
       description: ogDescription,
-      type: 'website',
       url: `${baseUrl}/serie/${canonicalSlug}`,
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: seriesName,
-        },
-      ],
+      type: 'website',
+      images: [{ url: ogImage, width: 1200, height: 630, alt: seriesName || '' }],
     },
     twitter: {
       card: 'summary_large_image',
@@ -126,196 +92,81 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function SeriesDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  
-  // Try to parse as TMDB ID first (legacy URLs like "259819-serienname")
+
   const possibleTmdbId = parseInt(slug.split('-')[0]);
-  
-  let series;
-  let shouldRedirect = false;
-  
+
+  // Nur das minimum-Set an Feldern für News-Hub. Kein cast/crew/characters/qa mehr.
+  const seriesSelect = {
+    name: true,
+    title: true,
+    overview: true,
+    tmdbId: true,
+    tmdbType: true,
+    slug: true,
+    networks: true,
+    genres: true,
+    status: true,
+    firstAirDate: true,
+    lastAirDate: true,
+    numberOfSeasons: true,
+    numberOfEpisodes: true,
+    voteAverage: true,
+    voteCount: true,
+    productionCompanies: true,
+    articles: {
+      where: { status: 'published' },
+      orderBy: { publishedAt: 'desc' as const },
+      take: 30,
+      select: {
+        slug: true,
+        title: true,
+        excerpt: true,
+        publishedAt: true,
+        heroLocalUrl: true,
+        heroImageUrl: true,
+        heroImagePath: true,
+        cardImageUrl: true,
+        users: { select: { name: true, image: true } },
+      },
+    },
+  };
+
+  let series: any = null;
+
   if (!isNaN(possibleTmdbId) && possibleTmdbId > 1000) {
-    // Looks like a TMDB ID - find series and redirect to new slug
     series = await prisma.series.findUnique({
       where: { tmdbId: possibleTmdbId },
-      include: {
-        articles: {
-          where: { status: 'published' },
-          orderBy: { publishedAt: 'desc' },
-          take: 10,
-          select: {
-            slug: true,
-            title: true,
-            excerpt: true,
-            publishedAt: true,
-            heroLocalUrl: true,
-            heroImageUrl: true,
-            heroImagePath: true,
-            cardImageUrl: true,
-            authorId: true,
-            users: {
-              select: { name: true, image: true }
-            }
-          }
-        }
-      },
+      select: seriesSelect,
     });
-    
-    // If found and slug doesn't match, redirect to canonical URL
+
+    // Falls unter dem TMDB-ID-Pfad gelandet, auf sauberen Slug 301'en
     if (series && series.slug && series.slug !== slug) {
       redirect(`/serie/${series.slug}`);
     }
   }
-  
-  // If not found by TMDB ID, try by slug
+
   if (!series) {
     series = await prisma.series.findFirst({
       where: { slug },
-      include: {
-        articles: {
-          where: { status: 'published' },
-          orderBy: { publishedAt: 'desc' },
-          take: 10,
-          select: {
-            slug: true,
-            title: true,
-            excerpt: true,
-            publishedAt: true,
-            heroLocalUrl: true,
-            heroImageUrl: true,
-            heroImagePath: true,
-            cardImageUrl: true,
-            authorId: true,
-            users: {
-              select: { name: true, image: true }
-            }
-          }
-        }
-      },
+      select: seriesSelect,
     });
   }
 
-  if (!series) {
-    notFound();
-  }
+  if (!series) notFound();
 
-  // Get tmdbId from series for use in templates
   const tmdbId = series.tmdbId;
+  const seriesName = series.name || series.title || '';
+  const primaryNetwork = series.networks && series.networks.length > 0 ? series.networks[0] : null;
 
-  const cast = (series.cast as any[]) || [];
-  const crew = (series.crew as any[]) || [];
-  const trailers = (series.trailers as any[]) || [];
-  const creators = crew.filter(c => c.job === 'Creator' || c.job === 'Executive Producer').slice(0, 3);
-  
-  // R2 Trailer URL (self-hosted) - prioritize over YouTube embed
-  const localTrailerUrl = series.localTrailerPath && 
-    series.localTrailerPath !== 'unavailable' && 
-    series.localTrailerPath !== 'SKIP' &&
-    series.localTrailerPath.startsWith('http')
-    ? series.localTrailerPath 
-    : null;
-  const seasons = series.seasons as any[] || [];
-  
-  // Enrich cast with person page slugs for linking (single query instead of 6)
-  const castIds = cast.slice(0, 6).map((actor: any) => actor.id).filter(Boolean);
-  const personSlugs = castIds.length > 0 
-    ? await prisma.persons.findMany({
-        where: { tmdbId: { in: castIds } },
-        select: { tmdbId: true, slug: true }
-      })
-    : [];
-  
-  const slugMap = new Map(personSlugs.map(p => [p.tmdbId, p.slug]));
-  const castWithLinks = cast.slice(0, 6).map((actor: any) => ({
-    ...actor,
-    personSlug: actor.id ? slugMap.get(actor.id) || null : null
-  }));
-  
-  // Fetch fictional characters for this series
-  const characters = await prisma.characters.findMany({
-    where: {
-      seriesTmdbId: series.tmdbId,
-      publishStatus: 'published',
-    },
-    include: {
-      persons: {
-        select: {
-          name: true,
-          // profilePath bewusst nicht selektiert — Schauspieler-Fotos wurden
-          // site-wide entfernt (Juni 2026, Bildrechte).
-        }
-      }
-    },
-    take: 6,
-    orderBy: {
-      orderIndex: 'asc'
-    }
-  });
-  
-  // Generate Series Q&A (5 evergreen interpretative questions - MODUL 2)
-  // Use cached data if available, otherwise generate on-demand
-  let seriesQA: any[] = [];
-  
-  if (series.discoverQA && Array.isArray(series.discoverQA) && (series.discoverQA as any[]).length > 0) {
-    // Use cached Q&A
-    seriesQA = series.discoverQA as any[];
-  } else {
-    // Generate on-demand and cache in background (don't block page load)
-    // For now, skip to avoid slow page loads - will be pre-generated via script
-    seriesQA = [];
-  }
-
-  // Extract year information
   const startYear = series.firstAirDate ? new Date(series.firstAirDate).getFullYear() : undefined;
   const endYear = series.lastAirDate ? new Date(series.lastAirDate).getFullYear() : undefined;
-  // `series.genres` is already a `string[]` in DB; the previous `.map(g => g.name)`
-  // produced `[null, null, null]` because the items aren't objects.
   const genres: string[] = Array.isArray(series.genres)
     ? series.genres.filter((g: unknown): g is string => typeof g === 'string' && g.length > 0)
     : [];
-  
-  // MODUL 0: "Warum relevant"-Context (kulturelle Relevanz, KEIN News-Ton)
-  // Use cached data if available
-  let relevanceContext: string | null = null;
-  
-  if (series.discoverIntro && series.discoverIntro.length > 50) {
-    // Use cached intro
-    relevanceContext = series.discoverIntro;
-  } else {
-    // Skip on-demand generation to avoid slow page loads
-    // Will be pre-generated via script
-    relevanceContext = null;
-  }
-  
-  // MODUL 1: Status Context (NUR bei echtem Mehrwert)
-  // Use cached or generate simple version (no LLM needed)
-  let statusContext: string | null = null;
-  
-  if (series.discoverStatus && series.discoverStatus.length > 10) {
-    statusContext = series.discoverStatus;
-  } else {
-    // This function doesn't use LLM, just string templates - safe to call
-    statusContext = generateStatusContext(
-      series.status,
-      series.name || series.title || '',
-      series.networks && series.networks.length > 0 ? series.networks[0] : undefined,
-      series.lastAirDate,
-      series.numberOfSeasons
-    );
-  }
-  
-  // Generate structured data
-  const tmdbData = (series.tmdbData as any) || {};
-  const created_by = Array.isArray(tmdbData.created_by) ? tmdbData.created_by : [];
-  const usableTrailerUrl =
-    series.localTrailerPath
-    && series.localTrailerPath !== 'unavailable'
-    && series.localTrailerPath !== 'SKIP'
-    && series.localTrailerPath.startsWith('http')
-      ? series.localTrailerPath
-      : null;
 
+  // Schema.org — kompakte Basis-Serie ohne Trailer/Cast (die haben wir hier bewusst nicht mehr)
   const seriesSchema = generateSeriesSchema({
-    name: series.name || series.title || '',
+    name: seriesName,
     description: series.overview || '',
     posterUrl: `/img/poster/${series.tmdbType}/${tmdbId}`,
     tmdbId,
@@ -331,121 +182,56 @@ export default async function SeriesDetailPage({ params }: PageProps) {
     voteAverage: series.voteAverage,
     voteCount: series.voteCount,
     networks: Array.isArray(series.networks) ? series.networks : [],
-    cast: cast.slice(0, 12).map((c: any) => ({
-      name: c.name,
-      characterName: c.character || undefined,
-    })),
-    creators: created_by.map((c: any) => c?.name).filter(Boolean),
+    cast: [],
+    creators: [],
     productionCompanies: Array.isArray(series.productionCompanies)
       ? series.productionCompanies.filter((c: unknown): c is string => typeof c === 'string' && c.length > 0)
       : [],
-    trailerUrl: usableTrailerUrl,
+    trailerUrl: null,
   });
 
-  // ──────────────────────────────────────────────────────────────────────
-  // E-E-A-T: Find top-editor for this series (most published articles about it).
-  // Only counts real authors (role in author/admin) with a fullBio.
-  // ──────────────────────────────────────────────────────────────────────
-  const authorGroups = await prisma.articles.groupBy({
-    by: ['authorId'],
-    where: {
-      status: 'published',
-      OR: [
-        { primarySeriesId: tmdbId },
-        { article_series: { some: { seriesId: tmdbId } } },
-      ],
-      users: { role: { in: ['author', 'admin'] }, fullBio: { not: null } },
-    },
-    _count: { id: true },
-    orderBy: { _count: { id: 'desc' } },
-    take: 1,
-  });
-
-  let topSeriesAuthor: {
-    name: string;
-    image: string | null;
-    fullBio: string | null;
-    expertise: string[];
-    articleCount: number;
-  } | null = null;
-
-  if (authorGroups.length > 0 && authorGroups[0].authorId) {
-    const user = await prisma.users.findUnique({
-      where: { id: authorGroups[0].authorId },
-      select: { name: true, image: true, fullBio: true, expertise: true },
-    });
-    if (user?.name) {
-      topSeriesAuthor = {
-        name: user.name,
-        image: user.image || null,
-        fullBio: (user as any).fullBio || null,
-        expertise: user.expertise || [],
-        articleCount: authorGroups[0]._count.id,
-      };
-    }
-  }
-
-  // Serialize Prisma Date objects for React Server Components
-  const serializedSeries = {
-    ...series,
-    articles: series.articles?.map((article: any) => ({
-      ...article,
-      publishedAt: article.publishedAt ? article.publishedAt.toISOString() : null,
-      createdAt: article.createdAt ? article.createdAt.toISOString() : null,
-      updatedAt: article.updatedAt ? article.updatedAt.toISOString() : null,
-    })) || [],
-    firstAirDate: series.firstAirDate || null,
-    lastAirDate: series.lastAirDate || null,
-  };
+  const articles = (series.articles || []).map((a: any) => ({
+    slug: a.slug,
+    title: a.title,
+    excerpt: a.excerpt,
+    publishedAt: a.publishedAt ? a.publishedAt.toISOString() : null,
+    heroLocalUrl: a.heroLocalUrl,
+    heroImageUrl: a.heroImageUrl,
+    cardImageUrl: a.cardImageUrl,
+    users: a.users,
+  }));
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(seriesSchema) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(seriesSchema),
+          __html: JSON.stringify(
+            generateBreadcrumbSchema([
+              { name: 'Serien', url: '/serienfinder' },
+              { name: seriesName, url: `/serie/${series.slug}` },
+            ])
+          ),
         }}
-      />
-      {/* BreadcrumbList Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(generateBreadcrumbSchema([
-            { name: 'Serien', url: '/serienfinder' },
-            { name: series.name || series.title || '', url: `/serie/${series.slug}` },
-          ])),
-        }}
-      />
-      
-      <MobileSeriesLayout
-        series={serializedSeries}
-        cast={castWithLinks || []}
-        creators={creators || []}
-        seasons={seasons || []}
-        trailers={trailers || []}
-        localTrailerUrl={localTrailerUrl}
-        relevanceContext={relevanceContext || null}
-        statusContext={statusContext || null}
-        seriesQA={seriesQA || []}
-        slug={slug}
-        characters={characters || []}
-        topSeriesAuthor={topSeriesAuthor}
       />
 
-      <DesktopSeriesLayout
-        series={serializedSeries}
-        cast={castWithLinks || []}
-        creators={creators || []}
-        seasons={seasons || []}
-        trailers={trailers || []}
-        localTrailerUrl={localTrailerUrl}
-        relevanceContext={relevanceContext || null}
-        statusContext={statusContext || null}
-        seriesQA={seriesQA || []}
-        slug={slug}
-        characters={characters || []}
-        topSeriesAuthor={topSeriesAuthor}
+      <SeriesNewsHub
+        seriesName={seriesName}
+        tmdbId={tmdbId}
+        tmdbType={series.tmdbType}
+        primaryNetwork={primaryNetwork}
+        status={series.status}
+        startYear={startYear}
+        endYear={endYear}
+        numberOfSeasons={series.numberOfSeasons}
+        numberOfEpisodes={series.numberOfEpisodes}
+        genres={genres}
+        voteAverage={series.voteAverage}
+        articles={articles}
       />
     </main>
   );
