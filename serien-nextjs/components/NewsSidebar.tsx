@@ -195,8 +195,7 @@ export default async function NewsSidebar() {
           </ul>
         </section>
 
-        {/* 5. TheMoneytizer Skyscraper (Format 4, 300×600 simple) */}
-        <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
+        {/* Standard-Skyscraper (Format 4) entfernt auf User-Direktive Feb 2026. */}
 
         {/* 6. TheMoneytizer MREC Bottom (Format 19, 300×250) */}
         <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />

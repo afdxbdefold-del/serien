@@ -806,11 +806,10 @@ export default async function ArticlePage({ params }: PageProps) {
               )}
 
               {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots (hardgecodet
-                  Feb 2026): F2 MREC Top, F3 Half Page, F4 Skyscraper, F19
-                  MREC Bottom. Alle 4 auf jeder Artikelseite. */}
+                  Feb 2026): F2 MREC Top, F3 Half Page, F19 MREC Bottom.
+                  Standard-Skyscraper (F4) entfernt auf User-Direktive. */}
               <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
               <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
-              <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
               <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
             </div>
           </aside>

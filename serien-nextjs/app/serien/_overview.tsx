@@ -389,12 +389,12 @@ export default async function SerienOverview({ filters, forcePrimary, resetHref 
             </nav>
           )}
         </section>
-        {/* ─── SIDEBAR (Desktop ≥ lg): TMN Format 2 / 3 / 4 / 19 ─── */}
+        {/* ─── SIDEBAR (Desktop ≥ lg): TMN Format 2 / 3 / 19 ───
+            Standard-Skyscraper (F4) entfernt auf User-Direktive Feb 2026. */}
         <aside className="hidden lg:block" aria-label="Werbung Sidebar">
           <div className="sticky top-24 space-y-4">
             <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
             <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
-            <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
             <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
           </div>
         </aside>

@@ -366,12 +366,11 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
           {/* ─────────────── SIDEBAR (Desktop only) ─────────────── */}
           <aside className="hidden lg:block" aria-label="Werbung Sidebar">
             {/* Sticky Ad-Stack — TheMoneytizer Sidebar-Slots hardgecodet
-                (Feb 2026): F2 MREC Top, F3 Half Page, F4 Skyscraper, F19
-                MREC Bottom. Identisch zu /news und Artikelseite. */}
+                (Feb 2026): F2 MREC Top, F3 Half Page, F19 MREC Bottom.
+                Standard-Skyscraper (F4) entfernt auf User-Direktive. */}
             <div className="sticky top-24 space-y-4">
               <TMNSidebarSlot formatId={2} label="Werbung MREC Top" />
               <TMNSidebarSlot formatId={3} label="Werbung Half Page" />
-              <TMNSidebarSlot formatId={4} label="Werbung Skyscraper" />
               <TMNSidebarSlot formatId={19} label="Werbung MREC Bottom" />
             </div>
           </aside>
