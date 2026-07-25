@@ -9,7 +9,6 @@ import { Fragment } from 'react';
 import { fetchNewsArticles } from './_data';
 import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
 import NewsCard from './_card';
-import NewsAdCard from '@/components/InfeedAdCard';
 import NewsLoadMore from '@/components/NewsLoadMore';
 import NewsSidebar from '@/components/NewsSidebar';
 import ClientAdSlot from '@/components/ClientAdSlot';
@@ -138,11 +137,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
                 {articles.map((a, i) => (
                   <Fragment key={a.id}>
                     <NewsCard article={a} />
-                    {/* In-Feed Ad alle 6 Cards — nicht am Ende, damit die
-                        Ad nicht direkt vor "Mehr laden" hängt. */}
-                    {(i + 1) % 6 === 0 && i < articles.length - 1 && (
-                      <NewsAdCard />
-                    )}
+                    {/* NewsAdCard entfernt (Feb 2026, User-Direktive: keine In-Feed-Ads). */}
                   </Fragment>
                 ))}
               </div>

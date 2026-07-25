@@ -10,7 +10,7 @@
 import { useState, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import InfeedAdCard from './InfeedAdCard';
+// InfeedAdCard-Import entfernt (Feb 2026 — keine In-Feed-Ads mehr).
 
 interface ArticleCard {
   id: string;
@@ -92,7 +92,7 @@ export default function AuthorArticleGrid({ articles, authorName }: Props) {
                 </div>
               </Link>
               {/* In-Feed Ad alle 6 Cards. */}
-              {(i + 1) % 6 === 0 && i < shown.length - 1 && <InfeedAdCard />}
+              {/* InfeedAdCard entfernt (Feb 2026, User-Direktive). */}
             </Fragment>
           );
         })}

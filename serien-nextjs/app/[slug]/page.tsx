@@ -22,7 +22,7 @@ import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import TMNSidebarSlot from '@/components/TMNSidebarSlot';
-import InfeedAdCard from '@/components/InfeedAdCard';
+// InfeedAdCard-Import entfernt (Feb 2026 — keine In-Feed-Ads mehr).
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
@@ -700,7 +700,7 @@ export default async function ArticlePage({ params }: PageProps) {
                       networks={news.series?.networks as string[] || []}
                     />
                     {/* In-Feed Ad nach der 2. Card im 3-Col-Grid. */}
-                    {i === 1 && i < seriesArticles.length - 1 && <InfeedAdCard />}
+                    {/* InfeedAdCard entfernt (Feb 2026, User-Direktive: keine In-Feed-Ads). */}
                   </Fragment>
                 ))}
               </div>
@@ -842,7 +842,7 @@ export default async function ArticlePage({ params }: PageProps) {
                     networks={news.series?.networks as string[] || []}
                   />
                   {/* In-Feed Ad nach der 2. Card. */}
-                  {i === 1 && i < relatedNews.length - 1 && <InfeedAdCard />}
+                  {/* InfeedAdCard entfernt (Feb 2026, User-Direktive). */}
                 </Fragment>
               ))}
             </div>

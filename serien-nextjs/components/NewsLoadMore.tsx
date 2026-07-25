@@ -4,7 +4,7 @@ import { useState, useTransition, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Clock, Loader2 } from 'lucide-react';
-import NewsAdCard from '@/components/InfeedAdCard';
+// NewsAdCard-Import entfernt (Feb 2026 — keine In-Feed-Ads mehr).
 
 interface ApiItem {
   id: string;
@@ -111,7 +111,7 @@ export default function NewsLoadMore({ initialCursor, filterSlug }: Props) {
                   </div>
                 </Link>
                 {/* In-Feed Ad alle 6 Load-More-Cards. */}
-                {(i + 1) % 6 === 0 && i < items.length - 1 && <NewsAdCard />}
+                {/* NewsAdCard entfernt (Feb 2026, User-Direktive). */}
               </Fragment>
             );
           })}
