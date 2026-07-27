@@ -22,6 +22,7 @@ import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import TMNSidebarSlot from '@/components/TMNSidebarSlot';
+import YieldlabFooterSlot from '@/components/YieldlabFooterSlot';
 // InfeedAdCard-Import entfernt (Feb 2026 — keine In-Feed-Ads mehr).
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
@@ -758,6 +759,13 @@ export default async function ArticlePage({ params }: PageProps) {
                   variant="sidebar"
                 />
               )}
+
+              {/* Yieldlab Prebid-Slot 300×250 — testweise Feb 2026 direkt
+                  unter der Serien-Infobox („Mehr zur Serie ..."). Auf
+                  advertising-alliance.de/sellers.json ist AF Consulting
+                  jetzt raus → v4-Chain (serien.de → AA → Yieldlab) aktiv. */}
+              <YieldlabFooterSlot />
+
               {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
                 <WhereToStreamBox
                   seriesId={article.primarySeriesId}

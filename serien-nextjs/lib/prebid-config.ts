@@ -66,7 +66,8 @@ export const YIELDLAB_TEST_SLOT = {
 export const PREBID_SCHAIN_VARIANT:
   | 'v1_yieldlab_direct'
   | 'v2_alliance_chain'
-  | 'v3_full_chain' = 'v3_full_chain';
+  | 'v3_full_chain'
+  | 'v4_direct_alliance' = 'v4_direct_alliance';
 
 /**
  * Publisher-ID von serien.de bei AF Consulting.
@@ -120,8 +121,33 @@ const SCHAIN_V3_FULL_CHAIN = {
   },
 } as const;
 
+/**
+ * VARIANT `v4_direct_alliance` — Stand Feb 2026 ✅ AKTIV.
+ *
+ * AF Consulting wurde aus advertising-alliance.de/sellers.json entfernt,
+ * daher fällt Node 1+2 der alten v3-Chain weg. serien.de ist jetzt direkt
+ * bei Advertising Alliance geführt (seller_id: "serien.de", PUBLISHER-Typ),
+ * die wiederum bei Yieldlab mit seller_id 35673 gelistet ist.
+ *
+ * Kette:
+ *   serien.de → Advertising Alliance → Yieldlab
+ */
+const SCHAIN_V4_DIRECT_ALLIANCE = {
+  validation: 'strict' as const,
+  config: {
+    ver: '1.0',
+    complete: 1,
+    nodes: [
+      { asi: 'advertising-alliance.de', sid: 'serien.de', hp: 1, name: 'serien', domain: 'serien.de' },
+      { asi: 'yieldlab.net',            sid: '35673',     hp: 1 },
+    ],
+  },
+} as const;
+
 export const PREBID_SCHAIN_CONFIG =
-  PREBID_SCHAIN_VARIANT === 'v3_full_chain'
+  PREBID_SCHAIN_VARIANT === 'v4_direct_alliance'
+    ? SCHAIN_V4_DIRECT_ALLIANCE
+    : PREBID_SCHAIN_VARIANT === 'v3_full_chain'
     ? SCHAIN_V3_FULL_CHAIN
     : PREBID_SCHAIN_VARIANT === 'v2_alliance_chain'
     ? SCHAIN_V2_ALLIANCE_CHAIN
