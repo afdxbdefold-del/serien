@@ -93,44 +93,7 @@ const getArticle = (slug: string) => unstable_cache(
   { revalidate: 300, tags: ['article', `article-${slug}`] }
 )();
 
-// Cached related news fetch
-const getRelatedNews = (articleId: string) => unstable_cache(
-  async () => {
-    return prisma.articles.findMany({
-      where: {
-        OR: [
-          { status: 'published' },
-          { status: 'PUBLISHED' }
-        ],
-        id: { not: articleId },
-      },
-      take: 3,
-      orderBy: { publishedAt: 'desc' },
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        excerpt: true,
-        heroLocalUrl: true,
-        heroImageUrl: true,
-        heroImagePath: true,
-        cardImageUrl: true,
-        tmdbId: true,
-        tmdbType: true,
-        publishedAt: true,
-        category: true,
-        users: {
-          select: { name: true },
-        },
-        series: {
-          select: { networks: true },
-        },
-      },
-    });
-  },
-  [`latest-news-${articleId}`],
-  { revalidate: 300, tags: ['latest-news'] }
-)();
+// getRelatedNews() wurde Feb 2026 entfernt zusammen mit dem "Neue News"-Block.
 
 // Cached fetch for articles from the SAME series (for "Mehr zu <Serie>" cards)
 const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstable_cache(
@@ -365,8 +328,7 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch 3 latest news (site-wide) for "Neue News" section
-  const relatedNews = await getRelatedNews(article.id);
+  // "Neue News"-Block wurde Feb 2026 entfernt — kein Fetch mehr nötig.
 
   // Fetch same-series articles for "Mehr zu <Serie>" card section
   const seriesArticles = article.primarySeriesId
@@ -821,34 +783,9 @@ export default async function ArticlePage({ params }: PageProps) {
             da Format 28 die Bottom-Position bereits abdeckt. */}
       </article>
 
-      {/* Ähnliche News — außerhalb von <article> */}
-      {relatedNews.length > 0 && (
-        <div className="container mx-auto px-4 md:px-6 max-w-3xl py-8">
-          <section aria-labelledby="similar-news">
-            <h3 id="similar-news" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Neue News</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedNews.map((news, i) => (
-                <Fragment key={news.id}>
-                  <NewsCard
-                    slug={news.slug}
-                    title={news.title}
-                    excerpt={news.excerpt}
-                    heroLocalUrl={news.heroLocalUrl}
-                    cardImageUrl={news.cardImageUrl}
-                    tmdbId={news.tmdbId}
-                    tmdbType={news.tmdbType}
-                    publishedAt={news.publishedAt}
-                    category={news.category}
-                    networks={news.series?.networks as string[] || []}
-                  />
-                  {/* In-Feed Ad nach der 2. Card. */}
-                  {/* InfeedAdCard entfernt (Feb 2026, User-Direktive). */}
-                </Fragment>
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
+      {/* "Neue News"-Block entfernt (Feb 2026, User-Direktive). Der darunter
+          liegende CTA "Mehr aktuelle Serien-News" bleibt als schlanker
+          Ausstiegspunkt zur /news-Übersicht. */}
 
       {/* Mehr aktuelle Serien-News CTA */}
       <div className="container mx-auto px-4 md:px-6 max-w-3xl pb-2">
