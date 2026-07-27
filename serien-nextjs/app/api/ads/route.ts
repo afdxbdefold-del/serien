@@ -6,13 +6,19 @@ import { NextResponse } from 'next/server';
 //     ohne diese Zeile zeigt AdSense keine Ads mehr aus, weil sie das
 //     Domain-Ownership in unserem AdSense-Account verifiziert.
 //   - Manager: The Moneytizer (Header-Bidding-Stack + SSP-Reseller-Liste).
-//     Ersetzt den vorherigen advertising-alliance.de + Yieldlab-Stack.
+//   - Yieldlab (Feb 2026): Chain ist jetzt direkt über Advertising Alliance
+//     (AF Consulting wurde aus AA's sellers.json entfernt). Deshalb:
+//       * advertising-alliance.de, serien.de, DIRECT   (unser Vermarkter)
+//       * yieldlab.net, 35673, RESELLER                (AA's Seller-ID bei YL)
+//     Die alte "yieldlab.net, 35673, DIRECT"-Zeile war falsch — wir sind
+//     nicht direkt bei Yieldlab, sondern über AA.
 //   - Reseller-Liste 1:1 von TheMoneytizer's offiziellem Append.
 const ADS_TXT = `OWNERDOMAIN=serien.de
 MANAGERDOMAIN=themoneytizer.com
 google.com, pub-8583619451045805, DIRECT, f08c47fec0942fa0
 themoneytizer.com,131755,DIRECT
-yieldlab.net, 35673, DIRECT
+advertising-alliance.de, serien.de, DIRECT
+yieldlab.net, 35673, RESELLER
 improvedigital.com, 1602_131755, DIRECT
 improvedigital.com, 1033_131755, DIRECT
 smartadserver.com, 1097, RESELLER
