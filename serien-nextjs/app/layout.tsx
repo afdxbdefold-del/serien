@@ -89,6 +89,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
+        {/* Google AdSense Loader (ca-pub-8583619451045805) — site-wide im
+            Root-<head>. Feb 2026 zurück ins Root-Layout gezogen, damit
+            AdSense-Slots (aktuell Sidebar 300×600 auf Artikelseiten) den
+            Loader in der initialen HTML-Antwort sehen. `afterInteractive`
+            hält LCP frei; SPA-Navigation ist unkritisch, weil der Loader
+            nur EINMAL geladen wird und `adsbygoogle.push({})` von den
+            Slot-Komponenten selbst getriggert wird. */}
+        <Script
+          id="adsense-loader"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+
         {/* AdSense-Loader wurde aus dem Root-<head> entfernt (Juni 2026) —
             er hat SPA-Navigation zwischen Artikelseiten kaputt gemacht (Ads
             kamen erst nach F5 wieder). Der Loader sitzt jetzt wieder direkt
