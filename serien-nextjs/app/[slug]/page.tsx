@@ -22,7 +22,7 @@ import ArticleInterstitial from '@/components/ArticleInterstitial';
 import { headers } from 'next/headers';
 import ClientAdSlot from '@/components/ClientAdSlot';
 import TMNSidebarSlot from '@/components/TMNSidebarSlot';
-import YieldlabFooterSlot from '@/components/YieldlabFooterSlot';
+import SidebarAdSense300x600 from '@/components/SidebarAdSense300x600';
 // InfeedAdCard-Import entfernt (Feb 2026 — keine In-Feed-Ads mehr).
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
@@ -748,6 +748,14 @@ export default async function ArticlePage({ params }: PageProps) {
             data-ad-sidebar="desktop"
           >
             <div className="sticky top-24 space-y-6">
+              {/* AdSense Half-Page 300×600 (Slot 5695618723) — Feb 2026:
+                  ersetzt den Yieldlab-Prebid-Testslot in der Sidebar.
+                  Sitzt bewusst ÜBER der Serien-Infobox („Mehr zur Serie
+                  ...") auf User-Direktive. Nur Desktop (Sidebar ist
+                  `hidden lg:block`, Mobile bekommt die Komponente also
+                  gar nicht erst). */}
+              <SidebarAdSense300x600 />
+
               {/* Desktop-only: Serien-Infobox + WhereToStream nach oben in
                   die Sidebar (User-Wunsch). Auf Mobile rendern dieselben
                   Komponenten weiter unten unter `lg:hidden`. */}
@@ -759,12 +767,6 @@ export default async function ArticlePage({ params }: PageProps) {
                   variant="sidebar"
                 />
               )}
-
-              {/* Yieldlab Prebid-Slot 300×250 — testweise Feb 2026 direkt
-                  unter der Serien-Infobox („Mehr zur Serie ..."). Auf
-                  advertising-alliance.de/sellers.json ist AF Consulting
-                  jetzt raus → v4-Chain (serien.de → AA → Yieldlab) aktiv. */}
-              <YieldlabFooterSlot />
 
               {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
                 <WhereToStreamBox
