@@ -1929,6 +1929,28 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch (error: any) {
       console.log(`⚠️  Non-DACH-streaming check skipped: ${error.message}`);
     }
+
+    // US-Corporate-/Business-News-Gate (deterministic). Fängt Artikel ab,
+    // deren Kern-News eine US-Unternehmens-/Börsen-Meldung ist (AMC-Quartals-
+    // krise, Warner Bros. Discovery Umsatzeinbruch, NBCUniversal CEO-Wechsel),
+    // selbst wenn ein DACH-Streamer wie Netflix nur als Aufhänger im Titel
+    // steht. Reine Show-News mit US-Studio-Erwähnung passieren den Filter.
+    try {
+      const { checkUsCorporateNews } = await import('../lib/us-corporate-news-filter');
+      const corpCheck = checkUsCorporateNews({
+        headline: structuredContent.headline || '',
+        body: structuredContent.markdown || '',
+        metaDescription: structuredContent.metaDescription || '',
+        sourceTitle: source.title || '',
+      });
+      if (corpCheck.blocked) {
+        logger.addMetadata('usCorporateCheck', corpCheck.signals);
+        await logger.fail(corpCheck.reason, 'us-corporate-news');
+        return null;
+      }
+    } catch (error: any) {
+      console.log(`⚠️  US-corporate-news check skipped: ${error.message}`);
+    }
     console.timeEnd('⏱️  STEP 5.1: Quality Gates');
 
     // ========== STEP 5.2: AUTO-RETRY BEI NIEDRIGER QUALITÄT ==========
