@@ -63,11 +63,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const websiteSchema = generateWebSiteSchema();
   const orgSchema = generateOrganizationSchema();
-  // AdSense script is intentionally NOT loaded here in the root layout —
-  // it's now scoped to article pages only (see app/[slug]/page.tsx). This
-  // keeps the root layout static-renderable and avoids `Cache-Control:
-  // no-store` propagating to every route via headers().
-  
+  // AdSense wurde vollständig aus der Seite entfernt (Feb 2026) — kein
+  // Loader, keine Slot-Komponenten, keine adsbygoogle-Rückstände.
+
   return (
     <html lang="de" className="dark" suppressHydrationWarning>
       <head>
@@ -88,30 +86,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 (function(){var host="www.themoneytizer.de";var element=document.createElement('script');var firstScript=document.getElementsByTagName('script')[0];var url='https://cmp.inmobi.com'.concat('/choice/','6Fv0cGNfc_bw8','/',host,'/choice.js?tag_version=V3');var uspTries=0;var uspTriesLimit=3;element.async=true;element.type='text/javascript';element.src=url;firstScript.parentNode.insertBefore(element,firstScript);function makeStub(){var TCF_LOCATOR_NAME='__tcfapiLocator';var queue=[];var win=window;var cmpFrame;function addFrame(){var doc=win.document;var otherCMP=!!(win.frames[TCF_LOCATOR_NAME]);if(!otherCMP){if(doc.body){var iframe=doc.createElement('iframe');iframe.style.cssText='display:none';iframe.name=TCF_LOCATOR_NAME;doc.body.appendChild(iframe);}else{setTimeout(addFrame,5);}}return !otherCMP;}function tcfAPIHandler(){var gdprApplies;var args=arguments;if(!args.length){return queue;}else if(args[0]==='setGdprApplies'){if(args.length>3&&args[2]===2&&typeof args[3]==='boolean'){gdprApplies=args[3];if(typeof args[2]==='function'){args[2]('set',true);}}}else if(args[0]==='ping'){var retr={gdprApplies:gdprApplies,cmpLoaded:false,cmpStatus:'stub'};if(typeof args[2]==='function'){args[2](retr);}}else{if(args[0]==='init'&&typeof args[3]==='object'){args[3]=Object.assign(args[3],{tag_version:'V3'});}queue.push(args);}}function postMessageEventHandler(event){var msgIsString=typeof event.data==='string';var json={};try{if(msgIsString){json=JSON.parse(event.data);}else{json=event.data;}}catch(ignore){}var payload=json.__tcfapiCall;if(payload){window.__tcfapi(payload.command,payload.version,function(retValue,success){var returnMsg={__tcfapiReturn:{returnValue:retValue,success:success,callId:payload.callId}};if(msgIsString){returnMsg=JSON.stringify(returnMsg);}if(event&&event.source&&event.source.postMessage){event.source.postMessage(returnMsg,'*');}},payload.parameter);}}while(win){try{if(win.frames[TCF_LOCATOR_NAME]){cmpFrame=win;break;}}catch(ignore){}if(win===window.top){break;}win=win.parent;}if(!cmpFrame){addFrame();win.__tcfapi=tcfAPIHandler;win.addEventListener('message',postMessageEventHandler,false);}}makeStub();var uspStubFunction=function(){var arg=arguments;if(typeof window.__uspapi!==uspStubFunction){setTimeout(function(){if(typeof window.__uspapi!=='undefined'){window.__uspapi.apply(window.__uspapi,arg);}},500);}};var checkIfUspIsReady=function(){uspTries++;if(window.__uspapi===uspStubFunction&&uspTries<uspTriesLimit){console.warn('USP is not accessible');}else{clearInterval(uspInterval);}};if(typeof window.__uspapi==='undefined'){window.__uspapi=uspStubFunction;var uspInterval=setInterval(checkIfUspIsReady,6000);}})();})();`,
           }}
         />
-
-        {/* Google AdSense Loader (ca-pub-8583619451045805) — site-wide im
-            Root-<head>. Feb 2026 zurück ins Root-Layout gezogen, damit
-            AdSense-Slots (aktuell Sidebar 300×600 auf Artikelseiten) den
-            Loader in der initialen HTML-Antwort sehen. `afterInteractive`
-            hält LCP frei; SPA-Navigation ist unkritisch, weil der Loader
-            nur EINMAL geladen wird und `adsbygoogle.push({})` von den
-            Slot-Komponenten selbst getriggert wird. */}
-        <Script
-          id="adsense-loader"
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8583619451045805"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
-
-        {/* AdSense-Loader wurde aus dem Root-<head> entfernt (Juni 2026) —
-            er hat SPA-Navigation zwischen Artikelseiten kaputt gemacht (Ads
-            kamen erst nach F5 wieder). Der Loader sitzt jetzt wieder direkt
-            in `app/[slug]/page.tsx` via <Script strategy="afterInteractive">,
-            sodass Next.js seinen Page-Mount-Lifecycle synchron mit den
-            ClientAdSlot-Komponenten verwaltet. Preconnect bleibt site-wide,
-            damit der TLS-Handshake bei der ersten Artikel-Navigation
-            schon im Hintergrund läuft. */}
 
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
@@ -141,9 +115,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             page (including ones that override `alternates`) carries the signal. */}
         <link rel="alternate" hrefLang="de-DE" href="https://serien.de" />
         <link rel="alternate" hrefLang="x-default" href="https://serien.de" />
-        
-        {/* AdSense loader is scoped to /[slug] (article pages) — not loaded
-            in root layout per ads policy "only on article pages". */}
 
         {/* Google Analytics 4 (G-5500N1BENS) — afterInteractive to avoid TBT */}
         <Script

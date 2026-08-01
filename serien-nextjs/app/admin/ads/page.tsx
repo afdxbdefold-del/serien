@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Trash2, Eye, EyeOff, Monitor, Smartphone, RefreshCw, Code, Layers, Plus } from 'lucide-react';
+import { Save, Trash2, Eye, EyeOff, Monitor, Smartphone, RefreshCw, Plus } from 'lucide-react';
 
 type Device = 'mobile' | 'desktop';
 
@@ -78,7 +78,7 @@ const AD_POSITIONS = [
     position: 'interstitial',
     name: 'Interstitial (Vollbild)',
     description:
-      '300×600 Half-Page-Overlay auf Artikelseiten. Erscheint sofort bei JEDEM Page-View. Vor Bots & Google versteckt. AdSense-Slot oder eigenes HTML.',
+      '300×600 Half-Page-Overlay auf Artikelseiten. Erscheint sofort bei JEDEM Page-View. Vor Bots & Google versteckt. Custom HTML (TheMoneytizer, Direct-Deal, Affiliate).',
     defaultWidth: 300,
     defaultHeight: 600,
   },
@@ -245,7 +245,7 @@ export default function AdsAdminPage() {
             mergedSlots.push({
               ...existing,
               device,
-              provider: existing.provider || 'adsense',
+              provider: 'custom',
               customHtmlVariants: Array.isArray(existing.customHtmlVariants)
                 ? existing.customHtmlVariants
                 : [],
@@ -269,9 +269,7 @@ export default function AdsAdminPage() {
               device,
               name: pos.name,
               description: pos.description,
-              provider: 'adsense',
-              adClient: 'ca-pub-8583619451045805',
-              adSlot: '',
+              provider: 'custom',
               customHtmlVariants: [],
               rotationMode: 'random',
               width: useOwnDefaults ? pos.defaultWidth : DEVICE_DEFAULTS.desktop.width,
@@ -356,18 +354,6 @@ export default function AdsAdminPage() {
     ));
   };
 
-  const parseAdCode = (position: string, device: Device, adCode: string) => {
-    const slotMatch = adCode.match(/data-ad-slot="([^"]+)"/);
-    const clientMatch = adCode.match(/data-ad-client="([^"]+)"/);
-    const widthMatch = adCode.match(/width[:\s]*(\d+)px/i);
-    const heightMatch = adCode.match(/height[:\s]*(\d+)px/i);
-
-    if (slotMatch) updateSlot(position, device, 'adSlot', slotMatch[1]);
-    if (clientMatch) updateSlot(position, device, 'adClient', clientMatch[1]);
-    if (widthMatch) updateSlot(position, device, 'width', parseInt(widthMatch[1]));
-    if (heightMatch) updateSlot(position, device, 'height', parseInt(heightMatch[1]));
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8">
@@ -392,8 +378,8 @@ export default function AdsAdminPage() {
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Mobile- und Desktop-Slots sind <strong>vollständig getrennt</strong> —
-            pro Tab kannst du komplett unterschiedliche Provider, AdSense-IDs,
-            Maße und Custom-HTML hinterlegen.
+            pro Tab kannst du komplett unterschiedliche Custom-HTML-Snippets
+            (TheMoneytizer, Plista, Outbrain, Direct-Deals, Affiliate) hinterlegen.
           </p>
         </div>
 
@@ -495,115 +481,18 @@ export default function AdsAdminPage() {
                         <Monitor className="w-3 h-3" /> Desktop
                       </span>
                     )}
-                    {slot.provider === 'adsense' && (
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-mono">
-                        {slot.width}x{slot.height}
-                      </span>
-                    )}
                   </div>
                 </div>
 
                 {/* Slot Body */}
                 <div className="p-4 space-y-4">
-                  {/* Provider Toggle */}
-                  <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg w-fit">
-                    <button
-                      type="button"
-                      onClick={() => updateSlot(slot.position, slot.device, 'provider', 'adsense')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        slot.provider === 'adsense'
-                          ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                      }`}
-                      data-testid={`provider-adsense-${slot.position}`}
-                    >
-                      <Code className="w-4 h-4" /> AdSense
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateSlot(slot.position, slot.device, 'provider', 'custom')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        slot.provider === 'custom'
-                          ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                      }`}
-                      data-testid={`provider-custom-${slot.position}`}
-                    >
-                      <Layers className="w-4 h-4" /> Custom HTML
-                    </button>
-                  </div>
-
-                  {slot.provider === 'adsense' ? (
-                    <>
-                      {/* AdSense Code Paste Area */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          AdSense-Code einfügen (automatische Erkennung)
-                        </label>
-                        <textarea
-                          placeholder="Füge hier den kompletten AdSense-Code ein..."
-                          className="w-full h-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-xs resize-none"
-                          onChange={(e) => parseAdCode(slot.position, slot.device, e.target.value)}
-                        />
-                      </div>
-
-                      {/* AdSense fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Slot-ID *
-                          </label>
-                          <input
-                            type="text"
-                            value={slot.adSlot}
-                            onChange={(e) => updateSlot(slot.position, slot.device, 'adSlot', e.target.value)}
-                            placeholder="z.B. 1234567890"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono"
-                            data-testid={`slot-id-${slot.position}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Breite (px)
-                          </label>
-                          <input
-                            type="number"
-                            value={slot.width}
-                            onChange={(e) => updateSlot(slot.position, slot.device, 'width', parseInt(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Höhe (px)
-                          </label>
-                          <input
-                            type="number"
-                            value={slot.height}
-                            onChange={(e) => updateSlot(slot.position, slot.device, 'height', parseInt(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Client-ID
-                          </label>
-                          <input
-                            type="text"
-                            value={slot.adClient}
-                            onChange={(e) => updateSlot(slot.position, slot.device, 'adClient', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    /* Custom HTML mode */
-                    <CustomHtmlEditor
-                      slot={slot}
-                      updateSlot={updateSlot}
-                    />
-                  )}
+                  {/* Custom HTML mode — AdSense-Provider wurde Feb 2026
+                      vollständig entfernt. Jeder Slot rendert ausschließlich
+                      Custom-HTML. */}
+                  <CustomHtmlEditor
+                    slot={slot}
+                    updateSlot={updateSlot}
+                  />
 
                   {/* Toggles — Device wird über die Tabs gesteuert, nicht
                       mehr über mobileOnly/desktopOnly Checkboxen. */}
@@ -641,8 +530,8 @@ export default function AdsAdminPage() {
                         onClick={() => handleSave(slot)}
                         disabled={
                           saving === key ||
-                          (slot.provider === 'adsense' && !slot.adSlot) ||
-                          (slot.provider === 'custom' && (slot.customHtmlVariants?.length === 0 || !slot.customHtmlVariants?.some(v => v.html?.trim())))
+                          slot.customHtmlVariants?.length === 0 ||
+                          !slot.customHtmlVariants?.some(v => v.html?.trim())
                         }
                         className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
                         data-testid={`save-${slot.position}`}
@@ -656,19 +545,6 @@ export default function AdsAdminPage() {
                       </button>
                     </div>
                   </div>
-
-                  {/* Preview */}
-                  {slot.provider === 'adsense' && slot.adSlot && (
-                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Vorschau (generierter Code):</p>
-                      <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">
-{`<ins class="adsbygoogle"
-     style="display:inline-block;width:${slot.width}px;height:${slot.height}px"
-     data-ad-client="${slot.adClient}"
-     data-ad-slot="${slot.adSlot}"></ins>`}
-                      </pre>
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -679,8 +555,7 @@ export default function AdsAdminPage() {
         <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
           <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Hinweise</h3>
           <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-            <li>• <b>AdSense</b>: Füge den kompletten AdSense-Code ein, Werte werden automatisch erkannt</li>
-            <li>• <b>Custom HTML</b>: Beliebiger HTML-/JS-Code (Plista, Outbrain, Affiliate-Banner, Direct-Deals). Mehrere Varianten ergänzen → Rotation aktiv</li>
+            <li>• <b>Custom HTML</b>: Beliebiger HTML-/JS-Code (TheMoneytizer, Plista, Outbrain, Affiliate-Banner, Direct-Deals). Mehrere Varianten ergänzen → Rotation aktiv</li>
             <li>• <b>Rotation:</b> Random = gleichmäßig, Weighted = nach Gewicht, First = immer der erste aktive Variant</li>
             <li>• &quot;Aktiv&quot; muss aktiviert sein, damit die Werbung angezeigt wird</li>
             <li>• Änderungen werden nach 5 Minuten auf der Website sichtbar (Cache)</li>

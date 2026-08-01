@@ -14,9 +14,7 @@
 import type { AdVariant } from '@/lib/ad-html-injector';
 
 export interface AdConfig {
-  provider: 'adsense' | 'custom';
-  adClient: string;
-  adSlot: string;
+  provider: 'custom';
   customHtmlVariants?: AdVariant[];
   rotationMode?: 'random' | 'weighted' | 'first';
   width: number;

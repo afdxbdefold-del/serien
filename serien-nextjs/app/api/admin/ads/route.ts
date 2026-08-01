@@ -72,29 +72,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'device muss mobile oder desktop sein' }, { status: 400 });
     }
 
-    const resolvedProvider = provider === 'custom' ? 'custom' : 'adsense';
+    const resolvedProvider = 'custom' as const;
 
-    if (resolvedProvider === 'adsense' && !adSlot) {
-      return NextResponse.json({ error: 'AdSense-Provider braucht eine Slot-ID' }, { status: 400 });
+    // AdSense wurde Feb 2026 komplett aus der Seite entfernt. Nur noch
+    // Custom-HTML-Slots (TheMoneytizer, Plista, Outbrain, Direct-Deals)
+    // sind zulässig. Ein explizit gesetztes provider='adsense' wird hier
+    // hart abgewiesen — sonst würde die Admin-UI stillschweigend Slots
+    // anlegen, die nirgends mehr ausgeliefert werden.
+    if (provider === 'adsense') {
+      return NextResponse.json({ error: 'AdSense wurde vollständig entfernt. Nur provider="custom" ist zulässig.' }, { status: 400 });
     }
+
     let customHtmlJson: string | null = null;
-    if (resolvedProvider === 'custom') {
-      if (!Array.isArray(customHtmlVariants) || customHtmlVariants.length === 0) {
-        return NextResponse.json({ error: 'Custom-Provider braucht mindestens ein HTML-Variant' }, { status: 400 });
-      }
-      const hasAnyHtml = (customHtmlVariants as CustomVariant[]).some((v) => v?.html?.trim());
-      if (!hasAnyHtml) {
-        return NextResponse.json({ error: 'Mindestens ein Variant braucht HTML-Inhalt' }, { status: 400 });
-      }
-      customHtmlJson = JSON.stringify(customHtmlVariants);
+    if (!Array.isArray(customHtmlVariants) || customHtmlVariants.length === 0) {
+      return NextResponse.json({ error: 'Custom-Provider braucht mindestens ein HTML-Variant' }, { status: 400 });
     }
+    const hasAnyHtml = (customHtmlVariants as CustomVariant[]).some((v) => v?.html?.trim());
+    if (!hasAnyHtml) {
+      return NextResponse.json({ error: 'Mindestens ein Variant braucht HTML-Inhalt' }, { status: 400 });
+    }
+    customHtmlJson = JSON.stringify(customHtmlVariants);
 
     const now = new Date();
     const baseData = {
       name,
       description,
       provider: resolvedProvider,
-      adClient: adClient || 'ca-pub-8583619451045805',
+      adClient: adClient || '',
       adSlot: adSlot || '',
       customHtmlJson,
       rotationMode: ['random', 'weighted', 'first'].includes(rotationMode) ? rotationMode : 'random',

@@ -5,9 +5,7 @@ import { unstable_cache } from 'next/cache';
 type CustomVariant = { label?: string; html?: string; weight?: number; isActive?: boolean };
 
 interface PublicSlot {
-  provider: string;
-  adClient: string;
-  adSlot: string;
+  provider: 'custom';
   customHtmlVariants?: CustomVariant[];
   rotationMode: string;
   width: number;
@@ -55,9 +53,13 @@ export async function GET() {
       desktop: {},
     };
     for (const slot of adSlots) {
+      // AdSense wurde Feb 2026 komplett entfernt — Legacy-DB-Zeilen mit
+      // provider='adsense' werden übersprungen, sodass sie nichts mehr
+      // ausliefern.
+      if (slot.provider !== 'custom') continue;
       const device: 'mobile' | 'desktop' = slot.device === 'desktop' ? 'desktop' : 'mobile';
       let customHtmlVariants: CustomVariant[] | undefined;
-      if (slot.provider === 'custom' && slot.customHtmlJson) {
+      if (slot.customHtmlJson) {
         try {
           const parsed = JSON.parse(slot.customHtmlJson);
           if (Array.isArray(parsed)) customHtmlVariants = parsed;
@@ -66,9 +68,7 @@ export async function GET() {
         }
       }
       out[device][slot.position] = {
-        provider: slot.provider || 'adsense',
-        adClient: slot.adClient,
-        adSlot: slot.adSlot,
+        provider: 'custom',
         customHtmlVariants,
         rotationMode: slot.rotationMode || 'random',
         width: slot.width,

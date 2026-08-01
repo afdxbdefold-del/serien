@@ -484,8 +484,6 @@ body.x-interstitial-open {
 }
 body.x-interstitial-open #sticky-bottom-ad,
 body.x-interstitial-open .google-anchor,
-body.x-interstitial-open ins.adsbygoogle[data-anchor-status],
-body.x-interstitial-open ins.adsbygoogle[data-side-rail-status],
 body.x-interstitial-open iframe[id*="google_ads_iframe"][style*="position: fixed"],
 body.x-interstitial-open iframe[id*="aswift"][style*="position: fixed"] {
   display: none !important;

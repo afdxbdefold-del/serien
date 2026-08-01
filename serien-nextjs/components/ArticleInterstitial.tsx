@@ -82,13 +82,9 @@ export default function ArticleInterstitial() {
         if (!cfg) return;
 
         // For custom: require at least one active variant with HTML
-        if (cfg.provider === 'custom') {
-          const variants = cfg.customHtmlVariants || [];
-          if (!variants.some((v) => v.isActive && v.html?.trim())) return;
-        } else {
-          // AdSense: require both client + slot id
-          if (!cfg.adClient || !cfg.adSlot) return;
-        }
+        if (cfg.provider !== 'custom') return;
+        const variants = cfg.customHtmlVariants || [];
+        if (!variants.some((v) => v.isActive && v.html?.trim())) return;
 
         setConfig(cfg);
         if (DELAY_MS <= 0) {
@@ -111,26 +107,8 @@ export default function ArticleInterstitial() {
 
     const slot = slotRef.current;
 
-    if (config.provider === 'custom') {
-      const variant = pickAdVariant(config.customHtmlVariants || [], config.rotationMode || 'random');
-      if (variant) injectHtmlWithScripts(slot, variant.html);
-      return;
-    }
-
-    // AdSense path.
-    // ──────────────────────────────────────────────────────────────────
-    // 1. Localhost / Preview-host: AdSense returns nothing because the
-    //    domain isn't whitelisted in the Ad Manager. Render a visible
-    //    placeholder so the editor knows the slot is configured. This is
-    //    the same pattern the existing AdUnit component uses.
-    // 2. Production: build a fixed-size <ins> for the 300×600 inventory.
-    //    `data-ad-format="rectangle"` keeps AdSense from auto-resizing
-    //    into a half-banner; explicit width/height pixel hints are
-    //    required for fixed slots, otherwise the iframe stays 0×0.
-    // 3. Push 250ms after appendChild — AdSense needs the iframe to be
-    //    in the DOM with measurable layout before push() succeeds.
     // Interstitial rendert ausschließlich Custom-HTML (TheMoneytizer etc.).
-    // AdSense-Pfad entfernt (Feb 2026).
+    // AdSense wurde Feb 2026 komplett aus der Seite entfernt.
     slot.innerHTML = '';
     if (config.provider !== 'custom') return;
 
