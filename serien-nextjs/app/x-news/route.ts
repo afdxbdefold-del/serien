@@ -185,32 +185,9 @@ export async function GET(request: Request) {
 
   const target = picked ? `${origin}/${picked}` : origin;
 
-  // Fire-and-forget tracking
-  if (picked) {
-    const refererRaw = headers.get('referer') || '';
-    const vid = anonVisitorId(ip, ua);
-
-    prisma.analytics_events.create({
-      data: {
-        id: randomUUID(),
-        sessionId: vid,
-        visitorId: vid,
-        event: 'x_news_click',
-        path: `/${picked}`,
-        referrer: refererRaw ? refererRaw.slice(0, 500) : null,
-        userAgent: ua || null,
-        country,
-        city: headers.get('x-vercel-ip-city') || null,
-        // block_key in metadata für die Behavior-Analyse (nicht-rotierend)
-        metadata: { block_key: blockKey } as any,
-      },
-    }).catch(() => { /* tracking-failure darf nichts brechen */ });
-
-    // Sporadisch (1 von 25) die Behavior-Analyse auslösen.
-    if (Math.random() < 0.04) {
-      void runBehaviorAnalysis(blockKey, country);
-    }
-  }
+  // Fire-and-forget tracking: komplett abgeschaltet (Feb 2026).
+  // Kein analytics_events-Insert mehr. Behavior-Analyse würde ohnehin auf
+  // leere Tabelle laufen und keinen Mehrwert liefern.
 
   const html =
     `<!doctype html><html><head>` +

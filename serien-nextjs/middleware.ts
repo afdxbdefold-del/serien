@@ -255,26 +255,9 @@ export function middleware(request: NextRequest) {
     request: { headers: requestHeaders },
   });
 
-  // Crawler tracking: fire-and-forget POST an internen Endpoint.
-  // 10 % Sampling (Feb 2026 Cost-Opt.) — spart 90 % der Extra-Function-Calls.
-  // Dashboard-Werte × 10 hochrechnen. Middleware läuft auf jedem Request,
-  // Bot-Traffic sind ~30-50 % aller Hits → ohne Sampling extrem teuer.
-  const ua = request.headers.get('user-agent') || '';
-  const bot = detectBot(ua);
-  if (bot && Math.random() < 0.1) {
-    fetch(`${origin}/api/track/crawler`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bot,
-        path,
-        userAgent: ua.slice(0, 500),
-        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
-      }),
-      // @ts-expect-error: Node-style keepalive hint; safe on edge
-      keepalive: true,
-    }).catch(() => {});
-  }
+  // Crawler-Tracking: komplett abgeschaltet (Feb 2026, User-Vorgabe).
+  // Weder crawler_hits noch analytics_events werden noch beschrieben —
+  // Server-Load und DB-Größe wachsen dadurch nicht mehr über Bot-Traffic.
 
   // (b) Server-side Referrer capture — DEAKTIVIERT (Feb 2026).
   // Cookies _ssref/_ssrc dienten dem eigenen Live-Analytics-Tracker,

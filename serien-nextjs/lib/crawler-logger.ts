@@ -44,25 +44,14 @@ export function detectBot(userAgent: string | null): string | null {
 
 /**
  * Fire-and-forget hit logger. Never throws, never delays the response.
- * Returns a promise that can optionally be awaited.
+ * Feb 2026: Tracking komplett abgeschaltet (User-Vorgabe). Funktion bleibt
+ * als No-Op erhalten, damit Aufrufer in sitemap.xml / news-sitemap.xml
+ * unverändert bleiben und die Import-Kette nicht kaputt geht.
  */
-export async function logCrawlerHit(opts: {
+export async function logCrawlerHit(_opts: {
   userAgent: string | null;
   path: string;
   ip?: string | null;
 }): Promise<void> {
-  const bot = detectBot(opts.userAgent);
-  if (!bot) return;
-  try {
-    await prisma.crawler_hits.create({
-      data: {
-        bot,
-        path: opts.path.slice(0, 500),
-        userAgent: opts.userAgent?.slice(0, 500) ?? null,
-        ip: opts.ip ?? null,
-      },
-    });
-  } catch (e: any) {
-    console.warn('[crawler-logger] failed:', e?.message ?? e);
-  }
+  return;
 }
