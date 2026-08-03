@@ -965,12 +965,59 @@ triplelift.com, 14717, RESELLER, 6c33edb13117fd86
 connectad.io, 586, RESELLER, 85ac85a30c93b3e5
 adform.com, 768, RESELLER, 9f5210a2f0999e32`;
 
+// Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
+// die Datei so cachen, dass jeder externe Verifier (TheMoneytizer, IAB,
+// AdSense, Prebid, Advertising Alliance) sie in einem einzigen HTTP-Call
+// bekommt — ohne SSR-Overhead, ohne Auth-Umleitung, ohne Bot-Firewall.
+export const dynamic = 'force-static';
+export const revalidate = false;
+export const runtime = 'nodejs';
+
+const HEADERS: Record<string, string> = {
+  'Content-Type': 'text/plain; charset=utf-8',
+  // 24 h Public-Cache; Verifier folgen den Standard-Header und cachen intern
+  // meist eh mind. 12 h. `stale-while-revalidate` erlaubt Cloudflare, die
+  // alte Version auszuliefern während dahinter neu geholt wird.
+  'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+  // Cross-Origin-Verifier (browser-basierte Ad-Fraud-Checker, IAB-Tools)
+  // brauchen ausdrücklich CORS, sonst schlägt der Fetch aus fremdem Origin
+  // ohne sichtbaren Fehler fehl.
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+  // Explizit sagen: keine Robots-Restriktion. Manche Verifier fragen die
+  // Datei über Google-Cache oder Wayback-Proxy ab und respektieren dabei
+  // X-Robots-Tag. `all` = keine Einschränkung.
+  'X-Robots-Tag': 'all',
+  // Keine Sec-Header, die den Fetch blockieren könnten. Bewusst NICHT
+  // gesetzt: X-Frame-Options (nicht relevant für text), CSP (könnte
+  // interpretiert werden), Cross-Origin-Resource-Policy (würde Cross-Site
+  // Fetch verhindern).
+};
+
 export async function GET() {
-  return new NextResponse(ADS_TXT, {
-    status: 200,
+  return new NextResponse(ADS_TXT, { status: 200, headers: HEADERS });
+}
+
+// HEAD wird von Next.js aus GET abgeleitet, aber wir setzen es explizit
+// damit Verifier, die zuerst per HEAD probieren (z.B. Google's ads.txt-
+// Crawler), Content-Length und Content-Type sofort sehen.
+export async function HEAD() {
+  const headers: Record<string, string> = {
+    ...HEADERS,
+    'Content-Length': String(Buffer.byteLength(ADS_TXT, 'utf-8')),
+  };
+  return new NextResponse(null, { status: 200, headers });
+}
+
+// OPTIONS-Preflight für Browser-basierte Cross-Origin-Verifier.
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
     headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Max-Age': '86400',
     },
   });
 }
