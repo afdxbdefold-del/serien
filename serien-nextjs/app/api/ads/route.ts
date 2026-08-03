@@ -8,7 +8,8 @@ import { NextResponse } from 'next/server';
 //   - Manager: The Moneytizer (Header-Bidding-Stack + SSP-Reseller-Liste).
 //   - Yieldlab (Feb 2026): Chain ist jetzt direkt über Advertising Alliance
 //     (AF Consulting wurde aus AA's sellers.json entfernt). Deshalb:
-//       * advertising-alliance.de, serien.de, DIRECT   (unser Vermarkter)
+//       * advertising-alliance.de, serien.de, DIRECT   (Domain-basierter Eintrag)
+//       * advertising-alliance.de, 35673, DIRECT       (Publisher-ID, von AA bestätigt)
 //       * yieldlab.net, 35673, RESELLER                (AA's Seller-ID bei YL)
 //     Die alte "yieldlab.net, 35673, DIRECT"-Zeile war falsch — wir sind
 //     nicht direkt bei Yieldlab, sondern über AA.
@@ -18,6 +19,7 @@ MANAGERDOMAIN=themoneytizer.com
 google.com, pub-8583619451045805, DIRECT, f08c47fec0942fa0
 themoneytizer.com,131755,DIRECT
 advertising-alliance.de, serien.de, DIRECT
+advertising-alliance.de, 35673, DIRECT
 yieldlab.net, 35673, RESELLER
 improvedigital.com, 1602_131755, DIRECT
 improvedigital.com, 1033_131755, DIRECT
