@@ -290,6 +290,6 @@ export const config = {
      * Key-Verify-File wird durch das explicit-match unten weiter erlaubt
      * (Bing verifiziert die Datei; wir wollen nichts drum herum tun).
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/|img/|.*\\.(?:txt|xml|ico|png|jpg|jpeg|gif|webp|avif|svg|css|js|mjs|json|woff|woff2|ttf|eot|otf|mp4|webm|mp3|wav|ogg|zip|pdf|map|webmanifest)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|img/|.*\\.(?:txt|xml|ico|png|jpg|jpeg|gif|webp|avif|svg|css|js|mjs|json|woff|woff2|ttf|eot|otf|mp4|webm|mp3|wav|ogg|zip|pdf|map|webmanifest|php)$).*)',
   ],
 };

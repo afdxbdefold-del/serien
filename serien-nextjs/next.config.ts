@@ -52,6 +52,13 @@ const nextConfig: NextConfig = {
         source: '/ads.txt',
         destination: '/api/ads',
       },
+      // TheMoneytizer-Live-Merge (dynamische Verifier-URL — TM erwartet
+      // exakt /ads_tm.php). Wir portieren das PHP-Snippet nach TypeScript
+      // und mappen die kanonische PHP-URL auf unsere Next.js-Route.
+      {
+        source: '/ads_tm.php',
+        destination: '/api/ads-tm',
+      },
       // Yieldlab/Vermarkter testen die Seite manchmal über /adtest-prebid.html
       // — wir mappen den .html-Suffix transparent auf die App-Route.
       {
