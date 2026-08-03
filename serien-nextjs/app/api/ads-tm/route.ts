@@ -64,13 +64,12 @@ function prettify(line: string): string {
 async function fetchTmnAdsTxt(): Promise<string> {
   try {
     const res = await fetch(TMN_URL, {
-      // Explizit KEIN Next.js-Cache: die Route selbst cached bereits via
-      // Cache-Control und stale-while-revalidate.
+      // 5-Sek-Timeout, damit ein langsamer TM-Server nicht die ganze
+      // Route blockt. Bei Timeout fällt fetchTmnAdsTxt auf leere String
+      // zurück und wir liefern nur die lokale ads.txt aus.
+      signal: AbortSignal.timeout(5000),
       cache: 'no-store',
       headers: {
-        // Manche upstream-CDNs filtern anonyme UAs — Standard-Fetch-UA
-        // reicht in der Praxis, aber wir setzen einen konservativen UA
-        // für Reproduzierbarkeit.
         'User-Agent': 'serien.de-ads-txt-sync/1.0',
         Accept: 'text/plain, */*',
       },
