@@ -12,6 +12,7 @@ import NewsCard from './_card';
 import NewsLoadMore from '@/components/NewsLoadMore';
 import NewsSidebar from '@/components/NewsSidebar';
 import ClientAdSlot from '@/components/ClientAdSlot';
+import { ThemePageAdTop } from '@/components/ThemePageAds';
 
 interface Props {
   h1: string;
@@ -85,6 +86,10 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
       >
         <ClientAdSlot position="news_billboard_top" />
       </div>
+
+      {/* Megabanner Top (TheMoneytizer Format 1) — direkt ÜBER den
+          Filter-Pills. Feb 2026 User-Vorgabe: kontextbezogen statt global. */}
+      <ThemePageAdTop />
 
       {/* Filter pills */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-[64px] z-30 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-gray-900/80">

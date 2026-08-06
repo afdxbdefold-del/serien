@@ -26,6 +26,7 @@ import TMNSidebarSlot from '@/components/TMNSidebarSlot';
 import GlobalTags from '@/components/GlobalTags';
 import { WasBedeutetDas, DarumRelevant, BisherigerStand, type BisherigerStandData } from '@/components/WasBedeutetDas';
 import InlineVideoPlayer from '@/components/InlineVideoPlayer';
+import { ThemePageAdTop } from '@/components/ThemePageAds';
 
 // Helper to safely convert Date or ISO string to Date object
 const toDate = (value: Date | string | null | undefined): Date => {
@@ -521,11 +522,17 @@ export default async function ArticlePage({ params }: PageProps) {
 
         {/* ─────── Layout-Wrapper: Mobile = single column max-w-3xl
             (unverändert). Desktop ≥ lg: zweispaltiges Grid
-            [Content ~660px | Sidebar 300px] zentriert in max-w-[1000px]. ─── */}
-        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1000px] lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6 lg:justify-center bg-[#282A31]">
+            [Content ~660px | Sidebar 300px] zentriert in max-w-[1000px].
+            Der Megabanner Top sitzt INSIDE der Content-Box, aber OUTSIDE
+            des Grids — dadurch spannt er über Breadcrumbs UND Sidebar,
+            genau wie vom User gewünscht. ─── */}
+        <div className="container mx-auto px-4 md:px-6 py-6 max-w-3xl lg:max-w-[1000px] lg:justify-center bg-[#282A31]">
 
-          {/* Megabanner Top (TMN F1) rendert LayoutWrapper global — hier NICHT
-              nochmal. Verhindert Duplicate-Ad-Requests auf Artikelseiten. */}
+          {/* Megabanner Top (TheMoneytizer Format 1) — direkt ÜBER Breadcrumbs
+              und Sidebar. Feb 2026 User-Vorgabe: kontextbezogen statt global. */}
+          <ThemePageAdTop />
+
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6 lg:justify-center">
 
           {/* ─────────────────────────── MAIN COLUMN ─────────────────────────── */}
           <div className="w-full lg:max-w-[720px]">
@@ -777,6 +784,7 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           </aside>
           {/* ─────────────────────────── /DESKTOP SIDEBAR ─────────────────────── */}
+        </div>
         </div>
 
         {/* Megabanner Bottom (TMN F28) rendert LayoutWrapper global — hier

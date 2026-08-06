@@ -8,6 +8,7 @@ import NewsHighlightCarousel from './NewsHighlightCarousel';
 import StreamerTop10Carousel, { type PlatformBlock } from './StreamerTop10Carousel';
 import ClientAdSlot from './ClientAdSlot';
 import TMNSidebarSlot from './TMNSidebarSlot';
+import { ThemePageAdTop } from './ThemePageAds';
 import { getFollowedIds, onFollowsChanged } from '@/lib/followStorage';
 
 // All available streamers
@@ -162,14 +163,13 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
         <NewsHighlightCarousel news={highlightNews} />
       )}
 
+      {/* Megabanner Top (TheMoneytizer Format 1) — direkt ÜBER dem Top-10-
+          Streamer-Carousel. Feb 2026 User-Vorgabe: keine globale Auslieferung
+          mehr, nur noch kontextbezogen. */}
+      <ThemePageAdTop />
+
       {/* Top-10 Streamer Carousel — directly between hero carousel and feed */}
       {top10Blocks.length > 0 && <StreamerTop10Carousel platforms={top10Blocks} />}
-
-      {/* Desktop Megabanner Top (728×250) — zwischen Top-10-Carousel und H1.
-          `empty:hidden` lässt den Wrapper komplett kollabieren, wenn der
-          Slot inaktiv ist. */}
-      {/* Megabanner Top (TMN F1) + Bottom (TMN F28) rendert LayoutWrapper
-          global — hier NICHT nochmal, sonst Duplicate-Ad-Requests. */}
 
       {/* H1 for all users */}
       <section className="py-6 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800" aria-labelledby="main-heading">

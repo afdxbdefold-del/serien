@@ -8,7 +8,7 @@ import PushNotificationPrompt from './PushNotificationPrompt';
 import SkipLink from './SkipLink';
 import MobileTopAd from './MobileTopAd';
 import GlobalDesktopAds from './GlobalDesktopAds';
-import { ThemePageAdTop, ThemePageAdBottom } from './ThemePageAds';
+import { ThemePageAdBottom } from './ThemePageAds';
 import RecommendedContentTMN from './RecommendedContentTMN';
 
 interface LayoutWrapperProps {
@@ -90,9 +90,12 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           nicht nur Artikel. Content-abhängige Slots (Megabanner, In-Content,
           Sidebar Halfpage, Bottom-Rect) bleiben auf der Artikelseite. */}
       <GlobalDesktopAds />
-      {/* Megabanner Top (TheMoneytizer Format 1) — auf ALLEN Public-
-          Seiten außer Legal-/Konto-Seiten (Feb 2026 User-Vorgabe). */}
-      {!isLegalPage && <ThemePageAdTop />}
+      {/* Megabanner Top (TheMoneytizer Format 1) wird NICHT mehr global
+          gerendert (Feb 2026 User-Vorgabe). Er sitzt nun kontextbezogen:
+            • Homepage       → über dem Top-10-Streamer-Carousel
+            • /news          → über den Filter-Pills
+            • Artikelseiten  → oben in der Content-Box, über Breadcrumbs/Sidebar
+          Siehe HomeClient.tsx, app/news/_hub.tsx, app/[slug]/page.tsx. */}
       <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
         {children}
       </main>
