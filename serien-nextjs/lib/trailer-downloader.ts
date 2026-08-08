@@ -53,65 +53,58 @@ interface TrailerDownloadResult {
   error?: string;
 }
 
-// ========== EMERGENT OBJECT STORAGE ==========
-const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
+// ========== CLOUDFLARE R2 STORAGE ==========
+// Aug 2026: Umgestellt vom Emergent-Object-Storage-Proxy auf direktes R2-
+// Upload via AWS-S3-SDK, damit die Trailer-Pipeline unabhängig von Emergent
+// läuft. Storage-Path-Konvention bleibt identisch, damit alle bereits in
+// der DB gespeicherten Trailer-URLs weiterfunktionieren.
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
 const APP_NAME = "serien-nextjs";
-let storageKey: string | null = null;
 
-/**
- * Initialize Emergent Object Storage (call once at startup)
- */
-async function initStorage(): Promise<string> {
-  if (storageKey) {
-    return storageKey;
+let r2ClientTrailers: S3Client | null = null;
+function getR2Client(): S3Client {
+  if (r2ClientTrailers) return r2ClientTrailers;
+  const endpoint = process.env.R2_ENDPOINT;
+  const accessKey = process.env.R2_ACCESS_KEY_ID;
+  const secretKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!endpoint || !accessKey || !secretKey || !bucket) {
+    throw new Error(
+      'R2 nicht konfiguriert. Setze R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME',
+    );
   }
-
-  const emergentKey = process.env.EMERGENT_LLM_KEY;
-  if (!emergentKey) {
-    throw new Error('EMERGENT_LLM_KEY not found in environment');
-  }
-
-  const response = await fetch(`${STORAGE_URL}/init`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ emergent_key: emergentKey }),
+  r2ClientTrailers = new S3Client({
+    region: 'auto',
+    endpoint,
+    credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
   });
-
-  if (!response.ok) {
-    throw new Error(`Storage init failed: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  storageKey = data.storage_key;
-  console.log('✅ Emergent Object Storage initialized');
-  return storageKey;
+  return r2ClientTrailers;
 }
 
 /**
- * Upload video to Emergent Object Storage
+ * Upload video to Cloudflare R2. Rückgabe-Format bleibt identisch zum
+ * alten Emergent-Response, damit die Aufrufer nicht angepasst werden müssen.
  */
 async function uploadToStorage(
   storagePath: string,
   videoBuffer: Buffer,
   contentType: string = 'video/mp4'
 ): Promise<{ path: string; size: number }> {
-  const key = await initStorage();
-
-  const response = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
-    method: 'PUT',
-    headers: {
-      'X-Storage-Key': key,
-      'Content-Type': contentType,
-    },
-    body: videoBuffer,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Storage upload failed: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result;
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME!;
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: storagePath,
+      Body: videoBuffer,
+      ContentType: contentType,
+      // Trailer sind statisch und identisch bei gleichem YouTube-Video-Key —
+      // langes Cache-Control ist sicher.
+      CacheControl: 'public, max-age=31536000, immutable',
+    }),
+  );
+  return { path: storagePath, size: videoBuffer.length };
 }
 
 /**

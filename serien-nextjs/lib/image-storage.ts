@@ -1,43 +1,51 @@
 /**
  * Image Storage System
- * Downloads images from TMDB and uploads to Emergent Object Storage
+ *
+ * Downloads images from TMDB, prozessiert sie mit Sharp und schreibt sie
+ * direkt in Cloudflare R2 (S3-kompatibel). Aug 2026 Feb 2026 umgestellt
+ * vom Emergent-Object-Storage-Proxy auf direktes R2-Upload — damit läuft
+ * die Bild-Pipeline unabhängig vom Emergent-Backend weiter.
+ *
+ * Public-URL-Muster: {NEXT_PUBLIC_R2_URL}/{storagePath}
+ * z.B. https://pub-xxx.r2.dev/serien-nextjs/images/hero/tv/123.webp
+ *
+ * Storage-Path-Konvention (unverändert gegenüber der alten Emergent-Version,
+ * damit bestehende DB-Referenzen weiterfunktionieren):
+ *   serien-nextjs/images/hero/{type}/{id}.webp
+ *   serien-nextjs/images/card/{type}/{id}.webp
+ *   serien-nextjs/images/og/{type}/{id}.webp
+ *   serien-nextjs/images/poster/{type}/{id}.webp
+ *   serien-nextjs/images/person/{id}.webp
  */
 
 import sharp from 'sharp';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
-const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
 
-let storageKey: string | null = null;
-let storageKeyExpiry: number = 0;
+const R2_BUCKET = process.env.R2_BUCKET_NAME;
+const R2_ENDPOINT = process.env.R2_ENDPOINT;
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_KEY = process.env.R2_SECRET_ACCESS_KEY;
 
-async function initStorage(): Promise<string> {
-  const now = Date.now();
-  if (storageKey && storageKeyExpiry > now) {
-    return storageKey;
+let r2Client: S3Client | null = null;
+
+function getR2Client(): S3Client {
+  if (r2Client) return r2Client;
+  if (!R2_ENDPOINT || !R2_ACCESS_KEY || !R2_SECRET_KEY || !R2_BUCKET) {
+    throw new Error(
+      'R2 nicht konfiguriert. Setze R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME',
+    );
   }
-
-  const emergentKey = process.env.EMERGENT_LLM_KEY;
-  if (!emergentKey) {
-    throw new Error('EMERGENT_LLM_KEY not configured');
-  }
-
-  const response = await fetch(`${STORAGE_URL}/init`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ emergent_key: emergentKey }),
+  r2Client = new S3Client({
+    region: 'auto',
+    endpoint: R2_ENDPOINT,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY,
+      secretAccessKey: R2_SECRET_KEY,
+    },
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Storage init failed: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  storageKey = data.storage_key;
-  storageKeyExpiry = now + (50 * 60 * 1000); // 50 min cache
-  
-  return storageKey;
+  return r2Client;
 }
 
 /**
@@ -46,34 +54,31 @@ async function initStorage(): Promise<string> {
 async function downloadTMDBImage(path: string, size: string = 'original'): Promise<Buffer> {
   const url = `${TMDB_IMAGE_BASE}/${size}${path}`;
   const response = await fetch(url);
-  
+
   if (!response.ok) {
     throw new Error(`TMDB image fetch failed: ${response.status}`);
   }
-  
+
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
 
 /**
- * Upload image to Emergent Object Storage
+ * Upload image direkt nach R2. Setzt Content-Type und ein aggressives
+ * Cache-Control, weil unsere Bild-Namen deterministisch aus TMDB-ID
+ * abgeleitet sind — beim Re-Import wird der Key überschrieben.
  */
 async function uploadToStorage(buffer: Buffer, storagePath: string): Promise<void> {
-  const key = await initStorage();
-  
-  const response = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
-    method: 'PUT',
-    headers: {
-      'X-Storage-Key': key,
-      'Content-Type': 'image/webp',
-    },
-    body: buffer,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Storage upload failed: ${response.status} ${errorText}`);
-  }
+  const client = getR2Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: storagePath,
+      Body: buffer,
+      ContentType: 'image/webp',
+      CacheControl: 'public, max-age=31536000, immutable',
+    }),
+  );
 }
 
 /**
