@@ -9,7 +9,6 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import ShareButton from '@/components/ShareButton';
 import { SeriesInfobox } from '@/components/SeriesInfobox';
-import WhereToStreamBox from '@/components/WhereToStreamBox';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions, generateBreadcrumbSchema } from '@/lib/schema-generator';
@@ -754,24 +753,14 @@ export default async function ArticlePage({ params }: PageProps) {
             data-ad-sidebar="desktop"
           >
             <div className="sticky top-24 space-y-6">
-              {/* Desktop-only: Serien-Infobox + WhereToStream nach oben in
-                  die Sidebar (User-Wunsch). Auf Mobile rendern dieselben
-                  Komponenten weiter unten unter `lg:hidden`. */}
+              {/* Desktop-only: Serien-Infobox in der Sidebar. WhereToStreamBox
+                  wurde Aug 2026 auf User-Wunsch aus News-Artikeln entfernt. */}
               {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
                 <SeriesInfobox
                   seriesId={article.primarySeriesId}
                   seriesName={article.series.title || article.series.name || ''}
                   seriesSlug={article.series.slug || ''}
                   variant="sidebar"
-                />
-              )}
-
-              {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-                <WhereToStreamBox
-                  seriesId={article.primarySeriesId}
-                  seriesName={article.series.title || article.series.name || ''}
-                  networks={article.series.networks}
-                  slug={article.series.slug}
                 />
               )}
 
@@ -851,14 +840,7 @@ export default async function ArticlePage({ params }: PageProps) {
             seriesSlug={article.series.slug || ''}
           />
         )}
-        {article.primarySeriesId && article.series && article.contentType !== 'IMPORTED' && (
-          <WhereToStreamBox
-            seriesId={article.primarySeriesId}
-            seriesName={article.series.title || article.series.name || ''}
-            networks={article.series.networks}
-            slug={article.series.slug}
-          />
-        )}
+        {/* WhereToStreamBox Aug 2026 auf User-Wunsch aus News-Artikeln entfernt. */}
       </div>
 
       {/* Globale Custom-Tags am Ende der Artikelseite (z.B. Late-Loading-
