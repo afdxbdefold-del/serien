@@ -42,6 +42,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.vercel-storage.com' },
       { protocol: 'https', hostname: 'image.tmdb.org' },
       { protocol: 'https', hostname: 'integrations.emergentagent.com' },
+      // Cloudflare R2 Public-URL (Aug 2026: eigener Bildspeicher, ersetzt
+      // Emergent-Object-Storage-Proxy). Wildcard **.r2.dev deckt sowohl
+      // die aktuelle pub-<id>.r2.dev-URL als auch mögliche Custom-Domains
+      // ab, die später vor R2 gehängt werden.
+      { protocol: 'https', hostname: '**.r2.dev' },
     ]
   },
 

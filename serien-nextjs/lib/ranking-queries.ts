@@ -78,12 +78,51 @@ export async function getCurrentTop10(
       title: r.title,
       tmdbId: r.tmdbId,
       slug: meta?.slug ?? null,
-      // Prefer a fully-onboarded series poster; fall back to the opportunistic
-      // TMDB poster captured at ingest time (handles shows that aren't in our
-      // local series table yet).
-      posterPath: meta?.posterLocalUrl || meta?.posterPath || r.posterPath || null,
+      // Poster-Auflösung mit klarer Präzedenz und Rewrite:
+      //   1. posterLocalUrl aus series-Tabelle (R2-Storage-Path
+      //      wie "serien-nextjs/images/poster/tv/1234.webp") →
+      //      wird zur vollständigen R2-Public-URL prefixed.
+      //   2. Fallback: posterPath (TMDB-Konvention "/xxx.jpg") →
+      //      wird UI-seitig durch posterUrl() zu image.tmdb.org.
+      //   3. Fallback: ingest-time posterPath aus dem ranking-Row.
+      // Der frühere Bug: posterLocalUrl wurde als generisches
+      // posterPath weitergereicht und dann fälschlich mit
+      // image.tmdb.org prefixed → 404 für The Rookie, Breaking Bad.
+      posterPath: resolvePoster(meta?.posterLocalUrl, meta?.posterPath, r.posterPath),
       backdropPath: meta?.backdropPath ?? r.backdropPath ?? null,
       previousRank: prev,
     };
   });
+}
+
+/**
+ * Wählt die beste Poster-URL/Path aus mehreren möglichen Quellen und
+ * normalisiert R2-Storage-Paths (z.B. "serien-nextjs/images/poster/…")
+ * zu vollständigen Public-URLs. TMDB-Pfade (mit führendem "/") und
+ * bereits absolute URLs bleiben unverändert und werden von der Client-
+ * Component in TMDB-CDN-URLs umgewandelt.
+ */
+function resolvePoster(
+  posterLocalUrl?: string | null,
+  posterPathFromSeries?: string | null,
+  posterPathFromRanking?: string | null,
+): string | null {
+  const r2Base = process.env.NEXT_PUBLIC_R2_URL || process.env.R2_PUBLIC_URL || '';
+  if (posterLocalUrl) {
+    if (posterLocalUrl.startsWith('http')) return posterLocalUrl;
+    // R2-Storage-Path → volle Public-URL
+    if (r2Base) return `${r2Base.replace(/\/$/, '')}/${posterLocalUrl.replace(/^\//, '')}`;
+    // Ohne R2-Base wäre der Path sinnlos — sauber auf nächsten Fallback
+    // fallen statt eine kaputte URL rauszureichen.
+  }
+  if (posterPathFromSeries) {
+    if (posterPathFromSeries.startsWith('http')) return posterPathFromSeries;
+    // Ein Storage-Path ohne führenden "/" ist auch ein R2-Path (nicht TMDB).
+    if (!posterPathFromSeries.startsWith('/') && r2Base) {
+      return `${r2Base.replace(/\/$/, '')}/${posterPathFromSeries}`;
+    }
+    return posterPathFromSeries; // TMDB-Konvention "/xxx.jpg"
+  }
+  if (posterPathFromRanking) return posterPathFromRanking;
+  return null;
 }
