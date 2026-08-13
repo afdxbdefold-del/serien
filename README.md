@@ -40,7 +40,7 @@ React-basierter UI-Prototyp zur visuellen Abnahme des Designs.
 - ❌ Keine Backend-Integration
 
 **Live Preview:**
-https://news-staging-2.preview.emergentagent.com
+https://streamer-dev.preview.emergentagent.com
 
 **Dokumentation:**
 Siehe `/app/frontend/README_PROTOTYPE.md`

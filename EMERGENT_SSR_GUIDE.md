@@ -368,7 +368,7 @@ autorestart=true
 **Environment Variables:**
 ```bash
 # frontend/.env
-REACT_APP_BACKEND_URL=https://news-staging-2.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://streamer-dev.preview.emergentagent.com
 
 # backend/.env
 MONGO_URL=mongodb://localhost:27017
@@ -380,7 +380,7 @@ TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE
 1. Code committen → Git
 2. "Deploy" Button in Emergent UI
 3. Container wird neu deployed
-4. Preview URL: https://news-staging-2.preview.emergentagent.com
+4. Preview URL: https://streamer-dev.preview.emergentagent.com
 
 **Kein Vercel, kein externes Hosting nötig!**
 ```

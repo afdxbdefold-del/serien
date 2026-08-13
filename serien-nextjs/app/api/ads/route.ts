@@ -16,6 +16,7 @@ import { NextResponse } from 'next/server';
 //   - Reseller-Liste 1:1 von TheMoneytizer's offiziellem Append.
 const ADS_TXT = `OWNERDOMAIN=serien.de
 MANAGERDOMAIN=themoneytizer.com
+MANAGERDOMAIN=primis.tech
 google.com, pub-8583619451045805, DIRECT, f08c47fec0942fa0
 themoneytizer.com,131755,DIRECT
 advertising-alliance.de, serien.de, DIRECT
@@ -963,7 +964,44 @@ trustedstack.com, TSLAU41Q2, RESELLER
 pmc.com, 1243696, RESELLER, 8dd52f825890bb44
 triplelift.com, 14717, RESELLER, 6c33edb13117fd86
 connectad.io, 586, RESELLER, 85ac85a30c93b3e5
-adform.com, 768, RESELLER, 9f5210a2f0999e32`;
+adform.com, 768, RESELLER, 9f5210a2f0999e32
+primis.tech,33357, DIRECT, b6b21d256ef43532
+pubmatic.com, 156595, DIRECT, 5d62403b186f2ace
+google.com, pub-1320774679920841, RESELLER, f08c47fec0942fa0
+openx.com, 540258065, DIRECT, 6a698e2ec38604c6
+rubiconproject.com, 20130, DIRECT, 0bfd66d529a55807
+smartadserver.com, 3436, DIRECT, 060d053dcf45cbf3
+sharethrough.com, 3436, DIRECT, d53b998a7bd4ecd2
+indexexchange.com, 191923, DIRECT, 50b1c356f2c5c8fc
+adform.com, 2078, DIRECT
+Media.net, 8CU695QH7, DIRECT
+video.unrulymedia.com, 2338962694, DIRECT
+triplelift.com, 8210, DIRECT, 6c33edb13117fd86
+sharethrough.com, flUyJowI, DIRECT, d53b998a7bd4ecd2
+appnexus.com, 16007, DIRECT, f5ab79cb980f11d1
+freestar.com, 1819, DIRECT
+rubiconproject.com, 16924, RESELLER, 0bfd66d529a55807
+pubmatic.com, 156696, RESELLER, 5d62403b186f2ace
+indexexchange.com, 193334, RESELLER, 50b1c356f2c5c8fc
+video.unrulymedia.com, 776418614052335749, DIRECT
+pmc.com, 1240739, RESELLER, 8dd52f825890bb44
+yahoo.com, 59260, DIRECT
+sharethrough.com, jbYv3ec8, DIRECT, d53b998a7bd4ecd2
+insticator.com, 0ef2eb4c-75f2-4cdf-9185-b61dbd344670,DIRECT,b3511ffcafb23a32
+ottadvisors.com, 122034096467, DIRECT
+the-ozone-project.com, OZONEPRS0001, DIRECT
+appnexus.com, 9979, DIRECT
+openx.com, 540731760, DIRECT, 6a698e2ec38604c6
+pubmatic.com, 160557, DIRECT, 5d62403b186f2ace
+indexexchange.com, 206233, DIRECT, 50b1c356f2c5c8fc
+yieldmo.com, 3807624843667382630, DIRECT
+freewheel.tv, sg1260960, DIRECT
+freewheel.tv, 536419-r-524565, DIRECT
+freewheel.tv, 536419-r-523319, DIRECT
+rubiconproject.com, 26322, DIRECT, 0bfd66d529a55807
+media.net, 8CAWPIGSU, DIRECT
+inmobi.com, 7ea47bc95de442dcb5954b1c1717e855, RESELLER, 83e75a7ae333ca9d
+trustx.org, 8702, DIRECT, 1d2c8a747a749d25`;
 
 // Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
 // die Datei so cachen, dass jeder externe Verifier (TheMoneytizer, IAB,
