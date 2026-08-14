@@ -25,8 +25,38 @@ type FetchInfo = {
   error?: string;
 };
 
+type ChainCheck = {
+  label: string;
+  pass: boolean | null;
+  detail: string;
+};
+
 const ADSLOT_ID = '18384401';
 const SUPPLY_ID = '35673';
+
+/**
+ * Sellers.json-Chain-Verifizierung (2026-03).
+ * Prüft live gegen advertising-alliance.de UND yieldlab.net, ob unsere
+ * ads.txt-Zeilen tatsächlich matchen. Fand am 2026-03 den Root-Cause für
+ * das dauerhafte Yieldlab-noBid: "advertising-alliance.de, 35673, DIRECT"
+ * war ungültig, weil AA's eigene sellers.json diese ID nicht kennt (dort
+ * existieren nur seller_id="serien.de" und "trailer.de"). Die ID 35673
+ * gehört zu AA's eigenem Konto BEI Yieldlab (dort als INTERMEDIARY
+ * gelistet) — nicht zu einem Konto bei AA selbst. Zeile wurde entfernt.
+ *
+ * Läuft server-side über /api/adtest/chain-check, weil AA's sellers.json
+ * per CORS Client-Fetches aus dem Browser blockt (kein
+ * Access-Control-Allow-Origin-Header).
+ */
+async function verifyChain(): Promise<ChainCheck[]> {
+  try {
+    const res = await fetch('/api/adtest/chain-check', { cache: 'no-store' });
+    const data = await res.json();
+    return data?.checks ?? [];
+  } catch (e) {
+    return [{ label: 'Chain-Check', pass: null, detail: `Fetch-Fehler: ${String(e)}` }];
+  }
+}
 
 export default function DirectTagTest() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -34,6 +64,11 @@ export default function DirectTagTest() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'injected' | 'error'>('idle');
   const [fetchInfo, setFetchInfo] = useState<FetchInfo | null>(null);
   const [tcfSummary, setTcfSummary] = useState<string>('—');
+  const [chainChecks, setChainChecks] = useState<ChainCheck[] | null>(null);
+
+  useEffect(() => {
+    verifyChain().then(setChainChecks);
+  }, []);
 
   useEffect(() => {
     const stamp = Math.floor(Date.now() / 1000);
@@ -160,6 +195,34 @@ export default function DirectTagTest() {
         <code>ad.yieldlab.net/d/{ADSLOT_ID}/{SUPPLY_ID}/</code>-Tag von
         Advertising Alliance, in einen sandboxed iframe injiziert.
       </p>
+
+      <div
+        data-testid="sellers-json-chain-check"
+        style={{
+          padding: 12,
+          marginBottom: 16,
+          border: '1px solid #ddd',
+          borderRadius: 8,
+          background: '#f5f9ff',
+          fontSize: 12,
+          fontFamily: 'ui-monospace, monospace',
+          lineHeight: 1.7,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+          Sellers.json Chain-Verifizierung (live gegen AA + Yieldlab)
+        </div>
+        {chainChecks === null ? (
+          <div>läuft …</div>
+        ) : (
+          chainChecks.map((c, i) => (
+            <div key={i} style={{ marginBottom: 6 }} data-testid={`chain-check-${i}`}>
+              <div style={{ color: c.pass === null ? '#a60' : c.pass ? '#0a6' : '#c00' }}>{c.label}</div>
+              <div style={{ color: '#555', fontSize: 11 }}>{c.detail}</div>
+            </div>
+          ))
+        )}
+      </div>
 
       <div
         style={{

@@ -6,13 +6,21 @@ import { NextResponse } from 'next/server';
 //     ohne diese Zeile zeigt AdSense keine Ads mehr aus, weil sie das
 //     Domain-Ownership in unserem AdSense-Account verifiziert.
 //   - Manager: The Moneytizer (Header-Bidding-Stack + SSP-Reseller-Liste).
-//   - Yieldlab (Feb 2026): Chain ist jetzt direkt über Advertising Alliance
-//     (AF Consulting wurde aus AA's sellers.json entfernt). Deshalb:
-//       * advertising-alliance.de, serien.de, DIRECT   (Domain-basierter Eintrag)
-//       * advertising-alliance.de, 35673, DIRECT       (Publisher-ID, von AA bestätigt)
-//       * yieldlab.net, 35673, RESELLER                (AA's Seller-ID bei YL)
-//     Die alte "yieldlab.net, 35673, DIRECT"-Zeile war falsch — wir sind
-//     nicht direkt bei Yieldlab, sondern über AA.
+//   - Yieldlab-Chain (verifiziert 2026-03 gegen die Live-sellers.json von
+//     Advertising Alliance UND Yieldlab):
+//       * https://advertising-alliance.de/sellers.json listet NUR 2 Seller:
+//         seller_id="serien.de" (PUBLISHER, domain=serien.de) und
+//         seller_id="trailer.de". Es gibt dort KEINEN seller_id="35673".
+//       * https://yieldlab.net/sellers.json listet seller_id="35673" als
+//         INTERMEDIARY mit domain="advertising-alliance.de" — das ist AA's
+//         Konto BEI Yieldlab, nicht bei AA selbst.
+//     Korrekte Chain (2 Zeilen):
+//       * advertising-alliance.de, serien.de, DIRECT   (matcht AA's PUBLISHER-Eintrag)
+//       * yieldlab.net, 35673, RESELLER                (matcht YL's INTERMEDIARY-Eintrag)
+//     ENTFERNT (2026-03): "advertising-alliance.de, 35673, DIRECT" war
+//     ungültig — diese ID existiert in AA's eigener sellers.json nicht und
+//     verwechselte AA's Yieldlab-Konto-ID mit einer AA-eigenen Seller-ID.
+//     Das erklärt vermutlich das dauerhafte noBid von Yieldlab.
 //   - Reseller-Liste 1:1 von TheMoneytizer's offiziellem Append.
 const ADS_TXT = `OWNERDOMAIN=serien.de
 MANAGERDOMAIN=themoneytizer.com
@@ -20,7 +28,6 @@ MANAGERDOMAIN=primis.tech
 google.com, pub-8583619451045805, DIRECT, f08c47fec0942fa0
 themoneytizer.com,131755,DIRECT
 advertising-alliance.de, serien.de, DIRECT
-advertising-alliance.de, 35673, DIRECT
 yieldlab.net, 35673, RESELLER
 improvedigital.com, 1602_131755, DIRECT
 improvedigital.com, 1033_131755, DIRECT
