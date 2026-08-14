@@ -100,8 +100,17 @@ export default function PrebidTest() {
   const [statusDetail, setStatusDetail] = useState<string>('');
   const [bids, setBids] = useState<PbjsBid[]>([]);
   const [activeSlot, setActiveSlot] = useState(YIELDLAB_TEST_SLOT);
+  const [chainChecks, setChainChecks] = useState<ChainCheck[] | null>(null);
+  const [vendor70, setVendor70] = useState<boolean | 'no-cmp' | null>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
+
+  useEffect(() => {
+    fetch('/api/adtest/chain-check', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setChainChecks(d?.checks ?? []))
+      .catch(() => setChainChecks([{ label: 'Chain-Check', pass: null, detail: 'Fetch fehlgeschlagen' }]));
+  }, []);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -139,6 +148,7 @@ export default function PrebidTest() {
             ? `Consent erhalten (gdprApplies=${tcData.gdprApplies})`
             : 'Kein CMP gefunden — Auction wird übersprungen',
         );
+        setVendor70(tcData ? tcData.vendor?.consents?.[70] ?? false : 'no-cmp');
 
         // Ohne TCF-API überhaupt: kein Bid-Request senden.
         if (!tcData) {
@@ -270,6 +280,85 @@ export default function PrebidTest() {
         Konfig: <code>lib/prebid-config.ts</code>.
       </p>
 
+      {/* Sellers.json Chain-Verifizierung (live gegen AA + Yieldlab) */}
+      <div
+        data-testid="sellers-json-chain-check"
+        style={{
+          padding: 12,
+          marginBottom: 16,
+          border: '1px solid #ddd',
+          borderRadius: 8,
+          background: '#f5f9ff',
+          fontSize: 12,
+          fontFamily: 'ui-monospace, monospace',
+          lineHeight: 1.7,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>
+          Sellers.json Chain-Verifizierung (live gegen AA + Yieldlab)
+        </div>
+        {chainChecks === null ? (
+          <div>läuft …</div>
+        ) : (
+          chainChecks.map((c, i) => (
+            <div key={i} style={{ marginBottom: 6 }} data-testid={`chain-check-${i}`}>
+              <div style={{ color: c.pass === null ? '#a60' : c.pass ? '#0a6' : '#c00' }}>{c.label}</div>
+              <div style={{ color: '#555', fontSize: 11 }}>{c.detail}</div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Aktive Schain-Config + fertiger Query-Param zum Weitergeben an Yieldlab/AA */}
+      <div
+        data-testid="schain-panel"
+        style={{
+          padding: 12,
+          marginBottom: 16,
+          border: '1px solid #ddd',
+          borderRadius: 8,
+          background: '#fafafa',
+          fontSize: 12,
+          fontFamily: 'ui-monospace, monospace',
+          lineHeight: 1.7,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>Aktive Schain-Config</div>
+        {PREBID_SCHAIN_CONFIG.config.nodes.map((n, i) => (
+          <div key={i}>
+            Node {i + 1}: asi=<strong>{n.asi}</strong> · sid=<strong>{n.sid}</strong> · hp={n.hp}
+            {'name' in n && n.name ? ` · name=${n.name}` : ''}
+            {'domain' in n && n.domain ? ` · domain=${n.domain}` : ''}
+          </div>
+        ))}
+        <div style={{ marginTop: 8 }}>
+          <strong>Vendor-70-Consent (Yieldlab, aus TCF):</strong>{' '}
+          {vendor70 === 'no-cmp'
+            ? 'kein CMP gefunden'
+            : vendor70 === null
+            ? 'läuft …'
+            : vendor70 === true
+            ? '✅ true'
+            : '❌ false / nicht gesetzt'}
+        </div>
+        <details style={{ marginTop: 8 }}>
+          <summary style={{ cursor: 'pointer' }}>Roher schain-Query-Param (für Yieldlab/AA-Ticket)</summary>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              margin: '6px 0 0',
+              fontSize: 11,
+              background: '#fff',
+              padding: 6,
+              border: '1px solid #eee',
+            }}
+          >
+            {buildSchainParam(PREBID_SCHAIN_CONFIG)}
+          </pre>
+        </details>
+      </div>
+
       {/* Status-Panel */}
       <div
         data-testid="prebid-status"
@@ -389,6 +478,20 @@ interface TcData {
   tcString?: string;
   eventStatus?: string;
   cmpStatus?: string;
+  vendor?: { consents?: Record<number, boolean> };
+}
+
+type ChainCheck = { label: string; pass: boolean | null; detail: string };
+
+/** Baut den schain-Query-Param exakt so, wie yieldlabBidAdapter.js ihn baut (siehe public/prebid/yieldlabBidAdapter.js). */
+function buildSchainParam(schain: typeof PREBID_SCHAIN_CONFIG): string {
+  const cfg = schain.config;
+  const fields = ['asi', 'sid', 'hp', 'rid', 'name', 'domain', 'ext'] as const;
+  const nodesStr = cfg.nodes.reduce((acc: string, node: Record<string, unknown>) => {
+    const parts = fields.map((f) => (node[f] !== undefined ? encodeURIComponent(String(node[f])).replace(/!/g, '%21') : ''));
+    return acc + '!' + parts.join(',');
+  }, '');
+  return `${cfg.ver},${cfg.complete}${nodesStr}`;
 }
 
 /**
