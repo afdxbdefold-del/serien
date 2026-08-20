@@ -75,6 +75,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://cmp.inmobi.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
 
+        {/* Primis Outstream (Freestar/pub.network) — Preconnects laut Primis-Snippet */}
+        <link rel="preconnect" href="https://a.pub.network/" crossOrigin="" />
+        <link rel="preconnect" href="https://b.pub.network/" crossOrigin="" />
+        <link rel="preconnect" href="https://c.pub.network/" crossOrigin="" />
+        <link rel="preconnect" href="https://d.pub.network/" crossOrigin="" />
+        <link rel="preconnect" href="https://btloader.com/" crossOrigin="" />
+        <link rel="preconnect" href="https://api.btloader.com/" crossOrigin="" />
+        {/* CLS-Fix für Freestar-Ad-Slots (verhindert Layout-Shifts beim Ad-Laden) */}
+        <link rel="stylesheet" href="https://a.pub.network/serien-de/cls.css" />
+
           {/* CMP-Loader: NUR Desktop (≥1024 px) UND /adtest-* Test-Routen
               bekommen InMobi Choice (TheMoneytizer's CMP für TCF 2.3).
               Mobile bekommt KEINEN CMP mehr — auf Mobile gibt es keine Ads,
@@ -175,6 +185,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
+
+        {/* Primis Outstream — Freestar-Wrapper (pubfig.min.js). Slots werden
+            per Freestar-Dashboard/Tag konfiguriert, hier nur der Loader +
+            leere enabled_slots-Konfiguration (Default laut Primis-Snippet). */}
+        <script
+          data-cfasync="false"
+          dangerouslySetInnerHTML={{
+            __html: `
+              var freestar = freestar || {};
+              freestar.queue = freestar.queue || [];
+              freestar.config = freestar.config || {};
+              freestar.config.enabled_slots = [];
+              freestar.initCallback = function () { (freestar.config.enabled_slots.length === 0) ? freestar.initCallbackCalled = false : freestar.newAdSlots(freestar.config.enabled_slots) }
+            `,
+          }}
+        />
+        <Script
+          id="freestar-pubfig"
+          src="https://a.pub.network/serien-de/pubfig.min.js"
+          data-cfasync="false"
+          strategy="afterInteractive"
+        />
       </head>
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen text-gray-900 dark:text-gray-100 transition-colors`}>
         <LayoutWrapper>{children}</LayoutWrapper>
@@ -187,6 +219,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>
           <a href="/autoren">Autoren</a>
         </nav>
+        {/* Primis Slider (Outstream-Video) — läuft laut Primis-Vorgabe im BODY. */}
+        <Script
+          id="primis-slider"
+          src="https://live.primis.tech/live/liveView.php?s=122209"
+          strategy="afterInteractive"
+        />
         {/* Matomo Analytics (self-hosted via speedcache.io, Site-ID 37).
             lazyOnload → lädt erst nach vollständigem Page-Load, blockiert
             weder LCP noch die Ad-Auction. */}
