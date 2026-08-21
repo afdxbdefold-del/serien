@@ -15,11 +15,11 @@
 import { PrismaClient } from '@prisma/client';
 import * as cheerio from 'cheerio';
 
-const API_KEY = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
+const API_KEY = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
 if (!API_KEY) { console.error('Missing LLM API key'); process.exit(1); }
 const isEmergent = API_KEY.startsWith('sk-emergent-');
 const LLM_URL = isEmergent ? 'https://integrations.emergentagent.com/llm/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-const MODEL = isEmergent ? 'claude-sonnet-4-6' : 'gpt-4o';
+const MODEL = isEmergent ? 'claude-sonnet-4-6' : 'gpt-5.4';
 
 const prisma = new PrismaClient();
 

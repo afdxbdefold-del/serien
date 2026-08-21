@@ -2,16 +2,17 @@
  * LLM Configuration
  * 
  * Centralized config for all LLM calls.
- * Uses Emergent proxy for Claude Sonnet 4.6 (OpenAI-compatible format).
+ * Läuft primär über den eigenen OPENAI_API_KEY (GPT-5.4). Emergent-Proxy
+ * (Claude Sonnet 4.6) nur noch als Fallback, falls kein eigener Key gesetzt ist.
  */
 
 import OpenAI from 'openai';
 
 export function getLLMConfig() {
-  const apiKey = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   
   if (!apiKey) {
-    throw new Error('No LLM API key found. Set EMERGENT_LLM_KEY or OPENAI_API_KEY');
+    throw new Error('No LLM API key found. Set OPENAI_API_KEY or EMERGENT_LLM_KEY');
   }
   
   const isEmergentKey = apiKey.startsWith('sk-emergent-');
@@ -19,7 +20,7 @@ export function getLLMConfig() {
   return {
     apiKey,
     baseURL: isEmergentKey ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
-    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-4o',
+    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-5.4',
   };
 }
 
