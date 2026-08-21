@@ -22,7 +22,7 @@ export async function GET() {
     const r = await client.chat.completions.create({
       model: cfg.model,
       messages: [{ role: 'user', content: 'Antworte nur mit OK.' }],
-      max_tokens: 5,
+      max_completion_tokens: 5,
     });
     return NextResponse.json({
       ...base,

@@ -80,7 +80,7 @@ async function callLLM(prompt: string, preferredModel: string): Promise<string> 
       const completion = await client.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4000,
+        max_completion_tokens: 4000,
         temperature: 0.6,
       });
       return completion.choices[0].message.content || '';

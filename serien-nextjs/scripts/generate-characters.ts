@@ -123,7 +123,7 @@ Regeln: Deutsch, Fließtext, erwähne ${actorName}, keine Markdown-Formatierung,
     const response = await openai.chat.completions.create({
       model: config.model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1200,
+      max_completion_tokens: 1200,
       temperature: 0.7,
     });
     const raw = response.choices[0]?.message?.content?.trim() || '';

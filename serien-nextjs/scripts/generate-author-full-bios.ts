@@ -87,7 +87,7 @@ ANTWORT (nur das HTML, nichts sonst):`;
         const completion = await client.chat.completions.create({
           model: m,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 2500,
+          max_completion_tokens: 2500,
           temperature: 0.7,
         });
         let text = completion.choices[0].message.content || '';

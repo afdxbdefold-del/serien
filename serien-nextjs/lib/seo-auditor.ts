@@ -896,7 +896,7 @@ Erstelle eine handlungsorientierte Zusammenfassung (4-6 Sätze) auf Deutsch mit 
       body: JSON.stringify({
         model: config.model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 600,
+        max_completion_tokens: 600,
         temperature: 0.3,
       }),
     });

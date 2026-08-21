@@ -711,7 +711,7 @@ Antworte NUR mit dem JSON, keine zusätzlichen Erklärungen.`,
         },
       ],
       temperature: temperature ?? 0.7,
-      max_tokens: 8192,
+      max_completion_tokens: 8192,
     });
 
     let content = response.choices[0]?.message?.content || '{}';

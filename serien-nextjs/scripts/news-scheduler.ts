@@ -11,6 +11,7 @@
  *   NEWS_LIMIT - Max articles per run (default: 5)
  */
 
+import 'dotenv/config';
 import { processScreenrantNews } from './screenrant-scraper';
 import * as fs from 'fs';
 import * as path from 'path';

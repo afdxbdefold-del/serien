@@ -1,13 +1,17 @@
 """
 Character Content Generator (Python)
-Generates discover-optimized content for fictional character pages using Emergent LLM
+Generates discover-optimized content for fictional character pages.
+Läuft primär über eigenen OPENAI_API_KEY (GPT-5.4, direktes OpenAI-SDK),
+Emergent LLM-Proxy nur noch als Fallback.
 """
 
 import os
 import sys
 import json
 import asyncio
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+OPENAI_KEY = os.environ.get('OPENAI_API_KEY')
+EMERGENT_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 async def generate_character_content(character_name: str, series_name: str, actor_name: str = None, fandom_context: str = None):
     """Generate all content sections for a character page"""
@@ -91,14 +95,28 @@ AUSGABEFORMAT (JSON):
 Antworte NUR mit dem JSON, keine Einleitung."""
 
     try:
-        chat = LlmChat(
-            api_key=os.environ.get('EMERGENT_LLM_KEY'),
-            session_id=f"char-gen-{character_name}",
-            system_message="Du bist ein professioneller Serien-Redakteur."
-        ).with_model('openai', 'gpt-4o')
+        if OPENAI_KEY:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=OPENAI_KEY)
+            completion = await client.chat.completions.create(
+                model='gpt-5.4',
+                messages=[
+                    {"role": "system", "content": "Du bist ein professioneller Serien-Redakteur."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_completion_tokens=3000,
+            )
+            response = completion.choices[0].message.content or ''
+        else:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=EMERGENT_KEY,
+                session_id=f"char-gen-{character_name}",
+                system_message="Du bist ein professioneller Serien-Redakteur."
+            ).with_model('openai', 'gpt-4o')
 
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+            user_message = UserMessage(text=prompt)
+            response = await chat.send_message(user_message)
 
         # Extract JSON from response
         import re

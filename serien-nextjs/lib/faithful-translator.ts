@@ -484,7 +484,7 @@ export async function translateFaithful(
           { role: 'user', content: prompt },
         ],
         temperature: 0.4,
-        max_tokens: 3500,
+        max_completion_tokens: 3500,
       });
       const raw = response.choices[0]?.message?.content || '';
       parsed = parseLLMJson(raw) as LLMOutput;
