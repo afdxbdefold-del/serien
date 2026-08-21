@@ -1,5 +1,5 @@
 /**
- * AI-Hero-Image Generator (gpt-image-1 via Emergent LLM-Proxy).
+ * AI-Hero-Image Generator (gpt-image-1, primär über eigenen OPENAI_API_KEY).
  *
  * Used as a fallback when an article has no TMDB backdrop available.
  * Returns a public Vercel-Blob URL for a generated 16:9 cinematic
@@ -112,13 +112,14 @@ async function getCachedUrl(blobKey: string): Promise<string | null> {
 }
 
 /**
- * Generate image via OpenAI gpt-image-1 routed through the Emergent LLM-Proxy.
+ * Generate image via OpenAI gpt-image-1. Läuft primär über den eigenen
+ * OPENAI_API_KEY, Emergent-Proxy nur noch als Fallback.
  * Returns raw bytes + content-type, or null on any failure.
  */
 async function generateImageBytes(prompt: string): Promise<{ buf: Buffer; contentType: string } | null> {
-  const apiKey = process.env.EMERGENT_LLM_KEY || process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
   if (!apiKey) return null;
-  const isEmergent = !!process.env.EMERGENT_LLM_KEY;
+  const isEmergent = apiKey.startsWith('sk-emergent-');
   const client = new OpenAI({
     apiKey,
     baseURL: isEmergent ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
