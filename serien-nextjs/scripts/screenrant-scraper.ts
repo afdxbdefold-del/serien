@@ -352,7 +352,19 @@ export async function processScreenrantNews(options: {
           discoveryChannel: 'screenrant-deep',
         });
         stats.processed++;
-        console.log('   ✅ SUCCESS');
+        // Authoritative check: pipeline-v2 gibt bei Blocklist/Gate-Skips
+        // `null` zurück statt zu throwen — "kein Fehler" ≠ "publiziert".
+        // (Aug 2026: genau das hat den screenrant.com-WEAK_HOSTS-Block
+        // wochenlang als "processed: 1" maskiert.)
+        const landed = await prisma.articles.findFirst({
+          where: { sourceUrl: article.url, status: 'published' },
+          select: { id: true },
+        });
+        if (landed) {
+          console.log('   ✅ PUBLISHED');
+        } else {
+          console.log('   ⚠️  ATTEMPTED (no publish — likely blocked, e.g. WEAK_HOSTS)');
+        }
       } catch (error: any) {
         stats.failed++;
         console.log(`   ❌ FAILED: ${error.message}`);

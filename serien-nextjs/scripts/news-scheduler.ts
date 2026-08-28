@@ -1,8 +1,15 @@
 /**
  * AUTOMATIC NEWS SCHEDULER
  * 
- * Runs the screenrant-scraper automatically at regular intervals
- * to import new TV news articles via pipeline-v2
+ * Runs the multi-source RSS scraper (news-scraper.ts) automatically at
+ * regular intervals to import new TV news articles via pipeline-v2.
+ *
+ * WICHTIG (Aug 2026 Bugfix): Vorher rief dieser Scheduler
+ * processScreenrantNews() auf, aber pipeline-v2.ts blockt screenrant.com
+ * in WEAK_HOSTS am Pre-LLM-Gate — jeder Lauf wurde also lautlos geblockt
+ * (0 echte Publishes, trotz "processed: 1" im Log). Jetzt: processAllNews()
+ * mit den Default-Quellen (cinemaholic/deadline/variety/hollywoodreporter/
+ * netflixTudum/tvline/googleNewsStreaming), die NICHT in WEAK_HOSTS stehen.
  * 
  * Usage: npx tsx scripts/news-scheduler.ts
  * 
@@ -12,7 +19,7 @@
  */
 
 import 'dotenv/config';
-import { processScreenrantNews } from './screenrant-scraper';
+import { processAllNews } from './news-scraper';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -42,17 +49,17 @@ async function runNewsImport() {
   log('═══════════════════════════════════════════════════════════════');
   
   try {
-    const result = await processScreenrantNews({
+    const result = await processAllNews({
       limit: ARTICLES_PER_RUN,
       dryRun: false,
       onlyNew: true, // Only import articles not already in DB
     });
     
-    log(`✅ Import complete: ${result.processed} processed, ${result.failed} failed, ${result.skipped} skipped`);
+    log(`✅ Import complete: ${result.processed} processed, ${result.published} published, ${result.failed} failed, ${result.skipped} skipped`);
     return result;
   } catch (error: any) {
     log(`❌ Import failed: ${error.message}`);
-    return { processed: 0, failed: 0, skipped: 0 };
+    return { processed: 0, published: 0, failed: 0, skipped: 0, bySource: {} };
   }
 }
 
