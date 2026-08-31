@@ -55,23 +55,23 @@ const prisma = new PrismaClient();
 // ══════════════════════════════════════════════════════════════════════════
 // AUTHOR ROTATION: Randomly select from real editorial team
 // ══════════════════════════════════════════════════════════════════════════
-const EDITORIAL_AUTHORS = [
-  'author_001', // Sophie Hartmann
-  'author_003', // Laura Klein
-  'author_004', // Marie Weber
-  'author_005', // Lena Bergmann
-  'author_006', // Emma Mueller
-  'author_008', // Nina Wolf
-  'author_009', // Mia Braun
-  'author_010', // Lea Zimmermann
-  'author_011', // Clara Hoffmann
-  'author_012', // Sarah Becker
-  'author-julia', // Julia Fischer
-];
+let editorialAuthorIds: string[] | null = null;
 
-function getRandomAuthor(): string {
-  const randomIndex = Math.floor(Math.random() * EDITORIAL_AUTHORS.length);
-  return EDITORIAL_AUTHORS[randomIndex];
+async function getRandomAuthor(): Promise<string> {
+  if (!editorialAuthorIds) {
+    const authors = await prisma.users.findMany({
+      where: { role: 'author' },
+      select: { id: true },
+    });
+    editorialAuthorIds = authors.map((author) => author.id);
+  }
+
+  if (editorialAuthorIds.length === 0) {
+    throw new Error('No editorial authors are configured in the database');
+  }
+
+  const randomIndex = Math.floor(Math.random() * editorialAuthorIds.length);
+  return editorialAuthorIds[randomIndex];
 }
 
 interface PipelineV2Source {
@@ -2570,7 +2570,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           tmdbId: dbSeries.tmdbId,
           primarySeriesId: dbSeries.tmdbId,
           tmdbType: 'tv',
-          authorId: getRandomAuthor(),
+          authorId: await getRandomAuthor(),
           status: finalStatus,
           publishedAt: finalPublishedAt,
           createdAt: now,

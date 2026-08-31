@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 
 const prisma = new PrismaClient();
-const TMDB_API_KEY = process.env.TMDB_API_KEY || 'c0e0553140b7bd5f982df64c86319c1b';
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 interface NewsArticle {
@@ -16,6 +16,10 @@ interface NewsArticle {
 }
 
 async function searchTMDB(seriesName: string): Promise<{ id: number; type: string; backdrop_path: string | null; poster_path: string | null } | null> {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY is not configured');
+  }
+
   try {
     const response = await axios.get(`${TMDB_BASE_URL}/search/tv`, {
       params: {

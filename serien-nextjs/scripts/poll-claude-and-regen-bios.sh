@@ -5,7 +5,7 @@
 
 set -u
 
-KEY="${EMERGENT_LLM_KEY:-sk-emergent-c52767c2e3e748c340}"
+KEY="${EMERGENT_LLM_KEY:?EMERGENT_LLM_KEY must be set explicitly}"
 LOG=/tmp/claude-poll.log
 FLAG=/tmp/claude-bios-done.flag
 SCRIPT_DIR=/app/serien-nextjs

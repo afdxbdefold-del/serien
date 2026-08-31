@@ -9,13 +9,13 @@ export async function GET() {
   const base = {
     model: cfg.model,
     baseURL: cfg.baseURL,
-    apiKeyPrefix: cfg.apiKey ? cfg.apiKey.slice(0, 14) + '…' + cfg.apiKey.slice(-4) : 'MISSING',
-    apiKeyLength: cfg.apiKey?.length ?? 0,
+    apiKeyConfigured: Boolean(cfg.apiKey),
     buildMarker: 'v-2026-04-21-dash-protect-series-names',
     serverTime: new Date().toISOString(),
   };
 
-  // Do a real Claude ping to see whether the proxy actually reaches Claude
+  // Run a minimal authenticated provider check. Never expose key material or
+  // a reusable key fingerprint in this response.
   const t0 = Date.now();
   try {
     const client = createLLMClient();

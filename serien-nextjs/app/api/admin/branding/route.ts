@@ -12,23 +12,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import sharp from 'sharp';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-);
-
-async function verifyAdmin(req: NextRequest): Promise<boolean> {
-  const auth = req.headers.get('authorization');
-  if (!auth?.startsWith('Bearer ')) return false;
-  try {
-    const { payload } = await jwtVerify(auth.substring(7), JWT_SECRET);
-    return payload.role === 'admin';
-  } catch { return false; }
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // SLOTS — what branding assets we manage
@@ -228,13 +215,13 @@ async function describeSlot(slot: Slot) {
 // HANDLERS
 // ──────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const slots = await Promise.all(SLOTS.map(describeSlot));
   return NextResponse.json({ slots });
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const slotId = new URL(req.url).searchParams.get('slot');
   const slot = SLOTS.find((s) => s.id === slotId);
   if (!slot) return NextResponse.json({ error: 'Unknown slot' }, { status: 400 });
@@ -280,7 +267,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const slotId = new URL(req.url).searchParams.get('slot');
   const slot = SLOTS.find((s) => s.id === slotId);
   if (!slot) return NextResponse.json({ error: 'Unknown slot' }, { status: 400 });

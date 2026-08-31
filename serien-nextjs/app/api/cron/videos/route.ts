@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { downloadYouTubeTrailer, findTrailerYouTubeId } from '@/lib/trailer-downloader';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 const prisma = new PrismaClient();
 
@@ -17,14 +19,10 @@ export const maxDuration = 60; // 60 seconds max
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
   const action = searchParams.get('action') || 'process';
-  
-  // Verify secret
-  if (secret !== 'serien-video-download-2024' && 
-      secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
   
   try {
     // Action: stats - Return queue statistics
@@ -129,11 +127,13 @@ async function enqueueNewArticles() {
     // Add to queue
     await prisma.video_download_queue.create({
       data: {
+        id: randomUUID(),
         articleId: article.id,
         seriesName: article.series.name || 'Unknown',
         youtubeId: trailerId,
         status: 'pending',
-        priority: 0
+        priority: 0,
+        updatedAt: new Date()
       }
     });
     

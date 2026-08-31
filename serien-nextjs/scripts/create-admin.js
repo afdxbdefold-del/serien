@@ -1,53 +1,53 @@
 /**
- * Create Admin User Script
- * 
- * Creates a default admin user for testing the dashboards
+ * Create or update an admin user from explicit environment variables.
+ *
+ * Required: ADMIN_EMAIL, ADMIN_PASSWORD
+ * Optional: ADMIN_NAME
  */
 
+const { randomUUID } = require('node:crypto');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
 async function createAdminUser() {
-  const email = 'admin@serien.de';
-  const password = 'admin123'; // Change in production!
-  const name = 'Admin';
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  const name = process.env.ADMIN_NAME?.trim() || 'Admin';
 
-  try {
-    // Check if admin already exists
-    const existing = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (existing) {
-      console.log('✅ Admin user already exists:', email);
-      return;
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create admin user
-    const admin = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: 'admin',
-      }
-    });
-
-    console.log('✅ Admin user created successfully!');
-    console.log('   Email:', email);
-    console.log('   Password:', password);
-    console.log('   ID:', admin.id);
-    
-  } catch (error) {
-    console.error('❌ Error creating admin user:', error.message);
-  } finally {
-    await prisma.$disconnect();
+  if (!email || !password) {
+    throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD must be set explicitly');
   }
+  if (password.length < 16) {
+    throw new Error('ADMIN_PASSWORD must contain at least 16 characters');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const admin = await prisma.users.upsert({
+    where: { email },
+    update: {
+      name,
+      password: hashedPassword,
+      role: 'admin',
+    },
+    create: {
+      id: randomUUID(),
+      email,
+      name,
+      password: hashedPassword,
+      role: 'admin',
+    },
+  });
+
+  console.log(`Admin user is ready: ${admin.email} (${admin.id})`);
 }
 
-createAdminUser();
+createAdminUser()
+  .catch((error) => {
+    console.error('Admin bootstrap failed:', error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

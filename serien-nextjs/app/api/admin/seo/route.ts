@@ -1,26 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { jwtVerify } from 'jose';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 import { runFullAudit, runHttpAudit, generateAiSummary, compareRuns, generateCsvExport, ISSUE_LABELS } from '@/lib/seo-auditor';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-);
-
-async function verifyAdmin(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-  try {
-    const { payload } = await jwtVerify(authHeader.substring(7), JWT_SECRET);
-    return payload.role === 'admin';
-  } catch {
-    return false;
-  }
-}
 
 // GET /api/admin/seo
 export async function GET(request: NextRequest) {
-  if (!(await verifyAdmin(request))) {
+  if (!(await verifyAdminRequest(request))) {
     return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
   }
 
@@ -116,7 +101,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/seo
 export async function POST(request: NextRequest) {
-  if (!(await verifyAdmin(request))) {
+  if (!(await verifyAdminRequest(request))) {
     return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
   }
 

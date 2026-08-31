@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 import prisma from '@/lib/prisma';
 import {
   downloadYouTubeTrailer,
@@ -47,25 +48,19 @@ async function fetchTmdbVideos(tmdbId: number): Promise<TmdbVideo[]> {
  * frontend fallback automatically picks it up for all articles.
  *
  * Query params:
- *   ?secret=…       (CRON_SECRET fallback) OR Authorization: Bearer …  OR admin JWT cookie
  *   ?limit=10       default 10, max 100 per call (proxy timeout!)
  *   ?resetSkip=1    reset all 'SKIP'/'unavailable' rows to NULL first
  */
 async function handle(request: NextRequest) {
-  // Auth: cron secret (consistent with /api/cron/* routes)
-  const auth = request.headers.get('authorization');
-  const queryParams = request.nextUrl.searchParams;
-  const secret = queryParams.get('secret');
-  const cronSecret = process.env.CRON_SECRET;
-  const cronOk =
-    (cronSecret && auth === `Bearer ${cronSecret}`) ||
-    (cronSecret && secret === cronSecret) ||
-    secret === 'serien-releases-update-2024';
-  if (!cronOk) {
+  if (!(await verifyAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const limit = Math.max(1, Math.min(Number(queryParams.get('limit') || '10'), 100));
+  const queryParams = request.nextUrl.searchParams;
+  const requestedLimit = Number(queryParams.get('limit') || '10');
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(Math.trunc(requestedLimit), 100))
+    : 10;
   const resetSkip = queryParams.get('resetSkip') === '1';
 
   let resetCount = 0;

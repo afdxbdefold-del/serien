@@ -9,22 +9,9 @@
  * Auth: Bearer JWT with role=admin
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 import prisma from '@/lib/prisma';
 import { invalidateBlocklistCache } from '@/lib/series-blocklist';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-);
-
-async function verifyAdmin(req: NextRequest): Promise<boolean> {
-  const auth = req.headers.get('authorization');
-  if (!auth?.startsWith('Bearer ')) return false;
-  try {
-    const { payload } = await jwtVerify(auth.substring(7), JWT_SECRET);
-    return payload.role === 'admin';
-  } catch { return false; }
-}
 
 function normalize(body: any) {
   const out: any = {};
@@ -38,7 +25,7 @@ function normalize(body: any) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const rows = await prisma.blocklist_entries.findMany({
     orderBy: [{ enabled: 'desc' }, { hits: 'desc' }, { createdAt: 'desc' }],
   });
@@ -59,7 +46,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const data = normalize(body);
   if (!data.label) return NextResponse.json({ error: 'label required' }, { status: 400 });
@@ -81,7 +68,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const body = await req.json().catch(() => ({}));
@@ -97,7 +84,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!(await verifyAdmin(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminRequest(req))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   await prisma.blocklist_entries.delete({ where: { id } }).catch(() => {});

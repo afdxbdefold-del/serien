@@ -84,7 +84,8 @@ export default function AdminSeriesPage() {
     
     try {
       const response = await fetch(
-        `https://api.themoviedb.org/3/search/tv?api_key=c0e0553140b7bd5f982df64c86319c1b&query=${encodeURIComponent(searchQuery)}&language=de-DE`
+        `/api/admin/tmdb?query=${encodeURIComponent(searchQuery)}`,
+        { headers: getAuthHeaders() }
       );
       
       if (!response.ok) throw new Error('TMDB search failed');

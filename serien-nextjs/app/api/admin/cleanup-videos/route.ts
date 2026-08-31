@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { verifyAdminRequest } from '@/lib/admin-auth';
+import prisma from '@/lib/prisma';
 
 /**
  * Cleanup API for YouTube videos
  * 
- * GET /api/admin/cleanup-videos?secret=CRON_SECRET
+ * POST /api/admin/cleanup-videos
+ * Body: { "confirm": "DELETE_UNPROCESSED_VIDEOS" }
  * 
  * Deletes all unprocessed YouTube videos to reset the /neue-videos page
  */
-export async function GET(request: NextRequest) {
-  // Verify secret
-  const secret = request.nextUrl.searchParams.get('secret');
-  const cronSecret = process.env.CRON_SECRET;
-  
-  if (!cronSecret || secret !== cronSecret) {
+export async function POST(request: NextRequest) {
+  if (!(await verifyAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const body = await request.json().catch(() => ({}));
+  if (body.confirm !== 'DELETE_UNPROCESSED_VIDEOS') {
+    return NextResponse.json(
+      { error: 'Explicit confirmation required' },
+      { status: 400 },
+    );
+  }
+
   try {
-    // Delete all videos (full reset)
-    const deletedVideos = await prisma.youtube_videos.deleteMany({});
+    const deletedVideos = await prisma.youtube_videos.deleteMany({
+      where: { processed: false },
+    });
     
     return NextResponse.json({
       success: true,
@@ -29,10 +34,10 @@ export async function GET(request: NextRequest) {
       deletedVideos: deletedVideos.count,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Cleanup error:', error);
     return NextResponse.json({
-      error: error.message || 'Cleanup failed'
+      error: error instanceof Error ? error.message : 'Cleanup failed'
     }, { status: 500 });
   }
 }

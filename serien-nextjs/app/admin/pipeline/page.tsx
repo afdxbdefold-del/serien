@@ -1802,7 +1802,9 @@ function VideoQueueTab({ token }: { token: string }) {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=stats');
+      const res = await fetch('/api/admin/video-queue?action=stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       setStats(data);
     } catch (err) {
@@ -1824,7 +1826,9 @@ function VideoQueueTab({ token }: { token: string }) {
   const handleProcess = async () => {
     setProcessing(true);
     try {
-      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=process');
+      const res = await fetch('/api/admin/video-queue?action=process', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       console.log('Process result:', data);
       await fetchStats();
@@ -1838,7 +1842,9 @@ function VideoQueueTab({ token }: { token: string }) {
   const handleEnqueue = async () => {
     setEnqueuing(true);
     try {
-      const res = await fetch('/api/cron/videos?secret=serien-video-download-2024&action=enqueue');
+      const res = await fetch('/api/admin/video-queue?action=enqueue', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       console.log('Enqueue result:', data);
       await fetchStats();

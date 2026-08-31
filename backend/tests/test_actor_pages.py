@@ -16,7 +16,11 @@ import os
 import json
 
 BASE_URL = os.environ.get('NEXT_PUBLIC_BASE_URL', 'https://serien-5v18x10.vercel.app')
-TMDB_API_KEY = "c0e0553140b7bd5f982df64c86319c1b"
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY')
+pytestmark = pytest.mark.skipif(
+    not TMDB_API_KEY,
+    reason='TMDB_API_KEY is required for integration tests',
+)
 
 class TestTMDBPersonAPI:
     """TMDB Person API Integration Tests"""

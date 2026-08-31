@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { verifyAdminRequest } from '@/lib/admin-auth';
+import prisma from '@/lib/prisma';
 import { downloadYouTubeTrailer, findTrailerYouTubeId } from '@/lib/trailer-downloader';
-
-const prisma = new PrismaClient();
 
 export const maxDuration = 60;
 
 /**
  * Manual video download for a specific article
- * Usage: /api/admin/fix-video?slug=article-slug&secret=serien-video-download-2024
+ * Usage: /api/admin/fix-video?slug=article-slug with an admin session.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
-  const slug = searchParams.get('slug');
-  const articleId = searchParams.get('id');
-  
-  if (secret !== 'serien-video-download-2024') {
+  if (!(await verifyAdminRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const slug = searchParams.get('slug');
+  const articleId = searchParams.get('id');
   
   if (!slug && !articleId) {
     return NextResponse.json({ error: 'slug or id required' }, { status: 400 });
@@ -104,11 +102,11 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fix video error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ 
-      error: error.message,
-      stack: error.stack?.split('\n').slice(0, 5)
+      error: message,
     }, { status: 500 });
   }
 }

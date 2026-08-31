@@ -119,16 +119,20 @@ async function main() {
     const slugs = results.filter((r) => r.after && !r.reason).map((r) => `/${r.slug}`);
     console.log(`Revalidating ${slugs.length} pages + homepage…`);
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
-    const secret = process.env.JWT_SECRET || '';
-    try {
-      const resp = await fetch(`${baseUrl}/api/internal/revalidate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
-        body: JSON.stringify({ paths: ['/', ...slugs] }),
-      });
-      console.log(`  → ${resp.status} ${resp.statusText}`);
-    } catch (e: any) {
-      console.log(`  → revalidate error: ${e?.message}`);
+    const secret = process.env.REVALIDATE_SECRET;
+    if (!secret) {
+      console.log('  → skipped: REVALIDATE_SECRET is not configured');
+    } else {
+      try {
+        const resp = await fetch(`${baseUrl}/api/internal/revalidate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+          body: JSON.stringify({ paths: ['/', ...slugs] }),
+        });
+        console.log(`  → ${resp.status} ${resp.statusText}`);
+      } catch (e: any) {
+        console.log(`  → revalidate error: ${e?.message}`);
+      }
     }
   }
 

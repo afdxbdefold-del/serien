@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose/jwt/verify';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 const INDEXNOW_KEY = '8e6827d79c19f8cbe91089129c21e303';
-
-// Google App / Discover User-Agent patterns
-const DISCOVER_UA_PATTERNS = [
-  'GSA/',                // Google Search App (Android)
-  'GoogleApp/',          // Google App (iOS)
-  'com.google.android.googlequicksearchbox',
-  'Google-Read-Aloud',   // Google Discover read-aloud
-];
+const ADMIN_ONLY_API_PATHS = new Set([
+  '/api/debug/llm-version',
+  '/api/qa/generate',
+]);
 
 // Search engine / news crawler detection.
 // First match wins — order matters (News before general Googlebot).
@@ -99,7 +97,44 @@ function detectBot(ua: string): string | null {
   return null;
 }
 
-export function middleware(request: NextRequest) {
+async function authorizeAdminApi(request: NextRequest): Promise<NextResponse | null> {
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    return NextResponse.json(
+      { detail: 'Admin authentication is not configured' },
+      { status: 503 }
+    );
+  }
+
+  const authHeader = request.headers.get('authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : null;
+  const token = bearerToken || request.cookies.get('auth-token')?.value;
+
+  if (!token) {
+    return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(jwtSecret),
+      { algorithms: ['HS256'] }
+    );
+
+    if (!payload.userId || payload.role !== 'admin') {
+      return NextResponse.json({ detail: 'Forbidden' }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+  }
+
+  return null;
+}
+
+export async function middleware(request: NextRequest) {
   // Serve IndexNow verification file as plain text
   if (request.nextUrl.pathname === `/${INDEXNOW_KEY}.txt`) {
     return new NextResponse(INDEXNOW_KEY, {
@@ -107,8 +142,28 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // Skip API routes and static assets
   const path = request.nextUrl.pathname;
+
+  // Every admin API is protected centrally. Individual route checks remain
+  // defence in depth, but an omitted or broken local check can no longer make
+  // a mutating endpoint public. The login endpoint is the sole exception.
+  const requiresAdmin =
+    (path.startsWith('/api/admin/') && path !== '/api/admin/auth/login') ||
+    ADMIN_ONLY_API_PATHS.has(path);
+
+  if (requiresAdmin) {
+    const authFailure = await authorizeAdminApi(request);
+    if (authFailure) return authFailure;
+    return NextResponse.next();
+  }
+
+  if (path.startsWith('/api/cron/')) {
+    const authFailure = requireCronAuth(request);
+    if (authFailure) return authFailure;
+    return NextResponse.next();
+  }
+
+  // Skip other API routes and static assets
   if (path.startsWith('/api/') || path.startsWith('/_next/') || path.startsWith('/favicon')) {
     return NextResponse.next();
   }
@@ -145,7 +200,6 @@ export function middleware(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason, country, botSignal: botSignal.slice(0, 80) }),
-      // @ts-expect-error keepalive is Fetch API, TS lib types lag
       keepalive: true,
     }).catch(() => {});
   };
@@ -274,6 +328,10 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/api/admin/:path*',
+    '/api/debug/llm-version',
+    '/api/qa/generate',
+    '/api/cron/:path*',
     /*
      * Match all request paths EXCEPT:
      * - _next/static (Next.js build assets)

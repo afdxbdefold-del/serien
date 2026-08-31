@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/prisma';
 import { SignJWT } from 'jose';
 
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
       // Create new user from Google OAuth
       user = await prisma.users.create({
         data: {
+          id: randomUUID(),
           email,
           name: name || email.split('@')[0],
           image: picture,

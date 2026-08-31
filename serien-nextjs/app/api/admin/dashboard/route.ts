@@ -1,34 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-);
+import { verifyAdminRequest } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify admin token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!(await verifyAdminRequest(request))) {
       return NextResponse.json(
         { detail: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
-      if (payload.role !== 'admin') {
-        return NextResponse.json(
-          { detail: 'Forbidden' },
-          { status: 403 }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { detail: 'Invalid token' },
         { status: 401 }
       );
     }

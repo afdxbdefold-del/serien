@@ -1,7 +1,7 @@
 /**
  * Internal: Revalidate arbitrary page paths on demand.
  *
- * Server-to-server only (Authorization: Bearer $JWT_SECRET).
+ * Server-to-server only (Authorization: Bearer $REVALIDATE_SECRET).
  * Used e.g. to purge the ISR cache for /top-10 after the FlixPatrol cron
  * re-ingests rankings, or when an admin action should take effect immediately.
  *
@@ -10,20 +10,13 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { requireInternalAuth } from '@/lib/internal-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 });
-  }
-
-  const auth = req.headers.get('authorization') || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (token !== secret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authFailure = requireInternalAuth(req);
+  if (authFailure) return authFailure;
 
   let body: { paths?: string[] } = {};
   try {
@@ -42,8 +35,11 @@ export async function POST(req: NextRequest) {
     try {
       revalidatePath(p, 'page');
       revalidated.push(p);
-    } catch (e: any) {
-      errors.push({ path: p, error: e?.message || 'unknown' });
+    } catch (error: unknown) {
+      errors.push({
+        path: p,
+        error: error instanceof Error ? error.message : 'unknown',
+      });
     }
   }
 

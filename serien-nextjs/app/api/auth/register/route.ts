@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.users.create({
       data: {
+        id: randomUUID(),
         name,
         email,
         password: hashedPassword,

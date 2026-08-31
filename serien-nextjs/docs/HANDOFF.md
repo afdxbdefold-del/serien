@@ -10,6 +10,7 @@ Ordner (`serien-nextjs/docs/`):
 
 | Datei | Inhalt |
 |---|---|
+| **`TAKEOVER_STATUS.md`** | Verifizierter Übernahmestand, No-Go-Kriterien und benötigte Zugänge |
 | **`API_REFERENCE.md`** | Alle ~90 API-Routen mit Methode, Zweck, Auth-Anforderung |
 | **`DATA_MODEL.md`** | Alle 43 Prisma-Modelle mit Zweck, Relationen, wichtigen Feldern |
 | **`PIPELINE_AND_LLM.md`** | Kompletter News-Pipeline-Ablauf, LLM-Konfiguration, GPT-5-Fallen |
@@ -135,7 +136,10 @@ Die zentralen Tabellen:
 - **`streamer_rankings`** — Top-10-Chart-Snapshots pro Anbieter/Tag
 - **`hallucination_log`**, **`sitemap_prewarm_log`**, **`facebook_post_log`** — Pipeline-Audit-Logs
 
-Migrationen laufen über Prisma (`npx prisma db push` bzw. `migrate deploy`).
+Schemaänderungen laufen über Prisma. Die vorhandene Migrationshistorie ist
+jedoch keine vollständige Baseline für eine leere Datenbank. Vor `db push` oder
+`migrate deploy` deshalb zwingend `TAKEOVER_STATUS.md` lesen, Datenbank sichern
+und den tatsächlichen Neon-Stand vergleichen.
 
 ## 5. Environment Variables (vollständige Liste — Werte NICHT hier)
 
@@ -150,26 +154,22 @@ Diese Tabelle listet ausschließlich Namen und Zweck.
 | `EMERGENT_LLM_KEY` | Nur Fallback, falls `OPENAI_API_KEY` fehlt (Emergent-Proxy, `claude-sonnet-4-6`) — funktioniert nur innerhalb der Emergent-Plattform | Nein |
 | `TMDB_API_KEY` | The Movie Database — Serien-/Episoden-Metadaten | Ja |
 | `JWT_SECRET` | Signatur-Secret für Admin-/User-Login-Tokens (`lib/auth.ts`) | Ja |
+| `REVALIDATE_SECRET` | Separates Server-zu-Server-Secret für `/api/internal/revalidate*` | Für Cache-Invalidierung |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`, `R2_PUBLIC_URL`, `NEXT_PUBLIC_R2_URL` | Cloudflare R2 Objektspeicher (Bilder/Trailer) | Nein zum Starten, Feature bricht sonst |
 | `BLOB_READ_WRITE_TOKEN`, `BLOB_PUBLIC_URL`, `NEXT_PUBLIC_BLOB_URL` | Vercel Blob (Legacy, läuft aus) | Nein |
 | `RAPIDAPI_KEY`, `RAPIDAPI_KEY_BACKUP` | YouTube-Trailer-Download-Fallbacks. ⚠️ Bekanntes Backlog-Problem: Backup war identisch mit Primary — muss ein echter Zweit-Key sein, sonst bringt der Fallback nichts. | Nein |
 | `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web-Push-Benachrichtigungen | Nein |
 | `PUSH_API_SECRET` | Schutz für den Push-Send-Endpoint (`/api/push/send`) | Nein |
+| `PUSH_ALLOWED_HOSTS` | Optionale, kommagetrennte zusätzliche Push-Service-Hosts; Wildcards nur als `*.example.org`. Bekannte Browser-Push-Hosts sind bereits erlaubt. | Nein |
 | `FACEBOOK_PAGE_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN_EXPIRES_AT` | Auto-Posting neuer Artikel auf Facebook (`lib/facebook-poster.ts`) | Nein |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Indexing API (schnellere Google-Indexierung neuer Artikel) | Nein |
 | `NEXT_PUBLIC_BASE_URL` | Öffentliche Basis-URL der Seite | Ja |
 | `HEADLINE_OPINION_KILLER`, `HEADLINE_REWRITE_LOOP`, `USE_PROCESSED_IMAGES` | Feature-Flags (`"true"`/`"false"`) für Pipeline-Verhalten | Nein |
-| `CRON_SECRET` | Bearer-Secret für alle `/api/cron/*`-Routen. ⚠️ **Sicherheitsrisiko**: Mehrere Cron-Routen akzeptieren zusätzlich einen hardcodierten Fallback-String (z. B. `'serien-news-import-2024'`) als OR-Bedingung im Code, falls `CRON_SECRET` nicht gesetzt ist oder als Alternative — bei Übernahme unbedingt `CRON_SECRET` setzen UND die Fallback-Strings aus dem Code entfernen/rotieren, siehe `OPERATIONS_RUNBOOK.md`. | Für Cron-Endpunkte |
+| `CRON_SECRET` | Bearer-Secret für alle `/api/cron/*`-Routen. Ausschließlich als `Authorization: Bearer …` senden; Query-Parameter werden nicht akzeptiert. Fehlende Konfiguration schlägt geschlossen fehl. | Für Cron-Endpunkte |
 
-Vollständiger Ist-Stand der `.env`-Schlüssel-Namen (keine Werte) zum Zeitpunkt
-dieser Doku: `DATABASE_URL`, `OPENAI_API_KEY`, `EMERGENT_LLM_KEY`, `TMDB_API_KEY`,
-`JWT_SECRET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`,
-`R2_ENDPOINT`, `R2_PUBLIC_URL`, `NEXT_PUBLIC_R2_URL`, `BLOB_READ_WRITE_TOKEN`,
-`BLOB_PUBLIC_URL`, `NEXT_PUBLIC_BLOB_URL`, `RAPIDAPI_KEY`, `RAPIDAPI_KEY_BACKUP`,
-`VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `PUSH_API_SECRET`,
-`FACEBOOK_PAGE_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_TOKEN_EXPIRES_AT`,
-`GOOGLE_SERVICE_ACCOUNT_JSON`, `NEXT_PUBLIC_BASE_URL`, `HEADLINE_OPINION_KILLER`,
-`HEADLINE_REWRITE_LOOP`, `USE_PROCESSED_IMAGES`.
+Die kanonische, wertfreie Variablenliste steht in `.env.example`. Beim
+Hinzufügen einer Umgebungsvariable muss diese Datei im selben Commit ergänzt
+werden; lokale `.env*`-Dateien und Exportdateien dürfen nie committed werden.
 
 ## 6. Lokales Setup — Kurzfassung
 

@@ -4,6 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { generateArticleQA } from '@/lib/qa-generator';
 
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
       result = await prisma.article_qa.update({
         where: { articleId },
         data: {
-          questions: questions,
+          questions: questions as unknown as Prisma.InputJsonValue,
           schemaEnabled: questions.every((q) => q.factual),
           updatedAt: new Date(),
         },
@@ -72,9 +74,11 @@ export async function POST(request: NextRequest) {
       // Create
       result = await prisma.article_qa.create({
         data: {
+          id: randomUUID(),
           articleId,
-          questions: questions,
+          questions: questions as unknown as Prisma.InputJsonValue,
           schemaEnabled: questions.every((q) => q.factual),
+          updatedAt: new Date(),
         },
       });
       console.log(`✅ Q&A created: ${questions.length} questions`);
@@ -108,7 +112,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const qa = await prisma.articleQA.findUnique({
+    const qa = await prisma.article_qa.findUnique({
       where: { articleId },
     });
 

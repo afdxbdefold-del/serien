@@ -14,20 +14,13 @@
  * Scheduled-Tasks / Vercel-Cron-Referenzen), tut aber nichts mehr.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const secret = request.nextUrl.searchParams.get('secret');
-  return secret === process.env.CRON_SECRET;
-}
-
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
 
   return NextResponse.json({
     ok: true,

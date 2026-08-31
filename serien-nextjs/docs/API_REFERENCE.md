@@ -7,25 +7,25 @@ bei Zweifel im Zielfile selbst nachsehen).
 
 ## Auth-Konventionen
 
-Drei unterschiedliche Auth-Mechanismen sind im Einsatz — beim Hinzufügen
-neuer Routen das passende Muster aus einer bestehenden Route derselben
-Kategorie kopieren:
+Drei Auth-Mechanismen sind im Einsatz. Neue geschützte Routen müssen die
+zentralen Helfer beziehungsweise die Middleware verwenden:
 
 1. **User-JWT-Cookie** (`lib/auth.ts`, `getCurrentUser`/`requireAuth`):
    liest `auth-token`-Cookie, verifiziert mit `jose.jwtVerify` gegen
    `JWT_SECRET`, lädt User aus `users`-Tabelle. Genutzt von
    User-facing-Routen (`/api/user/*`, `/api/follow`, `/api/articles/*/comments`).
-2. **Admin-JWT** — gleiches JWT, zusätzlicher Payload-Feld-Check
-   `payload.role === 'admin'`. Genutzt von allen `/api/admin/*`-Routen.
+2. **Admin-JWT** — gleiches JWT, signaturgeprüft mit `HS256`; erforderlich
+   sind `userId` und `role === 'admin'`. Die Middleware schützt zentral alle
+   `/api/admin/*`-Routen außer dem Login. `lib/admin-auth.ts` bietet zusätzlich
+   eine Prüfung auf Routenebene.
 3. **Cron-Bearer-Secret** (`CRON_SECRET`) — `Authorization: Bearer
-   <CRON_SECRET>` Header ODER Query-Param `?secret=`. ⚠️ Mehrere
-   `/api/cron/*`-Routen akzeptieren zusätzlich einen hardcodierten
-   Fallback-String im Code als OR-Alternative zu `CRON_SECRET` (z. B.
-   `'serien-news-import-2024'`, `'serien-releases-update-2024'`,
-   `'serien-trends-process-2024'`, `'serien-youtube-pipeline-2024'`) —
-   das ist ein Sicherheitsrisiko bei Code-Offenlegung (z. B. Open-Source/
-   GitHub) und sollte bei Übernahme durch echtes Secret-Only-Verhalten
-   ersetzt werden. Siehe `OPERATIONS_RUNBOOK.md`.
+   <CRON_SECRET>`; Query-Parameter und fest codierte Ersatzschlüssel werden
+   nicht akzeptiert. Die Prüfung erfolgt über `lib/cron-auth.ts` und zusätzlich
+   zentral in der Middleware. Ohne Secret antworten Cron-Routen mit 503.
+
+Interne Cache-Invalidierung verwendet davon getrennt `REVALIDATE_SECRET` als
+Bearer-Header. `JWT_SECRET` ist ausschließlich ein Signaturschlüssel und darf
+nicht direkt als API-Token übertragen werden.
 
 Alle Cron-Endpunkte laufen sonst ohne Session/Cookie (werden von externen
 Schedulern wie Vercel Cron / Coolify Scheduled Tasks / Crontab aufgerufen).
@@ -40,7 +40,7 @@ Schedulern wie Vercel Cron / Coolify Scheduled Tasks / Crontab aufgerufen).
 | `admin/auth/login` | POST | Admin-Login (separat vom User-Login, aber gleiches JWT-Schema mit `role=admin`) |
 | `admin/blocklist` | GET, POST, PATCH, DELETE | CRUD für `blocklist_entries` |
 | `admin/branding` | GET, POST, DELETE | Branding-Assets/Einstellungen |
-| `admin/cleanup-videos` | GET | Trailer-/Video-Cleanup-Trigger |
+| `admin/cleanup-videos` | POST | Löscht nach expliziter Bestätigung nur unverarbeitete YouTube-Queue-Einträge |
 | `admin/crawler-stats` | GET | Bot-/Crawler-Statistik-Dashboard-Daten |
 | `admin/dashboard` | GET | Haupt-Admin-Dashboard-Aggregation |
 | `admin/debug-links` | GET | Interne-Link-Diagnose |

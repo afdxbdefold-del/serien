@@ -14,22 +14,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { ingestAllTmdbPlatforms } from '@/lib/tmdb-top10-ingest';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
-  return secret === process.env.CRON_SECRET;
-}
-
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  }
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
 
   const start = Date.now();
   try {

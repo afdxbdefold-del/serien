@@ -355,7 +355,7 @@ export async function indexNewArticle(slug: string, articleId?: string | null): 
 
 /**
  * Triggers revalidation of /news-sitemap.xml via an internal server-to-server
- * call to /api/internal/revalidate-sitemap. Authenticated with JWT_SECRET.
+ * call to /api/internal/revalidate-sitemap. Authenticated with REVALIDATE_SECRET.
  * Persists the outcome to sitemap_prewarm_log for the admin "Sitemap Health"
  * widget. Safe to call from anywhere, including standalone Node.js scripts.
  */
@@ -363,7 +363,7 @@ export async function prewarmNewsSitemap(
   articleSlug: string | null = null,
 ): Promise<{ success: boolean; error?: string }> {
   const baseUrl = process.env.GOOGLE_INDEXING_BASE_URL || 'https://serien.de';
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.REVALIDATE_SECRET;
   const start = Date.now();
 
   const persist = async (
@@ -388,9 +388,9 @@ export async function prewarmNewsSitemap(
   };
 
   if (!secret) {
-    console.log('   Sitemap-Prewarm: JWT_SECRET fehlt - übersprungen');
-    await persist(false, null, 'JWT_SECRET missing');
-    return { success: false, error: 'JWT_SECRET missing' };
+    console.log('   Sitemap-Prewarm: REVALIDATE_SECRET fehlt - übersprungen');
+    await persist(false, null, 'REVALIDATE_SECRET missing');
+    return { success: false, error: 'REVALIDATE_SECRET missing' };
   }
 
   try {

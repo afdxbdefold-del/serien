@@ -10,7 +10,7 @@ if (!TMDB_API_KEY) {
   console.warn('⚠️  TMDB_API_KEY not set - TMDB features disabled');
 }
 
-interface TMDBTvResult {
+export interface TMDBTvResult {
   id: number;
   name: string;
   original_name: string;
@@ -20,6 +20,31 @@ interface TMDBTvResult {
   backdrop_path: string | null;
   popularity: number;
   vote_average: number;
+}
+
+/**
+ * Search TMDB and return the candidate list. This stays server-side so the
+ * TMDB credential is never shipped to the browser.
+ */
+export async function searchTvResults(
+  query: string,
+  language: string = 'de-DE'
+): Promise<TMDBTvResult[]> {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY not configured');
+  }
+
+  const response = await fetch(
+    `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${language}`,
+    { next: { revalidate: 86400 } }
+  );
+
+  if (!response.ok) {
+    throw new Error(`TMDB API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data.results) ? data.results : [];
 }
 
 interface TMDBTvDetails extends TMDBTvResult {
@@ -129,23 +154,14 @@ export async function searchTv(
   }
 
   try {
-    const response = await fetch(
-      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=${language}`,
-      { next: { revalidate: 86400 } } // Cache 24h
-    );
+    const results = await searchTvResults(query, language);
 
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.results || data.results.length === 0) {
+    if (results.length === 0) {
       return null;
     }
 
     // Calculate confidence for all results
-    const resultsWithConfidence = data.results.map((result: TMDBTvResult) => ({
+    const resultsWithConfidence = results.map((result: TMDBTvResult) => ({
       ...result,
       confidence: calculateConfidence(query, result),
     }));
@@ -327,4 +343,3 @@ export async function getTvDetailsComplete(tmdbId: number, language: string = 'd
     return null;
   }
 }
-

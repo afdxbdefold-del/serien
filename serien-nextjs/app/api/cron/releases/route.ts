@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export const maxDuration = 300; // 5 minutes max
 export const dynamic = 'force-dynamic';
@@ -133,20 +134,9 @@ async function getSeriesDetail(tmdbId: number): Promise<TmdbSeriesDetail | null>
   return tmdbFetch<TmdbSeriesDetail>(`/tv/${tmdbId}`);
 }
 
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const secret = request.nextUrl.searchParams.get('secret');
-  if (secret && (secret === process.env.CRON_SECRET || secret === 'serien-releases-update-2024')) {
-    return true;
-  }
-  return false;
-}
-
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
   if (!TMDB_API_KEY) {
     return NextResponse.json({ error: 'TMDB_API_KEY missing' }, { status: 500 });
   }
@@ -189,6 +179,21 @@ export async function GET(request: NextRequest) {
     const detail = await getSeriesDetail(id);
     if (detail) allDetail.set(id, detail);
     await new Promise((r) => setTimeout(r, TMDB_REQUEST_DELAY_MS));
+  }
+
+  const detailSuccessRate = uniqueIds.size === 0 ? 0 : allDetail.size / uniqueIds.size;
+  if (uniqueIds.size === 0 || detailSuccessRate < 0.5) {
+    console.error(
+      `[CRON] aborting release refresh: TMDB detail coverage ${allDetail.size}/${uniqueIds.size}`,
+    );
+    return NextResponse.json(
+      {
+        error: 'TMDB returned insufficient release data; existing rows were preserved',
+        candidates: uniqueIds.size,
+        details: allDetail.size,
+      },
+      { status: 502 },
+    );
   }
 
   // Step 3: build release rows with REAL air dates within window.
@@ -258,43 +263,68 @@ export async function GET(request: NextRequest) {
 
   console.log(`[CRON] computed ${rows.length} release rows`);
 
-  // Step 4: wipe old window data and bulk-upsert. We replace rows in [startWindow, today] entirely
-  // so stale rows (from the old broken ingest, or removed series) disappear.
-  const olderCutoff = new Date(startWindow);
-  await prisma.streaming_releases.deleteMany({ where: { date: { gte: olderCutoff } } });
-
-  if (rows.length > 0) {
-    const records = rows.map((r) => ({
-      id: `${r.tmdbId}-${r.provider}-${isoDay(r.date)}`,
-      tmdbId: r.tmdbId,
-      provider: r.provider,
-      date: r.date,
-      name: r.name,
-      overview: r.overview,
-      posterPath: r.posterPath,
-      backdropPath: r.backdropPath,
-      firstAirDate: r.firstAirDate,
-      voteAverage: r.voteAverage,
-      releaseType: r.releaseType,
-      seasonNumber: r.seasonNumber,
-      episodeNumber: r.episodeNumber,
-      episodeName: r.episodeName,
-      fetchedAt: new Date(),
-    }));
-    // Chunked insert to keep statements small
-    const chunkSize = 200;
-    for (let i = 0; i < records.length; i += chunkSize) {
-      await prisma.streaming_releases.createMany({
-        data: records.slice(i, i + chunkSize),
-        skipDuplicates: true,
-      });
-    }
+  if (rows.length === 0) {
+    console.error('[CRON] aborting release refresh: no valid rows computed');
+    return NextResponse.json(
+      { error: 'No valid release rows computed; existing rows were preserved' },
+      { status: 502 },
+    );
   }
+
+  const olderCutoff = new Date(startWindow);
+  const existingWindowRows = await prisma.streaming_releases.count({
+    where: { date: { gte: olderCutoff } },
+  });
+  if (existingWindowRows >= 20 && rows.length < existingWindowRows * 0.25) {
+    console.error(
+      `[CRON] aborting release refresh: suspicious row drop ${existingWindowRows} -> ${rows.length}`,
+    );
+    return NextResponse.json(
+      {
+        error: 'Suspicious release row drop; existing rows were preserved',
+        existingRows: existingWindowRows,
+        candidateRows: rows.length,
+      },
+      { status: 502 },
+    );
+  }
+
+  // Step 4: atomically replace the window. A partial TMDB response or failed
+  // insert must never leave the public release calendar empty.
+  const records = rows.map((r) => ({
+    id: `${r.tmdbId}-${r.provider}-${isoDay(r.date)}`,
+    tmdbId: r.tmdbId,
+    provider: r.provider,
+    date: r.date,
+    name: r.name,
+    overview: r.overview,
+    posterPath: r.posterPath,
+    backdropPath: r.backdropPath,
+    firstAirDate: r.firstAirDate,
+    voteAverage: r.voteAverage,
+    releaseType: r.releaseType,
+    seasonNumber: r.seasonNumber,
+    episodeNumber: r.episodeNumber,
+    episodeName: r.episodeName,
+    fetchedAt: new Date(),
+  }));
 
   // Also drop entries way older than the window (housekeeping)
   const cleanupCutoff = new Date(today);
   cleanupCutoff.setUTCDate(cleanupCutoff.getUTCDate() - WINDOW_DAYS - 14);
-  await prisma.streaming_releases.deleteMany({ where: { date: { lt: cleanupCutoff } } });
+
+  const chunkSize = 200;
+  const writes = [
+    prisma.streaming_releases.deleteMany({ where: { date: { gte: olderCutoff } } }),
+    ...Array.from({ length: Math.ceil(records.length / chunkSize) }, (_, index) =>
+      prisma.streaming_releases.createMany({
+        data: records.slice(index * chunkSize, (index + 1) * chunkSize),
+        skipDuplicates: true,
+      }),
+    ),
+    prisma.streaming_releases.deleteMany({ where: { date: { lt: cleanupCutoff } } }),
+  ];
+  await prisma.$transaction(writes);
 
   // Bust ISR caches for the page (today / week / month variants share the same data tag)
   try {

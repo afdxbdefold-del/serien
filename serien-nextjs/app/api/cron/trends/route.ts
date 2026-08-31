@@ -1,33 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export const maxDuration = 300; // 5 minutes max
 export const dynamic = 'force-dynamic';
 
 const prisma = new PrismaClient();
 
-function isAuthorized(request: NextRequest): boolean {
-  // Method 1: Vercel Cron sends Authorization header
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
-    return true;
-  }
-  
-  // Method 2: URL parameter fallback for manual testing
-  const secret = request.nextUrl.searchParams.get('secret');
-  if (secret === process.env.CRON_SECRET || secret === 'serien-trends-process-2024') {
-    return true;
-  }
-  
-  return false;
-}
-
 export async function GET(request: NextRequest) {
-  // Verify authorization
-  if (!isAuthorized(request)) {
-    console.log('[CRON] Unauthorized request to /api/cron/trends');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
 
   // Check if this is a manual trigger (bypasses age filter)
   const trigger = request.nextUrl.searchParams.get('trigger') === 'manual' ? 'manual' : 'cron';

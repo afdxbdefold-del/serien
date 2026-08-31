@@ -104,18 +104,18 @@ tail -f /var/log/supervisor/<program-name>.log
 Bei mehreren `environment=`-Zeilen im selben `[program:x]`-Block: IMMER zu
 einer Zeile zusammenführen, kommagetrennt (`PATH="...",NODE_ENV="..."`).
 
-## Sicherheitshinweis: Cron-Endpunkt-Fallback-Secrets
+## Sicherheit: Cron-Endpunkte
 
-Mehrere `/api/cron/*`-Routen akzeptieren neben `CRON_SECRET` zusätzlich
-einen im Code hardcodierten Fallback-String als gültige Alternative (z. B.
-`serien-news-import-2024`, `serien-releases-update-2024`,
-`serien-trends-process-2024`, `serien-youtube-pipeline-2024` — exakte
-Fundstellen: `grep -rn "process.env.CRON_SECRET" app/api/cron/`). Das ist
-unkritisch, solange der Quellcode privat bleibt, aber ein reales Risiko bei
-Open-Sourcing oder falls das Repo je öffentlich einsehbar wird (z. B. Leak,
-falsch konfiguriertes GitHub-Repo). **Empfehlung bei Übernahme**: diese
-Fallback-Strings aus dem Code entfernen und ausschließlich `CRON_SECRET`
-aus der Umgebung prüfen.
+Alle `/api/cron/*`-Routen verlangen ausschließlich
+`Authorization: Bearer <CRON_SECRET>`. Das Secret darf weder als Query-Parameter
+noch in Logs oder Scheduler-URLs stehen. Ist `CRON_SECRET` nicht gesetzt,
+antwortet der Endpoint absichtlich mit 503. Nach einer Rotation müssen alle
+Coolify-/Supervisor-/externen Scheduler gemeinsam aktualisiert und einmal
+manuell mit dem Header getestet werden.
+
+Der öffentliche Push-Subscribe-Endpunkt besitzt zusätzlich eine lokale
+Missbrauchsbremse. Diese ist pro Prozess und ersetzt keine persistente
+Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
 
 ## Backlog (Stand Erstellung dieser Doku)
 
@@ -133,7 +133,6 @@ aus der Umgebung prüfen.
   unterscheidbare Autoren-Profile ist offen.
 - **`trailer.de`-Headline-Grammatik**: bekannter Dativ-Fehler in der
   automatischen Titelbau-Logik für diese eine Domain-Variante.
-- **Cron-Fallback-Secrets** entfernen (siehe oben).
 - **Hetzner/Coolify-Migrationsstatus**: siehe `MIGRATION_GUIDE.md` — Status
   zum Zeitpunkt dieser Doku unbedingt live nachprüfen, nicht aus alten
   Notizen übernehmen.

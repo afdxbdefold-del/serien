@@ -45,11 +45,11 @@ const HOURS = HOURS_ARG ? parseInt(HOURS_ARG.split('=')[1], 10) : 48;
 
   // Best-effort: revalidate the news sitemap so Googlebot sees the new ETag.
   try {
-    const jwt = process.env.JWT_SECRET;
-    if (jwt) {
+    const revalidateSecret = process.env.REVALIDATE_SECRET;
+    if (revalidateSecret) {
       await fetch('http://localhost:3000/api/internal/revalidate-sitemap', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${jwt}` },
+        headers: { Authorization: `Bearer ${revalidateSecret}` },
       });
       console.log('✅ News-Sitemap revalidate triggered');
     }

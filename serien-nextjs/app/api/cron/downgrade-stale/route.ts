@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireCronAuth } from '@/lib/cron-auth';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
@@ -13,14 +14,8 @@ export const maxDuration = 60;
  * the Discover quota uncluttered.
  */
 export async function GET(request: Request) {
-  // Optional auth (Vercel cron + manual triggers via JWT)
-  const auth = request.headers.get('authorization');
-  if (process.env.JWT_SECRET && auth !== `Bearer ${process.env.JWT_SECRET}` && !request.headers.get('x-vercel-cron')) {
-    // Allow Vercel cron header to bypass; otherwise require JWT
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
-  }
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
 
   const cutoff = new Date(Date.now() - 48 * 3600 * 1000);
   const res = await prisma.articles.updateMany({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { randomUUID } from 'node:crypto';
+import { verifyAdminRequest } from '@/lib/admin-auth';
+import prisma from '@/lib/prisma';
 
 // Cron schedules (UTC times) - alle 6 Stunden
 const CRON_SCHEDULES = {
@@ -37,23 +37,9 @@ function getNextCronRun(intervalMinutes: number): Date {
   return nextRun;
 }
 
-// Verify admin token
-async function verifyAdmin(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-  
-  const token = authHeader.substring(7);
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    return payload.role === 'admin';
-  } catch {
-    return false;
-  }
-}
-
 // GET: Pipeline dashboard data
 export async function GET(request: NextRequest) {
-  if (!await verifyAdmin(request)) {
+  if (!await verifyAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -439,7 +425,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Run pipeline actions
 export async function POST(request: NextRequest) {
-  if (!await verifyAdmin(request)) {
+  if (!await verifyAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -680,10 +666,12 @@ export async function POST(request: NextRequest) {
       // Create channel
       const newChannel = await prisma.youtube_channels.create({
         data: {
+          id: randomUUID(),
           channelId: extractedChannelId,
           name: extractedName,
           url: channelUrl,
           isActive: true,
+          updatedAt: new Date(),
         }
       });
       
@@ -766,7 +754,16 @@ export async function POST(request: NextRequest) {
       if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
       return 'http://localhost:3000';
     };
-    const cronSecret = process.env.CRON_SECRET || 'serien-cron-secret-2024';
+    const cronSecret = process.env.CRON_SECRET;
+    if (action.startsWith('trigger-cron-') && !cronSecret) {
+      return NextResponse.json(
+        { success: false, error: 'CRON_SECRET is not configured' },
+        { status: 503 }
+      );
+    }
+    const cronHeaders = cronSecret
+      ? { Authorization: `Bearer ${cronSecret}` }
+      : undefined;
     
     // Trigger P3-Trends Cron
     if (action === 'trigger-cron-trends') {
@@ -774,7 +771,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = getBaseUrl();
         
         // Fire and forget - don't await
-        fetch(`${baseUrl}/api/cron/trends?secret=${cronSecret}&trigger=manual`)
+        fetch(`${baseUrl}/api/cron/trends?trigger=manual`, { headers: cronHeaders })
           .then(res => res.json())
           .then(data => console.log('[Manual Trigger] P3-Trends result:', data))
           .catch(err => console.error('[Manual Trigger] P3-Trends error:', err));
@@ -797,7 +794,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = getBaseUrl();
         
         // Fire and forget - don't await
-        fetch(`${baseUrl}/api/cron/youtube?secret=${cronSecret}&trigger=manual`)
+        fetch(`${baseUrl}/api/cron/youtube?trigger=manual`, { headers: cronHeaders })
           .then(res => res.json())
           .then(data => console.log('[Manual Trigger] P4-YouTube result:', data))
           .catch(err => console.error('[Manual Trigger] P4-YouTube error:', err));
@@ -819,7 +816,10 @@ export async function POST(request: NextRequest) {
       try {
         const baseUrl = getBaseUrl();
         
-        fetch(`${baseUrl}/api/cron/news?secret=${cronSecret}`)
+        fetch(`${baseUrl}/api/cron/news`, {
+          method: 'POST',
+          headers: cronHeaders,
+        })
           .then(res => res.json())
           .then(data => console.log('[Manual Trigger] News result:', data))
           .catch(err => console.error('[Manual Trigger] News error:', err));
@@ -841,7 +841,10 @@ export async function POST(request: NextRequest) {
       try {
         const baseUrl = getBaseUrl();
         
-        fetch(`${baseUrl}/api/cron/releases?secret=${cronSecret}`)
+        fetch(`${baseUrl}/api/cron/releases`, {
+          method: 'POST',
+          headers: cronHeaders,
+        })
           .then(res => res.json())
           .then(data => console.log('[Manual Trigger] Releases result:', data))
           .catch(err => console.error('[Manual Trigger] Releases error:', err));

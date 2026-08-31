@@ -3,8 +3,15 @@
  * For actor pages and auto-linking
  */
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY || 'c0e0553140b7bd5f982df64c86319c1b';
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+
+function requireTmdbApiKey(): string {
+  if (!TMDB_API_KEY) {
+    throw new Error('TMDB_API_KEY is not configured');
+  }
+  return TMDB_API_KEY;
+}
 
 export interface TMDBPersonSearchResult {
   id: number;
@@ -53,8 +60,9 @@ export interface TMDBPersonDetails {
  */
 export async function searchTMDBPerson(name: string): Promise<TMDBPersonSearchResult | null> {
   try {
+    const apiKey = requireTmdbApiKey();
     const response = await fetch(
-      `${TMDB_BASE_URL}/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(name)}&language=de-DE`
+      `${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(name)}&language=de-DE`
     );
 
     if (!response.ok) {
@@ -84,7 +92,8 @@ export async function searchTMDBPerson(name: string): Promise<TMDBPersonSearchRe
  */
 export async function getTMDBPersonDetails(tmdbId: number, includeCredits: boolean = false): Promise<TMDBPersonDetails | null> {
   try {
-    let url = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=de-DE`;
+    const apiKey = requireTmdbApiKey();
+    let url = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${apiKey}&language=de-DE`;
     
     if (includeCredits) {
       url += '&append_to_response=combined_credits';
@@ -101,7 +110,7 @@ export async function getTMDBPersonDetails(tmdbId: number, includeCredits: boole
     // If no German biography, fallback to English
     if ((!data.biography || data.biography.trim() === '') && includeCredits) {
       console.log(`  ℹ️  No German biography for ${data.name}, trying English...`);
-      const enUrl = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+      const enUrl = `${TMDB_BASE_URL}/person/${tmdbId}?api_key=${apiKey}&language=en-US`;
       const enResponse = await fetch(enUrl);
       
       if (enResponse.ok) {
@@ -122,8 +131,9 @@ export async function getTMDBPersonDetails(tmdbId: number, includeCredits: boole
  */
 export async function getPersonKnownFor(tmdbId: number): Promise<any[]> {
   try {
+    const apiKey = requireTmdbApiKey();
     const response = await fetch(
-      `${TMDB_BASE_URL}/person/${tmdbId}/combined_credits?api_key=${TMDB_API_KEY}&language=de-DE`
+      `${TMDB_BASE_URL}/person/${tmdbId}/combined_credits?api_key=${apiKey}&language=de-DE`
     );
 
     if (!response.ok) {

@@ -1,148 +1,211 @@
 /**
- * Trailer Video Proxy API
- * 
- * Serves videos from Emergent Object Storage with streaming support
- * Path: /api/trailer/{storagePath}
+ * Legacy trailer proxy for objects that have not yet been migrated to R2.
+ * New trailer records contain a public R2 URL and do not use this route.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage";
+const STORAGE_URL = 'https://integrations.emergentagent.com/objstore/api/v1/storage';
+const MAX_TRAILER_BYTES = 64 * 1024 * 1024;
+const RANGE_CHUNK_BYTES = 1024 * 1024;
+
 let storageKey: string | null = null;
-let storageKeyExpiry: number = 0;
+let storageKeyExpiry = 0;
 
 async function initStorage(): Promise<string> {
   const now = Date.now();
-  if (storageKey && storageKeyExpiry > now) {
-    return storageKey;
-  }
+  if (storageKey && storageKeyExpiry > now) return storageKey;
 
   const emergentKey = process.env.EMERGENT_LLM_KEY;
-  if (!emergentKey) {
-    throw new Error('EMERGENT_LLM_KEY not configured');
-  }
+  if (!emergentKey) throw new Error('Legacy trailer storage is not configured');
 
   const response = await fetch(`${STORAGE_URL}/init`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ emergent_key: emergentKey }),
   });
+  if (!response.ok) throw new Error(`Storage initialization failed (${response.status})`);
 
-  if (!response.ok) {
-    throw new Error(`Storage init failed: ${response.status}`);
+  const data = (await response.json()) as { storage_key?: unknown };
+  if (typeof data.storage_key !== 'string' || !data.storage_key) {
+    throw new Error('Storage initialization returned no key');
   }
 
-  const data = await response.json();
   storageKey = data.storage_key;
-  storageKeyExpiry = now + (50 * 60 * 1000);
-  
-  return storageKey!;
+  storageKeyExpiry = now + 50 * 60 * 1000;
+  return storageKey;
 }
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
-) {
-  try {
-    const params = await context.params;
-    const storagePath = params.path.join('/');
-    
-    if (!storagePath) {
-      return NextResponse.json({ error: 'Path required' }, { status: 400 });
-    }
-
-    const key = await initStorage();
-    
-    // Fetch the video from storage
-    const storageResponse = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
-      method: 'GET',
-      headers: { 'X-Storage-Key': key },
-    });
-
-    if (!storageResponse.ok) {
-      // Try refreshing key once
-      storageKey = null;
-      const newKey = await initStorage();
-      
-      const retryResponse = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
-        method: 'GET',
-        headers: { 'X-Storage-Key': newKey },
-      });
-      
-      if (!retryResponse.ok) {
-        return NextResponse.json({ error: 'Video not found' }, { status: 404 });
-      }
-      
-      return streamVideo(request, retryResponse);
-    }
-
-    return streamVideo(request, storageResponse);
-
-  } catch (error: any) {
-    console.error('Trailer proxy error:', error.message);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+function resolveStoragePath(parts: string[]): string | null {
+  if (parts.length === 0 || parts.length > 12) return null;
+  if (parts.some((part) => !part || part === '.' || part === '..' || !/^[a-zA-Z0-9._-]+$/.test(part))) {
+    return null;
   }
+
+  const path = parts.join('/');
+  const allowedPrefix = path.startsWith('trailers/') || path.startsWith('serien-nextjs/trailers/');
+  if (!allowedPrefix || !path.toLowerCase().endsWith('.mp4') || path.length > 300) return null;
+  return path;
 }
 
-async function streamVideo(request: NextRequest, storageResponse: Response): Promise<NextResponse> {
-  // Get the video buffer (Emergent Storage doesn't support Range requests)
-  const videoBuffer = await storageResponse.arrayBuffer();
-  const totalSize = videoBuffer.byteLength;
-  
-  // Parse Range header
-  const rangeHeader = request.headers.get('range');
-  
-  // Common headers for all responses
-  const commonHeaders = {
-    'Content-Type': 'video/mp4',
-    'Accept-Ranges': 'bytes',
-    'Cache-Control': 'public, max-age=86400',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-  };
-  
-  if (rangeHeader) {
-    // Parse range (e.g., "bytes=0-1023" or "bytes=0-")
-    const ranges = rangeHeader.replace(/bytes=/, '').split('-');
-    const start = parseInt(ranges[0], 10);
-    // If end is empty, serve a reasonable chunk (1MB) or rest of file
-    const requestedEnd = ranges[1] ? parseInt(ranges[1], 10) : null;
-    const end = requestedEnd !== null ? Math.min(requestedEnd, totalSize - 1) : Math.min(start + 1024 * 1024, totalSize - 1);
-    
-    // Validate range
-    if (start >= totalSize || start > end) {
-      return new NextResponse('Range Not Satisfiable', {
-        status: 416,
-        headers: { 'Content-Range': `bytes */${totalSize}` },
-      });
-    }
-    
-    const chunk = videoBuffer.slice(start, end + 1);
-    
-    return new NextResponse(chunk, {
-      status: 206,
-      headers: {
-        ...commonHeaders,
-        'Content-Length': chunk.byteLength.toString(),
-        'Content-Range': `bytes ${start}-${end}/${totalSize}`,
-      },
-    });
+function normalizeRange(value: string | null): string | null {
+  if (!value) return null;
+  const match = /^bytes=(\d+)-(\d*)$/.exec(value.trim());
+  if (!match) return null;
+
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : start + RANGE_CHUNK_BYTES - 1;
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(requestedEnd) || requestedEnd < start) {
+    return null;
   }
-  
-  // Return full video
-  return new NextResponse(videoBuffer, {
-    status: 200,
+
+  const end = Math.min(requestedEnd, start + RANGE_CHUNK_BYTES - 1);
+  return `bytes=${start}-${end}`;
+}
+
+async function fetchObject(
+  storagePath: string,
+  options: { method?: 'GET' | 'HEAD'; range?: string | null } = {},
+): Promise<Response> {
+  const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
+  const execute = async (key: string) => fetch(`${STORAGE_URL}/objects/${encodedPath}`, {
+    method: options.method ?? 'GET',
     headers: {
-      ...commonHeaders,
-      'Content-Length': totalSize.toString(),
+      'X-Storage-Key': key,
+      ...(options.range ? { Range: options.range } : {}),
+    },
+  });
+
+  let response = await execute(await initStorage());
+  if (response.status === 401 || response.status === 403) {
+    await response.body?.cancel();
+    storageKey = null;
+    response = await execute(await initStorage());
+  }
+  return response;
+}
+
+function parseContentLength(response: Response): number | null {
+  const value = Number(response.headers.get('content-length'));
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function limitedBody(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = body.getReader();
+  let bytesRead = 0;
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_TRAILER_BYTES) {
+        await reader.cancel('Trailer exceeds proxy size limit');
+        controller.error(new Error('Trailer exceeds proxy size limit'));
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
     },
   });
 }
 
-// Handle OPTIONS for CORS preflight
+function responseHeaders(upstream: Response): Headers {
+  const contentType = upstream.headers.get('content-type');
+  const headers = new Headers({
+    'Content-Type': contentType?.startsWith('video/') ? contentType : 'video/mp4',
+    'Cache-Control': 'public, max-age=86400',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+    'X-Content-Type-Options': 'nosniff',
+  });
+
+  for (const name of ['content-length', 'content-range', 'accept-ranges']) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  return headers;
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> },
+) {
+  try {
+    const storagePath = resolveStoragePath((await context.params).path);
+    if (!storagePath) {
+      return NextResponse.json({ error: 'Invalid trailer path' }, { status: 400 });
+    }
+
+    const requestedRange = request.headers.get('range');
+    const range = normalizeRange(requestedRange);
+    if (requestedRange && !range) {
+      return new NextResponse('Range Not Satisfiable', { status: 416 });
+    }
+
+    const upstream = await fetchObject(storagePath, { range });
+    if (!upstream.ok || !upstream.body) {
+      await upstream.body?.cancel();
+      return NextResponse.json({ error: 'Video not found' }, { status: 404 });
+    }
+
+    const contentLength = parseContentLength(upstream);
+    if (contentLength !== null && contentLength > MAX_TRAILER_BYTES) {
+      await upstream.body.cancel();
+      return NextResponse.json({ error: 'Video exceeds proxy size limit' }, { status: 413 });
+    }
+
+    // Pass through a real upstream 206 response. If legacy storage ignores
+    // Range and returns 200, stream the object instead of buffering it in RAM.
+    const status = upstream.status === 206 ? 206 : 200;
+    return new NextResponse(limitedBody(upstream.body), {
+      status,
+      headers: responseHeaders(upstream),
+    });
+  } catch (error: unknown) {
+    console.error('Trailer proxy error:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Trailer proxy unavailable' }, { status: 502 });
+  }
+}
+
+export async function HEAD(
+  _request: NextRequest,
+  context: { params: Promise<{ path: string[] }> },
+) {
+  try {
+    const storagePath = resolveStoragePath((await context.params).path);
+    if (!storagePath) return new NextResponse(null, { status: 400 });
+
+    // Prefer HEAD. Some legacy objects only support GET; in that case read
+    // headers and cancel the body immediately rather than buffering the file.
+    let upstream = await fetchObject(storagePath, { method: 'HEAD' });
+    if (upstream.status === 405) {
+      await upstream.body?.cancel();
+      upstream = await fetchObject(storagePath);
+    }
+    if (!upstream.ok) {
+      await upstream.body?.cancel();
+      return new NextResponse(null, { status: 404 });
+    }
+
+    const contentLength = parseContentLength(upstream);
+    await upstream.body?.cancel();
+    if (contentLength !== null && contentLength > MAX_TRAILER_BYTES) {
+      return new NextResponse(null, { status: 413 });
+    }
+    return new NextResponse(null, { status: 200, headers: responseHeaders(upstream) });
+  } catch (error: unknown) {
+    console.error('Trailer HEAD error:', error instanceof Error ? error.message : error);
+    return new NextResponse(null, { status: 502 });
+  }
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -153,49 +216,4 @@ export async function OPTIONS() {
       'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
     },
   });
-}
-
-// Handle HEAD requests for video metadata
-export async function HEAD(
-  request: NextRequest,
-  context: { params: Promise<{ path: string[] }> }
-) {
-  try {
-    const params = await context.params;
-    const storagePath = params.path.join('/');
-    
-    if (!storagePath) {
-      return new NextResponse(null, { status: 400 });
-    }
-
-    const key = await initStorage();
-    
-    // Fetch the video to get its size
-    const storageResponse = await fetch(`${STORAGE_URL}/objects/${storagePath}`, {
-      method: 'GET',
-      headers: { 'X-Storage-Key': key },
-    });
-
-    if (!storageResponse.ok) {
-      return new NextResponse(null, { status: 404 });
-    }
-
-    const videoBuffer = await storageResponse.arrayBuffer();
-    const totalSize = videoBuffer.byteLength;
-
-    return new NextResponse(null, {
-      status: 200,
-      headers: {
-        'Content-Type': 'video/mp4',
-        'Content-Length': totalSize.toString(),
-        'Accept-Ranges': 'bytes',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-      },
-    });
-
-  } catch (error: any) {
-    console.error('HEAD error:', error.message);
-    return new NextResponse(null, { status: 500 });
-  }
 }

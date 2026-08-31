@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { runFullAudit, runHttpAudit, generateAiSummary } from '@/lib/seo-auditor';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 // GET /api/cron/seo - Daily SEO audit: DB + HTTP + AI
-export async function GET() {
+export async function GET(request: Request) {
+  const authFailure = requireCronAuth(request);
+  if (authFailure) return authFailure;
+
   try {
     console.log('[SEO Cron] Starting daily DB audit...');
     const runId = await runFullAudit('cron');
