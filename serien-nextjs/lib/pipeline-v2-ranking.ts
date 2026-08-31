@@ -19,6 +19,7 @@ import { generateMetaDescription } from './meta-description-generator';
 import { storeHeroImage } from './image-storage';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailerViaAPI } from './trailer-downloader';
 import { v4 as uuidv4 } from 'uuid';
+import { smartTruncate } from './smart-truncate';
 
 const prisma = new PrismaClient();
 
