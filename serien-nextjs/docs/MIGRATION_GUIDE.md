@@ -4,21 +4,22 @@
 
 **Voraussetzungen**: Node.js 20+, Python 3.11+ (für
 `scripts/generate-character-content.py` und einige `.py`-Backfill-Skripte),
-Yarn (nicht npm — abweichende Lockfile-Auflösung kann zu Versionskonflikten
-führen), Zugriff auf ein Neon-Postgres-Projekt (oder eine beliebige
-Postgres-14+-Instanz).
+`npm` gemäß `packageManager` und `package-lock.json`, Zugriff auf eine
+PostgreSQL-14+-Instanz. Produktion verwendet
+PostgreSQL 17 als eigenen Coolify-Service auf Hetzner; Neon wird nicht
+verwendet.
 
 ```bash
 # 1. Repository klonen
 git clone <repo-url> serien-nextjs
 cd serien-nextjs
 
-# 2. Dependencies installieren
-yarn install
+# 2. Dependencies reproduzierbar installieren
+npm ci
 # postinstall-Hook führt automatisch `prisma generate` aus
 
-# 3. .env anlegen — siehe HANDOFF.md Abschnitt 5 für die vollständige
-#    Variablen-Liste (Namen + Zweck, keine Werte)
+# 3. .env anlegen — .env.example ist die vollständige wertfreie Liste;
+#    HANDOFF.md Abschnitt 5 erklärt die betriebsrelevante Auswahl
 touch .env
 # Minimum zum Starten: DATABASE_URL, OPENAI_API_KEY, TMDB_API_KEY, JWT_SECRET,
 # NEXT_PUBLIC_BASE_URL
@@ -26,17 +27,17 @@ touch .env
 # bleiben — die jeweiligen Features werfen dann kontrolliert Fehler oder
 # skippen den Schritt, statt den Build zu blockieren.
 # WICHTIG: prisma/schema.prisma referenziert zusätzlich DIRECT_URL
-# (directUrl) — für reinen Query-Betrieb nicht zwingend nötig, aber vor
-# `prisma migrate` (nicht `db push`) ergänzen, sonst schlägt der Befehl fehl.
+# (directUrl). Für Prisma-CLI-Schritte beide URLs auf dieselbe lokale oder
+# isolierte Entwicklungsdatenbank setzen. Niemals Produktionswerte verwenden.
 
-# 4. Datenbank-Schema anwenden
+# 4. Nur auf einer leeren, entbehrlichen Entwicklungsdatenbank:
 npx prisma generate
 npx prisma db push          # Dev/schneller Weg, kein Migrations-Verlauf
-# oder für einen Weg mit Migrations-Historie:
-npx prisma migrate deploy
+# Die eingecheckte Migrationshistorie ist keine vollständige Baseline.
+# `prisma migrate deploy` deshalb auch lokal erst nach Baseline-Arbeit nutzen.
 
 # 5. Dev-Server starten
-yarn dev                    # Port 3000
+npm run dev                 # Port 3000
 
 # 6. (Optional) News-Pipeline manuell testen
 npx tsx scripts/news-scheduler.ts       # Endlos-Loop, Strg+C zum Stoppen
@@ -46,8 +47,8 @@ npx tsx scripts/pipeline-v2.ts "<Artikel-URL>"
 
 **Production Build:**
 ```bash
-yarn build      # führt "prisma generate && next build" aus
-yarn start
+npm run build   # führt "prisma generate && next build" aus
+npm run start
 ```
 
 `next.config.ts` hat `output: 'standalone'` gesetzt — erzeugt
@@ -69,18 +70,18 @@ Docker-Deployment (deutlich kleineres Image als volles `node_modules`).
    sollen) — `scripts/seed-news-ad-slots.mjs`,
    `scripts/seed-above-recommended.mjs`,
    `scripts/seed-below-breadcrumb-slot.ts`.
-4. **`CRON_SECRET` setzen**, falls Cron-Endpunkte (`/api/cron/*`) statt des
-   Dauerprozess-Schedulers genutzt werden sollen — siehe
-   `OPERATIONS_RUNBOOK.md` zu den hardcodierten Fallback-Secrets, die vor
-   einem Produktions-Rollout entfernt werden sollten.
+4. **`CRON_SECRET` setzen**, wenn Cron-Endpunkte (`/api/cron/*`) genutzt
+   werden. Das ist der aktuelle Produktionspfad. Alle Coolify-Tasks müssen
+   denselben Wert ausschließlich per Bearer-Header erhalten; nie in URL oder
+   Log schreiben.
 
 ## 3. Deployment-Optionen
 
 ### Docker / Coolify / beliebiger Container-Host
 `Dockerfile` und `.dockerignore` liegen im Repo-Root (`serien-nextjs/`).
 Multi-Stage-Build mit `output: 'standalone'`. Wichtige historische
-Dockerfile-Falle: Der `deps`-Stage muss `NODE_ENV=development` UND
-`yarn install --production=false` erzwingen, sonst überspringt ein von der
+Dockerfile-Falle: Der `deps`-Stage muss `NODE_ENV=development` setzen und bei
+`npm ci` die Dev-Dependencies einschließen, sonst überspringt ein von der
 Plattform injiziertes `NODE_ENV=production` beim Install die
 `devDependencies` (u. a. `tailwindcss`, `postcss`, `autoprefixer`,
 `typescript`), was den Next.js-Build zum Absturz bringt (fehlende
@@ -141,28 +142,30 @@ Vorgehen:
 2. `EMERGENT_LLM_KEY` wird auf einer neuen, Nicht-Emergent-Plattform generell
    **nicht mehr funktionieren** (Proxy ist plattformgebunden) — sicherstellen,
    dass `OPENAI_API_KEY` gesetzt ist, sonst schlägt jeder LLM-Call fehl.
-3. `DATABASE_URL`/`DIRECT_URL` (Neon) funktionieren plattformunabhängig,
-   solange die Zielumgebung Internet-Zugriff auf Neon hat — keine Migration
-   nötig, nur die Connection-String muss in der neuen Umgebung als Secret
-   vorhanden sein.
+3. `DATABASE_URL` und `DIRECT_URL` sind provider- und netzwerkspezifisch.
+   Produktion verwendet eine private Verbindung zum Coolify-PostgreSQL-
+   Service; `DIRECT_URL` war in der verifizierten App-Konfiguration nicht
+   vorhanden. Bei einem Plattformwechsel die Datenbank separat per
+   konsistentem Dump/Restore migrieren und beide Verbindungen in der
+   Zielumgebung prüfen. Niemals eine Produktions-URL blind weiterverwenden.
 4. `NEXT_PUBLIC_BASE_URL` auf die neue Produktions-Domain aktualisieren
    (betrifft Sitemap, kanonische URLs, Social-Meta-Tags, Redirect-Logik in
    `middleware.ts`).
-5. `CRON_SECRET` neu generieren, wenn von Dauerprozess-Scheduler auf
-   Cron-Endpunkte gewechselt wird (z. B. Wechsel Coolify → Vercel) — und die
-   in `OPERATIONS_RUNBOOK.md` erwähnten hardcodierten Fallback-Strings aus
-   dem Code entfernen.
+5. Bei einer Rotation von `CRON_SECRET` Anwendung und alle Coolify-Tasks
+   koordiniert aktualisieren und danach jede Route ohne Ausgabe des Werts
+   einmal kontrolliert testen.
 
 ## 5. Nach der Migration — Verifikations-Checkliste
 
-- [ ] `yarn build` läuft ohne Fehler durch (inkl. `prisma generate`)
+- [ ] `npm run build` läuft ohne Fehler durch (inkl. `prisma generate`)
 - [ ] `/api/health` liefert HTTP 200
 - [ ] Ein Test-Login (Admin) funktioniert (`/admin/login`)
-- [ ] Ein manueller Pipeline-Trigger (`POST /api/admin/pipeline` oder `npx
-      tsx scripts/pipeline-v2.ts "<URL>"`) erzeugt einen echten Artikel mit
-      `status='published'`
-- [ ] `news-scheduler.ts`-Prozess läuft dauerhaft (Supervisor/systemd-Status)
-      ODER `/api/cron/news` ist per externem Scheduler erreichbar
+- [ ] Ausschließlich in Staging mit Datenbank-Clone und nach Freigabe erzeugt
+      ein einzelner manueller Pipeline-Trigger einen echten Testartikel mit
+      `status='published'`; nie ungeprüft gegen Produktion ausführen
+- [ ] `/api/cron/news` wird vom Coolify Scheduled Task erfolgreich erreicht;
+      ein optionaler separater `news-scheduler.ts`-Worker ist nicht zugleich
+      aktiv
 - [ ] `ads.txt` und `ads_tm.php`-Route liefern die erwarteten Zeilen
 - [ ] `/adtest-prebid` zeigt einen grünen Chain-Check
 - [ ] Ein externer curl-Test mit echtem Browser-User-Agent bekommt HTTP 200

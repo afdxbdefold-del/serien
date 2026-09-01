@@ -3,6 +3,10 @@
 **Stand:** 13. Juli 2026
 **Aktuelle Vercel-Rechnung:** ~$8.87/Tag = **~$266/Monat**
 
+> **Historische Entscheidungsgrundlage:** Produktion läuft seitdem auf
+> Hetzner/Coolify mit einem eigenen PostgreSQL-17-Service. Die damaligen
+> Kostenannahmen sind nicht als aktuelle Rechnung zu lesen.
+
 ---
 
 ## 1. Aktuelle Vercel-Kostenanalyse (Basis)
@@ -103,7 +107,7 @@ Grobabschätzung des tatsächlichen User-Traffics (nach Bot-Filtering):
 - 🟢 Git-Push-Deploy funktioniert zuverlässig (kein "empty git remote" wie bei Vercel)
 - 🟢 Native Cron-Scheduling, kein Extra-Setup
 - 🟢 Preview-Deployments pro PR
-- 🟢 Postgres/Redis mit 1-Klick (falls Neon-Migration mal ansteht)
+- 🟢 Postgres/Redis mit 1-Klick (falls eine Datenbankmigration ansteht)
 - 🟢 Env-Var-UI, Rollback, Logs — DX nahe Vercel
 
 **Nachteile Railway:**
@@ -235,7 +239,7 @@ Wenn du eine Entscheidung getroffen hast, kann ich sofort liefern:
 - `docker-compose.yml` für App + Migrations
 - Cloudflare-Setup
 - Systemd/Coolify-Cron-Definitionen
-- Backup-Strategie (Neon-Snapshots + Coolify-Volume)
+- Backup-Strategie (konsistente PostgreSQL-Dumps + Volume-/Host-Rollback)
 
 **Für "Vercel bleiben":**
 - prefetch={false}-Änderungen in Grid-Cards

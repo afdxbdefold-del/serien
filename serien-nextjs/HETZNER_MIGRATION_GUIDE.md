@@ -1,5 +1,11 @@
 # serien.de — Migration Vercel → Hetzner + Coolify + Cloudflare
 
+> **Historischer Migrationsplan:** Die Migration ist abgeschlossen. Am
+> 1. September 2026 wurde Produktion live als Hetzner/Coolify-Deployment mit
+> einer separaten PostgreSQL-17-Ressource verifiziert. Die folgenden Phasen
+> nicht erneut ausführen; für den aktuellen Betrieb gelten
+> `docs/TAKEOVER_STATUS.md` und `docs/OPERATIONS_RUNBOOK.md`.
+
 **Ziel:** Von ~$266/Monat Vercel auf ~€5/Monat Hetzner. Zero-Downtime-Migration, Vercel bleibt 7 Tage parallel als Rollback-Backup.
 
 **Deine Zeit:** ~90 Min aktiv + DNS-Wartezeit im Hintergrund.
@@ -145,8 +151,8 @@ Coolify UI → **New Resource** → **Public / Private Repository**:
 - **Repository:** dein GitHub-Repo (z.B. `github.com/username/serien-nextjs`)
 - Falls Private: GitHub-App verbinden (Coolify guided dich)
 - **Branch:** `main` (oder wie dein Prod-Branch heißt)
-- **Base Directory:** `/` (oder `/serien-nextjs` falls Monorepo)
-- **Build Pack:** Dockerfile (Coolify erkennt automatisch)
+- **Base Directory:** `/serien-nextjs` (aktueller Produktionswert)
+- **Build Pack:** Dockerfile, Pfad `/Dockerfile` relativ zum Base Directory
 - **Port:** `3000`
 
 ### 4.2 Domain hinterlegen
@@ -165,7 +171,7 @@ Coolify holt automatisch Let's Encrypt-Zertifikat, sobald DNS umgestellt ist.
 
 ```
 # --- Database ---
-DATABASE_URL=postgresql://...neon.tech/...
+DATABASE_URL=<private-coolify-postgresql-url>
 
 # --- Base URL ---
 NEXT_PUBLIC_BASE_URL=https://serien.de
@@ -419,6 +425,12 @@ curl -I https://serien.de/
 
 Nach 7 Tagen stabilem Hetzner-Betrieb:
 
+> **Nicht nachträglich ausführen:** Produktion referenziert weiterhin
+> Vercel-Blob-Objekte und besitzt noch den zugehörigen Variablennamen. Erst
+> Abhängigkeiten und Eigentumsgrenzen vollständig inventarisieren, Inhalte
+> migrieren und den Restore prüfen. Eine Hosting-Abschaltung darf nicht
+> versehentlich den noch aktiven Objektspeicher löschen.
+
 1. Vercel Dashboard → Project → Settings → **Delete Project**
 2. **Nächstes Datum notieren:** Vercel-Abo läuft evtl. bis Monatsende (Pro-Plan $20 Basis)
 3. Zahlungsmethode entfernen falls kein anderes Projekt drauf läuft
@@ -427,18 +439,23 @@ Nach 7 Tagen stabilem Hetzner-Betrieb:
 
 ## Anhang A: Backup-Strategie
 
-**Hetzner Snapshots** (bereits aktiviert in Phase 1.3):
-- Automatisch täglich (7 Tage Retention)
-- Kosten: €0.83/Monat
-- Restore: 1-Klick in Hetzner Console
-
-**Neon-DB-Backup** (unabhängig):
-- Neon macht automatisch Point-in-Time-Recovery
-- Zusätzlich: `pg_dump` per Cron alle 24 h nach R2:
-```bash
-# In Coolify Scheduled Task, 1× täglich:
-pg_dump $DATABASE_URL | gzip | aws s3 cp - s3://serien-backups/db-$(date +%Y%m%d).sql.gz
-```
+**Live verifizierter Stand am 1. September 2026:**
+- Hetzner-Backups sind aktiviert; sieben tägliche Ganzserver-Backups sind
+  verfügbar. Das sind keine separaten Snapshots und keine
+  datenbankkonsistent geprüften PostgreSQL-Dumps.
+- In Coolify sind weder geplante PostgreSQL-Backups noch Volume-Backups oder
+  ein S3-Backupziel eingerichtet.
+- Am 1. September 2026 wurde ein manueller logischer und physischer
+  PostgreSQL-17-Sicherungsstand mit Prüfsummen sowie isoliertem logischem und
+  physischem Restore verifiziert. Er liegt nur auf dem Produktionshost und
+  ist weder automatisiert noch unabhängig aufbewahrt.
+- Vor weiteren Änderungen einen neuen konsistenten Stand auf ein getrenntes
+  Backupziel schreiben oder den verifizierten Stand dorthin replizieren und
+  den isolierten Restore erneut testen. Dafür eine dedizierte, versionierte
+  Backup-Ressource mit passender `pg_dump`-Version,
+  Fehlerweitergabe, Prüfsumme, Retention und Restore-Verifikation entwerfen.
+  Das aktuelle App-Image enthält die dafür nötige vollständige Toolchain
+  nicht und darf nicht als ungeprüfter Backup-Runner verwendet werden.
 
 **Config-Backup:**
 - Coolify → Settings → Export Configuration → JSON runterladen
@@ -470,7 +487,7 @@ pg_dump $DATABASE_URL | gzip | aws s3 cp - s3://serien-backups/db-$(date +%Y%m%d
 | Hetzner CX22 | €4.15 |
 | Hetzner Backup | €0.83 |
 | Cloudflare Free | €0.00 |
-| Neon-DB (unverändert) | € — |
+| PostgreSQL-Service auf demselben Hetzner-Host | im Server enthalten |
 | **Total Hosting-Neu** | **~€5** |
 | **Vs. Vercel vorher** | **~$266** |
 | **Ersparnis** | **~$260/Monat** |

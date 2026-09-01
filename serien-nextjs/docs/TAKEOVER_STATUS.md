@@ -1,6 +1,6 @@
 # Übernahmestatus serien.de
 
-Stand: 31. August 2026
+Stand: 1. September 2026
 
 Arbeitsbranch: `codex/takeover`
 
@@ -8,6 +8,38 @@ Ausgangspunkt: `main` bei `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
 
 Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 Übernahme. Es ersetzt keine Live-Prüfung der Produktionssysteme.
+
+## Live verifizierte Produktion (1. September 2026)
+
+- Produktion läuft auf einem Hetzner-Server über Coolify. Details des
+  Management-Zugangs und der internen Ressourcen bleiben im privaten
+  Betriebsinventar.
+- Die Anwendung wird aus diesem Repository, Branch `main`, gebaut. Zum
+  Prüfzeitpunkt lief Commit `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
+  mit Basisverzeichnis `/serien-nextjs` und `serien-nextjs/Dockerfile`.
+  `Deploy on push (webhooks)` ist aktiv; ein Push nach `main` kann daher
+  unmittelbar einen Produktivdeploy auslösen. `codex/takeover` ist nicht als
+  Produktivbranch konfiguriert.
+- PostgreSQL 17 läuft als separater Coolify-Service auf demselben Host. Die
+  Daten liegen in einem benannten, persistenten Docker-Volume. Neon wird nicht
+  verwendet.
+- In Coolify sind weder geplante PostgreSQL-Dumps noch ein Volume-Backup oder
+  ein S3-Backupziel konfiguriert. Rotierende Hetzner-Ganzserver-Backups sind
+  verfügbar; sie ersetzen kein konsistentes, separat prüfbares
+  Datenbank-Backup. Details und Retention stehen im privaten Inventar.
+- Vor einer freigegebenen operativen Artikelkorrektur wurde am 1. September
+  2026 zusätzlich ein manueller logischer und physischer PostgreSQL-17-
+  Sicherungsstand mit Prüfsummen sowie isoliertem logischem und physischem
+  Restore verifiziert. Er liegt nur auf dem Produktionshost und schließt die
+  fehlende Automatisierungs- und Off-Host-Lücke daher nicht.
+- Der vorhandene Cloudflare-R2-Bucket ist erreichbar; ein versioniertes
+  Artikelbild wurde manuell hochgeladen und öffentlich verifiziert. Im
+  Live-App-Environment fehlen weiterhin die R2-Variablennamen, sodass der
+  automatische Schreibpfad nicht produktiv bestätigt ist. Vercel-Blob-,
+  Emergent- und lokale Medienpfade bleiben parallel aktiv.
+- Das Image startet nur den Next.js-Server. Es gibt keinen zusätzlichen
+  Worker- oder Supervisor-Container; zeitgesteuerte Aufrufe laufen über
+  Coolify Scheduled Tasks gegen `/api/cron/*`.
 
 ## Bereits erledigt
 
@@ -53,26 +85,32 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
    sind mindestens Datenbank, TMDB, JWT/Admin, Cron, Push/VAPID und ein
    Emergent-LLM-Schlüssel. Danach muss eine koordinierte Historienbereinigung
    erfolgen; kein Force-Push ohne Freigabe und Backup.
-2. **Produktionszugänge und Topologie verifizieren.** Benötigt werden
-   Coolify/Hetzner, Neon, Cloudflare/DNS/R2 sowie die externen API-Konten. Die
-   Dokumentation enthält widersprüchliche historische Hosting-Angaben.
-3. **Neon sichern.** Vor jeder Schemaaktion einen Snapshot beziehungsweise
-   Point-in-Time-Recovery-Checkpoint erstellen. Die vorhandenen Prisma-
-   Migrationen bilden die 43 Modelle nicht vollständig aus einer leeren
-   Datenbank nach. `prisma migrate deploy` darf deshalb nicht gegen eine neue
-   oder ungeprüfte Datenbank ausgeführt werden.
-4. **Worker/Scheduler festlegen.** Das Docker-Image startet nur den Next.js-
-   Server. News-Scheduler sowie Python-, Playwright-, `yt-dlp`-/FFmpeg- und
-   Backup-Abhängigkeiten sind darin nicht vollständig abgebildet.
+2. **Die noch offenen externen Konten vollständig inventarisieren.** Die
+   Topologie von Coolify/Hetzner, PostgreSQL und Cloudflare R2 ist bestätigt;
+   DNS sowie die externen API-Konten müssen vor Rotation oder Änderung jeweils
+   separat verifiziert werden.
+3. **PostgreSQL zusätzlich datenbankkonsistent sichern.** Vor jeder
+   Schemaaktion einen geprüften PostgreSQL-Dump und ein geprüftes Volume- bzw.
+   Host-Rollback vorhalten. Die vorhandenen Prisma-Migrationen bilden die 43
+   Modelle nicht vollständig aus einer leeren Datenbank nach; auch der
+   Migrationsstatus der Live-Datenbank ist nicht sauber. `prisma migrate
+   deploy` und `prisma db push` dürfen deshalb nicht gegen Produktion oder eine
+   ungeprüfte neue Datenbank ausgeführt werden.
+4. **Cron-/Worker-Architektur bereinigen.** Produktion nutzt Coolify
+   Scheduled Tasks; ein paralleler Daemon ist nicht vorgesehen. No-op- und
+   Altjobs entfernen beziehungsweise begründet behalten. Für Python-,
+   Playwright-, `yt-dlp`-/FFmpeg- oder Backup-Arbeit erst eine getrennte,
+   reproduzierbare Worker-Ressource entwerfen.
 5. **Emergent-Reste ersetzen.** Google-Auth-, Bild-/Trailer- und einzelne
    LLM-Fallbackpfade enthalten noch historische Emergent-Kopplungen. R2 ist noch
    nicht in allen Pfaden die einzige Storage-Lösung.
 
 ## Benötigte Übergabezugänge
 
-- Coolify-Projekt/Server oder Hetzner-SSH-Zugang mit Leserechten für die erste
-  Bestandsaufnahme
-- Neon-Projektzugang einschließlich Backup-/PITR-Status
+- Coolify-Projekt/Server und Hetzner-Zugang für Betrieb, Backup- und
+  Wiederherstellungsprüfungen
+- Zugriff auf ein getrenntes Backupziel für PostgreSQL-Dumps sowie auf die
+  vorhandenen Hetzner-Ganzserver-Backups
 - Cloudflare-Zone und R2-Bucket
 - OpenAI-, TMDB-, Push/VAPID-, RapidAPI- und gegebenenfalls Google-/Facebook-
   Konten zur Rotation und Funktionsprüfung

@@ -1,7 +1,7 @@
 # Datenmodell — vollständige Prisma-Referenz
 
 Quelle der Wahrheit: `prisma/schema.prisma` (43 Modelle, ~925 Zeilen,
-PostgreSQL via Neon). Diese Datei fasst jedes Modell mit Zweck, wichtigen
+PostgreSQL; Produktion als eigener Coolify-Service auf Hetzner). Diese Datei fasst jedes Modell mit Zweck, wichtigen
 Feldern und Relationen zusammen — bei Widersprüchen gilt immer die
 `.prisma`-Datei selbst.
 
@@ -295,8 +295,15 @@ selbsterklärend über Feldnamen.)
 ```bash
 npx prisma generate       # Client neu generieren nach Schema-Änderung
 npx prisma db push        # Schema direkt anwenden (Dev/kein Migration-Verlauf)
-npx prisma migrate deploy # Produktions-sicher, nutzt prisma/migrations/-Historie
+npx prisma migrate deploy # Nur mit vollständiger, verifizierter Migrationshistorie
 ```
+
+Die aktuelle Migrationshistorie ist keine vollständige Baseline und stimmt
+auch in Produktion nicht sauber mit den vorhandenen Tabellen überein. Deshalb
+sind sowohl `prisma migrate deploy` als auch `prisma db push` gegen Produktion
+gesperrt. Ein manueller Sicherungsstand und isolierte Restore-Tests wurden am
+1. September 2026 erfolgreich verifiziert; die belastbare Schema-Baseline und
+ein automatisches Off-Host-Backup fehlen weiterhin.
 
 `generator client` setzt `binaryTargets = ["native", "rhel-openssl-3.0.x"]`
 — wichtig, falls das Docker-Image von Alpine/Debian abweicht (z. B. bei

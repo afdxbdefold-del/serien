@@ -2,9 +2,14 @@
 
 ## 1. Prozess-Architektur
 
-Die Pipeline läuft **nicht** als klassischer Einzel-Cron-Trigger, sondern
-als **Dauerprozess** (Node-Skript mit `setInterval`), verwaltet vom
-Supervisor:
+Die verifizierte Produktion nutzt **Coolify Scheduled Tasks**: Sie rufen die
+geschützten `/api/cron/*`-Routen per HTTP auf. Im App-Container läuft nur
+`next-server`; ein Supervisor- oder `news-scheduler.ts`-Dauerprozess ist dort
+nicht aktiv.
+
+Der folgende Supervisor-Block ist eine historische beziehungsweise optionale
+Alternative für einen später ausdrücklich eingerichteten separaten Worker,
+nicht die aktuelle Produktionskonfiguration:
 
 ```ini
 [program:pipeline-scheduler]
@@ -23,16 +28,17 @@ in einer Zeile zusammenfassen. Nach jeder Supervisor-Config-Änderung:
 `supervisorctl reread && supervisorctl update`, dann Log prüfen (`tail -f
 /var/log/supervisor/pipeline-scheduler.log`).
 
-Alternative für Plattformen ohne Dauerprozess (z. B. reines Vercel-Hosting
-ohne Background-Worker): `/api/cron/news` als klassischer HTTP-Cron-Endpoint
-(Bearer `CRON_SECRET`), der denselben `processAllNews()`-Pfad aufruft.
+Der aktuelle Coolify-Task für `/api/cron/news` nutzt Bearer-Authentifizierung
+mit `CRON_SECRET` und ruft denselben `processAllNews()`-Pfad auf.
 
 ## 2. Ablauf im Detail
 
 ### Schritt 1 — Scraping (`scripts/news-scraper.ts`, Funktion `processAllNews`)
 
-Holt RSS/HTML von den Default-Quellen: **Cinemaholic, Deadline, Variety,
+Holt RSS/HTML von den Funktions-Defaults: **Cinemaholic, Deadline, Variety,
 Hollywood Reporter, Netflix Tudum, TVLine, Google News (Streaming-Suche)**.
+Die produktive Route `/api/cron/news` übergibt explizit nur die ersten sechs
+Quellen und lässt Google News aus.
 Dedupliziert gegen bereits importierte `sourceUrl`-Werte (unique constraint
 in `articles`). Optionen: `limit` (max. Artikel pro Lauf), `dryRun`,
 `onlyNew` (nur Artikel, die noch nicht in der DB sind).
@@ -125,22 +131,25 @@ Jeder Lauf wird in `pipeline_runs` protokolliert (Status, Timing,
 `errorStep`/`errorMessage` bei Fehlschlag) — **erster Anlaufpunkt für
 Debugging**, siehe `OPERATIONS_RUNBOOK.md`.
 
-### Schritt 3 — Scheduler-Loop (`scripts/news-scheduler.ts`)
+### Optionaler Scheduler-Loop (`scripts/news-scheduler.ts`, nicht Produktion)
 
 ```
 Startup → runNewsImport() sofort einmal
         → setInterval(runNewsImport, NEWS_INTERVAL_HOURS Stunden)
 ```
 
-Env-Variablen: `NEWS_INTERVAL_HOURS` (Default `1`), `NEWS_LIMIT` (Default
+Wenn dieser optionale Worker bewusst separat betrieben wird, gelten:
+`NEWS_INTERVAL_HOURS` (Default `1`) und `NEWS_LIMIT` (Default
 `5`, Artikel pro Lauf). Schreibt zusätzlich ein eigenes Textlog nach
 `logs/news-scheduler.log` (relativ zum CWD des Prozesses).
 
 ## 3. LLM-Konfiguration — zentral in `lib/llm-config.ts`
 
 ```ts
+// Gekürzter Ablauf; der echte Code validiert den fehlenden Key zuerst.
 export function getLLMConfig() {
   const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
+  if (!apiKey) throw new Error('No LLM API key found');
   const isEmergentKey = apiKey.startsWith('sk-emergent-');
   return {
     apiKey,
@@ -150,11 +159,12 @@ export function getLLMConfig() {
 }
 ```
 
-- **Priorität**: eigener `OPENAI_API_KEY` (→ Modell-String `gpt-5.4`, direkt
-  gegen `api.openai.com`) vor `EMERGENT_LLM_KEY` (→ `claude-sonnet-4-6`,
-  läuft NUR innerhalb der Emergent-Plattform über deren Proxy — funktioniert
-  nach einem Umzug auf eigenes Hosting **nicht mehr**, reiner Fallback für
-  den Fall, dass `OPENAI_API_KEY` fehlt).
+- **Produktionsvorgabe**: `OPENAI_API_KEY` (→ Modell-String `gpt-5.4`, direkt
+  gegen `api.openai.com`). Der Code enthält noch einen historischen Zweig für
+  `EMERGENT_LLM_KEY` (→ `claude-sonnet-4-6` über den Emergent-Proxy). Auf dem
+  aktuellen Hetzner-Host ist das kein unterstützter Failover. Den Zweig nach
+  vollständiger Inventarisierung entfernen; fehlende OpenAI-Credits nicht
+  durch eine blinde Key-Umschaltung kaschieren.
 - Alle Content-generierenden Module (`content-classifier.ts`,
   `structured-content-generator.ts`, `was-bedeutet-das.ts`,
   `heading-generator.ts`, `duplicate-checker.ts`, `seo-auditor.ts`,
@@ -203,21 +213,22 @@ Log-Beispiel (Klassifikations-Schritt, mit Retry-Logik):
 → **Kein Code-Fehler.** Bedeutet: OpenAI-Konto-Guthaben ist aufgebraucht.
 Betrifft **jeden** LLM-Call in der Pipeline (Klassifikation ist meist der
 erste LLM-Call, daher meist der erste sichtbare Fehler). Lösung: Guthaben im
-OpenAI-Billing-Dashboard aufladen. Danach: Scheduler-Prozess neu anstoßen
-(oder auf nächsten `setInterval`-Tick warten) und `pipeline_runs` auf
-frische `status: 'completed'`-Einträge prüfen.
+OpenAI-Billing-Dashboard aufladen. Danach den nächsten Coolify Scheduled Task
+abwarten oder nach Freigabe genau einen kontrollierten Lauf auslösen und
+`pipeline_runs` auf frische `status: 'success'`-Einträge prüfen.
 
 ### `tsx: not found`
 ```
 sh: 1: tsx: not found
 ```
 → Globale `npm install -g tsx` überlebt keinen Server-/Pod-Neustart. Fix:
-`tsx` als echte `devDependency` via `yarn add -D tsx`, Supervisor-Command auf
+`tsx` als echte `devDependency` via `npm install -D tsx`; bei einem optionalen
+Worker dessen Command auf
 `node_modules/.bin/tsx` zeigen lassen (bereits so konfiguriert, siehe
 Abschnitt 1 — falls der Fehler wieder auftritt: prüfen, ob `node_modules`
-komplett fehlt, z. B. nach Volume-Reset, dann `yarn install` erneut nötig).
+komplett fehlt, z. B. nach Volume-Reset, dann `npm ci` erneut ausführen).
 
-### Kein neuer Artikel trotz laufendem Scheduler
+### Kein neuer Artikel trotz ausgeführtem Scheduled Task
 Erste Anlaufstelle: `pipeline_runs`-Tabelle nach den letzten Einträgen
 filtern (`ORDER BY startedAt DESC`). `status`/`errorStep`/`errorMessage`
 zeigen exakt, an welchem der ~21 Schritte aus Abschnitt 2 der Lauf
@@ -226,8 +237,10 @@ vertrauen — das zählt nur, ob eine Exception geworfen wurde, nicht, ob
 wirklich publiziert wurde (siehe Lessons Learned in `HANDOFF.md`).
 
 ### `PrismaClientKnownRequestError` Code `P1001`
-Transiente Neon-Cold-Start-Verzögerung. Einmal retryen, bevor man einen
-echten DB-Ausfall vermutet.
+Die Produktionsdatenbank läuft dauerhaft als PostgreSQL-Service in Coolify;
+Neon-Cold-Starts sind dort keine Erklärung. Einmal retryen, dann
+Datenbank-Healthcheck, Logs, Connection-Limit und das private Coolify-Netzwerk
+prüfen. Werte aus `DATABASE_URL` niemals ausgeben.
 
 ## 6. Sonstige LLM-nutzende Skripte außerhalb der Kernpipeline
 

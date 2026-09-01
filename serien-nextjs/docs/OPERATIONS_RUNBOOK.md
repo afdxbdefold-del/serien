@@ -4,33 +4,36 @@ Praktische Troubleshooting-Anleitung für die häufigsten Ausfallmuster.
 Bei jedem Punkt: **erst reproduzieren/verifizieren, dann fixen** — nicht
 raten.
 
+**Produktionsstand 1. September 2026:** Die Anwendung und PostgreSQL laufen
+als zwei getrennte Coolify-Ressourcen auf einem Hetzner-Server. Der
+Anwendungscontainer startet ausschließlich `next-server`; es gibt keinen
+Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
+über Coolify Scheduled Tasks gegen `/api/cron/*`.
+
 ## "Keine neuen News erscheinen"
 
 Reihenfolge der Prüfung (jeder Schritt kann die Ursache sein — der Bug ist
 in der Vergangenheit mehrfach an unterschiedlichen Stellen der Kette
 aufgetreten):
 
-1. **Läuft der Scheduler-Prozess überhaupt?**
-   ```bash
-   sudo supervisorctl status pipeline-scheduler
-   tail -n 100 /var/log/supervisor/pipeline-scheduler.log
-   ```
-   Sucht nach: `tsx: not found` (siehe Lessons Learned #2 in `HANDOFF.md`),
-   Crash-Loops, oder ob der letzte Log-Eintrag Stunden/Tage alt ist (Prozess
-   hängt).
+1. **Laufen die Coolify Scheduled Tasks?** In der Anwendung unter
+   `Scheduled Tasks` den letzten Status und die Ausführungsausgabe prüfen.
+   Zum Prüfzeitpunkt waren zehn Jobs aktiv. `downgrade-stale` und `videos`
+   scheiterten wiederholt mit HTTP 401; `trends` war nicht angelegt. Das
+   Auth-Problem erst nach verifiziertem Backup und ohne Ausgabe des
+   Secret-Werts beheben.
 
-2. **Zeigt Supervisor auf das richtige Skript?** Muss
-   `scripts/news-scheduler.ts` sein (nicht ein alter/umbenannter Dateiname).
-   ```bash
-   grep -A 10 "program:pipeline-scheduler" /etc/supervisor/conf.d/*.conf
-   ```
+2. **Entspricht jeder Job einer vorhandenen Route?** Route und HTTP-Methode
+   im aktuellen Branch prüfen. `tmdb-sync` und `backfill-streaming-series`
+   sind derzeit absichtliche No-ops; `flixpatrol` ist gegenüber
+   dem Coolify-Job `tmdb-top10-daily` veraltet. Dessen Code-Endpunkt heißt
+   `/api/cron/tmdb-top10`. Ein grüner Jobstatus beweist deshalb noch keine
+   fachliche Wirkung.
 
-3. **Hat der Prozess Zugriff auf alle benötigten Binaries/Module?** Prüfe
-   die `environment=`-Zeile im Supervisor-Block — muss `PATH` UND
-   `NODE_ENV` in **einer einzigen** `environment=`-Zeile enthalten (siehe
-   `PIPELINE_AND_LLM.md` Abschnitt 1 zur Zwei-Zeilen-Falle). Falls ein
-   Python-Subprozess (`generate-character-content.py`) fehlschlägt: prüfen,
-   ob das venv mit `openai`-Paket im PATH des Supervisor-Prozesses liegt.
+3. **Laufen Anwendung und Datenbank gesund?** Containerstatus, Healthcheck,
+   Neustartzähler und aktuelle Logs in Coolify prüfen. Der öffentliche
+   `/api/health`-Endpunkt testet nur die Erreichbarkeit des Next.js-Prozesses,
+   nicht PostgreSQL, R2 oder die News-Pipeline.
 
 4. **`pipeline_runs`-Tabelle abfragen** — zeigt die echte Ursache präziser
    als jedes Text-Log:
@@ -45,12 +48,12 @@ aufgetreten):
      erweitern).
    - `errorMessage` enthält `429`/`credits` → OpenAI-Billing-Problem, siehe
      unten.
-   - Keine neuen Zeilen seit Stunden trotz laufendem Scheduler → Scheduler
-     hängt fest oder wirft eine Exception VOR dem ersten Pipeline-Call
-     (Scraping-Schritt selbst schlägt fehl, z. B. weil eine RSS-Quelle down
-     ist) — Scheduler-Log genauer lesen.
+   - Keine neuen Zeilen seit Stunden trotz ausgeführtem Coolify-Task →
+     Task-Ausgabe und App-Logs prüfen. Die Route kann vor dem ersten
+     Pipeline-Call abbrechen, etwa bereits beim Scraping einer nicht
+     erreichbaren Quelle.
 
-5. **Niemals allein auf "processed: N" im Scheduler-Log vertrauen** — das
+5. **Niemals allein auf "processed: N" in Task-/App-Logs vertrauen** — das
    zählt nur "keine Exception geflogen", nicht "wirklich publiziert". Immer
    gegen `articles.status = 'published'` mit passendem `publishedAt`
    gegenprüfen.
@@ -61,26 +64,29 @@ aufgetreten):
 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.
 ```
 
-→ Kein Code-Fehler. Erfordert Aktion im OpenAI-Billing-Dashboard (Guthaben
-aufladen / Auto-Recharge aktivieren). Sobald erledigt: keine Code-Änderung
-nötig, der nächste Scheduler-Tick (oder manueller Trigger über
-`POST /api/admin/pipeline`) sollte sofort wieder funktionieren. Nach der
-Aufladung: einen End-to-End-Lauf abwarten/triggern und über `pipeline_runs`
+→ Kein Code-Fehler. Erfordert eine ausdrücklich freigegebene Aktion mit
+möglichen Kosten im OpenAI-Billing-Dashboard (Guthaben aufladen oder
+Auto-Recharge aktivieren). Sobald erledigt: keine Code-Änderung
+nötig; der nächste Coolify Scheduled Task sollte wieder funktionieren. Nach
+der Aufladung: den nächsten Lauf abwarten oder nach ausdrücklicher Freigabe
+genau einen kontrollierten End-to-End-Lauf auslösen und über `pipeline_runs`
 + Live-Check der Homepage/`/news` verifizieren, dass tatsächlich wieder neue
 Artikel publiziert werden — nicht nur den Fehler als "behoben" annehmen,
 weil das Guthaben da ist.
 
-## "Prisma / Neon P1001 (Connection Error)"
+## "Prisma / PostgreSQL P1001 (Connection Error)"
 
 ```
 PrismaClientKnownRequestError: ... Code: P1001
 ```
 
-Neon (serverless Postgres) hat gelegentliche Cold-Start-Verzögerungen nach
-Inaktivität. Einmal retryen (manueller Reload/Retry reicht meist). Nur wenn
-der Fehler wiederholt und dauerhaft auftritt: `DATABASE_URL` selbst prüfen
-(Neon-Projekt pausiert? Connection-Limit erreicht? IP-Allowlist bei
-Migration auf neue Infrastruktur?).
+Die Produktionsdatenbank ist ein dauerhaft laufender PostgreSQL-17-Service in
+Coolify, kein serverless Neon-Projekt. Bei einem einzelnen Fehler einmal
+retryen. Bei Wiederholung in dieser Reihenfolge prüfen: Datenbank-Container
+und Healthcheck, Neustartzähler und PostgreSQL-Logs, Auslastung des
+Connection-Limits, Auflösung/Erreichbarkeit im privaten Coolify-Netzwerk und
+zuletzt die Konfiguration von `DATABASE_URL`. Den Wert der Variable niemals
+in Logs oder Chat ausgeben.
 
 ## "Yieldlab liefert dauerhaft NoBid"
 
@@ -90,7 +96,11 @@ mehrfach als korrekt verifiziert (`/adtest-prebid`, `/api/adtest/chain-check`)
 — verbleibende Ursache liegt vermutlich auf Vermarkter-/Demand-Seite
 (Floor-Price, fehlende Kampagnen). Kein rein clientseitig lösbares Problem.
 
-## Supervisor-Konfiguration ändern — sicherer Ablauf
+## Historisch/optional: Supervisor-Konfiguration ändern — sicherer Ablauf
+
+Dieser Abschnitt gilt nicht für die am 1. September 2026 verifizierte
+Produktion. Er ist nur relevant, wenn später ausdrücklich wieder ein separater
+Daemon außerhalb des aktuellen App-Containers eingeführt wird.
 
 ```bash
 # 1. Config-Datei bearbeiten
@@ -109,9 +119,9 @@ einer Zeile zusammenführen, kommagetrennt (`PATH="...",NODE_ENV="..."`).
 Alle `/api/cron/*`-Routen verlangen ausschließlich
 `Authorization: Bearer <CRON_SECRET>`. Das Secret darf weder als Query-Parameter
 noch in Logs oder Scheduler-URLs stehen. Ist `CRON_SECRET` nicht gesetzt,
-antwortet der Endpoint absichtlich mit 503. Nach einer Rotation müssen alle
-Coolify-/Supervisor-/externen Scheduler gemeinsam aktualisiert und einmal
-manuell mit dem Header getestet werden.
+antwortet der Endpoint absichtlich mit 503. Nach einer Rotation müssen die
+App und alle tatsächlich eingesetzten Coolify-/externen Scheduler gemeinsam
+aktualisiert und jede Route einmal ohne Ausgabe des Werts getestet werden.
 
 Der öffentliche Push-Subscribe-Endpunkt besitzt zusätzlich eine lokale
 Missbrauchsbremse. Diese ist pro Prozess und ersetzt keine persistente
@@ -133,9 +143,14 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   unterscheidbare Autoren-Profile ist offen.
 - **`trailer.de`-Headline-Grammatik**: bekannter Dativ-Fehler in der
   automatischen Titelbau-Logik für diese eine Domain-Variante.
-- **Hetzner/Coolify-Migrationsstatus**: siehe `MIGRATION_GUIDE.md` — Status
-  zum Zeitpunkt dieser Doku unbedingt live nachprüfen, nicht aus alten
-  Notizen übernehmen.
+- **PostgreSQL-Backup-Lücke**: Hetzner/Coolify ist die bestätigte Produktion.
+  Hetzner hält sieben tägliche Ganzserver-Backups vor, Coolify selbst aber
+  weder geplante PostgreSQL-Dumps noch Volume-Backups oder ein S3-Backupziel.
+  Ein manueller logischer und physischer PostgreSQL-17-Sicherungsstand wurde
+  am 1. September 2026 mit Prüfsummen und isolierten Restores verifiziert,
+  liegt aber nur auf dem Produktionshost. Vor weiteren Änderungen einen neuen
+  konsistenten Stand auf getrenntem Speicher erstellen oder dorthin
+  replizieren und die Wiederherstellung erneut testen.
 - **Freshness-Alarm fehlt**: keine automatische Warnung, falls die
   News-Pipeline mal wieder tagelang keine echten Publishes produziert (ist
   in der Vergangenheit unbemerkt eine Woche lang passiert). Ein einfacher
@@ -151,9 +166,9 @@ psql "$DATABASE_URL" -c "SELECT pipeline, trigger, status, \"errorStep\", \"star
 # Letzter publizierter Artikel
 psql "$DATABASE_URL" -c "SELECT slug, title, \"publishedAt\" FROM articles WHERE status='published' ORDER BY \"publishedAt\" DESC LIMIT 5;"
 
-# Scheduler-Prozess-Status
-sudo supervisorctl status pipeline-scheduler
-tail -n 50 /var/log/supervisor/pipeline-scheduler.log
+# Produktions-Schedulerstatus
+# In Coolify: Anwendung -> Scheduled Tasks -> letzte Ausführungen prüfen.
+# Die App selbst enthält keinen Supervisor-Prozess.
 ```
 
 (`psql` erfordert, dass `DATABASE_URL` als Env-Variable im Shell-Kontext

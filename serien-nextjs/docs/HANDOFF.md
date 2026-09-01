@@ -1,6 +1,6 @@
 # serien.de — Technisches Handoff-Dokument (Einstiegspunkt)
 
-Stand: August 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
+Stand: 1. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
 (ChatGPT/Codex/Claude etc.) soll dieses Projekt **ohne Emergent-Plattform-
 Zugriff und ohne Rückfragen an den vorherigen Betreuer** verstehen, lokal
 aufsetzen, betreiben und weiterentwickeln können.
@@ -32,10 +32,14 @@ Produkt-/Bug-Historie.
 Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 
 - **Automatisierte News-Pipeline**: scrapt englische Serien-News-Quellen
-  (Deadline, Variety, Hollywood Reporter, TVLine, The Cinemaholic, Netflix
-  Tudum, Google News), lässt ein LLM daraus einen deutschen, SEO-optimierten
+  (Deadline, Variety, Hollywood Reporter, TVLine, The Cinemaholic und Netflix
+  Tudum), lässt ein LLM daraus einen deutschen, SEO-optimierten
   Artikel schreiben (Text, Meta, Q&A-Box, Hero-Bild, Charakter-Bios) und
-  veröffentlicht ihn automatisch. Läuft als Dauerprozess, stündlich getriggert.
+  veröffentlicht ihn automatisch. In Produktion stößt ein stündlicher
+  Coolify Scheduled Task die geschützte HTTP-Cron-Route an; der optionale
+  Dauerprozess läuft dort nicht. `processAllNews()` unterstützt zusätzlich
+  Google News als Default, die produktive Cron-Route wählt diese Quelle aber
+  nicht aus.
 - **Serien-Datenbank** (TMDB als Quelle) mit Detailseiten, Top-10-Charts pro
   Streaming-Anbieter, Serienfinder (Filter/Empfehlungen), Personen-/Figuren-
   Profile mit KI-generierten Bios.
@@ -51,14 +55,14 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 
 | Bereich | Technologie |
 |---|---|
-| Framework | Next.js 15.1.6 (App Router), React 19, TypeScript 5.7 |
-| Datenbank | PostgreSQL, gehostet auf **Neon** (serverless), Zugriff über **Prisma ORM 6.19.2** |
+| Framework | Next.js 15, React 19, TypeScript 5. Das Manifest deklariert `^15.1.6`/`^19.0.0`/`^5.7.0`; der Übernahme-Lockstand löst 15.5.25/19.2.8/5.9.3 auf. Die exakten Pakete des lockfilelosen Live-`main` sind daraus nicht beweisbar. |
+| Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Zugriff über **Prisma ORM 6.19.2**. Neon wird nicht verwendet. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
 | LLM (Text) | OpenAI, Modell-String `gpt-5.4` (siehe `lib/llm-config.ts`), über eigenen `OPENAI_API_KEY`, direktes `openai` npm-SDK (v6.25.0) |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
-| Hosting (Stand Doku-Erstellung) | Produktions-Deploy-Ziel siehe `MIGRATION_GUIDE.md` — Vercel war früherer primärer Host, Migration zu Hetzner+Coolify war in Vorbereitung. **Vor jeder Aussage über den aktuellen Live-Stand: tatsächlich nachprüfen, nicht aus dieser Doku annehmen.** |
+| Hosting (live verifiziert am 1. September 2026) | Hetzner-Server mit Coolify; eine Next.js-Anwendung und ein separater PostgreSQL-Service. Die Anwendung baut aus Repository `afdxbdefold-del/serien`, Branch `main`, Basisverzeichnis `/serien-nextjs`, Dockerfile `/Dockerfile`. Vercel ist nicht der aktuelle Anwendungshost. Details des Managementsystems stehen nur im privaten Betriebsinventar. |
 | Push Notifications | Web Push (`web-push`, VAPID-Keys) |
 | Scraping | `cheerio` (HTML-Parsing), `playwright` (schwierigere Quellen, z. B. JS-gerenderte Seiten) |
 | Video/Trailer | RapidAPI (YouTube-Download-Fallbacks) |
@@ -98,7 +102,7 @@ serien-nextjs/
 ├── scripts/                     # 166 Dateien — CLI-Skripte (via `tsx`/`python3` ausführbar)
 │   ├── pipeline-v2.ts            # Kern-Orchestrierung: 1 Artikel von URL → publiziert (3185 Zeilen)
 │   ├── news-scraper.ts           # Multi-Source-RSS-Scraper (`processAllNews`, AKTIV genutzt)
-│   ├── news-scheduler.ts         # Stündlicher Scheduler-Prozess (läuft als Daemon via Supervisor)
+│   ├── news-scheduler.ts         # Optionaler Daemon; in der aktuellen Produktion nicht gestartet
 │   ├── screenrant-scraper.ts     # ALT/nicht mehr genutzt (Quelle in WEAK_HOSTS geblockt)
 │   ├── generate-character-content.py  # Charakter-Bios (Python, eigener OpenAI-Call)
 │   └── ... (viele Einmal-Backfill-/Debug-/Test-Skripte, siehe Namenskonvention unten)
@@ -139,19 +143,20 @@ Die zentralen Tabellen:
 Schemaänderungen laufen über Prisma. Die vorhandene Migrationshistorie ist
 jedoch keine vollständige Baseline für eine leere Datenbank. Vor `db push` oder
 `migrate deploy` deshalb zwingend `TAKEOVER_STATUS.md` lesen, Datenbank sichern
-und den tatsächlichen Neon-Stand vergleichen.
+und den tatsächlichen Coolify-PostgreSQL-Stand vergleichen.
 
-## 5. Environment Variables (vollständige Liste — Werte NICHT hier)
+## 5. Environment Variables (betriebsrelevante Auswahl — Werte NICHT hier)
 
 ⚠️ **Nie tatsächliche Schlüsselwerte in Doku, Commits oder Chat schreiben.**
-Diese Tabelle listet ausschließlich Namen und Zweck.
+Diese Tabelle listet ausschließlich Namen und Zweck. Die vollständige,
+kanonische Liste steht in `.env.example`.
 
 | Variable | Zweck | Pflicht zum Starten? |
 |---|---|---|
-| `DATABASE_URL` | Neon Postgres Connection String (pooled) | **Ja** |
-| `DIRECT_URL` | Neon Postgres Direct Connection (für Prisma Migrations, non-pooled). ⚠️ In `prisma/schema.prisma` referenziert (`directUrl = env("DIRECT_URL")`), war zum Zeitpunkt dieser Doku **nicht** in `.env` gesetzt — vor `prisma migrate` prüfen/ergänzen, sonst schlägt der Migrate-Befehl fehl (Runtime-Queries über `DATABASE_URL` liefen trotzdem). | Für `migrate`, nicht für normalen Betrieb |
-| `OPENAI_API_KEY` | Eigener OpenAI-Key — treibt Text (`gpt-5.4`) + Bild (`gpt-image-1`) | Ja (oder Fallback) |
-| `EMERGENT_LLM_KEY` | Nur Fallback, falls `OPENAI_API_KEY` fehlt (Emergent-Proxy, `claude-sonnet-4-6`) — funktioniert nur innerhalb der Emergent-Plattform | Nein |
+| `DATABASE_URL` | PostgreSQL-Verbindungs-URL; in Produktion zeigt sie auf den privaten Coolify-Datenbankservice. | **Ja** |
+| `DIRECT_URL` | Direkte PostgreSQL-Verbindung für Prisma-CLI-Schritte. In `prisma/schema.prisma` referenziert (`directUrl = env("DIRECT_URL")`), im verifizierten Coolify-App-Environment aber nicht vorhanden. Vor jedem Schema-/Migrationsversuch müssen Backup, Schema-Baseline und diese Variable separat geprüft werden; gegen Produktion sind Migrationen bis dahin gesperrt. | Für Prisma-CLI/Build prüfen; nicht für normale Runtime-Queries |
+| `OPENAI_API_KEY` | Eigener OpenAI-Key — treibt Text (`gpt-5.4`) + Bild (`gpt-image-1`) | Ja; kein unterstützter Produktions-Fallback |
+| `EMERGENT_LLM_KEY` | Legacy-Kompatibilität für einen noch vorhandenen Emergent-Proxy-Codepfad. Der Variablenname existiert in Produktion, ist auf dem aktuellen Hetzner-Host aber kein belastbarer Failover und soll nach vollständiger Inventarisierung entfallen. | Nein |
 | `TMDB_API_KEY` | The Movie Database — Serien-/Episoden-Metadaten | Ja |
 | `JWT_SECRET` | Signatur-Secret für Admin-/User-Login-Tokens (`lib/auth.ts`) | Ja |
 | `REVALIDATE_SECRET` | Separates Server-zu-Server-Secret für `/api/internal/revalidate*` | Für Cache-Invalidierung |
@@ -178,25 +183,32 @@ Ausführliche Schritt-für-Schritt-Anleitung inkl. Troubleshooting:
 
 ```bash
 git clone <repo-url> serien-nextjs && cd serien-nextjs
-yarn install
+npm ci
 cp .env.example .env   # falls vorhanden, sonst manuell anlegen (siehe Abschnitt 5)
 npx prisma generate
+# Nur auf einer entbehrlichen lokalen Entwicklungsdatenbank:
 npx prisma db push
-yarn dev                # Port 3000
+npm run dev             # Port 3000
 ```
+
+Die eingecheckte Migrationshistorie ist keine vollständige Baseline. Die
+beiden Schema-Befehle in diesem Beispiel sind ausschließlich für eine lokale,
+entbehrliche Datenbank gedacht und dürfen nicht auf Produktion zeigen.
 
 ## 7. News-Pipeline & LLM — Kurzüberblick
 
 Voller Ablauf inkl. aller Gate-Checks, Fehlerpfade und GPT-5-Besonderheiten:
 **`PIPELINE_AND_LLM.md`**.
 
-Kurzfassung: `scripts/news-scheduler.ts` läuft als Dauerprozess (kein Cron-
-Einzeltrigger, `setInterval`), scraped stündlich 7 Quellen über
-`scripts/news-scraper.ts` (`processAllNews`), und übergibt jeden neuen
-Artikel an `scripts/pipeline-v2.ts` (`runPipelineV2`, 3185 Zeilen) — der
-komplette Weg von Roh-URL bis publiziertem, SEO-optimiertem, bebildertem
-deutschem Artikel inkl. Klassifikation, Fact-Checking, Charakter-Import,
-Hero-Bild, Trailer-Suche, Sitemap-Prewarm, Facebook-Post, Google-Indexing.
+Kurzfassung: `scripts/news-scheduler.ts` kann als Dauerprozess (`setInterval`)
+laufen und übergibt neue Funde aus `scripts/news-scraper.ts`
+(`processAllNews`) an `scripts/pipeline-v2.ts` (`runPipelineV2`, 3185 Zeilen).
+In der am 1. September 2026 verifizierten Produktion läuft dieser Daemon
+jedoch nicht: Coolify Scheduled Tasks rufen stattdessen die geschützten
+`/api/cron/*`-Routen auf. Der komplette Pipeline-Weg reicht von der Roh-URL
+bis zum publizierten, SEO-optimierten, bebilderten deutschen Artikel inklusive
+Klassifikation, Fact-Checking, Charakter-Import, Hero-Bild, Trailer-Suche,
+Sitemap-Prewarm, Facebook-Post und Google-Indexing.
 
 ## 8. Ad-Stack — Kurzüberblick
 
@@ -213,9 +225,8 @@ Browser-User-Agent, sonst HTTP 204.
 ## 9. Bekannte offene Punkte / Backlog
 
 Siehe `OPERATIONS_RUNBOOK.md` Abschnitt "Backlog" für die aktuelle Liste
-(RapidAPI-Key-Duplikat, Sitemap-Prewarm-401, Hetzner-Migration-Status,
-Yieldlab-NoBid-Ticket, fehlende R2-Poster, hardcodierte Cron-Fallback-Secrets
-u. a.).
+(RapidAPI-Key-Duplikat, Sitemap-Prewarm-401, PostgreSQL-Backup-Lücke,
+Cron-401, Yieldlab-NoBid-Ticket und fehlende R2-Poster u. a.).
 
 ## 10. Wichtige Lessons Learned
 
@@ -224,7 +235,7 @@ u. a.).
    falscher Parameter lässt 100 % der LLM-Aufrufe mit HTTP 400 scheitern.
    Details: `PIPELINE_AND_LLM.md`.
 2. **Globale npm-Installationen überleben keinen Server-Neustart** — Tools
-   wie `tsx`, die von Cron/Supervisor-Prozessen gebraucht werden, immer als
+   wie `tsx`, die von einem optionalen Worker gebraucht werden, immer als
    echte `package.json`-Dependency installieren, nie nur global.
 3. **"Kein Fehler" ≠ "Erfolgreich"** — mehrere Scraper-Skripte zählten
    `stats.processed++` allein basierend darauf, dass keine Exception flog,
@@ -234,16 +245,21 @@ u. a.).
 4. **`middleware.ts` blockt Headless-Browser/curl-Standard-UAs** — bei jedem
    externen Monitoring/Testing einen echten Chrome-User-Agent-String
    mitschicken.
-5. **Neon Postgres hat gelegentliche Cold-Start-Verzögerungen** (wenige
-   Sekunden) bei der ersten Anfrage nach Inaktivität — bei `P1001`-Fehlern
-   einmal retry, bevor man einen echten Bug vermutet.
-6. **Supervisor-Konfigurationsblöcke mit zwei `environment=`-Zeilen** — nur
-   die letzte Zeile im selben `[program:x]`-Block gewinnt, die erste wird
+5. **`P1001` ist in Produktion kein Neon-Cold-Start-Signal.** Die Datenbank
+   läuft dauerhaft als Coolify-PostgreSQL-Service. Bei `P1001` zuerst den
+   Datenbank-Container, dessen Healthcheck, das private Coolify-Netzwerk, die
+   Verbindungsgrenze und erst danach die Konfiguration von `DATABASE_URL`
+   prüfen; Werte niemals protokollieren.
+6. **Falls später wieder Supervisor eingesetzt wird:** Bei
+   Konfigurationsblöcken mit zwei `environment=`-Zeilen gewinnt nur die
+   letzte Zeile im selben `[program:x]`-Block; die erste wird
    stillschweigend verworfen. Immer alle Env-Variablen eines Prozesses in
    EINER `environment=`-Zeile zusammenfassen.
-7. **Prisma `directUrl`** referenziert `DIRECT_URL`, das aber ggf. nicht in
-   `.env` gesetzt ist — nur relevant für `prisma migrate`, nicht für
-   normalen Query-Betrieb über `DATABASE_URL`. Vor Migrationsbefehlen prüfen.
+7. **Prisma `directUrl`** referenziert `DIRECT_URL`, das in Produktion nicht
+   als App-Variable sichtbar war. Der normale Query-Betrieb nutzt
+   `DATABASE_URL`; für Prisma-CLI-Schritte einschließlich Schema-Validierung,
+   Generierung und Migration müssen beide Variablen vorab kontrolliert
+   bereitstehen. Keine Migration gegen Produktion ausführen.
 
 ---
 
