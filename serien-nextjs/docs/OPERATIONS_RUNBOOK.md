@@ -155,14 +155,15 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   automatischen Titelbau-Logik für diese eine Domain-Variante.
 - **PostgreSQL-Backup-Lücke**: Hetzner/Coolify ist die bestätigte Produktion.
   In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
-  konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Fünf manuelle
-  Sicherungssätze vom 1. und 5. September 2026 liegen ausschließlich auf dem
-  Produktionshost. Ihre SHA-256-Prüfsummen, `pg_restore`-Inhaltsverzeichnisse
-  und komprimierten Base-/WAL-Archive wurden am 12. September erfolgreich
-  geprüft; ein isolierter Restore wurde nicht ausgeführt. Vor jeder
-  Produktionsänderung einen aktuellen konsistenten PostgreSQL-Dump und eine
-  Volume-Sicherung auf getrenntem Speicher erstellen, Integrität prüfen und
-  die Wiederherstellung isoliert erfolgreich testen.
+  konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Sechs manuelle
+  Sicherungssätze vom 1., 5. und 12. September 2026 liegen ausschließlich auf
+  dem Produktionshost. Für den aktuellen Satz `20260912T112834Z` bestanden
+  Gzip-, Inhalts- und SHA-256-Prüfung. Logischer Dump und physisches
+  Basebackup wurden am 12. September in getrennten, netzwerkisolierten
+  PostgreSQL-17-Umgebungen erfolgreich wiederhergestellt; beide lieferten
+  exakt 4.292 Artikel und 44 öffentliche Tabellen. Vor jeder
+  Produktionsänderung den aktuellen Sicherungssatz zusätzlich auf getrennten
+  Speicher kopieren.
 - **Freshness-Alarm fehlt live**: Der derzeit deployte Stand warnt nicht, falls
   die News-Pipeline tagelang keine echten Publishes produziert. Auf
   `codex/takeover` ist lokal vorbereitet, vollständige Quellfehler und – nur

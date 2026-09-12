@@ -31,17 +31,18 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
   `/var/lib/postgresql/data`.
 - In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
   konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Auf dem Host
-  liegen jedoch fünf manuell erstellte Sicherungssätze vom 1. und 5. September
-  2026 unter `/data/coolify/backups/serien-manual/`. Jeder Satz enthält einen
-  logischen PostgreSQL-Dump und ein physisches Base-/WAL-Archiv. Am
-  12. September bestanden alle gespeicherten SHA-256-Prüfsummen, alle fünf
-  Dumps ließen sich mit `pg_restore --list` lesen und alle komprimierten
-  physischen Archive bestanden den Dekompressionstest. Ein isolierter Restore
-  wurde weiterhin nicht ausgeführt. Da die Sicherungen auf demselben Server
+  liegen jedoch sechs manuell erstellte Sicherungssätze vom 1., 5. und 12.
+  September 2026 unter `/data/coolify/backups/serien-manual/`. Der aktuelle
+  Satz `20260912T112834Z` enthält einen 67-MB-Custom-Dump und ein 98-MB-
+  Basebackup mit enthaltenem WAL; Gzip-, Inhalts- und SHA-256-Prüfung
+  bestanden. Am 12. September wurden sowohl der logische Dump als auch das
+  physische Basebackup in getrennten, netzwerkisolierten PostgreSQL-17-
+  Umgebungen erfolgreich wiederhergestellt. Beide lieferten exakt 4.292
+  Artikel (4.271 veröffentlicht, 11 Entwürfe, 10 archiviert) und 44
+  öffentliche Tabellen. Da die Sicherungen weiterhin auf demselben Server
   liegen und kein automatisches oder externes Ziel existiert, schützen sie
-  nicht vor Host-Ausfall. Vor jeder Produktionsänderung müssen deshalb ein
-  aktuelles konsistentes Datenbank-/Volume-Backup auf getrenntem Speicher und
-  ein erfolgreicher Restore-Test nachgewiesen werden.
+  nicht vor Host-Ausfall. Vor jeder Produktionsänderung muss der aktuelle
+  Sicherungssatz deshalb noch auf getrennten Speicher kopiert werden.
 - Der vorhandene Cloudflare-R2-Bucket ist erreichbar; ein versioniertes
   Artikelbild wurde manuell hochgeladen und öffentlich verifiziert. Im
   Live-App-Environment fehlen weiterhin die R2-Variablennamen, sodass der
@@ -52,6 +53,10 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
   Coolify Scheduled Tasks gegen `/api/cron/*`.
 
 ## Bereits erledigt
+
+- Aktuellen logischen und physischen PostgreSQL-Sicherungsstand erstellt,
+  Prüfsummen verifiziert und beide Restore-Wege isoliert erfolgreich getestet;
+  die Offsite-Kopie bleibt offen.
 
 - Paketauflösung mit `package-lock.json` reproduzierbar gemacht; Node- und
   npm-Anforderungen sowie Standardbefehle für Test, Lint und Typecheck ergänzt.

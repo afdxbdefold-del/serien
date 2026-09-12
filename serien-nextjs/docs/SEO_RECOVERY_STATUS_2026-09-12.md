@@ -227,7 +227,7 @@ und die automatische Pipeline redaktionell kontrolliert wird.
 | Persistenz | Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`; die App selbst hat kein persistentes Volume |
 | Automatisierung | Coolify Scheduled Tasks rufen `/api/cron/*` auf; kein zusätzlicher Worker-/Supervisor-Container |
 | Bekannter Cron-Stand | zehn aktive Tasks waren inventarisiert; `downgrade-stale` und `videos` scheiterten wiederholt mit HTTP 401, `trends` war nicht angelegt |
-| Backups | kein Coolify-Datenbank-Backupplan, kein Coolify-S3-Backupziel und dort null Backup-Ausführungen. Auf demselben Host liegen jedoch fünf manuelle Sicherungssätze vom 1. und 5. September 2026. Für alle fünf bestanden SHA-256-Prüfung, `pg_restore`-Inhaltsprüfung sowie die Gzip-Tests der physischen Base-/WAL-Archive. Ein isolierter Restore und ein Offsite-Backup fehlen weiterhin. |
+| Backups | kein Coolify-Datenbank-Backupplan, kein Coolify-S3-Backupziel und dort null Backup-Ausführungen. Auf demselben Host liegen sechs manuelle Sicherungssätze vom 1., 5. und 12. September 2026. Der neue Satz `20260912T112834Z` enthält einen 67-MB-Custom-Dump und ein 98-MB-Basebackup mit enthaltenem WAL. Gzip-, Inhalts- und SHA-256-Prüfung bestanden. Sowohl der logische Dump als auch das physische Basebackup wurden in getrennten, netzwerkisolierten PostgreSQL-17-Umgebungen erfolgreich gestartet; beide lieferten exakt 4.292 Artikel (4.271 veröffentlicht, 11 Entwürfe, 10 archiviert) und 44 öffentliche Tabellen. Eine Offsite-Kopie fehlt weiterhin. |
 | Storage | Cloudflare R2 ist vorhanden und erreichbar; der Code und `.env.example` enthalten die R2-Anbindung. Im verifizierten Live-App-Environment waren jedoch keine R2-Variablennamen gesetzt. Vercel Blob und ein Emergent-Altpfad sind dort weiterhin vorhanden. |
 | Live-Variablennamen | `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL`, `EMERGENT_LLM_KEY`, `FACEBOOK_PAGE_TOKEN_EXPIRES_AT`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `JWT_SECRET`, `NEXT_PUBLIC_BASE_URL`, `OPENAI_API_KEY`, `TMDB_API_KEY`. Werte wurden nicht ausgegeben. |
 
@@ -235,8 +235,9 @@ Secret-Werte wurden weder ausgelesen noch in diesem Dokument festgehalten.
 
 ## 7. Lokal vorbereitet, aber nicht live
 
-Auf `codex/takeover` sind lokal erste Sicherungsmaßnahmen umgesetzt und
-getestet. Sie sind weder gepusht noch deployed:
+Auf `codex/takeover` sind erste Sicherungsmaßnahmen umgesetzt und getestet.
+Der geprüfte Stand `45c03935` ist nach `origin/codex/takeover` gepusht, aber
+nicht deployed:
 
 - globale, auf die Startseite zeigende `hreflang`-Ausgabe entfernt;
 - Sitemap-Index bereinigt und die Serien-Sitemap aus der aktiven Einreichung
@@ -301,10 +302,12 @@ Gesamtzustand verwechselt werden.
 
 ### Stufe 0 – Produktionssicherheit und Messbasis
 
-1. Einen konsistenten PostgreSQL-Dump und eine Volume-Sicherung auf getrenntem
-   Speicher erstellen.
-2. Beide Sicherungen auf Integrität prüfen und einen isolierten Restore
-   erfolgreich testen. Ohne diesen Nachweis keine Produktionsänderung.
+1. Der aktuelle PostgreSQL-Dump und das physische Basebackup sind erstellt und
+   auf demselben Host verifiziert; beide müssen noch auf getrennten Speicher
+   kopiert werden.
+2. Integritätsprüfung sowie logischer und physischer Restore-Test sind
+   erfolgreich abgeschlossen. Ohne die Offsite-Kopie keine
+   Produktionsänderung.
 3. GSC-Leistungs- und Seitenexporte sichern, damit jede spätere Wirkung gegen
    eine unveränderte Ausgangsbasis gemessen werden kann.
 4. Automatische Publikation bis zur redaktionellen Freigabe geschlossen
@@ -396,5 +399,6 @@ Ohne ausdrückliche Freigabe bleiben untersagt:
 - Secret-Rotation sowie Änderungen an DNS, Cloudflare, R2 oder Coolify-Zugängen.
 
 Die nächste sichere Entscheidung ist daher nicht „alles sofort deployen“,
-sondern zuerst Backup plus Restore-Test zu verifizieren und anschließend die
-kleine technische Stufe 1 kontrolliert freizugeben.
+sondern zuerst den verifizierten Sicherungssatz auf getrennten Speicher zu
+kopieren und anschließend die kleine technische Stufe 1 kontrolliert
+freizugeben.
