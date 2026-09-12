@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { serializeJsonLd } from '@/lib/json-ld';
 
 interface QAItem {
   question: string;
@@ -52,7 +53,7 @@ export default function ArticleQA({ questions, schemaEnabled, headingType }: Art
       {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
         />
       )}
 

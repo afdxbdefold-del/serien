@@ -45,39 +45,51 @@ import { checkDachAvailability } from '../lib/dach-availability';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
 import { computeStoryFingerprint } from '../lib/story-fingerprint';
-import { indexNewArticle } from '../lib/google-indexing';
 import { indexNowArticle } from '../lib/indexnow';
 import { postArticleToFacebook } from '../lib/facebook-poster';
 import { getBoolSetting, SETTINGS } from '../lib/app-settings';
+import { decideEditorialPublication, type EditorialGateOutcome } from '../lib/editorial-publication-gate';
+import { parseSourcePublishedAt } from '../lib/source-published-at';
+import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
 
 const prisma = new PrismaClient();
 
 // ══════════════════════════════════════════════════════════════════════════
-// AUTHOR ROTATION: Randomly select from real editorial team
+// EDITORIAL BYLINE: explicit/configured author with verified Redaktion fallback
 // ══════════════════════════════════════════════════════════════════════════
-let editorialAuthorIds: string[] | null = null;
+const VERIFIED_EDITORIAL_AUTHOR_ID = 'redaktion';
 
-async function getRandomAuthor(): Promise<string> {
-  if (!editorialAuthorIds) {
-    const authors = await prisma.users.findMany({
-      where: { role: 'author' },
-      select: { id: true },
-    });
-    editorialAuthorIds = authors.map((author) => author.id);
+async function resolveEditorialAuthorId(source: PipelineV2Source): Promise<string> {
+  const explicitAuthorId = source.authorId?.trim();
+  const configuredAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID?.trim();
+  const candidateId = explicitAuthorId || configuredAuthorId || VERIFIED_EDITORIAL_AUTHOR_ID;
+
+  const author = await prisma.users.findUnique({
+    where: { id: candidateId },
+    select: { id: true, role: true },
+  });
+
+  if (!author || author.role !== 'author') {
+    const sourceLabel = explicitAuthorId
+      ? 'Die explizit angegebene Autoren-ID'
+      : configuredAuthorId
+        ? 'AUTOMATED_EDITORIAL_AUTHOR_ID'
+        : 'Das verifizierte Redaktion-Fallbackkonto';
+    throw new Error(`${sourceLabel} verweist nicht auf ein aktives Autorenkonto`);
   }
 
-  if (editorialAuthorIds.length === 0) {
-    throw new Error('No editorial authors are configured in the database');
-  }
-
-  const randomIndex = Math.floor(Math.random() * editorialAuthorIds.length);
-  return editorialAuthorIds[randomIndex];
+  return author.id;
 }
 
 interface PipelineV2Source {
   title: string;
   url: string;
   text: string;
+  /** Legacy alias accepted by a few internal callers. */
+  sourceText?: string;
+  /** Optional explicit byline for authenticated manual runs. */
+  authorId?: string;
+  sourcePublishedAt?: string | Date;
   useFullTextMode?: boolean;
   trigger?: TriggerType;
   /**
@@ -279,6 +291,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
   try {
     // ========== STEP 0: URL DEDUP (vor allen LLM-Calls!) ==========
     const trigger = source.trigger || 'manual';
+
+    // Resolve the byline before fetching full text or invoking an LLM. A bad
+    // author configuration must fail closed before the expensive pipeline run.
+    logStep('0_author_resolution');
+    const resolvedAuthorId = await resolveEditorialAuthorId(source);
+    logger.addMetadata('authorResolution', source.authorId?.trim() ? 'explicit' : 'editorial-default');
     
     if (trigger !== 'manual') {
       // Nur SUCCESSFUL Runs der letzten 24h blockieren — gescheiterte Runs
@@ -315,9 +333,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let sourceYoutubeVideoIds: string[] = [];
     let sourceInstagramPermalinks: string[] = [];
     let sourceTwitterStatusUrls: string[] = [];
+    let fetchedSourcePublishedAt: Date | null = null;
     
     if (source.useFullTextMode) {
       const fullTextResult = await fetchFullArticleText(source.url);
+      fetchedSourcePublishedAt = fullTextResult.publishDate || null;
       
       if (fullTextResult.wordCount > 100) {
         fullSourceText = fullTextResult.fullText;
@@ -342,34 +362,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
     // Pipeline-V2 verarbeitet einzelne News-Artikel - das Artikel-Datum IST das Thema-Datum
-    const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
-    
-    // Versuche das Veröffentlichungsdatum aus dem Artikel zu extrahieren
-    let articleDate: Date | null = null;
-    const datePatterns = [
-      /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})/i,
-      /(\d{4})-(\d{2})-(\d{2})/,
-      /(\d{1,2})\.(\d{1,2})\.(\d{4})/,
-    ];
-    
-    for (const pattern of datePatterns) {
-      const match = fullSourceText.match(pattern);
-      if (match) {
-        try {
-          if (pattern.source.includes('Januar')) {
-            // German month format
-            const months: Record<string, number> = {
-              'januar': 0, 'februar': 1, 'märz': 2, 'april': 3, 'mai': 4, 'juni': 5,
-              'juli': 6, 'august': 7, 'september': 8, 'oktober': 9, 'november': 10, 'dezember': 11
-            };
-            articleDate = new Date(parseInt(match[3]), months[match[2].toLowerCase()], parseInt(match[1]));
-          } else {
-            articleDate = new Date(match[0]);
-          }
-          if (!isNaN(articleDate.getTime())) break;
-        } catch {}
-      }
-    }
+    const maxAgeMs = 6 * 60 * 60 * 1000;
+
+    // RSS/JSON-LD timestamps are authoritative. Dates mentioned in prose may
+    // be release dates or historical context and are never used for freshness.
+    const articleDate = parseSourcePublishedAt(source.sourcePublishedAt) || fetchedSourcePublishedAt;
     
     if (articleDate) {
       const articleAge = now.getTime() - articleDate.getTime();
@@ -764,6 +761,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     let saveAsDraft = false;
     let draftReason = '';
+    const editorialGateOutcomes: EditorialGateOutcome[] = [];
     
     if (!searchResult || searchResult.confidence < DRAFT_THRESHOLD) {
       console.log('⚠️ No confident TMDB match found (confidence < 50%)');
@@ -983,7 +981,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
-      select: { tmdbId: true, name: true, title: true, backdropPath: true, trailers: true, genres: true, numberOfSeasons: true, networks: true }
+      select: {
+        tmdbId: true,
+        name: true,
+        originalName: true,
+        title: true,
+        slug: true,
+        overview: true,
+        status: true,
+        backdropPath: true,
+        posterPath: true,
+        trailers: true,
+        genres: true,
+        numberOfSeasons: true,
+        lastAirDate: true,
+        networks: true,
+        seasons: true,
+        localTrailerPath: true,
+      }
     });
     
     if (!dbSeries) {
@@ -1013,6 +1028,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
           overview: completeDetails.overview || undefined,
           status: completeDetails.status,
           firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : undefined,
+          lastAirDate: completeDetails.lastAirDate ? new Date(completeDetails.lastAirDate) : undefined,
+          numberOfSeasons: completeDetails.numberOfSeasons ?? undefined,
           updatedAt: new Date(),
         },
         create: {
@@ -1025,6 +1042,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
           overview: completeDetails.overview || '',
           status: completeDetails.status,
           firstAirDate: completeDetails.firstAirDate ? new Date(completeDetails.firstAirDate) : null,
+          lastAirDate: completeDetails.lastAirDate ? new Date(completeDetails.lastAirDate) : null,
+          numberOfSeasons: completeDetails.numberOfSeasons ?? null,
           trailers: completeDetails.trailers || [],
           updatedAt: new Date(),
         }
@@ -1794,64 +1813,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 5.06: USD-to-EUR');
 
-    // ========== STEP 5.1: QUALITY GATES ==========
+    // ========== STEP 5.1: DETERMINISTIC PREFLIGHT ==========
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 5.1: QUALITY GATES');
+    console.log('STEP 5.1: DETERMINISTIC PREFLIGHT');
     console.log('━'.repeat(70));
-    console.time('⏱️  STEP 5.1: Quality Gates');
-    logger.log('Quality Gates prüfen...');
-    
-    // Note: Quality gates are lenient in v2 to allow content through
-    // They log warnings but don't block publication
-    
-    let antiAiScore = 0;
-    
-    try {
-      // Quality Check
-      const qualityResult = await qualityCheck({
-        generatedArticleHtml: structuredContent.markdown,
-        originalHeadline: source.title,
-        generatedHeadline: structuredContent.headline,
-      });
-      console.log(`✅ Quality check: ${qualityResult.passed ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`⚠️  Quality check skipped: ${error.message}`);
-    }
-    
-    try {
-      // Anti-AI Filter (async — must be awaited; otherwise score remains undefined → null in DB)
-      const antiAiResult = await antiAiFilter({
-        articleHtml: structuredContent.markdown || '',
-        headline: structuredContent.headline,
-        seriesName: dbSeries.name || dbSeries.title || '',
-      });
-      antiAiScore = antiAiResult.antiAiScore;
-      console.log(`✅ Anti-AI filter: ${antiAiResult.status === 'PASS' ? 'Passed' : 'Warnings'}`);
-      logger.log(`Anti-AI Score: ${antiAiScore}/100`);
-      await logger.update({ antiAiScore });
-    } catch (error: any) {
-      console.log(`⚠️  Anti-AI filter skipped: ${error.message}`);
-    }
-    
-    try {
-      // Fact Safety Check
-      const factSafetyResult = await factSafetyCheck(
-        structuredContent.markdown || '',
-        facts,
-        fullSourceText
-      );
-      console.log(`✅ Fact safety check: ${factSafetyResult.passed ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`⚠️  Fact safety check skipped: ${error.message}`);
-    }
-    
-    try {
-      // Time-Axis Correction
-      const contentAge = await classifyContentAge(fullSourceText, source.title);
-      console.log(`✅ Content age: ${contentAge.ageCategory}`);
-    } catch (error: any) {
-      console.log(`⚠️  Time-axis check skipped: ${error.message}`);
-    }
+    console.time('⏱️  STEP 5.1: Deterministic Preflight');
+    logger.log('Deterministische Vorprüfungen...');
+    // LLM-backed quality, anti-AI, fact-safety and freshness checks intentionally
+    // run only after retry, HTML conversion and headline/intro selection. Their
+    // verdict must describe the exact payload that is inserted.
 
     // Plagiarism / near-duplicate gate (TF-Cosine over 14-day published corpus).
     // Catches re-writes of our own old articles that `duplicate-llm` would miss
@@ -1951,7 +1921,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     } catch (error: any) {
       console.log(`⚠️  US-corporate-news check skipped: ${error.message}`);
     }
-    console.timeEnd('⏱️  STEP 5.1: Quality Gates');
+    console.timeEnd('⏱️  STEP 5.1: Deterministic Preflight');
 
     // ========== STEP 5.2: AUTO-RETRY BEI NIEDRIGER QUALITÄT ==========
     logStep('5.2_auto_retry');
@@ -2223,13 +2193,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // readers. See lib/streamer-claim-verifier.ts for the heuristic.
     try {
       const { verifyHeadlineClaim } = await import('../lib/streamer-claim-verifier');
-      const watchProviders = (dbSeries.watchProviders as any) || {};
-      const deFlat = watchProviders?.results?.DE?.flatrate
-        ?? watchProviders?.DE?.flatrate
-        ?? [];
-      const deProviderNames: string[] = Array.isArray(deFlat)
-        ? deFlat.map((p: any) => p?.provider_name).filter(Boolean)
-        : [];
+      const deProviderNames = dachContext.dachStreamers;
       const verdict = verifyHeadlineClaim(finalHeadline, deProviderNames);
       if (verdict.kind === 'unverified') {
         console.log(`   🚦 Streamer-Claim UNVERIFIED: "${verdict.claimedStreamer}" claimed, DE-Providers laut TMDB: [${verdict.actualDeProviders.join(', ')}]`);
@@ -2434,6 +2398,182 @@ export async function runPipelineV2(source: PipelineV2Source) {
         .trim();
     }
 
+    // ========== STEP 7.8: FINAL PUBLICATION GATE ==========
+    // Nothing may alter headline/body after this point. The gate therefore
+    // evaluates the exact HTML and headline that will be written in Step 8.
+    console.log('\n' + '━'.repeat(70));
+    console.log('STEP 7.8: FINAL PUBLICATION GATE');
+    console.log('━'.repeat(70));
+    console.time('⏱️  STEP 7.8: Final Publication Gate');
+    logger.log('Finale redaktionelle Gates prüfen...');
+
+    let antiAiScore = 0;
+
+    try {
+      const htmlSafety = validateAndNormalizeArticleHtml(finalContentWithVideo);
+      editorialGateOutcomes.push({
+        gate: 'html-safety',
+        status: htmlSafety.ok ? 'pass' : 'fail',
+        reason: htmlSafety.reason,
+      });
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'html-safety', status: 'error', reason: error.message });
+    }
+
+    try {
+      const qualityResult = await qualityCheck({
+        generatedArticleHtml: finalContentWithVideo,
+        finalHeadline,
+        primarySeriesName: dbSeries.name || dbSeries.title || '',
+        extractedFacts: JSON.stringify(facts).substring(0, 4000),
+        isRankingList: contentType === 'RANKING',
+      });
+      const passed = qualityResult.status === 'PASS';
+      editorialGateOutcomes.push({
+        gate: 'quality',
+        status: passed ? 'pass' : 'fail',
+        reason: qualityResult.failReasons.join(', ') || qualityResult.status,
+      });
+      console.log(`${passed ? '✅' : '⚠️'} Quality check: ${qualityResult.status}`);
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'quality', status: 'error', reason: error.message });
+      console.log(`⚠️  Quality check failed closed: ${error.message}`);
+    }
+
+    try {
+      const antiAiResult = await antiAiFilter({
+        articleHtml: finalContentWithVideo,
+        headline: finalHeadline,
+        seriesName: dbSeries.name || dbSeries.title || '',
+        isRankingList: contentType === 'RANKING',
+      });
+      antiAiScore = antiAiResult.antiAiScore;
+      editorialGateOutcomes.push({
+        gate: 'anti-ai',
+        status: antiAiResult.status === 'PASS' ? 'pass' : 'fail',
+        reason: antiAiResult.failReasons.join(', ') || antiAiResult.status,
+      });
+      console.log(`${antiAiResult.status === 'PASS' ? '✅' : '⚠️'} Anti-AI filter: ${antiAiResult.status}`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100`);
+      await logger.update({ antiAiScore });
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'anti-ai', status: 'error', reason: error.message });
+      console.log(`⚠️  Anti-AI filter failed closed: ${error.message}`);
+    }
+
+    try {
+      const factSafetyResult = await factSafetyCheck({
+        articleHtml: finalContentWithVideo,
+        headline: finalHeadline,
+        extractedFacts: JSON.stringify(facts).substring(0, 4000),
+        tmdbSeriesData: {
+          status: dbSeries.status || undefined,
+          lastAirDate: dbSeries.lastAirDate?.toISOString() || undefined,
+          numberOfSeasons: dbSeries.numberOfSeasons || undefined,
+        },
+      });
+      editorialGateOutcomes.push({
+        gate: 'fact-safety',
+        status: factSafetyResult.status === 'SAFE' ? 'pass' : 'fail',
+        reason: factSafetyResult.headlineViolations.join(', ')
+          || factSafetyResult.rejectedFacts.map((fact) => fact.claim).join(', ')
+          || factSafetyResult.status,
+      });
+      console.log(`${factSafetyResult.status === 'SAFE' ? '✅' : '⚠️'} Fact safety check: ${factSafetyResult.status}`);
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'fact-safety', status: 'error', reason: error.message });
+      console.log(`⚠️  Fact safety check failed closed: ${error.message}`);
+    }
+
+    const sourceUrlIsValid = isSafePublicHttpUrl(source.url);
+    editorialGateOutcomes.push({
+      gate: 'source',
+      status: contentType === 'RANKING' || sourceUrlIsValid ? 'pass' : 'fail',
+      reason: contentType === 'RANKING' && !sourceUrlIsValid
+        ? 'Explizit als zeitloses Ranking klassifiziert'
+        : sourceUrlIsValid
+          ? 'Originalquelle vorhanden'
+          : 'Keine gültige öffentliche Originalquelle vorhanden',
+    });
+
+    try {
+      if (contentType === 'RANKING') {
+        editorialGateOutcomes.push({ gate: 'freshness', status: 'pass', reason: 'Explizit als zeitloses Ranking klassifiziert' });
+        console.log('✅ Content age: zeitloses Ranking');
+      } else if (!articleDate) {
+        editorialGateOutcomes.push({ gate: 'freshness', status: 'fail', reason: 'Belastbarer Quellzeitpunkt fehlt' });
+        console.log('⚠️  Content age: missing structured source timestamp');
+      } else {
+        const contentAge = classifyContentAge({
+          sourcePublishedAt: articleDate,
+          headline: finalHeadline,
+          contentType: 'NEWS',
+        });
+        const freshNewsAllowed = contentAge.publishDecision === 'PUBLISH'
+          && contentAge.allowedContentTypes.includes('NEWS');
+        editorialGateOutcomes.push({
+          gate: 'freshness',
+          status: freshNewsAllowed ? 'pass' : 'fail',
+          reason: contentAge.reasons.join(', ') || contentAge.contentAgeClass,
+        });
+        console.log(`${freshNewsAllowed ? '✅' : '⚠️'} Content age: ${contentAge.contentAgeClass}`);
+      }
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'freshness', status: 'error', reason: error.message });
+      console.log(`⚠️  Time-axis check failed closed: ${error.message}`);
+    }
+
+    try {
+      const { verifyBodyClaims } = await import('../lib/streamer-claim-verifier');
+      const bodyVerification = verifyBodyClaims(finalContentWithVideo, dachContext.dachStreamers);
+      const failureReason = bodyVerification.negativeDeClaimMismatch
+        ? 'Widersprüchliche DACH-Verfügbarkeitsaussage'
+        : bodyVerification.unverifiedClaims.length > 0
+          ? `${bodyVerification.unverifiedClaims.length} unbelegte Streamer-Aussage(n)`
+          : `${bodyVerification.verifiedClaims}/${bodyVerification.totalClaims} Streamer-Aussagen verifiziert`;
+      editorialGateOutcomes.push({
+        gate: 'body-facts',
+        status: bodyVerification.ok ? 'pass' : 'fail',
+        reason: failureReason,
+      });
+      logger.addMetadata('bodyFactGate', {
+        ok: bodyVerification.ok,
+        totalClaims: bodyVerification.totalClaims,
+        verifiedClaims: bodyVerification.verifiedClaims,
+        unverifiedClaims: bodyVerification.unverifiedClaims.length,
+      });
+      console.log(`${bodyVerification.ok ? '✅' : '⚠️'} Body fact check: ${failureReason}`);
+    } catch (error: any) {
+      editorialGateOutcomes.push({ gate: 'body-facts', status: 'error', reason: error.message });
+      console.log(`⚠️  Body fact check failed closed: ${error.message}`);
+    }
+
+    const releaseModeEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    editorialGateOutcomes.push({
+      gate: 'release-mode',
+      status: releaseModeEnabled ? 'pass' : 'fail',
+      reason: releaseModeEnabled
+        ? 'automated publishing enabled'
+        : 'Generierung bleibt bis zur separaten Admin-Freigabe im Review',
+    });
+
+    const editorialDecision = decideEditorialPublication({
+      alreadyDraft: saveAsDraft,
+      existingReason: draftReason,
+      outcomes: editorialGateOutcomes,
+      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'body-facts', 'release-mode'],
+    });
+    saveAsDraft = editorialDecision.status === 'draft';
+    if (saveAsDraft && !draftReason) draftReason = editorialDecision.reason;
+    if (editorialDecision.failedGates.length > 0) {
+      logger.addMetadata('failedEditorialGates', editorialDecision.failedGates);
+      logger.log(`Review-Draft: ${editorialDecision.reason}`, 'warn');
+    }
+
+    const finalStatus = saveAsDraft ? 'draft' : 'published';
+    const finalPublishedAt = saveAsDraft ? null : now;
+    console.timeEnd('⏱️  STEP 7.8: Final Publication Gate');
+
     logStep('8_publish');
     // ========== STEP 8: PUBLISH ==========
     console.log('\n' + '━'.repeat(70));
@@ -2486,10 +2626,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log('   ⚠️ Backdrop-Rotation fehlgeschlagen, nutze Standard:', (e as Error).message);
     }
     
-    // Determine final status based on confidence
-    const finalStatus = saveAsDraft ? 'draft' : 'published';
-    const finalPublishedAt = saveAsDraft ? null : now;
-    
     // ══════════════════════════════════════════════════════════════════════
     // HERO IMAGE RESOLUTION
     //   1) TMDB backdrop   → best case, use as-is
@@ -2502,10 +2638,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
     //   4) Streamer logo   → last resort static Netflix/Prime/etc. logo (rare).
     // ══════════════════════════════════════════════════════════════════════
     let heroImageUrl: string;
+    const heroNetworks = dbSeries.networks || facts?.networks_platforms || [];
     if (selectedBackdrop) {
       heroImageUrl = `https://image.tmdb.org/t/p/original${selectedBackdrop}`;
+    } else if (saveAsDraft) {
+      // Review drafts must not generate or upload external assets.
+      heroImageUrl = getStreamerFallbackImage(heroNetworks);
+      logger.addMetadata('heroSource', 'draft-static-fallback');
     } else {
-      const networks = dbSeries.networks || facts?.networks_platforms || [];
+      const networks = heroNetworks;
       const category = duplicateResult?.topicCategory
         ? duplicateResult.topicCategory.charAt(0) + duplicateResult.topicCategory.slice(1).toLowerCase() + '-News'
         : 'News';
@@ -2570,12 +2711,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
           tmdbId: dbSeries.tmdbId,
           primarySeriesId: dbSeries.tmdbId,
           tmdbType: 'tv',
-          authorId: await getRandomAuthor(),
+          authorId: resolvedAuthorId,
           status: finalStatus,
           publishedAt: finalPublishedAt,
           createdAt: now,
           updatedAt: now,
           sourceUrl: source.url,
+          sourcePublishedAt: articleDate,
+          contentType,
+          // DISCOVER is assigned only after the downstream gate succeeds.
+          publishMode: 'SEARCH_ONLY',
           // Draft reason logged in debugLog, not stored in metadata
           confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
           // Duplicate-prevention fingerprints
@@ -2602,7 +2747,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // Store headline variants with full v4 data
-    if (headlineVariants.length > 0) {
+    if (!saveAsDraft && headlineVariants.length > 0) {
       try {
         await prisma.articles.update({
           where: { id: articleId },
@@ -2674,16 +2819,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 8: Publish');
 
-    // Invalidate cache for the new article so it's immediately visible with links
-    try {
-      const { revalidatePath, revalidateTag } = await import('next/cache');
-      revalidatePath(`/${slug}`);
-      revalidateTag(`article-${slug}`);
-      revalidateTag('article');
-      console.log('🔄 Cache invalidated for:', slug);
-    } catch {
-      // revalidatePath only works in Next.js server context, not in standalone scripts
-      console.log('ℹ️  Cache revalidation skipped (not in server context)');
+    // Drafts are not public and must not invalidate public caches.
+    if (!saveAsDraft) {
+      try {
+        const { revalidatePath, revalidateTag } = await import('next/cache');
+        revalidatePath(`/${slug}`);
+        revalidateTag(`article-${slug}`);
+        revalidateTag('article');
+        console.log('🔄 Cache invalidated for:', slug);
+      } catch {
+        // revalidatePath only works in Next.js server context, not in standalone scripts
+        console.log('ℹ️  Cache revalidation skipped (not in server context)');
+      }
     }
 
     // ========== STEP 9: POST-PROCESSING (PARALLEL!) ==========
@@ -2692,7 +2839,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 9: Post-Processing');
     
-    await Promise.all([
+    if (!saveAsDraft) {
+      await Promise.all([
       // Save Q&A
       (async () => {
         if (structuredContent.qa.length > 0) {
@@ -2882,14 +3030,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           let bodyFactReason = '';
           try {
             const { verifyBodyClaims } = await import('../lib/streamer-claim-verifier');
-            const watchProvidersForBody = (dbSeries.watchProviders as any) || {};
-            const deProvidersForBody: string[] = (
-              watchProvidersForBody?.results?.DE?.flatrate
-              ?? watchProvidersForBody?.DE?.flatrate
-              ?? []
-            )
-              .map((p: any) => p?.provider_name)
-              .filter(Boolean);
+            const deProvidersForBody = dachContext.dachStreamers;
             const bv = verifyBodyClaims(finalContentWithVideo || '', deProvidersForBody);
             if (!bv.ok) {
               bodyFactsOk = false;
@@ -3058,17 +3199,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
       })(),
       
-      // Google Indexing API - Sofortige Indexierung bei Google
-      (async () => {
-        if (!saveAsDraft) {
-          try {
-            await indexNewArticle(slug, articleId);
-          } catch (error: any) {
-            console.log(`   ⚠️  Google Indexing failed: ${error.message}`);
-          }
-        }
-      })(),
-      // IndexNow - Sofortige Benachrichtigung an Bing, Yandex etc.
+      // Google Indexing API is intentionally not used for ordinary NewsArticle
+      // pages; Google supports that API only for JobPosting/BroadcastEvent URLs.
+      // IndexNow - Benachrichtigung an unterstützte Suchmaschinen.
       (async () => {
         if (!saveAsDraft) {
           try {
@@ -3091,7 +3224,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
           }
         }
       })(),
-    ]);
+      ]);
+    } else {
+      console.log('📝 Review-Draft: mutierendes und externes Post-Processing übersprungen');
+      logger.log('Review-Draft: Post-Processing übersprungen');
+    }
     console.timeEnd('⏱️  STEP 9: Post-Processing');
 
     // ========== SUCCESS ==========
@@ -3102,7 +3239,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log('🎉 PIPELINE V2 COMPLETE');
     }
     console.log('='.repeat(70));
-    console.log(`${saveAsDraft ? '📝' : '✅'} Article: ${structuredContent.headline}`);
+    console.log(`${saveAsDraft ? '📝' : '✅'} Article: ${finalHeadline}`);
     console.log(`${saveAsDraft ? '📝' : '✅'} Slug: ${slug}`);
     console.log(`${saveAsDraft ? '📝' : '✅'} Status: ${finalStatus.toUpperCase()}`);
     if (saveAsDraft) {
@@ -3119,16 +3256,26 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.addMetadata('draftReason', draftReason);
     }
     
-    await logger.success({
+    const completionData = {
       articleId,
       articleSlug: slug,
-      articleTitle: structuredContent.headline,
-    });
+      articleTitle: finalHeadline,
+    };
+    if (saveAsDraft) {
+      await logger.partial({
+        ...completionData,
+        errorMessage: draftReason || 'Zur redaktionellen Prüfung gespeichert',
+      });
+    } else {
+      await logger.success(completionData);
+    }
     
     return {
       articleId,
       slug,
-      headline: structuredContent.headline,
+      headline: finalHeadline,
+      status: finalStatus,
+      draftReason: saveAsDraft ? draftReason : undefined,
     };
     
   } catch (error: any) {

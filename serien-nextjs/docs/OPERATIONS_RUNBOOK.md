@@ -4,11 +4,17 @@ Praktische Troubleshooting-Anleitung für die häufigsten Ausfallmuster.
 Bei jedem Punkt: **erst reproduzieren/verifizieren, dann fixen** — nicht
 raten.
 
-**Produktionsstand 1. September 2026:** Die Anwendung und PostgreSQL laufen
+**Produktionsstand 12. September 2026:** Die Anwendung und PostgreSQL laufen
 als zwei getrennte Coolify-Ressourcen auf einem Hetzner-Server. Der
 Anwendungscontainer startet ausschließlich `next-server`; es gibt keinen
 Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
 über Coolify Scheduled Tasks gegen `/api/cron/*`.
+
+Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar. Port 8000
+spricht ausschließlich HTTP; bei Betriebsprüfungen nicht automatisch auf HTTPS
+wechseln. Die Anwendung baut Branch `main`, und `Deploy on push (webhooks)` ist
+aktiv. Ein Push nach `main` kann daher unmittelbar einen Produktivdeploy
+auslösen; Übernahmearbeiten bleiben auf `codex/takeover`.
 
 ## "Keine neuen News erscheinen"
 
@@ -80,10 +86,14 @@ weil das Guthaben da ist.
 PrismaClientKnownRequestError: ... Code: P1001
 ```
 
-Die Produktionsdatenbank ist ein dauerhaft laufender PostgreSQL-17-Service in
-Coolify, kein serverless Neon-Projekt. Bei einem einzelnen Fehler einmal
-retryen. Bei Wiederholung in dieser Reihenfolge prüfen: Datenbank-Container
-und Healthcheck, Neustartzähler und PostgreSQL-Logs, Auslastung des
+Die Produktionsdatenbank ist ein dauerhaft laufender Coolify-Service mit dem
+Image `postgres:17-alpine`, kein serverless Neon-Projekt. Das leere Feld für
+die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver
+Datenbankname ist `postgres`. Die Daten liegen im Volume
+`postgres-data-oun4xzvaum4o58fglnuqks6y` unter
+`/var/lib/postgresql/data`. Bei einem einzelnen Fehler einmal retryen. Bei
+Wiederholung in dieser Reihenfolge prüfen: Datenbank-Container und
+Healthcheck, Neustartzähler und PostgreSQL-Logs, Auslastung des
 Connection-Limits, Auflösung/Erreichbarkeit im privaten Coolify-Netzwerk und
 zuletzt die Konfiguration von `DATABASE_URL`. Den Wert der Variable niemals
 in Logs oder Chat ausgeben.
@@ -144,18 +154,23 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
 - **`trailer.de`-Headline-Grammatik**: bekannter Dativ-Fehler in der
   automatischen Titelbau-Logik für diese eine Domain-Variante.
 - **PostgreSQL-Backup-Lücke**: Hetzner/Coolify ist die bestätigte Produktion.
-  Hetzner hält sieben tägliche Ganzserver-Backups vor, Coolify selbst aber
-  weder geplante PostgreSQL-Dumps noch Volume-Backups oder ein S3-Backupziel.
-  Ein manueller logischer und physischer PostgreSQL-17-Sicherungsstand wurde
-  am 1. September 2026 mit Prüfsummen und isolierten Restores verifiziert,
-  liegt aber nur auf dem Produktionshost. Vor weiteren Änderungen einen neuen
-  konsistenten Stand auf getrenntem Speicher erstellen oder dorthin
-  replizieren und die Wiederherstellung erneut testen.
-- **Freshness-Alarm fehlt**: keine automatische Warnung, falls die
-  News-Pipeline mal wieder tagelang keine echten Publishes produziert (ist
-  in der Vergangenheit unbemerkt eine Woche lang passiert). Ein einfacher
-  Cron-Check "letzter `articles.publishedAt` älter als X Stunden → Alert"
-  wäre die naheliegende Lösung, existiert aber noch nicht.
+  In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
+  konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Fünf manuelle
+  Sicherungssätze vom 1. und 5. September 2026 liegen ausschließlich auf dem
+  Produktionshost. Ihre SHA-256-Prüfsummen, `pg_restore`-Inhaltsverzeichnisse
+  und komprimierten Base-/WAL-Archive wurden am 12. September erfolgreich
+  geprüft; ein isolierter Restore wurde nicht ausgeführt. Vor jeder
+  Produktionsänderung einen aktuellen konsistenten PostgreSQL-Dump und eine
+  Volume-Sicherung auf getrenntem Speicher erstellen, Integrität prüfen und
+  die Wiederherstellung isoliert erfolgreich testen.
+- **Freshness-Alarm fehlt live**: Der derzeit deployte Stand warnt nicht, falls
+  die News-Pipeline tagelang keine echten Publishes produziert. Auf
+  `codex/takeover` ist lokal vorbereitet, vollständige Quellfehler und – nur
+  bei ausdrücklich aktivierter automatischer Veröffentlichung – mehr als
+  36 Stunden ohne neuen Publish mit HTTP 503 und einem fehlgeschlagenen
+  Pipeline-Run zu markieren. Dieser Schutz ist noch nicht deployed; außerdem
+  muss Coolify für fehlgeschlagene Task-Ausführungen tatsächlich
+  Benachrichtigungen versenden.
 
 ## Wie man den aktuellen Pipeline-Status selbst schnell prüft
 

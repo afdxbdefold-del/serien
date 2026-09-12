@@ -38,14 +38,14 @@ export async function GET(request: NextRequest) {
   // sitemap-persons.xml + sitemap-characters.xml Feb 2026 entfernt —
   // Person- und Figur-Seiten sind noindex,nofollow (kein organischer
   // Traffic-Wert), keine Crawl-Anreize mehr geben.
-  const [articleLm, seriesLm] = await Promise.all([
-    lastmod(() => prisma.articles.findFirst({ where: { status: 'published' }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } })),
-    lastmod(() => prisma.series.findFirst({ orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } })),
-  ]);
+  const articleLm = await lastmod(() => prisma.articles.findFirst({
+    where: { status: 'published' },
+    orderBy: { updatedAt: 'desc' },
+    select: { updatedAt: true },
+  }));
 
   const subsites: Array<{ loc: string; lastmod: string }> = [
     { loc: `${BASE}/sitemap-news.xml`, lastmod: articleLm },
-    { loc: `${BASE}/sitemap-series.xml`, lastmod: seriesLm },
     { loc: `${BASE}/sitemap-static.xml`, lastmod: articleLm },
     { loc: `${BASE}/news-sitemap.xml`, lastmod: articleLm },
   ];

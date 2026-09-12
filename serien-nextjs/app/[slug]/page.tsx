@@ -10,6 +10,7 @@ import { unstable_cache } from 'next/cache';
 import ShareButton from '@/components/ShareButton';
 import { SeriesInfobox } from '@/components/SeriesInfobox';
 import { sanitizeArticleContent } from '@/lib/content-sanitizer';
+import { serializeJsonLd } from '@/lib/json-ld';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions, generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
@@ -32,6 +33,20 @@ const toDate = (value: Date | string | null | undefined): Date => {
   if (!value) return new Date();
   return value instanceof Date ? value : new Date(value);
 };
+
+function getEditorialSource(value: string | null | undefined): { href: string; label: string } | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return {
+      href: parsed.toString(),
+      label: parsed.hostname.replace(/^www\./i, ''),
+    };
+  } catch {
+    return null;
+  }
+}
 
 // Cached article fetch with optimized select
 const getArticle = (slug: string) => unstable_cache(
@@ -196,6 +211,7 @@ const getArticleMetadata = (slug: string) => unstable_cache(
         excerpt: true,
         metaDescription: true,
         category: true,
+        heroImageUrl: true,
         heroLocalUrl: true,
         ogImageUrl: true,
         tmdbId: true,
@@ -228,8 +244,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const baseUrl = 'https://serien.de';
 
   // Build absolute OG image URL
-  // Use TMDB image pipeline if available, fallback to local URL
-  const ogImagePath = article.ogImageUrl ||
+  // Keep social/search image metadata aligned with the visible article hero.
+  const ogImagePath = article.heroImageUrl || article.ogImageUrl ||
     (article.tmdbId && article.tmdbType ? `/img/og/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl);
 
   // Make sure OG image is absolute URL
@@ -381,12 +397,12 @@ export default async function ArticlePage({ params }: PageProps) {
   const heroImageUrlCB = cacheBustHero(article.heroImageUrl);
 
   // Determine image URL
-  const imageUrl = article.heroImagePath || 
-    article.ogImageUrl || 
+  const imageUrl = heroImageUrlCB ||
     (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl) || 
     '/og-image.png';
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
+  const editorialSource = getEditorialSource(article.sourceUrl);
 
   // Generate structured data with ImageObject
   const authorSlug = article.users?.name ? 
@@ -499,7 +515,7 @@ export default async function ArticlePage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(articleSchema),
+          __html: serializeJsonLd(articleSchema),
         }}
       />
       
@@ -507,7 +523,7 @@ export default async function ArticlePage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbSchema),
+          __html: serializeJsonLd(breadcrumbSchema),
         }}
       />
 
@@ -677,11 +693,24 @@ export default async function ArticlePage({ params }: PageProps) {
 
           {/* Article Meta - Source & Last Updated */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-4 my-8">
-            {article.series?.networks && (article.series.networks as string[]).length > 0 && (
+            {editorialSource ? (
               <span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">Quelle:</span> {(article.series.networks as string[])[0]}
+                <span className="font-medium text-gray-700 dark:text-gray-300">Ursprungsquelle:</span>{' '}
+                <a
+                  href={editorialSource.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-gray-300 underline-offset-2 hover:text-cyan-600 dark:decoration-gray-600 dark:hover:text-cyan-400"
+                >
+                  {editorialSource.label}
+                </a>
               </span>
-            )}
+            ) : article.series?.networks && (article.series.networks as string[]).length > 0 ? (
+              <span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">Plattform:</span>{' '}
+                {(article.series.networks as string[])[0]}
+              </span>
+            ) : null}
             <span>
               <span className="font-medium text-gray-700 dark:text-gray-300">Zuletzt aktualisiert:</span> {toDate(article.updatedAt || article.publishedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}, {toDate(article.updatedAt || article.publishedAt).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })} Uhr
             </span>

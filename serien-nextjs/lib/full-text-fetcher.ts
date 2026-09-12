@@ -7,6 +7,7 @@
  */
 
 import { load as cheerioLoad, type Cheerio, type Element } from 'cheerio';
+import { findJsonLdPublishedAt, parseSourcePublishedAt } from './source-published-at';
 
 export interface FullTextResult {
   fullText: string;
@@ -79,6 +80,26 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
 
     const html = await response.text();
     const $ = cheerioLoad(html);
+
+    // Use publisher metadata only. A date mentioned in the article prose may
+    // be a release date or historical context, not the publication timestamp.
+    let publishDate = parseSourcePublishedAt(
+      $('meta[property="article:published_time"]').attr('content')
+        || $('meta[name="article:published_time"]').attr('content')
+        || $('meta[itemprop="datePublished"]').attr('content')
+        || $('time[itemprop="datePublished"]').attr('datetime'),
+    );
+
+    if (!publishDate) {
+      $('script[type="application/ld+json"]').each((_, element) => {
+        if (publishDate) return;
+        try {
+          publishDate = findJsonLdPublishedAt(JSON.parse($(element).text()));
+        } catch {
+          // Invalid third-party JSON-LD must not break full-text extraction.
+        }
+      });
+    }
     
     // Get domain
     const urlObj = new URL(url);
@@ -196,6 +217,7 @@ async function fetchWithCheerio(url: string): Promise<FullTextResult | null> {
       sourceDomain: domain,
       title,
       headline: title,
+      publishDate: publishDate || undefined,
       rawText: fullText,
       youtubeVideoIds,
       instagramPermalinks,

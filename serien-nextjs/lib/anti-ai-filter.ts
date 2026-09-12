@@ -308,6 +308,6 @@ Bewerte: KI oder Redakteur?`;
 
   } catch (error) {
     console.error('AI Detection check failed:', error);
-    return { verdict: 'Unklar', score: 50 };
+    throw new Error('Anti-AI dependency failed', { cause: error });
   }
 }

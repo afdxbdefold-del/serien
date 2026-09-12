@@ -33,6 +33,11 @@ import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { discoverGate } from '../lib/discover-gate';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
+import {
+  decideEditorialPublication,
+  type EditorialGateOutcome,
+} from '../lib/editorial-publication-gate';
+import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
 
 const prisma = new PrismaClient();
 
@@ -64,17 +69,18 @@ const KNOWN_SOURCES: Record<string, string> = {
   'filmstarts.de': 'Filmstarts',
 };
 
-// ══════════════════════════════════════════════════════════════════════════
-// AUTHOR ROTATION
-// ══════════════════════════════════════════════════════════════════════════
-const EDITORIAL_AUTHORS = [
-  'author_001', 'author_003', 'author_004', 'author_005',
-  'author_006', 'author_007', 'author_008', 'author_009',
-  'author_010', 'author_011', 'author_012', 'author-julia'
-];
+async function resolveAutomatedEditorialAuthorId(): Promise<string> {
+  const configuredAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID?.trim() || 'redaktion';
+  const author = await prisma.users.findUnique({
+    where: { id: configuredAuthorId },
+    select: { id: true, role: true },
+  });
 
-function getRandomAuthor(): string {
-  return EDITORIAL_AUTHORS[Math.floor(Math.random() * EDITORIAL_AUTHORS.length)];
+  if (!author || author.role !== 'author') {
+    throw new Error('Automatisches Redaktionskonto fehlt oder hat nicht die Rolle "author"');
+  }
+
+  return author.id;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -658,12 +664,18 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
             // Get additional details
             let status = 'Unknown';
             let networks: string[] = [];
+            let lastAirDate: string | null = null;
+            let numberOfSeasons: number | null = null;
             try {
               const detailUrl = `https://api.themoviedb.org/3/tv/${bestMatch.id}?api_key=${apiKey}&language=de-DE`;
               const detailRes = await fetch(detailUrl);
               const detailData = await detailRes.json();
               status = detailData.status || 'Unknown';
               networks = (detailData.networks || []).map((n: any) => n.name);
+              lastAirDate = detailData.last_air_date || null;
+              numberOfSeasons = typeof detailData.number_of_seasons === 'number'
+                ? detailData.number_of_seasons
+                : null;
             } catch {}
             
             info.seriesName = bestMatch.name;
@@ -677,6 +689,8 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
               voteAverage: bestMatch.vote_average,
               status,
               networks: networks.join(', '),
+              lastAirDate,
+              numberOfSeasons,
             };
             console.log(`      ✓ TMDB: "${info.seriesName}" (ID: ${bestMatch.id}, Match: ${bestScore}%)`);
             break;
@@ -712,6 +726,8 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
               voteAverage: true,
               status: true,
               networks: true,
+              lastAirDate: true,
+              numberOfSeasons: true,
             }
           });
           
@@ -727,6 +743,8 @@ export async function gatherInfoForTrend(searchTerm: string): Promise<GatheredIn
               voteAverage: dbMatch.voteAverage || 0,
               status: dbMatch.status || 'Unknown',
               networks: Array.isArray(dbMatch.networks) ? dbMatch.networks.join(', ') : (dbMatch.networks || ''),
+              lastAirDate: dbMatch.lastAirDate?.toISOString().split('T')[0] || null,
+              numberOfSeasons: dbMatch.numberOfSeasons,
             };
             console.log(`      ✓ DB-Fallback: "${info.seriesName}" (ID: ${dbMatch.tmdbId})`);
             break;
@@ -857,6 +875,8 @@ export interface TrendArticleResult {
   articleId?: string;
   slug?: string;
   title?: string;
+  status?: 'published' | 'draft';
+  draftReason?: string;
   trendId: string;
   error?: string;
 }
@@ -885,6 +905,9 @@ export async function runP3TrendsPipeline(
   const now = new Date();
   
   try {
+    // Resolve and validate the byline before web scraping or LLM calls.
+    const resolvedAuthorId = await resolveAutomatedEditorialAuthorId();
+
     // ========== STEP 1: GATHER INFO ==========
     logger.log('Schritt 1: Sammle Informationen...');
     const info = await gatherInfoForTrend(searchTerm);
@@ -976,6 +999,8 @@ export async function runP3TrendsPipeline(
             overview: info.tmdbData.overview || '',
             status: info.tmdbData.status || 'Unknown',
             firstAirDate: info.tmdbData.firstAirDate ? new Date(info.tmdbData.firstAirDate) : null,
+            lastAirDate: info.tmdbData.lastAirDate ? new Date(info.tmdbData.lastAirDate) : null,
+            numberOfSeasons: info.tmdbData.numberOfSeasons || null,
             updatedAt: now,
           }
         });
@@ -1163,56 +1188,6 @@ ${articleSources}
     let htmlContent = markdownToHtml(markdownString);
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 7: QUALITY GATES (like v2) ==========
-    console.log('\n' + '━'.repeat(60));
-    console.log('STEP 7: QUALITY GATES');
-    console.log('━'.repeat(60));
-    
-    let antiAiScore = 0;
-    
-    // Quality Check
-    try {
-      const qualityResult = await qualityCheck({
-        generatedArticleHtml: markdownString,
-        originalHeadline: searchTerm,
-        generatedHeadline: structuredContent.headline,
-      });
-      console.log(`   ✅ Quality check: ${qualityResult.passed ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`   ⚠️ Quality check skipped: ${error.message}`);
-    }
-    
-    // Anti-AI Filter
-    try {
-      const antiAiResult = antiAiFilter({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        seriesName: info.seriesName || searchTerm,
-      });
-      antiAiScore = antiAiResult.antiAiScore;
-      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      await logger.update({ antiAiScore });
-      
-      if (antiAiResult.failReasons.length > 0) {
-        console.log(`   Hinweise: ${antiAiResult.failReasons.slice(0, 2).join(', ')}`);
-      }
-    } catch (error: any) {
-      console.log(`   ⚠️ Anti-AI check skipped: ${error.message}`);
-    }
-    
-    // Fact Safety Check
-    try {
-      const factSafetyResult = await factSafetyCheck({
-        articleHtml: markdownString,
-        headline: structuredContent.headline,
-        extractedFacts: JSON.stringify(facts),
-      });
-      console.log(`   ✅ Fact safety: ${factSafetyResult.status === 'SAFE' ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`   ⚠️ Fact safety skipped: ${error.message}`);
-    }
-    
     // ========== STEP 7.5: INTERNAL LINKING (like v2) ==========
     console.log('\n' + '━'.repeat(60));
     console.log('STEP 7.5: INTERNAL LINKING');
@@ -1244,6 +1219,154 @@ ${articleSources}
     } catch (error: any) {
       console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
     }
+
+    // ========== STEP 7: FINAL QUALITY GATES ==========
+    // These checks deliberately run after all content transformations so the
+    // exact HTML that will be persisted is what decides the release status.
+    console.log('\n' + '━'.repeat(60));
+    console.log('STEP 7: FINAL QUALITY GATES');
+    console.log('━'.repeat(60));
+
+    const editorialGateOutcomes: EditorialGateOutcome[] = [];
+    const isRankingList = contentType === 'RANKING';
+    const primarySeriesName = dbSeries?.name || dbSeries?.title || info.seriesName || searchTerm;
+    let antiAiScore = 0;
+
+    try {
+      const htmlSafety = validateAndNormalizeArticleHtml(htmlContent);
+      editorialGateOutcomes.push({
+        gate: 'html-safety',
+        status: htmlSafety.ok ? 'pass' : 'fail',
+        reason: htmlSafety.reason,
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'html-safety', status: 'error', reason });
+    }
+
+    try {
+      const qualityResult = await qualityCheck({
+        generatedArticleHtml: htmlContent,
+        finalHeadline: structuredContent.headline,
+        primarySeriesName,
+        extractedFacts: JSON.stringify(facts),
+        isRankingList,
+      });
+      const passed = qualityResult.status === 'PASS';
+      editorialGateOutcomes.push({
+        gate: 'quality',
+        status: passed ? 'pass' : 'fail',
+        reason: passed ? undefined : qualityResult.failReasons.join('; ') || 'Quality-Check nicht bestanden',
+      });
+      console.log(`   ${passed ? '✅' : '⚠️'} Quality check: ${qualityResult.status}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'quality', status: 'error', reason });
+      console.log(`   ⚠️ Quality check fehlgeschlagen: ${reason}`);
+    }
+
+    try {
+      const antiAiResult = await antiAiFilter({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        seriesName: primarySeriesName,
+        isRankingList,
+      });
+      antiAiScore = antiAiResult.antiAiScore;
+      const passed = antiAiResult.status === 'PASS';
+      editorialGateOutcomes.push({
+        gate: 'anti-ai',
+        status: passed ? 'pass' : 'fail',
+        reason: passed ? undefined : antiAiResult.failReasons.join('; ') || `Anti-AI Score ${antiAiScore}`,
+      });
+      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      await logger.update({ antiAiScore });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'anti-ai', status: 'error', reason });
+      console.log(`   ⚠️ Anti-AI check fehlgeschlagen: ${reason}`);
+    }
+
+    try {
+      const rawLastAirDate = dbSeries?.lastAirDate || info.tmdbData?.lastAirDate;
+      const lastAirDate = rawLastAirDate instanceof Date
+        ? rawLastAirDate.toISOString()
+        : typeof rawLastAirDate === 'string'
+          ? rawLastAirDate
+          : undefined;
+      const factSafetyResult = await factSafetyCheck({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        extractedFacts: JSON.stringify(facts),
+        tmdbSeriesData: {
+          status: dbSeries?.status || info.tmdbData?.status,
+          lastAirDate,
+          numberOfSeasons: dbSeries?.numberOfSeasons || info.tmdbData?.numberOfSeasons,
+        },
+      });
+      const passed = factSafetyResult.status === 'SAFE';
+      editorialGateOutcomes.push({
+        gate: 'fact-safety',
+        status: passed ? 'pass' : 'fail',
+        reason: passed
+          ? undefined
+          : [
+              ...factSafetyResult.headlineViolations,
+              ...factSafetyResult.rejectedFacts.map((fact) => fact.claim),
+            ].join('; ') || 'Fact-Safety-Check nicht bestanden',
+      });
+      console.log(`   ${passed ? '✅' : '⚠️'} Fact safety: ${factSafetyResult.status}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'fact-safety', status: 'error', reason });
+      console.log(`   ⚠️ Fact safety check fehlgeschlagen: ${reason}`);
+    }
+
+    const sourceUrlForPublication = info.articles[0]?.url?.trim() || null;
+    const sourceUrlIsValid = sourceUrlForPublication
+      ? isSafePublicHttpUrl(sourceUrlForPublication)
+      : false;
+    editorialGateOutcomes.push({
+      gate: 'source',
+      status: isRankingList || sourceUrlIsValid ? 'pass' : 'fail',
+      reason: isRankingList && !sourceUrlIsValid
+        ? 'Explizit als zeitloses Ranking klassifiziert'
+        : sourceUrlIsValid
+          ? 'Originalquelle vorhanden'
+          : 'Keine belastbare Originalquelle vorhanden',
+    });
+    editorialGateOutcomes.push({
+      gate: 'freshness',
+      status: isRankingList ? 'pass' : 'fail',
+      reason: isRankingList
+        ? 'Explizit als zeitloses Ranking klassifiziert'
+        : 'P3 erfasst noch keinen strukturierten Quellzeitpunkt; redaktionelle Prüfung erforderlich',
+    });
+
+    const releaseModeEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    editorialGateOutcomes.push({
+      gate: 'release-mode',
+      status: releaseModeEnabled ? 'pass' : 'fail',
+      reason: releaseModeEnabled
+        ? undefined
+        : 'Generierung bleibt bis zur separaten Admin-Freigabe im Review',
+    });
+
+    const editorialDecision = decideEditorialPublication({
+      alreadyDraft: false,
+      outcomes: editorialGateOutcomes,
+      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'release-mode'],
+    });
+    const publicationStatus = editorialDecision.status;
+    const draftReason = publicationStatus === 'draft' ? editorialDecision.reason : undefined;
+    logger.addMetadata('editorialGates', editorialGateOutcomes);
+    logger.addMetadata('publicationStatus', publicationStatus);
+    if (draftReason) logger.addMetadata('draftReason', draftReason);
+
+    if (publicationStatus === 'draft') {
+      console.log(`   📝 Release-Hold: Artikel wird als Entwurf gespeichert (${draftReason})`);
+    }
     
     // ========== STEP 8: SAVE ARTICLE ==========
     console.log('\n' + '━'.repeat(60));
@@ -1260,6 +1383,21 @@ ${articleSources}
     if (existing) {
       console.log('⚠️ Artikel existiert bereits');
       logger.log('Artikel existiert bereits - übersprungen', 'warn');
+      const existingStatus = existing.status === 'published' ? 'published' : 'draft';
+
+      // Once an editor has published a previously held draft, consume only
+      // this concrete trend on the next run. Existing drafts stay retryable.
+      if (existingStatus === 'published' && !trendId.startsWith('manual-')) {
+        await prisma.trending_topics.update({
+          where: { id: trendId },
+          data: {
+            processed: true,
+            articleId: existing.id,
+            processedAt: now,
+          },
+        });
+      }
+
       await logger.partial({
         articleId: existing.id,
         articleSlug: existing.slug,
@@ -1267,24 +1405,28 @@ ${articleSources}
         errorMessage: 'Artikel existiert bereits'
       });
       return { 
-        success: true, 
+        success: existingStatus === 'published',
         trendId, 
         articleId: existing.id, 
         slug: existing.slug,
-        title: existing.title
+        title: existing.title,
+        status: existingStatus,
+        draftReason: existingStatus === 'draft'
+          ? 'Artikel existiert bereits als Entwurf'
+          : undefined,
       };
     }
     
     // articleId already defined in Step 7.5 for internal linking
     
     // Generate unique source URL to avoid unique constraint
-    const uniqueSourceUrl = info.articles[0]?.url 
-      ? `${info.articles[0].url}#trend-${Date.now()}`
-      : `https://serien.de/trending/${slug}`;
+    const uniqueSourceUrl = sourceUrlForPublication
+      ? `${sourceUrlForPublication}#trend-${Date.now()}`
+      : null;
     
     // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
     let selectedBackdrop = dbSeries?.backdropPath || info.tmdbData?.backdropPath || null;
-    if (dbSeries?.tmdbId) {
+    if (publicationStatus === 'published' && dbSeries?.tmdbId) {
       try {
         const articleCount = await prisma.articles.count({
           where: { primarySeriesId: dbSeries.tmdbId }
@@ -1311,9 +1453,10 @@ ${articleSources}
         contentHtml: htmlContent,
         metaDescription: structuredContent.metaDescription,
         category: 'trending',
-        status: 'published',
-        authorId: getRandomAuthor(),
+        status: publicationStatus,
+        authorId: resolvedAuthorId,
         sourceUrl: uniqueSourceUrl,
+        sourcePublishedAt: null,
         // Series connection - use tmdbId as the series ID (since tmdbId is @id in schema)
         primarySeriesId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
         tmdbId: dbSeries?.tmdbId || info.tmdbData?.tmdbId || null,
@@ -1323,14 +1466,16 @@ ${articleSources}
             ? `https://image.tmdb.org/t/p/w1280${info.tmdbData.backdropPath}`
             : null,
         isTrending: true,
-        publishedAt: now,
+        isRankingArticle: isRankingList,
+        publishedAt: publicationStatus === 'published' ? now : null,
         createdAt: now,
         updatedAt: now,
       }
     });
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
-    
+
+    if (publicationStatus === 'published') {
     // ========== STEP 9: TRAILER DOWNLOAD ==========
     console.log('\n' + '━'.repeat(60));
     console.log('STEP 9: TRAILER DOWNLOAD');
@@ -1432,11 +1577,13 @@ ${articleSources}
       // Generate "Was bedeutet das" section
       (async () => {
         try {
-          const wasBedeutetDasText = await generateWasBedeutetDas(
-            structuredContent.headline,
-            htmlContent,
-            dbSeries?.name || info.seriesName || searchTerm
-          );
+          const wasBedeutetDasText = await generateWasBedeutetDas({
+            articleHtml: htmlContent,
+            headline: structuredContent.headline,
+            seriesName: dbSeries?.name || info.seriesName || searchTerm,
+            contentType: contentType === 'NEWS' ? 'SINGLE_SERIES_NEWS' : contentType,
+            extractedFacts: JSON.stringify(facts),
+          });
           
           if (wasBedeutetDasText) {
             await prisma.articles.update({
@@ -1453,35 +1600,68 @@ ${articleSources}
       // Discover Gate (Google Discover Tauglichkeit)
       (async () => {
         try {
-          await discoverGate(article.id, structuredContent.headline, htmlContent);
+          if (!article.heroImageUrl) {
+            console.log('   ⚠️ Discover Gate übersprungen: Kein Hero-Bild');
+            return;
+          }
+          await discoverGate({
+            final_headline: structuredContent.headline,
+            article_html: htmlContent,
+            hero_image_metadata: {
+              url: article.heroImageUrl,
+              width: 1280,
+              height: 720,
+              source: selectedBackdrop ? 'TMDB_BACKDROP' : 'CUSTOM',
+            },
+            publishedAt: article.publishedAt || now,
+            primary_series: primarySeriesName,
+          });
           console.log(`   ✅ Discover Gate verarbeitet`);
         } catch (error: any) {
           console.log(`   ⚠️ Discover Gate fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
         }
       })(),
     ]);
+    } else {
+      console.log('   📝 Entwurf: Trailer, Trend-Update und externe Nachbearbeitung übersprungen');
+    }
     
     console.log('\n' + '═'.repeat(70));
-    console.log('✅ P3-TRENDS PIPELINE ERFOLGREICH');
+    console.log(publicationStatus === 'published'
+      ? '✅ P3-TRENDS PIPELINE ERFOLGREICH'
+      : '📝 P3-TRENDS PIPELINE TEILWEISE ERFOLGREICH (ENTWURF)');
     console.log('═'.repeat(70));
     console.log(`📰 Artikel: ${article.title}`);
-    console.log(`🔗 URL: /${article.slug}`);
+    console.log(`📌 Status: ${publicationStatus}`);
+    if (draftReason) console.log(`⚠️ Grund: ${draftReason}`);
+    if (publicationStatus === 'published') console.log(`🔗 URL: /${article.slug}`);
     console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
-    logger.log(`Artikel gespeichert: ${article.slug}`);
-    await logger.success({
-      articleId: article.id,
-      articleSlug: article.slug,
-      articleTitle: article.title,
-    });
+    logger.log(`Artikel gespeichert: ${article.slug} (${publicationStatus})`);
+    if (publicationStatus === 'draft') {
+      await logger.partial({
+        articleId: article.id,
+        articleSlug: article.slug,
+        articleTitle: article.title,
+        errorMessage: draftReason || 'Redaktionelle Freigabe erforderlich',
+      });
+    } else {
+      await logger.success({
+        articleId: article.id,
+        articleSlug: article.slug,
+        articleTitle: article.title,
+      });
+    }
     
     return {
-      success: true,
+      success: publicationStatus === 'published',
       trendId,
       articleId: article.id,
       slug: article.slug,
-      title: article.title
+      title: article.title,
+      status: publicationStatus,
+      draftReason,
     };
     
   } catch (error) {

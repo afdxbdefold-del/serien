@@ -158,7 +158,7 @@ Finde alle KRITISCHEN FAKTEN.`;
     }));
   } catch (error) {
     console.error('❌ AI fact detection failed:', error);
-    return [];
+    throw new Error('Fact-safety dependency failed', { cause: error });
   }
 }
 

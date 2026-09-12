@@ -49,6 +49,9 @@ const FRANCHISE_CONFIG = {
 export const metadata: Metadata = {
   title: 'The Walking Dead Universe - Alle Serien & Spin-offs | serien.de',
   description: 'Der komplette Guide zum Walking Dead Universum! Alle Serien, Spin-offs, News und Infos zur Zombie-Apokalypse von AMC - von der Hauptserie bis Daryl Dixon.',
+  alternates: {
+    canonical: 'https://serien.de/the-walking-dead',
+  },
   openGraph: {
     title: 'The Walking Dead Universe - Franchise Hub',
     description: 'Der komplette Guide zu allen Walking Dead Serien auf Deutsch',

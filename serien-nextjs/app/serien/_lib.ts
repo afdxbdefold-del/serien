@@ -200,6 +200,7 @@ export function areFiltersValid(f: SerienFilters): boolean {
   }
   if (f.status && !STATUS_FILTERS.some((s) => s.slug === f.status)) return false;
   if (f.sort && !SORT_OPTIONS.some((o) => o.slug === f.sort)) return false;
+  if (f.page && (!/^[1-9]\d*$/.test(f.page) || Number(f.page) > 10_000)) return false;
   return true;
 }
 

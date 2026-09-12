@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
         durationMs: Date.now() - startTime,
       });
     }
-  } catch (e: any) {
-    console.warn('[CRON] Kill-switch check failed, continuing:', e.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[CRON] Kill-switch check failed, continuing:', message);
   }
 
   try {
@@ -58,9 +59,30 @@ export async function GET(request: NextRequest) {
     });
 
     const duration = Date.now() - startTime;
+    const sourceCount = Object.keys(result.bySource).length;
+    const allSourcesFailed = sourceCount > 0 && result.sourceErrors === sourceCount;
+    const automatedPublishingEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    const latestPublished = automatedPublishingEnabled && result.published === 0
+      ? await prisma.articles.findFirst({
+          where: { status: { in: ['published', 'PUBLISHED'] }, publishedAt: { not: null } },
+          orderBy: { publishedAt: 'desc' },
+          select: { publishedAt: true },
+        })
+      : null;
+    const stalePublication = Boolean(
+      automatedPublishingEnabled
+      && result.published === 0
+      && (!latestPublished?.publishedAt
+        || Date.now() - latestPublished.publishedAt.getTime() > 36 * 60 * 60 * 1000),
+    );
+    const runStatus = allSourcesFailed || stalePublication
+      ? 'failed'
+      : result.failed > 0 || result.sourceErrors > 0 || result.drafted > 0
+        ? 'partial'
+        : 'success';
     
     // Log the run - auch wenn keine News
-    if (result.processed === 0 && result.failed === 0) {
+    if (result.processed === 0 && result.failed === 0 && result.sourceErrors === 0) {
       console.log(`[CRON] News import: Keine neuen News gefunden (${result.skipped || 0} übersprungen, ${Math.round(duration/1000)}s)`);
       
       // Log to pipeline_runs for dashboard visibility
@@ -69,20 +91,24 @@ export async function GET(request: NextRequest) {
           id: `cron-news-${Date.now()}`,
           pipeline: 'cron-news',
           trigger: 'cron',
-          status: 'success',
+          status: runStatus,
           startedAt: new Date(startTime),
           completedAt: new Date(),
           metadata: JSON.stringify({
             message: 'Keine neuen News gefunden',
             published: 0,
             attempted: 0,
+            drafted: result.drafted,
+            sourceErrors: result.sourceErrors,
             skipped: result.skipped || 0,
+            stalePublication,
+            automatedPublishingEnabled,
             duration,
           })
         }
       });
     } else {
-      console.log(`[CRON] News import: ${result.published} publiziert / ${result.processed} versucht, ${result.failed} fehlgeschlagen (${Math.round(duration/1000)}s)`);
+      console.log(`[CRON] News import: ${result.published} publiziert / ${result.drafted} Drafts / ${result.processed} versucht, ${result.failed} fehlgeschlagen, ${result.sourceErrors} Quellfehler (${Math.round(duration/1000)}s)`);
       
       // Log successful run with articles
       await prisma.pipeline_runs.create({
@@ -90,15 +116,19 @@ export async function GET(request: NextRequest) {
           id: `cron-news-${Date.now()}`,
           pipeline: 'cron-news',
           trigger: 'cron',
-          status: result.published > 0 ? 'success' : (result.failed > 0 ? 'partial' : 'success'),
+          status: runStatus,
           startedAt: new Date(startTime),
           completedAt: new Date(),
           metadata: JSON.stringify({
             published: result.published,
             attempted: result.processed,
+            drafted: result.drafted,
             failed: result.failed,
+            sourceErrors: result.sourceErrors,
             skipped: result.skipped || 0,
             bySource: result.bySource,
+            stalePublication,
+            automatedPublishingEnabled,
             duration,
           })
         }
@@ -106,21 +136,29 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      success: true,
+      success: runStatus !== 'failed',
+      status: runStatus,
       timestamp: new Date().toISOString(),
       duration: `${Math.round(duration/1000)}s`,
       result: {
         published: result.published,
         attempted: result.processed,
+        drafted: result.drafted,
         failed: result.failed,
+        sourceErrors: result.sourceErrors,
         skipped: result.skipped,
         bySource: result.bySource,
-        message: result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined,
+        message: stalePublication
+          ? 'Seit mehr als 36 Stunden wurde trotz aktiver Automatik nichts publiziert'
+          : result.published === 0
+            ? 'Keine neuen Artikel publiziert'
+            : undefined,
       },
-    });
-  } catch (error: any) {
+    }, { status: runStatus === 'failed' ? 503 : 200 });
+  } catch (error: unknown) {
     const duration = Date.now() - startTime;
-    console.error('[CRON] News import error:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[CRON] News import error:', message);
     
     // Log failed run
     await prisma.pipeline_runs.create({
@@ -131,14 +169,14 @@ export async function GET(request: NextRequest) {
         status: 'failed',
         startedAt: new Date(startTime),
         completedAt: new Date(),
-        errorMessage: error.message,
+        errorMessage: message,
         metadata: JSON.stringify({ duration })
       }
     });
     
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: message,
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();

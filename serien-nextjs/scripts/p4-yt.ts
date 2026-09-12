@@ -23,6 +23,7 @@ import { extractFacts } from '../lib/fact-extractor';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { qualityCheck } from '../lib/quality-checker';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
+import { classifyContentAge } from '../lib/time-axis-correction';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
@@ -31,6 +32,11 @@ import { importSeriesCast } from '../lib/cast-importer';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { discoverGate } from '../lib/discover-gate';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
+import {
+  decideEditorialPublication,
+  type EditorialGateOutcome,
+} from '../lib/editorial-publication-gate';
+import { validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
 
 const prisma = new PrismaClient();
 
@@ -70,17 +76,18 @@ const DEFAULT_CHANNELS = [
   },
 ];
 
-// ══════════════════════════════════════════════════════════════════════════
-// AUTHOR ROTATION
-// ══════════════════════════════════════════════════════════════════════════
-const EDITORIAL_AUTHORS = [
-  'author_001', 'author_003', 'author_004', 'author_005',
-  'author_006', 'author_007', 'author_008', 'author_009',
-  'author_010', 'author_011', 'author_012', 'author-julia'
-];
+async function resolveAutomatedEditorialAuthorId(): Promise<string> {
+  const configuredAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID?.trim() || 'redaktion';
+  const author = await prisma.users.findUnique({
+    where: { id: configuredAuthorId },
+    select: { id: true, role: true },
+  });
 
-function getRandomAuthor(): string {
-  return EDITORIAL_AUTHORS[Math.floor(Math.random() * EDITORIAL_AUTHORS.length)];
+  if (!author || author.role !== 'author') {
+    throw new Error('Automatisches Redaktionskonto fehlt oder hat nicht die Rolle "author"');
+  }
+
+  return author.id;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -252,10 +259,12 @@ export async function initializeChannels(): Promise<void> {
     if (!existing) {
       await prisma.youtube_channels.create({
         data: {
+          id: crypto.randomUUID(),
           channelId: channel.channelId,
           name: channel.name,
           url: channel.url,
           isActive: true,
+          updatedAt: new Date(),
         }
       });
       console.log(`   ✓ Kanal hinzugefügt: ${channel.name}`);
@@ -418,6 +427,8 @@ async function findTmdbSeries(seriesName: string): Promise<{
   overview: string;
   status: string;
   firstAirDate: string | null;
+  lastAirDate: string | null;
+  numberOfSeasons: number | null;
 } | null> {
   try {
     const apiKey = process.env.TMDB_API_KEY;
@@ -460,13 +471,17 @@ async function findTmdbSeries(seriesName: string): Promise<{
           
           // Get detailed info for status
           let status = 'Unknown';
-          let networks: string[] = [];
+          let lastAirDate: string | null = null;
+          let numberOfSeasons: number | null = null;
           try {
             const detailUrl = `https://api.themoviedb.org/3/tv/${series.id}?api_key=${apiKey}&language=de-DE`;
             const detailRes = await fetch(detailUrl);
             const detailData = await detailRes.json();
             status = detailData.status || 'Unknown';
-            networks = (detailData.networks || []).map((n: any) => n.name);
+            lastAirDate = detailData.last_air_date || null;
+            numberOfSeasons = typeof detailData.number_of_seasons === 'number'
+              ? detailData.number_of_seasons
+              : null;
           } catch {}
           
           console.log(`      ✓ Gefunden: "${series.name}" (ID: ${series.id}, Status: ${status})`);
@@ -479,6 +494,8 @@ async function findTmdbSeries(seriesName: string): Promise<{
             overview: series.overview || '',
             status,
             firstAirDate: series.first_air_date || null,
+            lastAirDate,
+            numberOfSeasons,
           };
         }
       }
@@ -548,6 +565,8 @@ export interface YTArticleResult {
   articleId?: string;
   slug?: string;
   title?: string;
+  status?: 'published' | 'draft';
+  draftReason?: string;
   videoId: string;
   error?: string;
 }
@@ -594,6 +613,9 @@ export async function generateArticleFromVideo(
   console.log(`   ⏰ Video-Alter: ${videoAgeHours} Stunden ${trigger === 'manual' ? '(manueller Trigger)' : '✓'}`);
   
   try {
+    // Resolve and validate the byline before TMDB, source, or LLM calls.
+    const resolvedAuthorId = await resolveAutomatedEditorialAuthorId();
+
     // ========== STEP 1: EXTRACT SERIES NAME ==========
     console.log('━'.repeat(60));
     console.log('STEP 1: SERIE EXTRAHIEREN');
@@ -605,7 +627,18 @@ export async function generateArticleFromVideo(
     logger.addMetadata('seriesName', seriesName);
     
     // ========== STEP 2: FIND TMDB SERIES ==========
-    let tmdbData: { tmdbId: number; name: string; backdropPath: string | null; posterPath?: string | null; overview?: string; status?: string; firstAirDate?: string } | null = null;
+    let tmdbData: {
+      tmdbId: number;
+      name: string;
+      backdropPath: string | null;
+      posterPath?: string | null;
+      overview?: string;
+      status?: string;
+      firstAirDate?: string | null;
+      lastAirDate?: string | null;
+      numberOfSeasons?: number | null;
+      voteAverage?: number;
+    } | null = null;
     let dbSeries: any = null;
     
     // Try to find series even if seriesName extraction failed
@@ -655,6 +688,8 @@ export async function generateArticleFromVideo(
                 overview: tmdbData.overview || '',
                 status: tmdbData.status || 'Unknown',
                 firstAirDate: tmdbData.firstAirDate ? new Date(tmdbData.firstAirDate) : null,
+                lastAirDate: tmdbData.lastAirDate ? new Date(tmdbData.lastAirDate) : null,
+                numberOfSeasons: tmdbData.numberOfSeasons || null,
                 updatedAt: now,
               }
             });
@@ -695,7 +730,7 @@ export async function generateArticleFromVideo(
             if (endedDate < twoYearsAgo) {
               console.log(`   ⚠️ Serie beendet vor >2 Jahren - überspringe`);
               await logger.fail('Serie bereits beendet (keine aktuelle News)', 'tmdb-check');
-              return { success: false, error: 'Serie bereits beendet' };
+              return { success: false, videoId: video.videoId, error: 'Serie bereits beendet' };
             }
           }
         }
@@ -719,7 +754,7 @@ export async function generateArticleFromVideo(
           
           if (dbMatch) {
             dbSeries = dbMatch;
-            tmdbSeries = {
+            tmdbData = {
               tmdbId: dbMatch.tmdbId,
               name: dbMatch.name || dbMatch.title,
               overview: dbMatch.overview || '',
@@ -728,16 +763,17 @@ export async function generateArticleFromVideo(
               firstAirDate: dbMatch.firstAirDate?.toISOString().split('T')[0] || null,
               voteAverage: dbMatch.voteAverage || 0,
               status: dbMatch.status || 'Unknown',
-              networks: Array.isArray(dbMatch.networks) ? dbMatch.networks.join(', ') : '',
+              lastAirDate: dbMatch.lastAirDate?.toISOString().split('T')[0] || null,
+              numberOfSeasons: dbMatch.numberOfSeasons,
             };
             console.log(`   ✓ DB-Fallback: "${dbMatch.name}" (ID: ${dbMatch.tmdbId})`);
             break;
           }
         }
         
-        if (!tmdbSeries) {
+        if (!tmdbData) {
           await logger.fail('Keine TMDB-Serie gefunden', 'tmdb-resolution');
-          return { success: false, error: 'Keine TMDB-Serie gefunden' };
+          return { success: false, videoId: video.videoId, error: 'Keine TMDB-Serie gefunden' };
         }
       }
     }
@@ -795,15 +831,15 @@ export async function generateArticleFromVideo(
       // Hole Cast-Details für reichhaltigeren Content
       if (dbSeries) {
         try {
-          const castMembers = await prisma.series_cast.findMany({
-            where: { seriesId: dbSeries.tmdbId },
-            include: { person: true },
+          const castMembers = await prisma.characters.findMany({
+            where: { seriesTmdbId: dbSeries.tmdbId },
+            include: { persons: true },
             take: 10,
           });
           
           if (castMembers.length > 0) {
             const castInfo = castMembers
-              .map((c: any) => `${c.person?.name || 'Unbekannt'} als ${c.character || 'unbekannte Rolle'}`)
+              .map((c) => `${c.persons?.name || 'Unbekannt'} als ${c.name || 'unbekannte Rolle'}`)
               .join(', ');
             additionalSources += `\n\n═══════════════════════════════════════════════════════════\nCAST: ${castInfo}`;
             console.log(`   ✓ ${castMembers.length} Cast-Mitglieder aus DB`);
@@ -924,45 +960,25 @@ ${additionalSources}
     if (repetitionWarnings.length > 0) {
       console.log(`   ⚠️ QUALITÄTS-WARNUNG: Repetitionen erkannt:`);
       repetitionWarnings.forEach(w => console.log(`      - ${w}`));
-      logger.log(`Qualitätswarnung: ${repetitionWarnings.join(', ')}`, 'warning');
+      logger.log(`Qualitätswarnung: ${repetitionWarnings.join(', ')}`, 'warn');
     }
     
     if (wordCount < 400) {
       console.log(`   ⚠️ QUALITÄTS-WARNUNG: Artikel zu kurz (${wordCount} Wörter)`);
-      logger.log(`Qualitätswarnung: Nur ${wordCount} Wörter`, 'warning');
+      logger.log(`Qualitätswarnung: Nur ${wordCount} Wörter`, 'warn');
     }
     
     console.log(`   ✓ Headline: ${structuredContent.headline}`);
     console.log(`   ✓ Wörter: ${wordCount}`);
     logger.log(`Headline generiert: ${structuredContent.headline}`);
     
-    // ========== STEP 5: VIDEO DOWNLOAD (für Hero) ==========
+    // ========== STEP 5: VIDEO DOWNLOAD (deferred until release) ==========
     console.log('\n━'.repeat(60));
-    console.log('STEP 5: VIDEO DOWNLOAD');
+    console.log('STEP 5: VIDEO DOWNLOAD VORBEREITEN');
     console.log('━'.repeat(60));
     
     let localVideoPath: string | null = null;
-    
-    // Download video from YouTube via RapidAPI (wird als heroVideoUrl gespeichert)
-    console.log(`   📥 Lade Video herunter: ${video.videoId}`);
-    
-    try {
-      const downloadResult = await downloadYouTubeTrailer(
-        video.videoId,
-        seriesName || video.title
-      );
-      
-      if (downloadResult.success && downloadResult.localPath) {
-        localVideoPath = downloadResult.localPath;
-        console.log(`   ✅ Video heruntergeladen: ${localVideoPath}`);
-      } else {
-        console.log(`   ⚠️ Download fehlgeschlagen: ${downloadResult.error}`);
-        console.log(`   ↳ Fallback: YouTube URL wird als heroVideoUrl gespeichert`);
-      }
-    } catch (downloadError: any) {
-      console.log(`   ⚠️ Download-Fehler: ${downloadError.message}`);
-      console.log(`   ↳ Fallback: YouTube URL wird als heroVideoUrl gespeichert`);
-    }
+    console.log('   ℹ️ Download startet erst nach bestandener redaktioneller Freigabe');
     
     // Video wird im Hero-Bereich angezeigt, kein Embed im Artikel-Content nötig
     
@@ -1040,52 +1056,6 @@ ${additionalSources}
     
     console.log(`   ✓ HTML: ${htmlContent.length} Zeichen`);
     
-    // ========== STEP 6.5: QUALITY GATES (like v2) ==========
-    console.log('\n━'.repeat(60));
-    console.log('STEP 6.5: QUALITY GATES');
-    console.log('━'.repeat(60));
-    
-    let antiAiScore = 0;
-    
-    // Quality Check
-    try {
-      const qualityResult = await qualityCheck({
-        generatedArticleHtml: processedMarkdown,
-        originalHeadline: video.title,
-        generatedHeadline: structuredContent.headline,
-      });
-      console.log(`   ✅ Quality check: ${qualityResult.passed ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`   ⚠️ Quality check skipped: ${error.message}`);
-    }
-    
-    // Anti-AI Filter
-    try {
-      const antiAiResult = antiAiFilter({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        seriesName: tmdbData?.name || seriesName || video.title,
-      });
-      antiAiScore = antiAiResult.antiAiScore;
-      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      logger.log(`Anti-AI Score: ${antiAiScore}/100`);
-      await logger.update({ antiAiScore });
-    } catch (error: any) {
-      console.log(`   ⚠️ Anti-AI check skipped: ${error.message}`);
-    }
-    
-    // Fact Safety Check
-    try {
-      const factSafetyResult = await factSafetyCheck({
-        articleHtml: processedMarkdown,
-        headline: structuredContent.headline,
-        extractedFacts: JSON.stringify(facts),
-      });
-      console.log(`   ✅ Fact safety: ${factSafetyResult.status === 'SAFE' ? 'Passed' : 'Warnings'}`);
-    } catch (error: any) {
-      console.log(`   ⚠️ Fact safety skipped: ${error.message}`);
-    }
-    
     // ========== STEP 7: INTERNAL LINKING (like v2) ==========
     console.log('\n━'.repeat(60));
     console.log('STEP 7: INTERNAL LINKING');
@@ -1117,6 +1087,164 @@ ${additionalSources}
     } catch (error: any) {
       console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
     }
+
+    // ========== STEP 7.5: FINAL QUALITY GATES ==========
+    // Run on the exact HTML/headline that will be persisted. Any failed or
+    // unavailable checker holds the article for editorial review.
+    console.log('\n━'.repeat(60));
+    console.log('STEP 7.5: FINAL QUALITY GATES');
+    console.log('━'.repeat(60));
+
+    const editorialGateOutcomes: EditorialGateOutcome[] = [];
+    // P4 only accepts trailer/teaser news; ranking relaxations must never apply.
+    const isRankingList = false;
+    const primarySeriesName = tmdbData?.name || dbSeries?.name || seriesName || video.title;
+    let antiAiScore = 0;
+
+    try {
+      const htmlSafety = validateAndNormalizeArticleHtml(htmlContent);
+      editorialGateOutcomes.push({
+        gate: 'html-safety',
+        status: htmlSafety.ok ? 'pass' : 'fail',
+        reason: htmlSafety.reason,
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'html-safety', status: 'error', reason });
+    }
+
+    try {
+      const qualityResult = await qualityCheck({
+        generatedArticleHtml: htmlContent,
+        finalHeadline: structuredContent.headline,
+        primarySeriesName,
+        extractedFacts: JSON.stringify(facts),
+        isRankingList,
+      });
+      const passed = qualityResult.status === 'PASS';
+      editorialGateOutcomes.push({
+        gate: 'quality',
+        status: passed ? 'pass' : 'fail',
+        reason: passed ? undefined : qualityResult.failReasons.join('; ') || 'Quality-Check nicht bestanden',
+      });
+      console.log(`   ${passed ? '✅' : '⚠️'} Quality check: ${qualityResult.status}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'quality', status: 'error', reason });
+      console.log(`   ⚠️ Quality check fehlgeschlagen: ${reason}`);
+    }
+
+    try {
+      const antiAiResult = await antiAiFilter({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        seriesName: primarySeriesName,
+        isRankingList,
+      });
+      antiAiScore = antiAiResult.antiAiScore;
+      const passed = antiAiResult.status === 'PASS';
+      editorialGateOutcomes.push({
+        gate: 'anti-ai',
+        status: passed ? 'pass' : 'fail',
+        reason: passed ? undefined : antiAiResult.failReasons.join('; ') || `Anti-AI Score ${antiAiScore}`,
+      });
+      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
+      await logger.update({ antiAiScore });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'anti-ai', status: 'error', reason });
+      console.log(`   ⚠️ Anti-AI check fehlgeschlagen: ${reason}`);
+    }
+
+    try {
+      const rawLastAirDate = dbSeries?.lastAirDate || tmdbData?.lastAirDate;
+      const lastAirDate = rawLastAirDate instanceof Date
+        ? rawLastAirDate.toISOString()
+        : typeof rawLastAirDate === 'string'
+          ? rawLastAirDate
+          : undefined;
+      const factSafetyResult = await factSafetyCheck({
+        articleHtml: htmlContent,
+        headline: structuredContent.headline,
+        extractedFacts: JSON.stringify(facts),
+        tmdbSeriesData: {
+          status: dbSeries?.status || tmdbData?.status,
+          lastAirDate,
+          numberOfSeasons: dbSeries?.numberOfSeasons || tmdbData?.numberOfSeasons || undefined,
+        },
+      });
+      const passed = factSafetyResult.status === 'SAFE';
+      editorialGateOutcomes.push({
+        gate: 'fact-safety',
+        status: passed ? 'pass' : 'fail',
+        reason: passed
+          ? undefined
+          : [
+              ...factSafetyResult.headlineViolations,
+              ...factSafetyResult.rejectedFacts.map((fact) => fact.claim),
+            ].join('; ') || 'Fact-Safety-Check nicht bestanden',
+      });
+      console.log(`   ${passed ? '✅' : '⚠️'} Fact safety: ${factSafetyResult.status}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'fact-safety', status: 'error', reason });
+      console.log(`   ⚠️ Fact safety check fehlgeschlagen: ${reason}`);
+    }
+
+    const sourceUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
+    const sourceIsValid = /^[A-Za-z0-9_-]{6,32}$/.test(video.videoId);
+    editorialGateOutcomes.push({
+      gate: 'source',
+      status: sourceIsValid ? 'pass' : 'fail',
+      reason: sourceIsValid ? 'YouTube-Originalquelle vorhanden' : 'Ungültige YouTube-Quell-ID',
+    });
+
+    try {
+      if (!(video.publishedAt instanceof Date) || !Number.isFinite(video.publishedAt.getTime())) {
+        editorialGateOutcomes.push({ gate: 'freshness', status: 'fail', reason: 'Belastbarer Quellzeitpunkt fehlt' });
+      } else {
+        const contentAge = classifyContentAge({
+          sourcePublishedAt: video.publishedAt,
+          headline: structuredContent.headline,
+          contentType: 'NEWS',
+        });
+        const freshNewsAllowed = contentAge.publishDecision === 'PUBLISH'
+          && contentAge.allowedContentTypes.includes('NEWS');
+        editorialGateOutcomes.push({
+          gate: 'freshness',
+          status: freshNewsAllowed ? 'pass' : 'fail',
+          reason: contentAge.reasons.join('; ') || contentAge.contentAgeClass,
+        });
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      editorialGateOutcomes.push({ gate: 'freshness', status: 'error', reason });
+    }
+
+    const releaseModeEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    editorialGateOutcomes.push({
+      gate: 'release-mode',
+      status: releaseModeEnabled ? 'pass' : 'fail',
+      reason: releaseModeEnabled
+        ? undefined
+        : 'Generierung bleibt bis zur separaten Admin-Freigabe im Review',
+    });
+
+    const editorialDecision = decideEditorialPublication({
+      alreadyDraft: false,
+      outcomes: editorialGateOutcomes,
+      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'release-mode'],
+    });
+    const publicationStatus = editorialDecision.status;
+    const draftReason = publicationStatus === 'draft' ? editorialDecision.reason : undefined;
+    logger.addMetadata('editorialGates', editorialGateOutcomes);
+    logger.addMetadata('publicationStatus', publicationStatus);
+    if (draftReason) logger.addMetadata('draftReason', draftReason);
+
+    if (publicationStatus === 'draft') {
+      console.log(`   📝 Release-Hold: Video-Download wird übersprungen (${draftReason})`);
+    }
     
     // ========== STEP 8: SAVE ARTICLE ==========
     console.log('\n━'.repeat(60));
@@ -1133,17 +1261,21 @@ ${additionalSources}
     if (existing) {
       console.log('⚠️ Artikel existiert bereits');
       logger.log('Artikel existiert bereits - übersprungen', 'warn');
-      
-      // Update video as processed
-      await prisma.youtube_videos.update({
-        where: { videoId: video.videoId },
-        data: {
-          processed: true,
-          processedAt: now,
-          articleId: existing.id,
-          articleSlug: existing.slug,
-        }
-      });
+      const existingStatus = existing.status === 'published' ? 'published' : 'draft';
+
+      // A review draft must not consume the source video. It stays available
+      // until an editor publishes it or explicitly dismisses the item.
+      if (existingStatus === 'published') {
+        await prisma.youtube_videos.update({
+          where: { videoId: video.videoId },
+          data: {
+            processed: true,
+            processedAt: now,
+            articleId: existing.id,
+            articleSlug: existing.slug,
+          }
+        });
+      }
       
       await logger.partial({
         articleId: existing.id,
@@ -1153,12 +1285,35 @@ ${additionalSources}
       });
       
       return {
-        success: true,
+        success: existingStatus === 'published',
         videoId: video.videoId,
         articleId: existing.id,
         slug: existing.slug,
-        title: existing.title
+        title: existing.title,
+        status: existingStatus,
+        draftReason: existingStatus === 'draft'
+          ? 'Artikel existiert bereits als Entwurf'
+          : undefined,
       };
+    }
+
+    if (publicationStatus === 'published') {
+      console.log(`   📥 Lade freigegebenes Video herunter: ${video.videoId}`);
+      try {
+        const downloadResult = await downloadYouTubeTrailer(
+          video.videoId,
+          seriesName || video.title,
+        );
+        if (downloadResult.success && downloadResult.localPath) {
+          localVideoPath = downloadResult.localPath;
+          console.log(`   ✅ Video heruntergeladen: ${localVideoPath}`);
+        } else {
+          console.log(`   ⚠️ Download fehlgeschlagen: ${downloadResult.error}`);
+        }
+      } catch (downloadError) {
+        const reason = downloadError instanceof Error ? downloadError.message : String(downloadError);
+        console.log(`   ⚠️ Download-Fehler: ${reason}`);
+      }
     }
     
     // Only set primarySeriesId if series exists in DB (foreign key constraint)
@@ -1172,7 +1327,7 @@ ${additionalSources}
     // TMDB images are usually higher quality and more suitable for hero display
     let heroImageUrl = video.thumbnailUrl;
     
-    if (tmdbData?.backdropPath && seriesIdForArticle) {
+    if (publicationStatus === 'published' && tmdbData?.backdropPath && seriesIdForArticle) {
       // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
       try {
         const articleCount = await prisma.articles.count({
@@ -1218,34 +1373,40 @@ ${additionalSources}
         contentHtml: htmlContent,
         metaDescription: structuredContent.metaDescription,
         category: 'neue-videos',
-        status: 'published',
-        authorId: getRandomAuthor(),
-        sourceUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+        status: publicationStatus,
+        authorId: resolvedAuthorId,
+        sourceUrl,
+        sourcePublishedAt: video.publishedAt,
         primarySeriesId: seriesIdForArticle,
         tmdbId: tmdbData?.tmdbId || null,
         heroImageUrl,
         heroVideoUrl: localVideoPath || null, // Nur lokales Video, KEIN YouTube-Embed
         isTrending: false,
-        publishedAt: now,
+        isRankingArticle: isRankingList,
+        publishedAt: publicationStatus === 'published' ? now : null,
         createdAt: now,
         updatedAt: now,
       }
     });
     
-    // Update video as processed
-    await prisma.youtube_videos.update({
-      where: { videoId: video.videoId },
-      data: {
-        processed: true,
-        processedAt: now,
-        articleId: article.id,
-        articleSlug: article.slug,
-      }
-    });
+    // Only a public article consumes the source video. Review drafts remain
+    // retryable and do not mutate the ingestion queue.
+    if (publicationStatus === 'published') {
+      await prisma.youtube_videos.update({
+        where: { videoId: video.videoId },
+        data: {
+          processed: true,
+          processedAt: now,
+          articleId: article.id,
+          articleSlug: article.slug,
+        }
+      });
+    }
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     logger.log(`Artikel gespeichert: ${article.slug}`);
-    
+
+    if (publicationStatus === 'published') {
     // ========== STEP 9: POST-PROCESSING (wie P2) ==========
     console.log('\n━'.repeat(60));
     console.log('STEP 9: POST-PROCESSING (parallel)');
@@ -1296,11 +1457,13 @@ ${additionalSources}
       // Generate "Was bedeutet das" section
       (async () => {
         try {
-          const wasBedeutetDasText = await generateWasBedeutetDas(
-            structuredContent.headline,
-            htmlContent,
-            dbSeries?.name || seriesName || ''
-          );
+          const wasBedeutetDasText = await generateWasBedeutetDas({
+            articleHtml: htmlContent,
+            headline: structuredContent.headline,
+            seriesName: dbSeries?.name || seriesName || video.title,
+            contentType: 'SINGLE_SERIES_NEWS',
+            extractedFacts: JSON.stringify(facts),
+          });
           
           if (wasBedeutetDasText) {
             await prisma.articles.update({
@@ -1317,37 +1480,75 @@ ${additionalSources}
       // Discover Gate (Google Discover Tauglichkeit)
       (async () => {
         try {
-          await discoverGate(article.id, structuredContent.headline, htmlContent);
+          if (!article.heroImageUrl) {
+            console.log('   ⚠️ Discover Gate übersprungen: Kein Hero-Bild');
+            return;
+          }
+          const usesPoster = !tmdbData?.backdropPath && Boolean(tmdbData?.posterPath);
+          await discoverGate({
+            final_headline: structuredContent.headline,
+            article_html: htmlContent,
+            hero_image_metadata: {
+              url: article.heroImageUrl,
+              width: usesPoster ? 780 : 1280,
+              height: usesPoster ? 1170 : 720,
+              source: tmdbData?.backdropPath
+                ? 'TMDB_BACKDROP'
+                : usesPoster
+                  ? 'TMDB_POSTER'
+                  : 'CUSTOM',
+            },
+            publishedAt: article.publishedAt || now,
+            primary_series: primarySeriesName,
+          });
           console.log(`   ✅ Discover Gate verarbeitet`);
         } catch (error: any) {
           console.log(`   ⚠️ Discover Gate fehlgeschlagen: ${(error.message || '').substring(0, 50)}`);
         }
       })(),
     ]);
+    } else {
+      console.log('   📝 Entwurf: Q&A, Discover und externe Nachbearbeitung übersprungen');
+    }
     
     console.log('\n' + '═'.repeat(70));
-    console.log('✅ P4-YT PIPELINE ERFOLGREICH');
+    console.log(publicationStatus === 'published'
+      ? '✅ P4-YT PIPELINE ERFOLGREICH'
+      : '📝 P4-YT PIPELINE TEILWEISE ERFOLGREICH (ENTWURF)');
     console.log('═'.repeat(70));
     console.log(`📰 Artikel: ${article.title}`);
-    console.log(`🔗 URL: /${article.slug}`);
+    console.log(`📌 Status: ${publicationStatus}`);
+    if (draftReason) console.log(`⚠️ Grund: ${draftReason}`);
+    if (publicationStatus === 'published') console.log(`🔗 URL: /${article.slug}`);
     console.log(`🎬 Video: https://www.youtube.com/watch?v=${video.videoId}`);
     console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
-    // Log success
-    await logger.success({
-      articleId: article.id,
-      articleSlug: article.slug,
-      articleTitle: article.title,
-      sourcesFound: 1,
-    });
+    if (publicationStatus === 'draft') {
+      await logger.partial({
+        articleId: article.id,
+        articleSlug: article.slug,
+        articleTitle: article.title,
+        sourcesFound: 1,
+        errorMessage: draftReason || 'Redaktionelle Freigabe erforderlich',
+      });
+    } else {
+      await logger.success({
+        articleId: article.id,
+        articleSlug: article.slug,
+        articleTitle: article.title,
+        sourcesFound: 1,
+      });
+    }
     
     return {
-      success: true,
+      success: publicationStatus === 'published',
       videoId: video.videoId,
       articleId: article.id,
       slug: article.slug,
-      title: article.title
+      title: article.title,
+      status: publicationStatus,
+      draftReason,
     };
     
   } catch (error) {

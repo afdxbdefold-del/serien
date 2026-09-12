@@ -9,8 +9,10 @@
  */
 import Link from 'next/link';
 import Image from 'next/image';
+import { notFound } from 'next/navigation';
 import { Star, Calendar, Tv, Filter as FilterIcon } from 'lucide-react';
 import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import FilterPillButton from './_filter-pill-button';
 import TMNSidebarSlot from '@/components/TMNSidebarSlot';
 import {
@@ -79,20 +81,23 @@ async function fetchSeries(f: SerienFilters) {
     }
   }
 
-  let orderBy: Record<string, 'asc' | 'desc'> = { popularity: 'desc' };
+  let orderBy: Prisma.seriesOrderByWithRelationInput[] = [
+    { popularity: 'desc' },
+    { tmdbId: 'asc' },
+  ];
   switch (f.sort) {
     case 'newest':
-      orderBy = { firstAirDate: 'desc' };
+      orderBy = [{ firstAirDate: 'desc' }, { tmdbId: 'asc' }];
       break;
     case 'rating':
-      orderBy = { voteAverage: 'desc' };
+      orderBy = [{ voteAverage: 'desc' }, { tmdbId: 'asc' }];
       break;
     case 'alphabetical':
-      orderBy = { title: 'asc' };
+      orderBy = [{ title: 'asc' }, { tmdbId: 'asc' }];
       break;
   }
 
-  const page = Math.max(1, parseInt(f.page || '1', 10));
+  const page = Number.parseInt(f.page || '1', 10);
   let total: number;
   let items: Awaited<ReturnType<typeof prisma.series.findMany<{ select: typeof SELECT }>>>;
 
@@ -136,6 +141,7 @@ function formatDate(d: Date | null): string {
 
 export default async function SerienOverview({ filters, forcePrimary, resetHref = '/serien' }: Props) {
   const { items, total, page, totalPages } = await fetchSeries(filters);
+  if (page > totalPages) notFound();
   const title = buildTitle(filters);
   const sortLabel = SORT_OPTIONS.find((o) => o.slug === filters.sort)?.label ?? SORT_OPTIONS[0].label;
 

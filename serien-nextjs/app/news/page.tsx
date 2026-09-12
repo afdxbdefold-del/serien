@@ -39,6 +39,7 @@ export default function NewsPage() {
       intro={intro}
       canonicalPath="/news"
       filterSlug={null}
+      page={1}
     />
   );
 }

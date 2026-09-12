@@ -24,12 +24,6 @@ export const metadata = {
   title: 'Serien-News, Trailer & Updates | serien.de',
   description: 'Serien.de – News, Trailer & Updates zu deinen Lieblingsserien.',
   metadataBase: new URL(CANONICAL_BASE_URL),
-  alternates: {
-    canonical: '/',
-    languages: {
-      'de-DE': '/',
-    },
-  },
   icons: {
     icon: [
       { url: '/favicon-v2.ico?v=2', sizes: 'any' },
@@ -121,11 +115,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="theme-color" content="#0f0f17" />
         <link rel="manifest" href="/manifest.json" />
-        {/* hreflang — single-language German site; emitted globally so every
-            page (including ones that override `alternates`) carries the signal. */}
-        <link rel="alternate" hrefLang="de-DE" href="https://serien.de" />
-        <link rel="alternate" hrefLang="x-default" href="https://serien.de" />
-
         {/* Google Analytics 4 (G-5500N1BENS) — afterInteractive to avoid TBT */}
         <Script
           id="ga4-loader"

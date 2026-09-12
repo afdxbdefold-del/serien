@@ -1,6 +1,6 @@
 # serien.de — Technisches Handoff-Dokument (Einstiegspunkt)
 
-Stand: 1. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
+Stand: 12. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
 (ChatGPT/Codex/Claude etc.) soll dieses Projekt **ohne Emergent-Plattform-
 Zugriff und ohne Rückfragen an den vorherigen Betreuer** verstehen, lokal
 aufsetzen, betreiben und weiterentwickeln können.
@@ -56,13 +56,14 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 | Bereich | Technologie |
 |---|---|
 | Framework | Next.js 15, React 19, TypeScript 5. Das Manifest deklariert `^15.1.6`/`^19.0.0`/`^5.7.0`; der Übernahme-Lockstand löst 15.5.25/19.2.8/5.9.3 auf. Die exakten Pakete des lockfilelosen Live-`main` sind daraus nicht beweisbar. |
-| Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Zugriff über **Prisma ORM 6.19.2**. Neon wird nicht verwendet. |
+| Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Image `postgres:17-alpine`, Zugriff über **Prisma ORM 6.19.2**. Das leere Feld für die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver Datenbankname ist daher `postgres`. Persistenz: Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`. Neon wird nicht verwendet. |
+| Backups | In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel konfiguriert; dort werden null Backup-Ausführungen angezeigt. Auf dem Host liegen fünf manuelle Sicherungssätze vom 1. und 5. September 2026. Prüfsummen, Dump-Inhaltsverzeichnisse und Kompressionsarchive wurden am 12. September erfolgreich gelesen; ein isolierter Restore wurde nicht ausgeführt. Weil alle Sätze auf demselben Host liegen, bleiben ein aktuelles Offsite-Backup und ein erfolgreicher Restore-Test vor jeder Produktionsänderung Pflicht. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
 | LLM (Text) | OpenAI, Modell-String `gpt-5.4` (siehe `lib/llm-config.ts`), über eigenen `OPENAI_API_KEY`, direktes `openai` npm-SDK (v6.25.0) |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
-| Hosting (live verifiziert am 1. September 2026) | Hetzner-Server mit Coolify; eine Next.js-Anwendung und ein separater PostgreSQL-Service. Die Anwendung baut aus Repository `afdxbdefold-del/serien`, Branch `main`, Basisverzeichnis `/serien-nextjs`, Dockerfile `/Dockerfile`. Vercel ist nicht der aktuelle Anwendungshost. Details des Managementsystems stehen nur im privaten Betriebsinventar. |
+| Hosting (live verifiziert am 12. September 2026) | Hetzner-Server mit Coolify; eine Next.js-Anwendung und ein separater PostgreSQL-Service. Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar; Port 8000 spricht nur HTTP und darf nicht automatisch auf HTTPS umgestellt werden. Die Anwendung baut aus Repository `afdxbdefold-del/serien`, Branch `main`, Basisverzeichnis `/serien-nextjs`, Dockerfile `/Dockerfile`. `Deploy on push (webhooks)` ist aktiv, daher kann ein Push nach `main` unmittelbar Produktion deployen; `codex/takeover` ist nicht der Produktivbranch. Vercel ist nicht der aktuelle Anwendungshost. |
 | Push Notifications | Web Push (`web-push`, VAPID-Keys) |
 | Scraping | `cheerio` (HTML-Parsing), `playwright` (schwierigere Quellen, z. B. JS-gerenderte Seiten) |
 | Video/Trailer | RapidAPI (YouTube-Download-Fallbacks) |
@@ -170,6 +171,8 @@ kanonische Liste steht in `.env.example`.
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Indexing API (schnellere Google-Indexierung neuer Artikel) | Nein |
 | `NEXT_PUBLIC_BASE_URL` | Öffentliche Basis-URL der Seite | Ja |
 | `HEADLINE_OPINION_KILLER`, `HEADLINE_REWRITE_LOOP`, `USE_PROCESSED_IMAGES` | Feature-Flags (`"true"`/`"false"`) für Pipeline-Verhalten | Nein |
+| `AUTOMATED_NEWS_PUBLISHING_ENABLED` | Expliziter Release-Schalter für Pipeline-v2, P3 und P4. Nur der exakte Wert `true` erlaubt eine direkte Pipeline-Veröffentlichung; Standard und fehlende Konfiguration erzeugen Review-Entwürfe. | Nein; sicherer Standard ist `false` |
+| `AUTOMATED_EDITORIAL_AUTHOR_ID` | Festes, vorhandenes Redaktionskonto für automatisiert erzeugte Entwürfe. Das Konto muss die Rolle `author` besitzen; Standard-Fallback ist `redaktion`. | Für News-Pipelines |
 | `CRON_SECRET` | Bearer-Secret für alle `/api/cron/*`-Routen. Ausschließlich als `Authorization: Bearer …` senden; Query-Parameter werden nicht akzeptiert. Fehlende Konfiguration schlägt geschlossen fehl. | Für Cron-Endpunkte |
 
 Die kanonische, wertfreie Variablenliste steht in `.env.example`. Beim

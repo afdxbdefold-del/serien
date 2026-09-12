@@ -5,9 +5,11 @@
  * H1, intro, JSON-LD CollectionPage, and a client island for "Mehr laden".
  */
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Fragment } from 'react';
 import { fetchNewsArticles } from './_data';
 import { buildFilterPills, PAGE_SIZE, SITE_BASE } from './_lib';
+import { serializeJsonLd } from '@/lib/json-ld';
 import NewsCard from './_card';
 import NewsLoadMore from '@/components/NewsLoadMore';
 import NewsSidebar from '@/components/NewsSidebar';
@@ -19,10 +21,20 @@ interface Props {
   intro: string;
   canonicalPath: string;             // e.g. "/news" or "/news/netflix"
   filterSlug: string | null;         // null on /news root
+  page?: number;                     // crawlable root archive page
 }
 
-export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: Props) {
-  const articles = await fetchNewsArticles({ filterSlug, limit: PAGE_SIZE });
+export default async function NewsHub({ h1, intro, canonicalPath, filterSlug, page = 1 }: Props) {
+  const offset = (page - 1) * PAGE_SIZE;
+  const fetchedArticles = await fetchNewsArticles({
+    filterSlug,
+    offset: page > 1 ? offset : 0,
+    limit: PAGE_SIZE + 1,
+  });
+  const hasNextPage = fetchedArticles.length > PAGE_SIZE;
+  const articles = fetchedArticles.slice(0, PAGE_SIZE);
+
+  if (page > 1 && articles.length === 0) notFound();
 
   const pills = buildFilterPills(filterSlug);
 
@@ -37,7 +49,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
       numberOfItems: articles.length,
       itemListElement: articles.slice(0, 20).map((a, i) => ({
         '@type': 'ListItem',
-        position: i + 1,
+        position: offset + i + 1,
         url: `${SITE_BASE}/${a.slug}`,
         name: a.title,
       })),
@@ -45,7 +57,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
   };
 
   // For "Mehr laden" cursor we hand the publishedAt of the last loaded article
-  const cursor = articles.length === PAGE_SIZE && articles[articles.length - 1].publishedAt
+  const cursor = page === 1 && hasNextPage && articles[articles.length - 1].publishedAt
     ? new Date(articles[articles.length - 1].publishedAt as Date).toISOString()
     : null;
 
@@ -53,8 +65,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(itemListJsonLd) }}
       />
 
       {/* Header */}
@@ -139,7 +150,7 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
                 className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2"
                 data-testid="news-list"
               >
-                {articles.map((a, i) => (
+                {articles.map((a) => (
                   <Fragment key={a.id}>
                     <NewsCard article={a} />
                     {/* NewsAdCard entfernt (Feb 2026, User-Direktive: keine In-Feed-Ads). */}
@@ -149,6 +160,33 @@ export default async function NewsHub({ h1, intro, canonicalPath, filterSlug }: 
 
               {cursor && (
                 <NewsLoadMore initialCursor={cursor} filterSlug={filterSlug} />
+              )}
+
+              {filterSlug === null && (
+                <nav
+                  aria-label="News-Archivseiten"
+                  className="mt-8 flex items-center justify-between gap-3 border-t border-gray-200 pt-6 dark:border-gray-800"
+                >
+                  {page > 1 ? (
+                    <Link
+                      href={page === 2 ? '/news' : `/news/seite/${page - 1}`}
+                      rel="prev"
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-cyan-600 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-200"
+                    >
+                      ← Neuere News
+                    </Link>
+                  ) : <span />}
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Seite {page}</span>
+                  {hasNextPage ? (
+                    <Link
+                      href={`/news/seite/${page + 1}`}
+                      rel="next"
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-cyan-600 hover:text-cyan-700 dark:border-gray-700 dark:text-gray-200"
+                    >
+                      Ältere News →
+                    </Link>
+                  ) : <span />}
+                </nav>
               )}
             </>
           )}

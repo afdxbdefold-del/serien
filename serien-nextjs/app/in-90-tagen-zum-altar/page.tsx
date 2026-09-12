@@ -67,6 +67,9 @@ const FRANCHISE_CONFIG = {
 export const metadata: Metadata = {
   title: 'In 90 Tagen zum Altar - Der komplette Franchise-Guide | serien.de',
   description: 'Dein deutscher Hub für 90 Day Fiancé! Alle Serien, Spin-offs, News und Infos zur Reality-TV-Franchise rund um internationale Liebe und das K-1 Visum.',
+  alternates: {
+    canonical: 'https://serien.de/in-90-tagen-zum-altar',
+  },
   openGraph: {
     title: 'In 90 Tagen zum Altar - Franchise Hub',
     description: 'Der komplette Guide zu allen 90 Day Fiancé Serien auf Deutsch',

@@ -108,6 +108,7 @@ interface NewsArticle {
   title: string;
   url: string;
   timeAgo: string;
+  sourcePublishedAt?: string;
   source: string;
   series?: string;
   /** Discovery channel — set by scraper, persisted via pipeline_runs.metadata. */
@@ -598,6 +599,7 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
       title,
       url,
       timeAgo: pubMatch ? pubMatch[1] : '',
+      sourcePublishedAt: pubMatch ? pubMatch[1] : undefined,
       source: source.name,
       series: undefined,
     });
@@ -672,6 +674,7 @@ async function scrapeGoogleNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
       title,
       url: wrapperUrl,
       timeAgo: pubMatch ? pubMatch[1] : '',
+      sourcePublishedAt: pubMatch ? pubMatch[1] : undefined,
       source: source.name,
       series: undefined,
     });
@@ -708,13 +711,18 @@ async function scrapeTudumNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   const source = NEWS_SOURCES[sourceKey];
   console.log(`\n📡 ${source.name} (${source.url})`);
 
-  const html = await fetch(source.url, {
+  const response = await fetch(source.url, {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml',
     },
-  }).then((r) => r.text());
+  });
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok || !contentType.toLowerCase().includes('text/html')) {
+    throw new Error(`Tudum returned ${response.status} (${contentType || 'unknown content type'})`);
+  }
+  const html = await response.text();
 
   const pattern = /<a[^>]*href="(\/tudum\/articles\/([a-z0-9-]+))"[^>]*>([\s\S]*?)<\/a>/g;
   const seen = new Set<string>();
@@ -781,14 +789,19 @@ async function scrapeTvlineNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   const source = NEWS_SOURCES[sourceKey];
   console.log(`\n📡 ${source.name} (${source.url})`);
 
-  const html = await fetch(source.url, {
+  const response = await fetch(source.url, {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
     },
-  }).then((r) => r.text());
+  });
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok || !contentType.toLowerCase().includes('text/html')) {
+    throw new Error(`TVLine returned ${response.status} (${contentType || 'unknown content type'})`);
+  }
+  const html = await response.text();
 
   const $ = load(html);
   const seen = new Set<string>();
@@ -847,8 +860,10 @@ interface ProcessOptions {
 interface ProcessStats {
   processed: number;
   published: number;
+  drafted: number;
   failed: number;
   skipped: number;
+  sourceErrors: number;
   bySource: Record<string, number>;
 }
 
@@ -881,8 +896,10 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
   const stats: ProcessStats = {
     processed: 0,
     published: 0,
+    drafted: 0,
     failed: 0,
     skipped: 0,
+    sourceErrors: 0,
     bySource: {},
   };
 
@@ -919,6 +936,7 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
       } catch (error: any) {
         console.error(`❌ Failed to scrape ${sourceKey}: ${error.message}`);
         stats.bySource[sourceKey] = 0;
+        stats.sourceErrors++;
       }
     }
 
@@ -1079,26 +1097,25 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
       }
       
       try {
-        await runPipelineV2({
+        const pipelineResult = await runPipelineV2({
           title: article.title,
           url: article.url,
           text: '',
+          sourcePublishedAt: article.sourcePublishedAt || article.timeAgo || undefined,
           useFullTextMode: true,
           trigger: 'cron',
           discoveryChannel: article.discoveryChannel || 'rss-direct',
         });
         stats.processed++;
-        // Authoritative published-check: pipeline-v2 doesn't throw on filter-skips,
-        // so "no throw" ≠ "published". Verify the article actually landed in DB.
-        const landed = await prisma.articles.findFirst({
-          where: { sourceUrl: article.url, status: 'published' },
-          select: { id: true },
-        });
-        if (landed) {
+        if (pipelineResult?.status === 'published') {
           stats.published++;
           console.log('   ✅ PUBLISHED');
+        } else if (pipelineResult?.status === 'draft') {
+          stats.drafted++;
+          console.log('   📝 REVIEW DRAFT');
         } else {
-          console.log('   ⚠️  ATTEMPTED (no publish — see pipeline_runs for fail step)');
+          stats.skipped++;
+          console.log('   ⏭️  SKIPPED (see pipeline_runs for reason)');
         }
       } catch (error: any) {
         stats.failed++;
@@ -1114,8 +1131,10 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     console.log('='.repeat(70));
     console.log(`   Processed:  ${stats.processed}`);
     console.log(`   Published:  ${stats.published}`);
+    console.log(`   Drafted:    ${stats.drafted}`);
     console.log(`   Failed:     ${stats.failed}`);
     console.log(`   Skipped:    ${stats.skipped}`);
+    console.log(`   Sources err:${stats.sourceErrors}`);
     Object.entries(stats.bySource).forEach(([source, count]) => {
       console.log(`   ${source}: ${count} found`);
     });

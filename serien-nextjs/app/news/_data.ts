@@ -50,6 +50,7 @@ interface FetchOpts {
   excludeIds?: string[];            // skip these (e.g. on article footer "Mehr News")
   excludePrimarySeriesId?: number | null;
   cursorPublishedAt?: Date | null;  // for "Mehr laden"
+  offset?: number;                  // crawlable archive pages; never combine with cursor
   limit?: number;
 }
 
@@ -96,14 +97,17 @@ export async function fetchNewsArticles(opts: FetchOpts = {}): Promise<NewsArtic
       // Title regex applied at fetch time.
       // Prisma supports `mode: 'insensitive'` for `contains`, but no native regex on PG without raw SQL.
       // We over-fetch + post-filter to keep it simple and safe.
-      const overFetch = limit * 8;
+      const offset = Math.max(0, opts.offset ?? 0);
+      const overFetch = (limit + offset) * 8;
       const all = await prisma.articles.findMany({
         where,
         select: NEWS_ARTICLE_SELECT,
-        orderBy: { publishedAt: 'desc' },
+        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
         take: overFetch,
       });
-      const filtered = all.filter((a) => cls.entry.titleRegex.test(a.title)).slice(0, limit);
+      const filtered = all
+        .filter((a) => cls.entry.titleRegex.test(a.title))
+        .slice(offset, offset + limit);
       return filtered as NewsArticle[];
     } else if (cls.kind === 'month') {
       const start = new Date(Date.UTC(cls.year, cls.month - 1, 1, 0, 0, 0));
@@ -118,7 +122,8 @@ export async function fetchNewsArticles(opts: FetchOpts = {}): Promise<NewsArtic
   const rows = await prisma.articles.findMany({
     where,
     select: NEWS_ARTICLE_SELECT,
-    orderBy: { publishedAt: 'desc' },
+    orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+    skip: Math.max(0, opts.offset ?? 0),
     take: limit,
   });
   return rows as NewsArticle[];

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Trash2, Search, ChevronLeft, ChevronRight, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Loader2, Trash2, Search, ChevronLeft, ChevronRight, ExternalLink, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { ForceKillArticleCard } from '@/components/admin/ForceKillArticleCard';
 
 interface Article {
@@ -264,15 +264,25 @@ export default function AdminArticlesPage() {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <a
-                            href={`/${article.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Artikel ansehen"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
+                          {article.status === 'draft' ? (
+                            <Link
+                              href={`/admin/articles/${article.id}`}
+                              className="p-2 text-amber-600 hover:text-amber-800 transition-colors"
+                              title="Entwurf prüfen und freigeben"
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                            </Link>
+                          ) : (
+                            <a
+                              href={`/${article.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Artikel ansehen"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
                           <button
                             onClick={() => handleDelete(article.id)}
                             disabled={deleting}

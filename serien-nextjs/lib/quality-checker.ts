@@ -172,7 +172,7 @@ async function getAIQualityScores(
   input: QualityCheckInput,
   plainText: string
 ): Promise<QualityScores> {
-  const systemPrompt = `Qualitätsprüfer für serienjunkies.de-Artikel. Bewerte auf 3 Dimensionen (0-100):
+  const systemPrompt = `Qualitätsprüfer für serien.de-Artikel. Bewerte auf 3 Dimensionen (0-100):
 
 1. headline: Max 70 Zeichen, klar, informativ, Serienname enthalten, kein Clickbait.
 2. content: Faktisch, neutral, professionell, keine Marketing-Sprache.
@@ -223,11 +223,6 @@ Bewerte die Qualität (0-100 Punkte pro Kategorie).`;
 
   } catch (error) {
     console.error('AI scoring failed:', error);
-    // Return conservative scores on error
-    return {
-      headline: 65,
-      content: 65,
-      structure: 60,
-    };
+    throw new Error('Quality scoring dependency failed', { cause: error });
   }
 }

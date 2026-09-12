@@ -33,14 +33,10 @@ const STATIC_PAGES: StaticEntry[] = [
   { loc: '/beste-sci-fi-serien',       changefreq: 'daily',   priority: 0.85, derive: latestSeries },
   { loc: '/serienfinder',              changefreq: 'daily',   priority: 0.8,  derive: latestSeries },
   { loc: '/neue-serien',               changefreq: 'daily',   priority: 0.8,  derive: latestRelease },
-  { loc: '/personen',                  changefreq: 'weekly',  priority: 0.7,  derive: latestPerson },
-  { loc: '/figuren',                   changefreq: 'weekly',  priority: 0.7,  derive: latestCharacter },
   { loc: '/autoren',                   changefreq: 'monthly', priority: 0.5,  derive: latestUser },
   { loc: '/about',                     changefreq: 'monthly', priority: 0.5 },
   { loc: '/redaktionelle-richtlinien', changefreq: 'yearly',  priority: 0.4 },
   { loc: '/nutzungsbedingungen',       changefreq: 'yearly',  priority: 0.3 },
-  { loc: '/impressum',                 changefreq: 'yearly',  priority: 0.3 },
-  { loc: '/datenschutz',               changefreq: 'yearly',  priority: 0.3 },
 ];
 
 // Append /serien/{genre|streamer|jahrzehnt}/* sub-routes for SEO indexing.
@@ -73,14 +69,6 @@ async function latestSeries(): Promise<Date | null> {
 async function latestRelease(): Promise<Date | null> {
   const r = await prisma.streaming_releases.findFirst({ orderBy: { fetchedAt: 'desc' }, select: { fetchedAt: true } });
   return r?.fetchedAt ?? null;
-}
-async function latestCharacter(): Promise<Date | null> {
-  const r = await prisma.characters.findFirst({ where: { publishStatus: 'published' }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } });
-  return r?.updatedAt ?? null;
-}
-async function latestPerson(): Promise<Date | null> {
-  const r = await prisma.persons.findFirst({ where: { biography: { not: null } }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } });
-  return r?.updatedAt ?? null;
 }
 async function latestUser(): Promise<Date | null> {
   try {

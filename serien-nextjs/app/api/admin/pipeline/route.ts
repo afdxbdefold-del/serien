@@ -452,7 +452,7 @@ export async function POST(request: NextRequest) {
       
       const video = await prisma.youtube_videos.findUnique({
         where: { videoId },
-        include: { channel: true }
+        include: { youtube_channels: true }
       });
       
       if (!video) {
@@ -467,26 +467,47 @@ export async function POST(request: NextRequest) {
         thumbnailUrl: video.thumbnailUrl || '',
         publishedAt: video.publishedAt,
         channelId: video.channelId,
-        channelName: video.channel.name,
-      });
-      
-      return NextResponse.json({ 
-        success: result.success, 
-        message: result.success ? `Artikel erstellt: ${result.title}` : result.error,
-        result
+        channelName: video.youtube_channels.name,
+      }, 'manual');
+
+      const published = result.status === 'published';
+      const reviewDraft = result.status === 'draft' && Boolean(result.articleId);
+      return NextResponse.json({
+        success: published,
+        partial: reviewDraft,
+        created: Boolean(result.articleId),
+        published,
+        status: result.status || 'failed',
+        message: published
+          ? `Artikel veröffentlicht: ${result.title}`
+          : reviewDraft
+            ? `Review-Entwurf erstellt: ${result.title}`
+            : result.error,
+        draftReason: result.draftReason,
+        reviewUrl: reviewDraft ? `/admin/articles/${result.articleId}` : undefined,
+        result,
       });
     }
 
     // Run P4-YT: Process next unprocessed videos
     if (action === 'yt-process-batch') {
       const { processUnprocessedVideos } = await import('@/scripts/p4-yt');
-      const results = await processUnprocessedVideos(3);
-      const successCount = results.filter(r => r.success).length;
+      const results = await processUnprocessedVideos(3, 'manual');
+      const publishedCount = results.filter((result) => result.status === 'published').length;
+      const draftCount = results.filter((result) => result.status === 'draft').length;
+      const failedCount = results.filter((result) => !result.success && result.status !== 'draft').length;
       
-      return NextResponse.json({ 
-        success: true, 
-        message: `${successCount}/${results.length} Artikel erstellt`,
-        results
+      return NextResponse.json({
+        success: draftCount === 0 && failedCount === 0,
+        partial: draftCount > 0,
+        created: results.filter((result) => Boolean(result.articleId)).length,
+        published: publishedCount,
+        drafts: draftCount,
+        failed: failedCount,
+        status: draftCount > 0 ? 'review' : failedCount > 0 ? 'failed' : 'published',
+        message: `${publishedCount} veröffentlicht, ${draftCount} Review-Entwürfe, ${failedCount} fehlgeschlagen`,
+        reviewUrl: draftCount > 0 ? '/admin/articles' : undefined,
+        results,
       });
     }
 
@@ -498,17 +519,29 @@ export async function POST(request: NextRequest) {
       
       const { runP3TrendsPipeline } = await import('@/scripts/p3-trends');
       const result = await runP3TrendsPipeline(`manual-${Date.now()}`, searchTerm, 'manual');
-      
-      return NextResponse.json({ 
-        success: result.success, 
-        message: result.success ? `Artikel erstellt: ${result.title}` : result.error,
-        result
+
+      const published = result.status === 'published';
+      const reviewDraft = result.status === 'draft' && Boolean(result.articleId);
+      return NextResponse.json({
+        success: published,
+        partial: reviewDraft,
+        created: Boolean(result.articleId),
+        published,
+        status: result.status || 'failed',
+        message: published
+          ? `Artikel veröffentlicht: ${result.title}`
+          : reviewDraft
+            ? `Review-Entwurf erstellt: ${result.title}`
+            : result.error,
+        draftReason: result.draftReason,
+        reviewUrl: reviewDraft ? `/admin/articles/${result.articleId}` : undefined,
+        result,
       });
     }
 
     // Run Pipeline-V2 with URL
     if (action === 'v2-process') {
-      const { url } = body;
+      const { url, authorId } = body;
       if (!url) {
         return NextResponse.json({ error: 'url required' }, { status: 400 });
       }
@@ -518,15 +551,36 @@ export async function POST(request: NextRequest) {
         title: 'Extracting...',
         url,
         text: '',
+        authorId: typeof authorId === 'string' ? authorId : undefined,
         useFullTextMode: true,
         trigger: 'manual',
         discoveryChannel: 'admin-manual',
       });
-      
-      return NextResponse.json({ 
-        success: !!result, 
-        message: result ? `Artikel erstellt: ${result.headline}` : 'Pipeline fehlgeschlagen',
-        result
+
+      if (!result) {
+        return NextResponse.json({
+          success: false,
+          created: false,
+          published: false,
+          status: 'failed',
+          message: 'Pipeline fehlgeschlagen',
+          result: null,
+        });
+      }
+
+      const published = result.status === 'published';
+      return NextResponse.json({
+        success: published,
+        partial: !published,
+        created: true,
+        published,
+        status: result.status,
+        message: published
+          ? `Artikel veröffentlicht: ${result.headline}`
+          : `Review-Entwurf erstellt: ${result.headline}`,
+        draftReason: result.draftReason,
+        reviewUrl: published ? undefined : `/admin/articles/${result.articleId}`,
+        result,
       });
     }
 
@@ -947,7 +1001,7 @@ export async function POST(request: NextRequest) {
     // Importiert einen spezifischen Artikel anhand der URL
     if (action === 'import-p2-article') {
       try {
-        const { url } = body;
+        const { url, authorId } = body;
         if (!url) {
           return NextResponse.json({ success: false, error: 'URL erforderlich' });
         }
@@ -974,10 +1028,11 @@ export async function POST(request: NextRequest) {
         }
         
         // Fetch full text first
-        const { fetchFullText } = await import('@/lib/full-text-fetcher');
+        const { fetchFullArticleText } = await import('@/lib/full-text-fetcher');
         debugLog.push(`🔄 Hole Volltext...`);
         
-        const fullText = await fetchFullText(url);
+        const fullTextResult = await fetchFullArticleText(url);
+        const fullText = fullTextResult.fullText;
         if (!fullText || fullText.length < 200) {
           debugLog.push(`❌ Volltext zu kurz: ${fullText?.length || 0} Zeichen`);
           return NextResponse.json({
@@ -1003,7 +1058,9 @@ export async function POST(request: NextRequest) {
           title: cleanTitle,
           url: url,
           text: fullText,
-          useFullTextMode: true,
+          sourcePublishedAt: fullTextResult.publishDate,
+          authorId: typeof authorId === 'string' ? authorId : undefined,
+          useFullTextMode: false,
           trigger: 'manual',
           discoveryChannel: 'admin-manual',
         });
@@ -1011,23 +1068,36 @@ export async function POST(request: NextRequest) {
         const duration = Date.now() - startTime;
         debugLog.push(`⏱️ Dauer: ${Math.round(duration / 1000)}s`);
         
-        if (result.success) {
-          debugLog.push(`✅ Artikel erstellt: /${result.slug}`);
-          return NextResponse.json({
-            success: true,
-            message: `✅ Artikel importiert (${Math.round(duration / 1000)}s)`,
-            articleSlug: result.slug,
-            articleTitle: result.title,
-            debug: debugLog
-          });
-        } else {
-          debugLog.push(`❌ Fehler: ${result.error}`);
+        if (!result) {
+          debugLog.push('❌ Pipeline lieferte keinen Artikel');
           return NextResponse.json({
             success: false,
-            error: result.error || 'Import fehlgeschlagen',
-            debug: debugLog
+            created: false,
+            published: false,
+            status: 'failed',
+            error: 'Import fehlgeschlagen',
+            debug: debugLog,
           });
         }
+
+        const published = result.status === 'published';
+        debugLog.push(`${published ? '✅ Veröffentlicht' : '📝 Review-Entwurf erstellt'}: /${result.slug}`);
+        return NextResponse.json({
+          success: published,
+          partial: !published,
+          created: true,
+          published,
+          status: result.status,
+          message: published
+            ? `✅ Artikel veröffentlicht (${Math.round(duration / 1000)}s)`
+            : `📝 Review-Entwurf erstellt (${Math.round(duration / 1000)}s)`,
+          articleSlug: result.slug,
+          articleTitle: result.headline,
+          draftReason: result.draftReason,
+          reviewUrl: published ? undefined : `/admin/articles/${result.articleId}`,
+          result,
+          debug: debugLog,
+        });
       } catch (error: any) {
         console.error('[P2 Import] Error:', error);
         return NextResponse.json({

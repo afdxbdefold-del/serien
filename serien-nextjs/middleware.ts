@@ -32,6 +32,10 @@ const BOT_PATTERNS: Array<[string, RegExp]> = [
   ['ClaudeBot',              /ClaudeBot|anthropic-ai/i],
   ['PerplexityBot',          /PerplexityBot/i],
   ['Google-InspectionTool',  /Google-InspectionTool/i],
+  // Legitimate Google ad crawlers must be recognized before the broad
+  // Adsbot hostile-UA pattern below is evaluated.
+  ['AdsBot-Google',          /AdsBot-Google/i],
+  ['Mediapartners-Google',   /Mediapartners-Google/i],
 ];
 
 // Hostile bots die AdSense-Impressions verbrennen → hart mit 204 blocken

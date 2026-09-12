@@ -125,7 +125,11 @@ export default function AdminPipelinePage() {
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
   
   const [runningAction, setRunningAction] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{
+    type: 'success' | 'review' | 'error';
+    text: string;
+    reviewUrl?: string;
+  } | null>(null);
   const [v2Url, setV2Url] = useState('');
   const [newChannelUrl, setNewChannelUrl] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
@@ -256,7 +260,14 @@ export default function AdminPipelinePage() {
         setP2DebugLog(data.debug);
       }
       
-      if (response.ok && data.success) {
+      if (response.ok && data.partial && data.reviewUrl) {
+        setActionMessage({
+          type: 'review',
+          text: data.message || 'Review-Entwurf erstellt',
+          reviewUrl: data.reviewUrl,
+        });
+        setTimeout(fetchDashboard, 2000);
+      } else if (response.ok && data.success) {
         setActionMessage({ type: 'success', text: data.message || 'Aktion erfolgreich' });
         setTimeout(fetchDashboard, 2000);
       } else {
@@ -320,8 +331,14 @@ export default function AdminPipelinePage() {
         setP2DebugLog(data.debug);
       }
       
-      if (data.success) {
-        setActionMessage({ type: 'success', text: data.message || 'Artikel importiert' });
+      if (data.success || (response.ok && data.partial && data.reviewUrl)) {
+        setActionMessage(data.success
+          ? { type: 'success', text: data.message || 'Artikel importiert' }
+          : {
+              type: 'review',
+              text: data.message || 'Review-Entwurf erstellt',
+              reviewUrl: data.reviewUrl,
+            });
         // Mark as imported in the list
         setP2NewsList(prev => prev.map(n => 
           n.url === url ? { ...n, isImported: true } : n
@@ -583,11 +600,22 @@ export default function AdminPipelinePage() {
         {actionMessage && (
           <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
             actionMessage.type === 'success' 
-              ? 'bg-green-50 text-green-800 border border-green-200' 
-              : 'bg-red-50 text-red-800 border border-red-200'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : actionMessage.type === 'review'
+                ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
-            {actionMessage.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
-            {actionMessage.text}
+            {actionMessage.type === 'success'
+              ? <CheckCircle className="h-5 w-5 shrink-0" />
+              : actionMessage.type === 'review'
+                ? <AlertTriangle className="h-5 w-5 shrink-0" />
+                : <XCircle className="h-5 w-5 shrink-0" />}
+            <span>{actionMessage.text}</span>
+            {actionMessage.reviewUrl && (
+              <Link href={actionMessage.reviewUrl} className="ml-auto whitespace-nowrap font-medium underline">
+                Entwurf prüfen
+              </Link>
+            )}
           </div>
         )}
 
@@ -1188,7 +1216,11 @@ export default function AdminPipelinePage() {
                                 </span>
                               )}
                               
-                              {article.heroVideoUrl && <Video className="h-4 w-4 text-red-500" title="Hat Trailer" />}
+                              {article.heroVideoUrl && (
+                                <span title="Hat Trailer">
+                                  <Video className="h-4 w-4 text-red-500" aria-hidden="true" />
+                                </span>
+                              )}
                               
                               <a 
                                 href={`/${article.slug}`} 

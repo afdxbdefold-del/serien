@@ -1,6 +1,6 @@
 # Übernahmestatus serien.de
 
-Stand: 1. September 2026
+Stand: 12. September 2026
 
 Arbeitsbranch: `codex/takeover`
 
@@ -9,29 +9,39 @@ Ausgangspunkt: `main` bei `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
 Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 Übernahme. Es ersetzt keine Live-Prüfung der Produktionssysteme.
 
-## Live verifizierte Produktion (1. September 2026)
+## Live verifizierte Produktion (12. September 2026)
 
-- Produktion läuft auf einem Hetzner-Server über Coolify. Details des
-  Management-Zugangs und der internen Ressourcen bleiben im privaten
-  Betriebsinventar.
+- Produktion läuft auf einem Hetzner-Server über Coolify. Die lokale
+  Management-Oberfläche ist unter `http://168.119.171.20:8000/` erreichbar.
+  Port 8000 spricht ausschließlich HTTP; die Adresse nicht automatisch auf
+  HTTPS umstellen. Zugangsdaten und interne Verbindungswerte bleiben im
+  privaten Betriebsinventar.
 - Die Anwendung wird aus diesem Repository, Branch `main`, gebaut. Zum
   Prüfzeitpunkt lief Commit `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
   mit Basisverzeichnis `/serien-nextjs` und `serien-nextjs/Dockerfile`.
   `Deploy on push (webhooks)` ist aktiv; ein Push nach `main` kann daher
   unmittelbar einen Produktivdeploy auslösen. `codex/takeover` ist nicht als
   Produktivbranch konfiguriert.
-- PostgreSQL 17 läuft als separater Coolify-Service auf demselben Host. Die
-  Daten liegen in einem benannten, persistenten Docker-Volume. Neon wird nicht
-  verwendet.
-- In Coolify sind weder geplante PostgreSQL-Dumps noch ein Volume-Backup oder
-  ein S3-Backupziel konfiguriert. Rotierende Hetzner-Ganzserver-Backups sind
-  verfügbar; sie ersetzen kein konsistentes, separat prüfbares
-  Datenbank-Backup. Details und Retention stehen im privaten Inventar.
-- Vor einer freigegebenen operativen Artikelkorrektur wurde am 1. September
-  2026 zusätzlich ein manueller logischer und physischer PostgreSQL-17-
-  Sicherungsstand mit Prüfsummen sowie isoliertem logischem und physischem
-  Restore verifiziert. Er liegt nur auf dem Produktionshost und schließt die
-  fehlende Automatisierungs- und Off-Host-Lücke daher nicht.
+- PostgreSQL läuft als separater Coolify-Service auf demselben Host mit dem
+  Image `postgres:17-alpine`. Das Feld für die initiale Datenbank ist leer;
+  dadurch greift der PostgreSQL-Standard und der effektive Datenbankname
+  entspricht dem Benutzernamen `postgres`. Neon wird nicht verwendet.
+- Die Datenbank persistiert im benannten Volume
+  `postgres-data-oun4xzvaum4o58fglnuqks6y`, eingehängt unter
+  `/var/lib/postgresql/data`.
+- In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
+  konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Auf dem Host
+  liegen jedoch fünf manuell erstellte Sicherungssätze vom 1. und 5. September
+  2026 unter `/data/coolify/backups/serien-manual/`. Jeder Satz enthält einen
+  logischen PostgreSQL-Dump und ein physisches Base-/WAL-Archiv. Am
+  12. September bestanden alle gespeicherten SHA-256-Prüfsummen, alle fünf
+  Dumps ließen sich mit `pg_restore --list` lesen und alle komprimierten
+  physischen Archive bestanden den Dekompressionstest. Ein isolierter Restore
+  wurde weiterhin nicht ausgeführt. Da die Sicherungen auf demselben Server
+  liegen und kein automatisches oder externes Ziel existiert, schützen sie
+  nicht vor Host-Ausfall. Vor jeder Produktionsänderung müssen deshalb ein
+  aktuelles konsistentes Datenbank-/Volume-Backup auf getrenntem Speicher und
+  ein erfolgreicher Restore-Test nachgewiesen werden.
 - Der vorhandene Cloudflare-R2-Bucket ist erreichbar; ein versioniertes
   Artikelbild wurde manuell hochgeladen und öffentlich verifiziert. Im
   Live-App-Environment fehlen weiterhin die R2-Variablennamen, sodass der
@@ -109,8 +119,8 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 
 - Coolify-Projekt/Server und Hetzner-Zugang für Betrieb, Backup- und
   Wiederherstellungsprüfungen
-- Zugriff auf ein getrenntes Backupziel für PostgreSQL-Dumps sowie auf die
-  vorhandenen Hetzner-Ganzserver-Backups
+- Zugriff auf ein getrenntes Backupziel für PostgreSQL-Dumps und
+  Volume-Sicherungen
 - Cloudflare-Zone und R2-Bucket
 - OpenAI-, TMDB-, Push/VAPID-, RapidAPI- und gegebenenfalls Google-/Facebook-
   Konten zur Rotation und Funktionsprüfung
