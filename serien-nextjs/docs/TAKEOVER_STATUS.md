@@ -39,10 +39,12 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
   physische Basebackup in getrennten, netzwerkisolierten PostgreSQL-17-
   Umgebungen erfolgreich wiederhergestellt. Beide lieferten exakt 4.292
   Artikel (4.271 veröffentlicht, 11 Entwürfe, 10 archiviert) und 44
-  öffentliche Tabellen. Da die Sicherungen weiterhin auf demselben Server
-  liegen und kein automatisches oder externes Ziel existiert, schützen sie
-  nicht vor Host-Ausfall. Vor jeder Produktionsänderung muss der aktuelle
-  Sicherungssatz deshalb noch auf getrennten Speicher kopiert werden.
+  öffentliche Tabellen. Vier Dateien dieses Satzes wurden zusätzlich in den
+  privaten R2-Pfad `publisher-os-backups/serien/20260912T112834Z/` kopiert.
+  R2 zeigt 102,35 MB für das Basebackup und 69,33 MB für den Dump, passend zu
+  den binären Servergrößen. Der bucketspezifische Schreib-Token verfällt nach
+  24 Stunden und wurde aus der Serversitzung entfernt. Eine automatische
+  Coolify-Backupplanung bleibt offen.
 - Der vorhandene Cloudflare-R2-Bucket ist erreichbar; ein versioniertes
   Artikelbild wurde manuell hochgeladen und öffentlich verifiziert. Im
   Live-App-Environment fehlen weiterhin die R2-Variablennamen, sodass der
@@ -55,8 +57,8 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 ## Bereits erledigt
 
 - Aktuellen logischen und physischen PostgreSQL-Sicherungsstand erstellt,
-  Prüfsummen verifiziert und beide Restore-Wege isoliert erfolgreich getestet;
-  die Offsite-Kopie bleibt offen.
+  Prüfsummen verifiziert, beide Restore-Wege isoliert erfolgreich getestet und
+  den Satz zusätzlich in einen privaten R2-Pfad kopiert.
 
 - Paketauflösung mit `package-lock.json` reproduzierbar gemacht; Node- und
   npm-Anforderungen sowie Standardbefehle für Test, Lint und Typecheck ergänzt.

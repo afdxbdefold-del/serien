@@ -227,7 +227,7 @@ und die automatische Pipeline redaktionell kontrolliert wird.
 | Persistenz | Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`; die App selbst hat kein persistentes Volume |
 | Automatisierung | Coolify Scheduled Tasks rufen `/api/cron/*` auf; kein zusätzlicher Worker-/Supervisor-Container |
 | Bekannter Cron-Stand | zehn aktive Tasks waren inventarisiert; `downgrade-stale` und `videos` scheiterten wiederholt mit HTTP 401, `trends` war nicht angelegt |
-| Backups | kein Coolify-Datenbank-Backupplan, kein Coolify-S3-Backupziel und dort null Backup-Ausführungen. Auf demselben Host liegen sechs manuelle Sicherungssätze vom 1., 5. und 12. September 2026. Der neue Satz `20260912T112834Z` enthält einen 67-MB-Custom-Dump und ein 98-MB-Basebackup mit enthaltenem WAL. Gzip-, Inhalts- und SHA-256-Prüfung bestanden. Sowohl der logische Dump als auch das physische Basebackup wurden in getrennten, netzwerkisolierten PostgreSQL-17-Umgebungen erfolgreich gestartet; beide lieferten exakt 4.292 Artikel (4.271 veröffentlicht, 11 Entwürfe, 10 archiviert) und 44 öffentliche Tabellen. Eine Offsite-Kopie fehlt weiterhin. |
+| Backups | kein Coolify-Datenbank-Backupplan und dort null Backup-Ausführungen. Auf dem Host liegen sechs manuelle Sicherungssätze vom 1., 5. und 12. September 2026. Der neue Satz `20260912T112834Z` enthält einen 67-MB-Custom-Dump und ein 98-MB-Basebackup mit enthaltenem WAL. Gzip-, Inhalts- und SHA-256-Prüfung bestanden. Sowohl der logische Dump als auch das physische Basebackup wurden in getrennten, netzwerkisolierten PostgreSQL-17-Umgebungen erfolgreich gestartet; beide lieferten exakt 4.292 Artikel (4.271 veröffentlicht, 11 Entwürfe, 10 archiviert) und 44 öffentliche Tabellen. Vier Dateien wurden zusätzlich in den privaten R2-Pfad `publisher-os-backups/serien/20260912T112834Z/` kopiert. R2 zeigt 102,35 MB für das Basebackup und 69,33 MB für den Dump, passend zu den binären Servergrößen. Der verwendete, auf diesen Bucket begrenzte Schreib-Token verfällt nach 24 Stunden und wurde aus der Serversitzung entfernt. |
 | Storage | Cloudflare R2 ist vorhanden und erreichbar; der Code und `.env.example` enthalten die R2-Anbindung. Im verifizierten Live-App-Environment waren jedoch keine R2-Variablennamen gesetzt. Vercel Blob und ein Emergent-Altpfad sind dort weiterhin vorhanden. |
 | Live-Variablennamen | `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL`, `EMERGENT_LLM_KEY`, `FACEBOOK_PAGE_TOKEN_EXPIRES_AT`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `JWT_SECRET`, `NEXT_PUBLIC_BASE_URL`, `OPENAI_API_KEY`, `TMDB_API_KEY`. Werte wurden nicht ausgegeben. |
 
@@ -302,12 +302,11 @@ Gesamtzustand verwechselt werden.
 
 ### Stufe 0 – Produktionssicherheit und Messbasis
 
-1. Der aktuelle PostgreSQL-Dump und das physische Basebackup sind erstellt und
-   auf demselben Host verifiziert; beide müssen noch auf getrennten Speicher
-   kopiert werden.
+1. Der aktuelle PostgreSQL-Dump und das physische Basebackup sind erstellt,
+   auf demselben Host verifiziert und zusätzlich in einen privaten R2-Pfad
+   kopiert.
 2. Integritätsprüfung sowie logischer und physischer Restore-Test sind
-   erfolgreich abgeschlossen. Ohne die Offsite-Kopie keine
-   Produktionsänderung.
+   erfolgreich abgeschlossen.
 3. GSC-Leistungs- und Seitenexporte sichern, damit jede spätere Wirkung gegen
    eine unveränderte Ausgangsbasis gemessen werden kann.
 4. Automatische Publikation bis zur redaktionellen Freigabe geschlossen
@@ -398,7 +397,7 @@ Ohne ausdrückliche Freigabe bleiben untersagt:
 - Massenänderungen an Artikeln, Canonicals, Redirects oder Indexierungsstatus;
 - Secret-Rotation sowie Änderungen an DNS, Cloudflare, R2 oder Coolify-Zugängen.
 
-Die nächste sichere Entscheidung ist daher nicht „alles sofort deployen“,
-sondern zuerst den verifizierten Sicherungssatz auf getrennten Speicher zu
-kopieren und anschließend die kleine technische Stufe 1 kontrolliert
-freizugeben.
+Backup, Offsite-Kopie und Restore-Test sind damit verifiziert. Die nächste
+sichere Entscheidung ist die ausdrücklich freizugebende Änderung von `main`
+mit anschließendem kontrolliertem Produktivdeploy der kleinen technischen
+Stufe 1.

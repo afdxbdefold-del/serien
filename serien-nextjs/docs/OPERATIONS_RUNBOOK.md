@@ -153,7 +153,7 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   unterscheidbare Autoren-Profile ist offen.
 - **`trailer.de`-Headline-Grammatik**: bekannter Dativ-Fehler in der
   automatischen Titelbau-Logik für diese eine Domain-Variante.
-- **PostgreSQL-Backup-Lücke**: Hetzner/Coolify ist die bestätigte Produktion.
+- **PostgreSQL-Backup-Automatisierung**: Hetzner/Coolify ist die bestätigte Produktion.
   In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
   konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Sechs manuelle
   Sicherungssätze vom 1., 5. und 12. September 2026 liegen ausschließlich auf
@@ -161,9 +161,12 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   Gzip-, Inhalts- und SHA-256-Prüfung. Logischer Dump und physisches
   Basebackup wurden am 12. September in getrennten, netzwerkisolierten
   PostgreSQL-17-Umgebungen erfolgreich wiederhergestellt; beide lieferten
-  exakt 4.292 Artikel und 44 öffentliche Tabellen. Vor jeder
-  Produktionsänderung den aktuellen Sicherungssatz zusätzlich auf getrennten
-  Speicher kopieren.
+  exakt 4.292 Artikel und 44 öffentliche Tabellen. Vier Dateien dieses Satzes
+  liegen zusätzlich im privaten R2-Pfad
+  `publisher-os-backups/serien/20260912T112834Z/`; die in R2 angezeigten
+  Größen der beiden Hauptarchive stimmen mit den binären Servergrößen überein.
+  Offen bleibt eine automatische, überwachte Backupplanung mit regelmäßigem
+  Restore-Test.
 - **Freshness-Alarm fehlt live**: Der derzeit deployte Stand warnt nicht, falls
   die News-Pipeline tagelang keine echten Publishes produziert. Auf
   `codex/takeover` ist lokal vorbereitet, vollständige Quellfehler und – nur
