@@ -2,25 +2,25 @@
  * LLM Configuration
  * 
  * Centralized config for all LLM calls.
- * Läuft primär über den eigenen OPENAI_API_KEY (GPT-5.4). Emergent-Proxy
- * (Claude Sonnet 4.6) nur noch als Fallback, falls kein eigener Key gesetzt ist.
+ * Uses the operator's OpenAI account. A missing key must not silently switch
+ * provider, model, billing account, or data destination.
  */
 
 import OpenAI from 'openai';
 
 export function getLLMConfig() {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
   
   if (!apiKey) {
-    throw new Error('No LLM API key found. Set OPENAI_API_KEY or EMERGENT_LLM_KEY');
+    throw new Error('OPENAI_API_KEY is not configured');
   }
   
-  const isEmergentKey = apiKey.startsWith('sk-emergent-');
+  if (apiKey.startsWith('sk-emergent-')) throw new Error('OPENAI_API_KEY must belong to the direct OpenAI account');
   
   return {
     apiKey,
-    baseURL: isEmergentKey ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
-    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-5.4',
+    baseURL: 'https://api.openai.com/v1',
+    model: 'gpt-5.4',
   };
 }
 
@@ -57,7 +57,7 @@ export function parseLLMJson(raw: string): any {
 }
 export function createLLMClient(): OpenAI {
   const config = getLLMConfig();
-  return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+  return new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL, timeout: 90_000, maxRetries: 1 });
 }
 
 /** Config for fetch-based LLM calls */

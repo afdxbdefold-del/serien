@@ -1,189 +1,108 @@
-/**
- * NEWS IMPORT CRON ENDPOINT
- * 
- * Called by Vercel Cron with Authorization header
- * Fallback: URL parameter for manual testing
- * 
- * GET /api/cron/news
- */
-
+/** Coolify scheduled news import, authenticated through the cron bearer token. */
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import prisma from '@/lib/prisma';
 import { requireCronAuth } from '@/lib/cron-auth';
+import {
+  DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT, positiveInteger, safeNewsError,
+} from '@/lib/news-import-reliability';
 
-const prisma = new PrismaClient();
-
-export const maxDuration = 300; // 5 minutes max
+// The soft import budget stops NEW work after 210s; finish an in-flight article
+// safely instead of racing a timeout that could still publish in the background.
+export const maxDuration = 900;
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
-  
   const authFailure = requireCronAuth(request);
   if (authFailure) return authFailure;
-
-  // Kill-switch: if pipeline.cron.paused = true in app_settings, skip run
-  try {
-    const { getBoolSetting, SETTINGS } = await import('@/lib/app-settings');
-    const paused = await getBoolSetting(SETTINGS.PIPELINE_CRON_PAUSED, false);
-    if (paused) {
-      console.log('[CRON] Skipped: pipeline.cron.paused = true');
-      return NextResponse.json({
-        skipped: true,
-        reason: 'pipeline.cron.paused',
-        durationMs: Date.now() - startTime,
-      });
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn('[CRON] Kill-switch check failed, continuing:', message);
-  }
+  const startTime = Date.now();
+  const runId = `cron-news-${randomUUID()}`;
 
   try {
-    // Dynamic import to avoid bundling issues
+    // processAllNews enforces both the pause flag and the shared DB lease for
+    // HTTP cron, CLI imports and the optional daemon. Settings failures stop it.
     const { processAllNews } = await import('@/scripts/news-scraper');
-    
-    console.log('[CRON] Starting news import...');
-    
-    // Scrape from active sources only. Removed (Juni 2026, Anti-HCU):
-    //   - screenrant, collider, whats-on-netflix → schwache DACH-Discover-
-    //     Performance, Volume-Verschmutzung.
-    //   - tvinsider → Cloudflare-JS-Challenge, kein verlässlicher Full-Text.
-    // Premium-Quellen (Deadline, Variety, THR, TVLine, Cinemaholic) + Netflix
-    // Tudum als Canonical-First-Party-Streamer-Quelle bilden den aktuellen Pool.
     const result = await processAllNews({
       sources: ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline'],
-      limit: 4, // 4 per source × 6 = up to 24 candidates per cron run
+      limit: positiveInteger(process.env.NEWS_LIMIT, DEFAULT_NEWS_LIMIT, 20),
+      maxRunMs: positiveInteger(process.env.NEWS_RUN_BUDGET_MS, DEFAULT_NEWS_BUDGET_MS, 600_000),
       dryRun: false,
       onlyNew: true,
+      invalidatePublicationCaches: (paths, tags) => {
+        for (const tag of tags) revalidateTag(tag);
+        for (const path of paths) revalidatePath(path, 'page');
+      },
     });
+    const durationMs = Date.now() - startTime;
+    if (result.skipReason && result.processed === 0 && result.publicationRecovered === 0 && result.publicationPending === 0) {
+      // An overlapping invocation did no work; don't inflate success metrics.
+      return NextResponse.json({ skipped: true, reason: result.skipReason, durationMs, result });
+    }
 
-    const duration = Date.now() - startTime;
     const sourceCount = Object.keys(result.bySource).length;
     const allSourcesFailed = sourceCount > 0 && result.sourceErrors === sourceCount;
     const automatedPublishingEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
-    const latestPublished = automatedPublishingEnabled && result.published === 0
-      ? await prisma.articles.findFirst({
-          where: { status: { in: ['published', 'PUBLISHED'] }, publishedAt: { not: null } },
-          orderBy: { publishedAt: 'desc' },
-          select: { publishedAt: true },
-        })
-      : null;
-    const stalePublication = Boolean(
-      automatedPublishingEnabled
-      && result.published === 0
-      && (!latestPublished?.publishedAt
-        || Date.now() - latestPublished.publishedAt.getTime() > 36 * 60 * 60 * 1000),
-    );
-    const runStatus = allSourcesFailed || stalePublication
+    let stalePublication = false;
+    if (automatedPublishingEnabled && result.published === 0) {
+      const since = new Date(Date.now() - 36 * 60 * 60_000);
+      // Manual posts must not make a broken automatic pipeline look healthy.
+      // Also verify that the corresponding article really remains published.
+      const recentAutomaticRuns = await prisma.pipeline_runs.findMany({
+        where: { pipeline: 'pipeline-v2', trigger: 'cron', status: 'success',
+          articleId: { not: null }, completedAt: { gte: since } },
+        select: { articleId: true },
+      });
+      const lastAutomaticPublication = await prisma.articles.findFirst({
+        where: { id: { in: recentAutomaticRuns.map((run) => run.articleId).filter((id): id is string => Boolean(id)) },
+          status: { in: ['published', 'PUBLISHED'] }, publishedAt: { gte: since } },
+        select: { id: true },
+      });
+      stalePublication = !lastAutomaticPublication;
+    }
+    const runStatus = allSourcesFailed || stalePublication || result.providerUnavailable
+      || (result.failed > 0 && result.published === 0 && result.drafted === 0)
       ? 'failed'
       : result.failed > 0 || result.sourceErrors > 0 || result.drafted > 0
+        || result.budgetExhausted || result.skipReason || result.publicationPending > 0
         ? 'partial'
         : 'success';
-    
-    // Log the run - auch wenn keine News
-    if (result.processed === 0 && result.failed === 0 && result.sourceErrors === 0) {
-      console.log(`[CRON] News import: Keine neuen News gefunden (${result.skipped || 0} übersprungen, ${Math.round(duration/1000)}s)`);
-      
-      // Log to pipeline_runs for dashboard visibility
-      await prisma.pipeline_runs.create({
-        data: {
-          id: `cron-news-${Date.now()}`,
-          pipeline: 'cron-news',
-          trigger: 'cron',
-          status: runStatus,
-          startedAt: new Date(startTime),
-          completedAt: new Date(),
-          metadata: JSON.stringify({
-            message: 'Keine neuen News gefunden',
-            published: 0,
-            attempted: 0,
-            drafted: result.drafted,
-            sourceErrors: result.sourceErrors,
-            skipped: result.skipped || 0,
-            stalePublication,
-            automatedPublishingEnabled,
-            duration,
-          })
-        }
-      });
-    } else {
-      console.log(`[CRON] News import: ${result.published} publiziert / ${result.drafted} Drafts / ${result.processed} versucht, ${result.failed} fehlgeschlagen, ${result.sourceErrors} Quellfehler (${Math.round(duration/1000)}s)`);
-      
-      // Log successful run with articles
-      await prisma.pipeline_runs.create({
-        data: {
-          id: `cron-news-${Date.now()}`,
-          pipeline: 'cron-news',
-          trigger: 'cron',
-          status: runStatus,
-          startedAt: new Date(startTime),
-          completedAt: new Date(),
-          metadata: JSON.stringify({
-            published: result.published,
-            attempted: result.processed,
-            drafted: result.drafted,
-            failed: result.failed,
-            sourceErrors: result.sourceErrors,
-            skipped: result.skipped || 0,
-            bySource: result.bySource,
-            stalePublication,
-            automatedPublishingEnabled,
-            duration,
-          })
-        }
-      });
-    }
+    const message = stalePublication
+      ? 'Seit mehr als 36 Stunden kein automatisch publizierter Artikel'
+      : result.providerUnavailable
+        ? 'Anbieter nicht erreichbar; weitere Kandidaten werden später versucht'
+        : result.publicationPending > 0 ? 'Artikel gespeichert; öffentliche Anzeige noch nicht vollständig bestätigt'
+          : result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined;
 
-    return NextResponse.json({
-      success: runStatus !== 'failed',
-      status: runStatus,
-      timestamp: new Date().toISOString(),
-      duration: `${Math.round(duration/1000)}s`,
-      result: {
-        published: result.published,
-        attempted: result.processed,
-        drafted: result.drafted,
-        failed: result.failed,
-        sourceErrors: result.sourceErrors,
-        skipped: result.skipped,
-        bySource: result.bySource,
-        message: stalePublication
-          ? 'Seit mehr als 36 Stunden wurde trotz aktiver Automatik nichts publiziert'
-          : result.published === 0
-            ? 'Keine neuen Artikel publiziert'
-            : undefined,
-      },
-    }, { status: runStatus === 'failed' ? 503 : 200 });
-  } catch (error: unknown) {
-    const duration = Date.now() - startTime;
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[CRON] News import error:', message);
-    
-    // Log failed run
     await prisma.pipeline_runs.create({
       data: {
-        id: `cron-news-${Date.now()}`,
-        pipeline: 'cron-news',
-        trigger: 'cron',
-        status: 'failed',
-        startedAt: new Date(startTime),
-        completedAt: new Date(),
-        errorMessage: message,
-        metadata: JSON.stringify({ duration })
-      }
+        id: runId, pipeline: 'cron-news', trigger: 'cron', status: runStatus,
+        startedAt: new Date(startTime), completedAt: new Date(), durationMs,
+        errorStep: runStatus === 'failed' ? 'news-import-health' : null,
+        errorMessage: runStatus === 'failed' ? message || 'News import failed' : null,
+        metadata: JSON.stringify({ ...result, attempted: result.processed,
+          stalePublication, automatedPublishingEnabled, durationMs, message }),
+      },
     });
-    
-    return NextResponse.json({
-      success: false,
-      error: message,
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    console.log(`[CRON] News: ${result.published} published, ${result.drafted} drafts, ${result.processed} attempted, ${result.failed} failed, ${result.deferred} deferred (${runStatus})`);
+    return NextResponse.json({ success: runStatus !== 'failed', status: runStatus,
+      timestamp: new Date().toISOString(), durationMs,
+      result: { ...result, attempted: result.processed, message },
+    }, { status: runStatus === 'failed' ? 503 : 200 });
+  } catch (error: unknown) {
+    const message = safeNewsError(error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[CRON] ${message}`);
+    // An unavailable DB must not mask the original response or leak its URL.
+    await prisma.pipeline_runs.create({
+      data: { id: runId, pipeline: 'cron-news', trigger: 'cron', status: 'failed',
+        startedAt: new Date(startTime), completedAt: new Date(), durationMs,
+        errorStep: 'news-import', errorMessage: message },
+    }).catch(() => console.error('[CRON] Could not persist news import failure'));
+    return NextResponse.json({ success: false, status: 'failed', error: message }, { status: 503 });
   }
 }
 
-// Also support POST for some cron services
 export async function POST(request: NextRequest) {
   return GET(request);
 }

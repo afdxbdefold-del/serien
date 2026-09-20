@@ -11,9 +11,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { load } from 'cheerio';
 import { generateStructuredContent } from '../lib/structured-content-generator';
-import { translateFaithful } from '../lib/faithful-translator';
-import { fetchNotebookFacts } from '../lib/reporters-notebook';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
@@ -28,12 +27,10 @@ import { fetchFullArticleText } from '../lib/full-text-fetcher';
 import { importSeriesCharacters } from './import-characters';
 import { importSeriesCast } from '../lib/cast-importer';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailerViaAPI } from '../lib/trailer-downloader';
-import { updateSeriesStatus } from '../lib/series-status-tracker';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { qualityCheck } from '../lib/quality-checker';
 import { antiAiFilter } from '../lib/anti-ai-filter';
 import { discoverGate } from '../lib/discover-gate';
-import { generateWasBedeutetDas, generateDarumRelevant, generateBisherigerStand } from '../lib/was-bedeutet-das';
 import { uploadSeriesImages } from '../lib/blob-uploader';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 import { getStreamerFallbackImage } from '../lib/streamer-fallback-images';
@@ -51,6 +48,10 @@ import { getBoolSetting, SETTINGS } from '../lib/app-settings';
 import { decideEditorialPublication, type EditorialGateOutcome } from '../lib/editorial-publication-gate';
 import { parseSourcePublishedAt } from '../lib/source-published-at';
 import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
+import { reviewAndRepairArticle, type EditorialReviewDecision } from '../lib/editorial-review';
+import { inspectArticleStructure } from '../lib/article-structure';
+import { verifyPublicationImage, revalidatePublicationCaches, verifyPublishedArticle } from '../lib/publication-verification';
+import { safeNewsError } from '../lib/news-import-reliability';
 
 const prisma = new PrismaClient();
 
@@ -335,7 +336,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let sourceTwitterStatusUrls: string[] = [];
     let fetchedSourcePublishedAt: Date | null = null;
     
-    if (source.useFullTextMode) {
+    if (source.useFullTextMode || trigger !== 'manual') {
       const fullTextResult = await fetchFullArticleText(source.url);
       fetchedSourcePublishedAt = fullTextResult.publishDate || null;
       
@@ -359,10 +360,17 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
     console.timeEnd('⏱️  STEP 1: Full Text Fetch');
+    sourceWordCount = fullSourceText.trim().split(/\s+/).filter(Boolean).length;
+    if (sourceWordCount < 100 || fullSourceText.length < 600) {
+      await logger.fail('Zu wenig belastbarer Originalvolltext; RSS-Teaser reicht nicht aus', 'source-insufficient');
+      return null;
+    }
     
-    // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
+    // ========== THEMA-ALTER CHECK (72 Stunden Maximum) ==========
     // Pipeline-V2 verarbeitet einzelne News-Artikel - das Artikel-Datum IST das Thema-Datum
-    const maxAgeMs = 6 * 60 * 60 * 1000;
+    // A missed scheduler run must not discard the entire news day. Editorial
+    // review still verifies the actual event and uses explicit source dates.
+    const maxAgeMs = 72 * 60 * 60 * 1000;
 
     // RSS/JSON-LD timestamps are authoritative. Dates mentioned in prose may
     // be release dates or historical context and are never used for freshness.
@@ -373,16 +381,17 @@ export async function runPipelineV2(source: PipelineV2Source) {
       const articleAgeHours = Math.round(articleAge / (60 * 60 * 1000) * 10) / 10;
       
       if (articleAge > maxAgeMs && trigger !== 'manual') {
-        console.log(`\n⏰ THEMA ZU ALT: Artikel von vor ${articleAgeHours} Stunden (max: 6 Stunden)`);
+        console.log(`\n⏰ THEMA ZU ALT: Artikel von vor ${articleAgeHours} Stunden (max: 72 Stunden)`);
         console.log(`   → Überspringe. Nur manuelle Trigger erlaubt für ältere Themen.`);
-        logger.log(`Thema zu alt: ${articleAgeHours}h (max 6h)`);
+        logger.log(`Thema zu alt: ${articleAgeHours}h (max 72h)`);
         await logger.fail(`Thema zu alt: ${articleAgeHours}h`, 'topic-age-check');
         return null;
       }
       
       console.log(`   ⏰ Thema-Alter: ${articleAgeHours} Stunden ${trigger === 'manual' ? '(manueller Trigger)' : '✓'}`);
     } else {
-      console.log(`   ⏰ Thema-Alter: nicht ermittelbar ${trigger === 'manual' ? '(manueller Trigger)' : '- wird akzeptiert'}`);
+      await logger.fail('Kein belegter Quell-Veröffentlichungszeitpunkt; nicht automatisch veröffentlichen', 'source-date-missing');
+      return null;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -551,7 +560,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 2: Classification');
     
-    if (classification.content_type === 'SKIP' || classification.content_type === 'UNKNOWN') {
+    if (classification.content_type === 'UNKNOWN') {
       console.log('⚠️  Article skipped (not relevant)');
       await logger.fail('Artikel übersprungen (nicht relevant)', 'classification');
       return null;
@@ -728,7 +737,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
       ? 'ENDING_EXPLAINED'
       : isTrueStoryUrl
         ? 'TRUE_STORY'
-        : (classification.content_type === 'SINGLE_SERIES_NEWS' || classification.content_type === 'PERSONALITY_NEWS') ? 'NEWS' : 'RANKING';
+      : (classification.content_type === 'SINGLE_SERIES_NEWS' || classification.content_type === 'PERSONALITY_NEWS') ? 'NEWS' : 'RANKING';
+    if (trigger !== 'manual' && contentType !== 'NEWS') {
+      await logger.fail('Automatik veröffentlicht ausschließlich belegte Seriennachrichten', 'format-not-automatic-news');
+      return null;
+    }
     if (isEndingExplainedUrl) {
       console.log(`   📝 ENDING_EXPLAINED pipeline aktiv (URL-Signal: "ending-explained")`);
       logger.addMetadata('contentType', 'ENDING_EXPLAINED');
@@ -789,13 +802,14 @@ export async function runPipelineV2(source: PipelineV2Source) {
               { originalName: { equals: primaryCandidate, mode: 'insensitive' } },
             ],
           },
-          select: { tmdbId: true, name: true, title: true },
+          select: { tmdbId: true, name: true, title: true, originalName: true },
         });
         if (exactMatch) {
           console.log(`✅ DB Exact Match (classifier primary): "${exactMatch.name}"`);
           searchResult = {
             tmdbId: exactMatch.tmdbId,
             name: exactMatch.name || exactMatch.title,
+            originalName: exactMatch.originalName || exactMatch.name || exactMatch.title,
             confidence: 0.85,
             matchMethod: 'db-exact-classifier-primary',
           };
@@ -834,6 +848,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
             searchResult = {
               tmdbId: dbMatch.tmdbId,
               name: dbMatch.name || dbMatch.title,
+              originalName: dbMatch.originalName || dbMatch.name || dbMatch.title,
               confidence: 0.85,
               matchMethod: 'db-exact-match',
             };
@@ -1050,7 +1065,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       });
       
       // ✅ Upload images to Vercel Blob (async, don't block)
-      uploadSeriesImages(searchResult.tmdbId, completeDetails.posterPath, completeDetails.backdropPath)
+      if (contentType !== 'NEWS') uploadSeriesImages(searchResult.tmdbId, completeDetails.posterPath, completeDetails.backdropPath)
         .then(({ posterUrl, backdropUrl }) => {
           if (posterUrl || backdropUrl) {
             prisma.series.update({
@@ -1065,8 +1080,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         })
         .catch((e) => console.log(`   ⚠️ Blob upload failed: ${e.message}`));
       
-      // ✅ Download trailer to R2 immediately for new series
-      (async () => {
+      // Only legacy editorial formats import a generic series trailer.
+      if (contentType !== 'NEWS') (async () => {
         try {
           let trailerId = findTrailerYouTubeId(completeDetails.trailers || []);
           
@@ -1101,7 +1116,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       console.log(`✅ Series found in DB: ${dbSeries.name || dbSeries.title}`);
       
       // FIX: Wenn trailers null/leer sind, aus TMDB nachladen!
-      if (!dbSeries.trailers || (Array.isArray(dbSeries.trailers) && dbSeries.trailers.length === 0)) {
+      if (contentType !== 'NEWS' && (!dbSeries.trailers || (Array.isArray(dbSeries.trailers) && dbSeries.trailers.length === 0))) {
         console.log(`   ⚠️ No trailers in DB, fetching from TMDB...`);
         try {
           const completeDetails = await getTvDetailsComplete(searchResult.tmdbId, 'de-DE');
@@ -1131,7 +1146,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Fire-and-forget: blockiert die Pipeline NICHT (4–8 s LLM-Call), läuft
     // im Hintergrund. Bei Fehler nur loggen.
     // ══════════════════════════════════════════════════════════════════════
-    if (dbSeries.tmdbId) {
+    if (contentType !== 'NEWS' && dbSeries.tmdbId) {
       void (async () => {
         try {
           // Re-query with the full set of fields the generator needs;
@@ -1216,7 +1231,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // German distribution. We rely on series.networks[] (TMDB names) and
     // fall back to source URL/title when networks is empty.
     // ══════════════════════════════════════════════════════════════════════
-    {
+    // Production network is not a territorial availability proof. Source review
+    // evaluates NEWS relevance and regional claims against the actual evidence.
+    if (contentType !== 'NEWS') {
       let networksForCheck: string[] = (dbSeries.networks as string[] | null) || [];
       if (networksForCheck.length === 0) {
         try {
@@ -1332,7 +1349,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // LLM-Spend on stories that have no Discover/SEO first-mover advantage
     // for serien.de. Auto-translated IMDb/ČSFD pages are filtered out.
     // ══════════════════════════════════════════════════════════════════════
-    {
+    // A competitor mentioning the same actor/show does not prove this event is
+    // old. NEWS relies on original-source recency and our own event deduplication.
+    if (contentType !== 'NEWS') {
       const { checkGermanAngleCoverage } = await import('../lib/google-news-de-coverage-check');
       const angleCov = await checkGermanAngleCoverage(
         dbSeries.title || dbSeries.originalName || '',
@@ -1437,8 +1456,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 4: Fact Extraction');
     
-    const facts = await extractFacts(fullSourceText, source.title);
-    console.log(`✅ Extracted ${facts.length} facts`);
+    const facts = await extractFacts(source.title, fullSourceText);
+    console.log(`✅ Extracted ${facts.key_statements.length} facts`);
     console.timeEnd('⏱️  STEP 4: Fact Extraction');
 
     // ========== STEP 4.5: STORY FINGERPRINT GATE ==========
@@ -1543,123 +1562,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.addMetadata('trueStoryCertaintyFinal', trueStoryCertainty);
     }
 
-    // -------- FAITHFUL TRANSLATION (Path A) --------
-    // For NEWS-type content with enough source text we attempt a faithful
-    // 1:1 translation that preserves the original journalist's sentence
-    // rhythm, paragraph structure and (most importantly) direct quotes.
-    // Falls back transparently to the rebuilt-from-facts path below on any
-    // failure (short source, JSON parse, too-short output, LLM error).
+    // Independent source-grounded writing, no whole-source translation.
     let structuredContent: any = null;
-    // Faithful Translator deactivated by default — it copied source-text
-    // aggregator boilerplate (Collider/TVInsider quizzes, AI-summary widgets,
-    // watch-cards, "You are a..." quiz answers) 1:1 into the German body,
-    // triggering Helpful-Content / Discover penalties. Pipeline now falls back
-    // to the legacy Rebuild-from-Facts generator which uses the full source
-    // text as CONTEXT only and writes an independent DE article.
-    // Re-enable via env `ENABLE_FAITHFUL=true` once the boilerplate filter in
-    // lib/full-text-fetcher.ts is hardened.
-    const FAITHFUL_OK_CONTENT_TYPES: string[] =
-      process.env.ENABLE_FAITHFUL === 'true' ? ['NEWS'] : [];
-    const sourceLen = (fullSourceText || '').trim().length;
-    const faithfulCandidate = FAITHFUL_OK_CONTENT_TYPES.includes(contentType) && sourceLen >= 600;
-
-    if (faithfulCandidate) {
-      try {
-        console.log(`🌐 Attempting Faithful Translation (source: ${sourceLen}c, type: ${contentType})`);
-        // Fetch TMDB-based fact-grounding (no visible block, only used by the
-        // LLM to detect hallucinations in the source text).
-        const grounding = await fetchNotebookFacts(dbSeries.tmdbId);
-        const t = await translateFaithful({
-          sourceText: fullSourceText,
-          sourceHeadline: source.title,
-          sourceUrl: source.url,
-          seriesName: dbSeries.name || dbSeries.title,
-          dach: {
-            streamersDE: grounding?.streamersDE?.length
-              ? grounding.streamersDE
-              : (dachContext?.dachStreamers || []).map((s: any) => s.name || s).filter(Boolean),
-            seriesNameDE: dbSeries.name || dbSeries.title,
-            todayIso: new Date().toISOString().slice(0, 10),
-            seriesStatusDE: grounding?.status || null,
-            lastEpisodeDate: grounding?.lastAirDate || null,
-            nextEpisodeDate: grounding?.nextEpisodeDate || null,
-            numberOfSeasons: grounding?.numberOfSeasons || null,
-          },
-        });
-
-        if (t.wordCount >= 250) {
-          // Map FaithfulArticle → structuredContent shape so the rest of the
-          // pipeline (sanitizer, USD-converter, etc.) keeps working unchanged.
-          const paragraphs = t.contentHtml
-            .split(/(?=<h2|<\/h2>)/i)
-            .map((s) => s.trim())
-            .filter(Boolean);
-          // Faithful output keeps H2 inline; convert to one-section-per-H2
-          // layout matching the legacy generator. If no H2 → single section.
-          const sections: Array<{ heading: string; paragraphs: string[] }> = [];
-          let currentHeading = '';
-          let currentParas: string[] = [];
-          // Match <p>, <p class="...">, <h2>, <h2 class="...">  etc.
-          const pBlocks = t.contentHtml.match(/<(p|h2)\b[^>]*>[\s\S]*?<\/\1>/gi) || [];
-          for (const block of pBlocks) {
-            if (/^<h2\b/i.test(block)) {
-              if (currentParas.length > 0 || currentHeading) {
-                sections.push({ heading: currentHeading, paragraphs: currentParas });
-              }
-              currentHeading = block.replace(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i, '$1').trim();
-              currentParas = [];
-            } else {
-              const text = block.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/i, '$1').trim();
-              if (text) currentParas.push(text);
-            }
-          }
-          if (currentParas.length > 0 || currentHeading) {
-            sections.push({ heading: currentHeading, paragraphs: currentParas });
-          }
-          if (sections.length === 0) {
-            sections.push({ heading: '', paragraphs: [t.leadParagraph] });
-          }
-
-          // Build the markdown body the downstream Step 7 expects.
-          // We re-emit our HTML as markdown so markdownToHtml() can rebuild
-          // it with all the standard pipeline tooling (anchor links, etc).
-          const markdownLines: string[] = [];
-          for (const sec of sections) {
-            if (sec.heading) markdownLines.push(`\n## ${sec.heading}\n`);
-            for (const para of sec.paragraphs) {
-              // Convert any inline <a href> back to markdown so footer links
-              // survive Step 7's markdown→HTML round-trip.
-              const md = para.replace(
-                /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi,
-                '[$2]($1)'
-              );
-              markdownLines.push(`${md}\n`);
-            }
-          }
-          const faithfulMarkdown = markdownLines.join('\n').trim();
-
-          structuredContent = {
-            headline: t.headline,
-            metaDescription: t.metaDescription,
-            lead: t.leadParagraph,
-            markdown: faithfulMarkdown,
-            sections,
-            qa: [], // post-processing STEP 10 generates Q&A separately
-            _usedFaithful: true,
-          };
-          logger.addMetadata('generator', 'faithful');
-          logger.addMetadata('faithfulWordCount', t.wordCount);
-          logger.addMetadata('faithfulQuotesPreserved', t.quotesPreserved);
-          console.log(`✅ Faithful: ${t.wordCount}w, ${t.paragraphCount}p, ${t.quotesPreserved} quotes preserved`);
-        } else {
-          console.log(`⚠️  Faithful output too short (${t.wordCount} < 250w) — falling back`);
-        }
-      } catch (e: any) {
-        console.log(`⚠️  Faithful translation failed: ${e.message} — falling back to rebuilt generator`);
-      }
-    } else {
-      console.log(`⊘ Skipping Faithful (type=${contentType}, sourceLen=${sourceLen}c)`);
-    }
 
     // -------- REBUILT-FROM-FACTS (Path B, legacy + non-NEWS types) --------
     if (!structuredContent) {
@@ -1669,17 +1573,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
       originalHeadline: source.title,
       sourceText: fullSourceText,
       sourceUrl: source.url,
+      sourcePublishedAt: articleDate?.toISOString(),
       contentType,
       dachContext,
       trueStoryCertainty: contentType === 'TRUE_STORY' ? trueStoryCertainty : undefined,
-      // GOOGLE DISCOVER Qualität - Minimum 1500 Wörter
+      // Nachrichtenlänge folgt der Faktendichte; kein künstliches SEO-Minimum.
       wordCountTarget: contentType === 'RANKING' 
         ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500)) 
         : contentType === 'ENDING_EXPLAINED'
           ? Math.max(700, Math.min(sourceWordCount * 1.2, 1100))
           : contentType === 'TRUE_STORY'
             ? Math.max(600, Math.min(sourceWordCount * 1.2, 1000))
-            : Math.max(1500, Math.min(sourceWordCount * 1.5, 2000)),
+            : Math.max(180, Math.min(Math.round(sourceWordCount * 0.65), 550)),
       });
       logger.addMetadata('generator', structuredContent._usedFaithful ? 'faithful' : 'rebuilt');
     }
@@ -1700,7 +1605,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 5.05: US-PACKAGING SANITIZER 🇺🇸→🇩🇪');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 5.05: Sanitizer');
-    try {
+    if (contentType !== 'NEWS') try {
       const { sanitizeArticle } = await import('../lib/us-packaging-sanitizer');
       // Build joined body from sections (sections are { heading, paragraphs[] }).
       const bodyJoined = (structuredContent.sections || [])
@@ -1760,7 +1665,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('STEP 5.06: USD → EUR CONVERTER 💵→💶');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 5.06: USD-to-EUR');
-    try {
+    if (contentType !== 'NEWS') try {
       const { convertUsdMentions } = await import('../lib/usd-to-eur-converter');
       let totalConv = 0;
       const headRes = convertUsdMentions(structuredContent.headline);
@@ -1883,7 +1788,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     //   (b) Headline nennt Non-DACH-Territorium ("britischer Sender") +
     //       Non-DACH-Provider (Sky Kids UK, BBC iPlayer, Canal+, Viaplay …)
     //       + kein DACH-Provider im Lead.
-    try {
+    if (contentType !== 'NEWS') try {
       const { checkNonDachStreaming } = await import('../lib/non-dach-streaming-filter');
       const nonDachCheck = checkNonDachStreaming({
         headline: structuredContent.headline || '',
@@ -1930,8 +1835,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 5.2: Auto-Retry');
 
-    try {
-      // Quick Discover-Score auf dem Markdown berechnen
+    if (contentType !== 'NEWS') try {
+      // Legacy formats only. News is revised against concrete editorial findings.
       const tempHtml = markdownToHtml(structuredContent.markdown || '');
       const preScore = await discoverGate({
         final_headline: structuredContent.headline || '',
@@ -1955,6 +1860,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
           sourceText: fullSourceText,
           sourceUrl: source.url,
           contentType,
+          dachContext,
           trueStoryCertainty: contentType === 'TRUE_STORY' ? trueStoryCertainty : undefined,
           wordCountTarget: contentType === 'RANKING'
             ? Math.max(1500, Math.min(sourceWordCount * 1.5, 2500))
@@ -2006,12 +1912,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     // Import characters first
     console.time('⏱️  STEP 6a: Import Characters');
-    await importSeriesCharacters(dbSeries.tmdbId);
+    if (contentType !== 'NEWS') await importSeriesCharacters(dbSeries.tmdbId);
     console.timeEnd('⏱️  STEP 6a: Import Characters');
     
     // Import cast BEFORE linking (must exist in DB for linkCastInMarkdown)
     console.time('⏱️  STEP 6a2: Import Cast');
-    await importSeriesCast(dbSeries.tmdbId, dbSeries.tmdbId);
+    if (contentType !== 'NEWS') await importSeriesCast(dbSeries.tmdbId);
     console.timeEnd('⏱️  STEP 6a2: Import Cast');
     
     // Link characters in markdown
@@ -2066,7 +1972,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // so the embed acts as visual evidence for the news event. The frontend's
     // existing Instagram/Twitter loaders + the YouTube Lite-Facade handle the
     // actual rendering. Only one embed per article to keep CWV/Discover lean.
-    contentHtml = injectSourceEmbeds(contentHtml, {
+    if (contentType !== 'NEWS') contentHtml = injectSourceEmbeds(contentHtml, {
       instagramPermalinks: sourceInstagramPermalinks,
       twitterStatusUrls: sourceTwitterStatusUrls,
       youtubeVideoIds: sourceYoutubeVideoIds,
@@ -2113,7 +2019,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // placed by STEP 7.0a `injectSourceEmbeds()` as a Lite-Facade, and
     // (b) violated the "no auto-loading iframes" rule. The Lite-Facade
     // in STEP 7.0a is now the single source of truth for YouTube embeds.
-    const finalContentWithVideo = finalContentHtml;
+    let finalContentWithVideo = finalContentHtml;
     
     console.log(`✅ Internal Links injected:`);
     console.log(`   Hub Link: ${internalLinksResult.hubLink ? 'Yes' : 'No'}`);
@@ -2141,7 +2047,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // ENDING_EXPLAINED: Headline-Format ist heilig ("Das Ende von X erklärt: …").
     // Headline-Engine + Rewrite-Loop würden das Präfix zerstören → komplett überspringen.
     // TRUE_STORY: gleicher Mechanismus für die zwei Pflicht-Patterns (siehe lib/true-story-format).
-    if (contentType === 'ENDING_EXPLAINED' || contentType === 'TRUE_STORY') {
+    if (contentType === 'NEWS' || contentType === 'ENDING_EXPLAINED' || contentType === 'TRUE_STORY') {
       console.log(`   📐 ${contentType}: Headline-Engine + Rewrite-Loop übersprungen (Pflicht-Format bleibt)`);
       logger.log(`Headline-Engine/Rewrite: skipped for ${contentType}`);
     } else {
@@ -2320,7 +2226,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     //     SOFT-SCORE statt Hard-Reject. Bleibt im Discover-Gate (10 Pkt).
     //   - ENDING_EXPLAINED bleibt ausgenommen.
     // ══════════════════════════════════════════════════════════════════════
-    if (contentType !== 'ENDING_EXPLAINED') {
+    if (contentType !== 'NEWS' && contentType !== 'ENDING_EXPLAINED') {
       const { hasNewsValue, containsBannedMetaphor } = await import('../lib/discover-gate');
       const { checkHeadlineUsContext } = await import('../lib/dach-network-mapping');
 
@@ -2362,7 +2268,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let finalIntro = structuredContent.lead; // Fallback
     let introVariants: any[] = [];
 
-    try {
+    if (contentType !== 'NEWS') try {
       const { generateIntroVariants } = await import('../lib/intro-engine');
 
       const factsText = facts?.key_statements?.slice(0, 5).join('. ') || '';
@@ -2408,6 +2314,57 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logger.log('Finale redaktionelle Gates prüfen...');
 
     let antiAiScore = 0;
+    let sourceReview: EditorialReviewDecision | null = null;
+    try {
+      // Attach the actual fetched source before reviewing/hashing the payload.
+      // DOM setters escape the URL and label; untrusted source text is never HTML.
+      if (!isSafePublicHttpUrl(source.url)) throw new Error('Ungültige Originalquelle');
+      const sourceDocument = load(finalContentWithVideo, null, false);
+      const sourceAlreadyLinked = sourceDocument('a[href]').toArray().some(link => {
+        if (sourceDocument(link).closest('.related-articles').length || !sourceDocument(link).text().trim()) return false;
+        try { return new URL(sourceDocument(link).attr('href')!).href === new URL(source.url).href; }
+        catch { return false; }
+      });
+      if (!sourceAlreadyLinked) {
+        const sourceParagraph = sourceDocument('<p></p>').text('Quelle: ');
+        sourceParagraph.append(sourceDocument('<a></a>').attr('href', source.url)
+          .attr('rel', 'noopener noreferrer').text(new URL(source.url).hostname.replace(/^www\./, '')));
+        sourceDocument.root().append(sourceParagraph);
+      }
+      finalContentWithVideo = sourceDocument.html();
+      const reviewed = await reviewAndRepairArticle({
+        headline: finalHeadline,
+        excerpt: finalIntro,
+        metaDescription: structuredContent.metaDescription || '',
+        contentHtml: finalContentWithVideo,
+      }, {
+        sourceTitle: source.title,
+        sourceUrl: source.url,
+        sourceText: fullSourceText,
+        sourcePublishedAt: articleDate?.toISOString() || '',
+        seriesName: dbSeries.name || dbSeries.title || '',
+        verifiedContext: JSON.stringify({
+          series: dbSeries.name || dbSeries.title,
+          tmdbId: dbSeries.tmdbId,
+          currentlyListedProvidersDE: dachContext.dachStreamers,
+          note: 'Providerliste gilt für die Serie, nicht als Terminbestätigung einer neuen Staffel.',
+        }),
+      });
+      finalHeadline = reviewed.article.headline;
+      finalIntro = reviewed.article.excerpt;
+      structuredContent.metaDescription = reviewed.article.metaDescription;
+      finalContentWithVideo = reviewed.article.contentHtml;
+      sourceReview = reviewed.decision;
+      // No unreviewed FAQ or new generated prose may appear after this review.
+      structuredContent.qa = [];
+      editorialGateOutcomes.push({ gate: 'source-grounding', status: sourceReview.passed ? 'pass' : 'fail', reason: sourceReview.reasons.join('; ') });
+      logger.addMetadata('editorialReview', { ...sourceReview, revisions: reviewed.revisions });
+    } catch {
+      // Retry a dependency outage on a later import, rather than blocking the
+      // unique source URL forever with an unreviewed draft.
+      await logger.fail('Vollständige Quellenprüfung nicht erfolgreich abgeschlossen', 'editorial-dependency');
+      return null;
+    }
 
     try {
       const htmlSafety = validateAndNormalizeArticleHtml(finalContentWithVideo);
@@ -2421,11 +2378,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     try {
-      const qualityResult = await qualityCheck({
+      const structure = inspectArticleStructure(finalContentWithVideo, finalIntro);
+      const qualityResult = contentType === 'NEWS' ? {
+        status: sourceReview?.passed && !structure.hardFailure && structure.score >= 70 ? 'PASS' : 'FAIL',
+        failReasons: [...(sourceReview?.reasons || ['Redaktionelle Prüfung fehlt']), ...structure.issues],
+      } : await qualityCheck({
         generatedArticleHtml: finalContentWithVideo,
         finalHeadline,
         primarySeriesName: dbSeries.name || dbSeries.title || '',
         extractedFacts: JSON.stringify(facts).substring(0, 4000),
+        lead: finalIntro,
         isRankingList: contentType === 'RANKING',
       });
       const passed = qualityResult.status === 'PASS';
@@ -2441,7 +2403,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     try {
-      const antiAiResult = await antiAiFilter({
+      // The source-aware editor judges actual style defects. A model guessing
+      // whether a text is AI-written is not a reliable publication criterion.
+      const antiAiResult = contentType === 'NEWS' ? {
+        antiAiScore: (sourceReview?.review.originality || 0) * 20,
+        status: sourceReview && sourceReview.review.originality >= 4 ? 'PASS' : 'FAIL',
+        failReasons: sourceReview?.reasons || ['Redaktionelle Sprachprüfung fehlt'],
+      } : await antiAiFilter({
         articleHtml: finalContentWithVideo,
         headline: finalHeadline,
         seriesName: dbSeries.name || dbSeries.title || '',
@@ -2462,7 +2430,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     try {
-      const factSafetyResult = await factSafetyCheck({
+      const factSafetyResult = contentType === 'NEWS' ? {
+        status: sourceReview?.passed ? 'SAFE' : 'UNSAFE',
+        headlineViolations: sourceReview?.reasons || ['Vollständige Quellenprüfung fehlt'],
+        rejectedFacts: [],
+      } : await factSafetyCheck({
         articleHtml: finalContentWithVideo,
         headline: finalHeadline,
         extractedFacts: JSON.stringify(facts).substring(0, 4000),
@@ -2525,7 +2497,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
 
     try {
       const { verifyBodyClaims } = await import('../lib/streamer-claim-verifier');
-      const bodyVerification = verifyBodyClaims(finalContentWithVideo, dachContext.dachStreamers);
+      const bodyVerification = contentType === 'NEWS' ? {
+        ok: sourceReview?.passed === true, negativeDeClaimMismatch: false,
+        unverifiedClaims: sourceReview?.passed ? [] : ['Quellen-/Regionsprüfung nicht bestanden'],
+        verifiedClaims: sourceReview?.review.claims.filter(c => c.assessment === 'supported').length || 0,
+        totalClaims: sourceReview?.review.claims.length || 0,
+      } : verifyBodyClaims(finalContentWithVideo, dachContext.dachStreamers);
       const failureReason = bodyVerification.negativeDeClaimMismatch
         ? 'Widersprüchliche DACH-Verfügbarkeitsaussage'
         : bodyVerification.unverifiedClaims.length > 0
@@ -2561,7 +2538,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       alreadyDraft: saveAsDraft,
       existingReason: draftReason,
       outcomes: editorialGateOutcomes,
-      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'body-facts', 'release-mode'],
+      requiredGates: ['source-grounding', 'html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'body-facts', 'release-mode'],
     });
     saveAsDraft = editorialDecision.status === 'draft';
     if (saveAsDraft && !draftReason) draftReason = editorialDecision.reason;
@@ -2570,8 +2547,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.log(`Review-Draft: ${editorialDecision.reason}`, 'warn');
     }
 
-    const finalStatus = saveAsDraft ? 'draft' : 'published';
-    const finalPublishedAt = saveAsDraft ? null : now;
     console.timeEnd('⏱️  STEP 7.8: Final Publication Gate');
 
     logStep('8_publish');
@@ -2589,6 +2564,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // 2. Filtere topBackdrops auf "nicht kürzlich genutzt"
     // 3. Bei Exhaustion (alle im Cooldown) → nimm den am längsten nicht genutzten
     let selectedBackdrop = dbSeries.backdropPath;
+    let approvedBackdropPaths: string[] = [];
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
       const recentArticles = await prisma.articles.findMany({
@@ -2608,6 +2584,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
 
       const topBackdrops = await fetchTopBackdrops('tv', dbSeries.tmdbId, 50);
+      approvedBackdropPaths = topBackdrops.map(b => b.path).filter(Boolean);
       if (topBackdrops.length > 0) {
         const available = topBackdrops.filter((b) => b?.path && !recentPaths.has(b.path));
         if (available.length > 0) {
@@ -2640,8 +2617,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let heroImageUrl: string;
     const heroNetworks = dbSeries.networks || facts?.networks_platforms || [];
     if (selectedBackdrop) {
-      heroImageUrl = `https://image.tmdb.org/t/p/original${selectedBackdrop}`;
-    } else if (saveAsDraft) {
+      heroImageUrl = `https://image.tmdb.org/t/p/w1280${selectedBackdrop}`;
+    } else if (saveAsDraft || contentType === 'NEWS') {
       // Review drafts must not generate or upload external assets.
       heroImageUrl = getStreamerFallbackImage(heroNetworks);
       logger.addMetadata('heroSource', 'draft-static-fallback');
@@ -2698,6 +2675,42 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
+    // A news image must be a real landscape asset belonging to this series.
+    // Never publish an invented illustration or a generic streamer logo as a still.
+    let verifiedImageWidth = 0;
+    let verifiedImageHeight = 0;
+    if (!saveAsDraft) {
+      const imageCandidates = contentType === 'NEWS'
+        ? [...new Set([selectedBackdrop, ...approvedBackdropPaths])]
+          .filter((path): path is string => typeof path === 'string' && approvedBackdropPaths.includes(path))
+          .slice(0, 3).map(path => ({ path, url: `https://image.tmdb.org/t/p/w1280${path}` }))
+        : [{ path: selectedBackdrop || null, url: heroImageUrl }];
+      let imageCheck: Awaited<ReturnType<typeof verifyPublicationImage>> = { ok: false, code: 'no-approved-backdrop' };
+      const imageAttempts: string[] = [];
+      for (const candidate of imageCandidates) {
+        imageCheck = await verifyPublicationImage({
+          url: candidate.url, expectedSeriesId: dbSeries.tmdbId, imageSeriesId: dbSeries.tmdbId,
+          sourceBackdropPath: candidate.path, approvedBackdropPaths,
+        });
+        imageAttempts.push(imageCheck.code);
+        if (imageCheck.ok) {
+          heroImageUrl = candidate.url;
+          selectedBackdrop = candidate.path;
+          break;
+        }
+      }
+      logger.addMetadata('imageAttempts', imageAttempts);
+      logger.addMetadata('imageVerification', imageCheck);
+      if (!imageCheck.ok) {
+        await logger.fail(`Artikelbild nicht verifiziert: ${imageCheck.code}`, 'image-verification');
+        return null;
+      }
+      verifiedImageWidth = imageCheck.width || 0;
+      verifiedImageHeight = imageCheck.height || 0;
+    }
+    const finalStatus = saveAsDraft ? 'draft' : 'published';
+    const finalPublishedAt = saveAsDraft ? null : new Date();
+
     try {
       await prisma.articles.create({
         data: {
@@ -2708,6 +2721,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
           excerpt: finalIntro,
           metaDescription: structuredContent.metaDescription,
           heroImageUrl,
+          tmdbBackdropPath: selectedBackdrop || null,
+          imageAttribution: selectedBackdrop ? 'TMDB' : '',
           tmdbId: dbSeries.tmdbId,
           primarySeriesId: dbSeries.tmdbId,
           tmdbType: 'tv',
@@ -2719,13 +2734,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
           sourceUrl: source.url,
           sourcePublishedAt: articleDate,
           contentType,
-          // DISCOVER is assigned only after the downstream gate succeeds.
-          publishMode: 'SEARCH_ONLY',
+          // Internal news-sitemap flag, not a Google placement promise. Set it
+          // before invalidation so canonical and sitemap share the same state.
+          publishMode: !saveAsDraft && contentType === 'NEWS' && sourceReview?.passed && articleDate
+            && Date.now() - articleDate.getTime() <= 48 * 60 * 60 * 1000 ? 'DISCOVER' : 'SEARCH_ONLY',
           // Draft reason logged in debugLog, not stored in metadata
           confidence: saveAsDraft ? (searchResult?.confidence || 0) : null,
           // Duplicate-prevention fingerprints
           coreEventNormalized: coreEventNormalizedValue || null,
           storyFingerprint: storyFingerprintValue,
+          readingTime: Math.max(1, Math.ceil(inspectArticleStructure(finalContentWithVideo).wordCount / 220)),
         },
       });
     } catch (err: any) {
@@ -2734,8 +2752,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       const msg = err?.message || String(err);
       const isUniqueConstraint =
         err?.code === 'P2002' ||
-        /Unique constraint failed/i.test(msg) ||
-        /sourceUrl/.test(msg);
+        /Unique constraint failed/i.test(msg);
       if (isUniqueConstraint) {
         console.log(`⛔ Unique-Constraint hit at publish (race) — URL already exists, skipping`);
         logger.log(`URL-Duplikat (race): ${source.url}`);
@@ -2746,65 +2763,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
       throw err;
     }
 
-    // Store headline variants with full v4 data
-    if (!saveAsDraft && headlineVariants.length > 0) {
-      try {
-        await prisma.articles.update({
-          where: { id: articleId },
-          data: {
-            metadata: {
-              headlineEngine: {
-                version: 4,
-                explorationMode: true,
-                selectionMethod: 'weighted_random',
-                selectedRank: headlineTop3.findIndex(v => v.selected) + 1 || 1,
-              },
-              headlineTop3: headlineTop3.map(v => ({
-                text: v.text,
-                type: v.type,
-                score: v.score,
-                riskScore: v.breakdown?.riskScore || 0,
-                outlierBoost: v.breakdown?.outlierBoost || 0,
-                contrastBoost: v.breakdown?.contrastBoost || 0,
-                ctrPrediction: v.breakdown?.ctrPrediction || 0,
-                selected: v.selected || false,
-                wasOutlier: v.meta?.wasOutlier || false,
-                hadContrast: v.meta?.hadContrast || false,
-                hadGenericPenalty: v.meta?.hadGenericPenalty || false,
-                impressions: 0,
-                clicks: 0,
-                ctr: 0,
-              })),
-              headlineVariants: headlineVariants.map(v => ({
-                text: v.text,
-                type: v.type,
-                score: v.score,
-                riskScore: v.breakdown?.riskScore || 0,
-                outlierBoost: v.breakdown?.outlierBoost || 0,
-                contrastBoost: v.breakdown?.contrastBoost || 0,
-                ctrPrediction: v.breakdown?.ctrPrediction || 0,
-                selected: v.selected || false,
-                wasOutlier: v.meta?.wasOutlier || false,
-                hadContrast: v.meta?.hadContrast || false,
-                hadGenericPenalty: v.meta?.hadGenericPenalty || false,
-                impressions: 0,
-                clicks: 0,
-                ctr: 0,
-              })),
-              // Intro variants
-              introVariants: introVariants.map((v: any) => ({
-                type: v.type,
-                text: v.text,
-                score: v.score,
-                selected: v.selected || false,
-              })),
-            } as any,
-          },
-        });
-      } catch (e) {
-        // metadata field might not accept JSON — variants logged in console
-      }
-    }
+    // Store audit information in pipeline_runs, whose schema supports metadata.
+    logger.addMetadata('headlineVariants', headlineVariants);
+    logger.addMetadata('introVariants', introVariants);
     
     if (saveAsDraft) {
       console.log(`📝 Article saved as DRAFT`);
@@ -2819,18 +2780,30 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
     console.timeEnd('⏱️  STEP 8: Publish');
 
-    // Drafts are not public and must not invalidate public caches.
+    let publicationVerified = false;
+    // In-route invalidation works without REVALIDATE_SECRET. Standalone workers
+    // must use the authenticated endpoint and report any missing configuration.
     if (!saveAsDraft) {
-      try {
-        const { revalidatePath, revalidateTag } = await import('next/cache');
-        revalidatePath(`/${slug}`);
-        revalidateTag(`article-${slug}`);
-        revalidateTag('article');
-        console.log('🔄 Cache invalidated for:', slug);
-      } catch {
-        // revalidatePath only works in Next.js server context, not in standalone scripts
-        console.log('ℹ️  Cache revalidation skipped (not in server context)');
+      // An independent authenticated request finishes before verification. In a
+      // Next route, invalidations are merely queued until this handler returns.
+      let invalidation = await revalidatePublicationCaches(slug);
+      if (!invalidation.ok) invalidation = await revalidatePublicationCaches(slug, {
+        invalidate: async (paths, tags) => {
+          const { revalidatePath, revalidateTag } = await import('next/cache');
+          for (const tag of tags) revalidateTag(tag);
+          for (const path of paths) revalidatePath(path, 'page');
+        },
+      });
+      logger.addMetadata('publicationCache', invalidation);
+      let verification = await verifyPublishedArticle({ slug, title: finalHeadline, heroImageUrl, expectedCarousel: 'present' });
+      if (!verification.ok && invalidation.ok && invalidation.code !== 'cache-invalidation-queued') {
+        // ISR can serve one stale response while rebuilding; verify once again.
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        verification = await verifyPublishedArticle({ slug, title: finalHeadline, heroImageUrl, expectedCarousel: 'present' });
       }
+      publicationVerified = verification.ok;
+      logger.addMetadata('publicationVerification', verification);
+      if (!publicationVerified) logger.log('Gespeichert, aber öffentliche Anzeige noch nicht vollständig bestätigt', 'warn');
     }
 
     // ========== STEP 9: POST-PROCESSING (PARALLEL!) ==========
@@ -2841,38 +2814,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
     
     if (!saveAsDraft) {
       await Promise.all([
-      // Save Q&A
-      (async () => {
-        if (structuredContent.qa.length > 0) {
-          const qaId = `qa-${articleId}`;
-          
-          // Determine heading type based on title/content
-          const titleLower = (structuredContent.headline || '').toLowerCase();
-          let headingType = 'default';
-          
-          if (titleLower.includes('episode') || titleLower.includes('folge') || /s\d+e\d+/i.test(titleLower)) {
-            headingType = 'episode';
-          } else if (titleLower.includes('finale') || titleLower.includes('final')) {
-            headingType = 'finale';
-          } else if (titleLower.includes('staffel') || titleLower.includes('season')) {
-            headingType = 'season';
-          } else if (titleLower.includes('ende') || titleLower.includes('ending') || titleLower.includes('erklärt')) {
-            headingType = 'ending';
-          }
-          
-          await prisma.article_qa.create({
-            data: {
-              id: qaId,
-              articleId,
-              questions: structuredContent.qa, // Store as JSON array
-              schemaEnabled: true,
-              headingType,
-              updatedAt: now,
-            },
-          });
-          console.log(`   ✅ Q&A saved: ${structuredContent.qa.length} questions (${headingType})`);
-        }
-      })(),
       
       // Cast already imported in Step 6a2
       (async () => {
@@ -2881,6 +2822,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       
       // Download trailer via RapidAPI - NUTZE SERIES TRAILER wenn vorhanden
       (async () => {
+        if (contentType === 'NEWS') return; // Never substitute a series trailer for the reported new trailer.
         try {
           // PRÜFE: Hat die Serie schon einen lokalen Trailer?
           if (dbSeries.localTrailerPath) {
@@ -2938,87 +2880,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
         }
       })(),
       
-      // Update series status
-      (async () => {
-        await updateSeriesStatus(
-          dbSeries.tmdbId,
-          'RENEWED', // Simple intent detection
-          fullSourceText
-        );
-        console.log(`   ✅ Series status updated`);
-      })(),
       
-      // Generate "Was bedeutet das" section
-      (async () => {
-        try {
-          const wasBedeutetDasText = await generateWasBedeutetDas({
-            headline: finalHeadline,
-            articleHtml: finalContentWithVideo,
-            seriesName: dbSeries.name || dbSeries.title || '',
-            contentType: contentType || 'SINGLE_SERIES_NEWS',
-            extractedFacts: JSON.stringify(facts).substring(0, 500),
-          });
-          
-          if (wasBedeutetDasText) {
-            await prisma.articles.update({
-              where: { id: articleId },
-              data: { wasBedeutetDasText }
-            });
-            console.log(`   ✅ "Was bedeutet das" generated`);
-          }
-        } catch (error: any) {
-          console.log(`   ⚠️  "Was bedeutet das" generation failed: ${error.message}`);
-        }
-      })(),
-
-      // Generate "Darum ist das relevant" section
-      (async () => {
-        try {
-          const darumRelevantText = await generateDarumRelevant({
-            articleHtml: finalContentWithVideo,
-            headline: finalHeadline,
-            seriesName: dbSeries.name || dbSeries.title || '',
-            extractedFacts: JSON.stringify(facts).substring(0, 500),
-          });
-          
-          if (darumRelevantText) {
-            await prisma.articles.update({
-              where: { id: articleId },
-              data: { darumRelevantText }
-            });
-            console.log(`   ✅ "Darum ist das relevant" generated`);
-          }
-        } catch (error: any) {
-          console.log(`   ⚠️  "Darum relevant" generation failed: ${error.message}`);
-        }
-      })(),
-
-      // Generate "Bisheriger Stand zur Serie" section
-      (async () => {
-        try {
-          const bisherigerStandText = await generateBisherigerStand({
-            seriesName: dbSeries.name || dbSeries.title || '',
-            seriesOverview: dbSeries.overview || null,
-            seriesStatus: dbSeries.status || null,
-            seriesSeasons: dbSeries.seasons || null,
-            headline: finalHeadline,
-            extractedFacts: JSON.stringify(facts).substring(0, 500),
-          });
-          
-          if (bisherigerStandText) {
-            await prisma.articles.update({
-              where: { id: articleId },
-              data: { bisherigerStandText }
-            });
-            console.log(`   ✅ "Bisheriger Stand" generated`);
-          }
-        } catch (error: any) {
-          console.log(`   ⚠️  "Bisheriger Stand" generation failed: ${error.message}`);
-        }
-      })(),
       
       // Discover Gate - Score berechnen und speichern
       (async () => {
+        if (contentType === 'NEWS') {
+          // The reviewed news-sitemap flag was persisted atomically with content.
+          // Never rewrite already reviewed news in post-processing.
+          return;
+        }
         try {
           // v5.7 BODY FACT-VERIFIER:
           // Before computing the Discover-Score, scan the body for streamer
@@ -3093,9 +2963,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
             final_headline: finalHeadline,
             article_html: finalContentWithVideo || '',
             hero_image_metadata: {
-              url: selectedBackdrop ? `https://image.tmdb.org/t/p/original${selectedBackdrop}` : '',
-              width: 1920,
-              height: 1080,
+              url: heroImageUrl,
+              width: verifiedImageWidth,
+              height: verifiedImageHeight,
               source: 'TMDB_BACKDROP' as const
             },
             publishedAt: new Date(),
@@ -3203,7 +3073,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       // pages; Google supports that API only for JobPosting/BroadcastEvent URLs.
       // IndexNow - Benachrichtigung an unterstützte Suchmaschinen.
       (async () => {
-        if (!saveAsDraft) {
+        if (!saveAsDraft && publicationVerified) {
           try {
             await indexNowArticle(slug);
           } catch (error: any) {
@@ -3213,7 +3083,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       })(),
       // Facebook Auto-Posting auf Page (nur wenn Toggle aktiv)
       (async () => {
-        if (!saveAsDraft) {
+        if (!saveAsDraft && publicationVerified) {
           try {
             const enabled = await getBoolSetting(SETTINGS.FACEBOOK_AUTOPOST_ENABLED, false);
             if (enabled) {
@@ -3266,6 +3136,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
         ...completionData,
         errorMessage: draftReason || 'Zur redaktionellen Prüfung gespeichert',
       });
+    } else if (!publicationVerified) {
+      await logger.partial({ ...completionData, errorStep: 'publication-verification', errorMessage: 'Artikel gespeichert; öffentliche Anzeige noch nicht bestätigt' });
     } else {
       await logger.success(completionData);
     }
@@ -3275,19 +3147,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
       slug,
       headline: finalHeadline,
       status: finalStatus,
+      publicationVerified,
       draftReason: saveAsDraft ? draftReason : undefined,
     };
     
   } catch (error: any) {
     const stepDuration = Date.now() - stepStartTime;
+    const safeMessage = safeNewsError(error);
     const errorDetails = {
       step: currentStep,
       stepDuration: `${stepDuration}ms`,
-      errorType: error.name || 'Error',
-      errorMessage: error.message,
-      errorCode: error.code || null,
+      errorMessage: safeMessage,
       source: source.title,
-      url: source.url,
     };
     
     console.log('\n' + '='.repeat(70));
@@ -3295,19 +3166,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log('='.repeat(70));
     console.log(`Step: ${currentStep}`);
     console.log(`Duration: ${stepDuration}ms`);
-    console.log(`Error: ${error.message}`);
-    console.log(`Type: ${error.name || 'Error'}`);
-    if (error.code) console.log(`Code: ${error.code}`);
-    console.log('Stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
+    console.log(`Error: ${safeMessage}`);
     
     // Log detailed error to DB
     await logger.fail(
-      `[${currentStep}] ${error.message}`,
+      `[${currentStep}] ${safeMessage}`,
       currentStep,
       JSON.stringify(errorDetails)
     );
     
-    throw error;
+    throw new Error(safeMessage);
   }
 }
 

@@ -178,6 +178,49 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
 
 ## Wie man den aktuellen Pipeline-Status selbst schnell prüft
 
+### Lokale Pipeline-Reparatur vom 20. September 2026
+
+Der neue Ablauf liegt auf `codex/takeover`; er ist **noch nicht als live bestätigt**.
+Details stehen in `PIPELINE_AND_LLM.md` und `PIPELINE_SCHEDULER.md`.
+Die Anwendung kompiliert lokal im Next-Compile-Modus; die Offline-Tests laufen.
+Das ist kein echter OpenAI-/TMDB-/PostgreSQL-Probelauf. Der vollständige
+projektweite Typecheck enthält weiterhin Altfehler.
+
+Vor dem Rollout in dieser Reihenfolge:
+
+1. Den angemeldeten serien.de-Tab unter `http://168.119.171.20:8000/`
+   öffnen. Andere Coolify-Instanzen sind nicht serien.de. Aktuellen
+   Produktionsbranch, Commit und automatische Deploy-Trigger lesen; vorher
+   nicht pushen. `main` bleibt unverändert.
+2. Frischen konsistenten Datenbank-Dump und das persistente Volume-Backup
+   verifizieren, inklusive Wiederherstellbarkeit und externem Sicherungsziel.
+   Historische Sicherungen ersetzen diese Prüfung nicht.
+3. In einer getrennten Testumgebung einen echten Quellenlauf ausführen:
+   zunächst Entwurf, vollständiger Quelltext, belegte Termine/Regionen,
+   redaktionelle Prüfung und gegebenenfalls eine Revision. Schlüssel ausschließlich
+   in der vorgesehenen Umgebung bereitstellen, niemals in Chat/Logs.
+4. Nur den geprüften `codex/takeover`-Stand ausrollen. Keine Migration,
+   kein `prisma db push`, keine Secret-Rotation als Nebenwirkung dieser Reparatur.
+5. Den vorhandenen Coolify-News-Task, Pause-Schalter, Autorenkonto und Namen
+   der erforderlichen Variablen prüfen. `AUTOMATED_NEWS_PUBLISHING_ENABLED`
+   erst nach bestandenem Probelauf aktivieren; mit `NEWS_LIMIT=1` beginnen.
+   Ein Scheduler genügt, kein zusätzlicher paralleler Daemon erforderlich.
+6. Einen begleiteten automatischen Publish prüfen: gespeicherter Artikel,
+   kanonische Seite, korrektes Bild einschließlich tatsächlich ausgelieferter
+   Bilddatei, Startseiten-Karussell und News-Liste. Im HTTP-Handler wird eine
+   lokale Cache-Invalidierung erst nach Antwortende ausgeführt. Ohne wirksamen
+   separaten Revalidate-Aufruf kann die Bestätigung deshalb erst im nächsten
+   Cronlauf erfolgen. `partial/publication-verification` ist kein neuer
+   Generierungsauftrag; Wiederholungen prüfen den vorhandenen Datensatz.
+7. Fehlerauswertung des Tasks mit HTTP-Fehlerstatus und ausreichend langem
+   Request-Timeout verifizieren. Nach 36 Stunden ohne bestätigten automatischen
+   Publish muss der aktivierte News-Import fehlschlagen; manuelle News dürfen
+   diesen Ausfall nicht verdecken. Benachrichtigung in Coolify separat prüfen.
+
+Bei Rollback zunächst automatische Veröffentlichung pausieren und den zuvor
+verifizierten App-Commit wiederherstellen. Bereits veröffentlichte Artikel nicht
+automatisch löschen; fehlerhafte Inhalte gezielt redaktionell korrigieren.
+
 ```bash
 # Letzte 10 Pipeline-Runs
 psql "$DATABASE_URL" -c "SELECT pipeline, trigger, status, \"errorStep\", \"startedAt\" FROM pipeline_runs ORDER BY \"startedAt\" DESC LIMIT 10;"

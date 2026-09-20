@@ -1,254 +1,270 @@
-# News-Pipeline & LLM-Integration — vollständige Referenz
+# News-Pipeline und LLM-Integration
 
-## 1. Prozess-Architektur
+Stand: 20. September 2026, lokaler Arbeitsstand auf `codex/takeover`.
 
-Die verifizierte Produktion nutzt **Coolify Scheduled Tasks**: Sie rufen die
-geschützten `/api/cron/*`-Routen per HTTP auf. Im App-Container läuft nur
-`next-server`; ein Supervisor- oder `news-scheduler.ts`-Dauerprozess ist dort
-nicht aktiv.
+**Die neue Pipeline ist lokal umgesetzt, aber noch nicht ausgerollt.
+Dieses Dokument beschreibt den Code, keinen erfolgreichen Produktivlauf.**
+Konfiguration und Betriebsablauf stehen in
+[PIPELINE_SCHEDULER.md](PIPELINE_SCHEDULER.md).
 
-Der folgende Supervisor-Block ist eine historische beziehungsweise optionale
-Alternative für einen später ausdrücklich eingerichteten separaten Worker,
-nicht die aktuelle Produktionskonfiguration:
+## Ziel und Grenze
 
-```ini
-[program:pipeline-scheduler]
-command=/app/serien-nextjs/node_modules/.bin/tsx /app/serien-nextjs/scripts/news-scheduler.ts
-directory=/app/serien-nextjs
-environment=PATH="<venv-pfade>:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",NODE_ENV="production"
-autostart=true
-autorestart=true
-```
+Automatisch publiziert werden sollen eigenständige, konkrete und belegte
+Serienmeldungen. Umfang richtet sich nach der Substanz. Die Pipeline
+veröffentlicht bei fehlender Evidenz nicht ungeprüft und dokumentiert
+den Grund. Auch diese Prüfungen garantieren keine absolute Fehlerfreiheit.
 
-⚠️ **Kritische Supervisor-Falle**: Ein `[program:x]`-Block darf nur **eine**
-`environment=`-Zeile haben. Wird versehentlich eine zweite Zeile ergänzt
-(z. B. bei einem späteren PATH-Fix), gewinnt nur die letzte — die erste wird
-stillschweigend verworfen, ohne Fehler. Immer alle Variablen eines Prozesses
-in einer Zeile zusammenfassen. Nach jeder Supervisor-Config-Änderung:
-`supervisorctl reread && supervisorctl update`, dann Log prüfen (`tail -f
-/var/log/supervisor/pipeline-scheduler.log`).
+Produktion einschließlich PostgreSQL läuft auf Hetzner/Coolify, nicht
+Neon. Bekannter Startweg sind Coolify Scheduled Tasks gegen Next.js-Routen.
+Vor einem Rollout tatsächlichen Branch, Commit und Deploy-Trigger prüfen.
+`main` ohne ausdrückliche Freigabe nicht ändern, mergen oder deployen.
 
-Der aktuelle Coolify-Task für `/api/cron/news` nutzt Bearer-Authentifizierung
-mit `CRON_SECRET` und ruft denselben `processAllNews()`-Pfad auf.
+## Direkter OpenAI-Zugang
 
-## 2. Ablauf im Detail
+`lib/llm-config.ts` verwendet ausschließlich den eigenen
+`OPENAI_API_KEY`, `https://api.openai.com/v1` und `gpt-5.4`.
+Ein fehlender Key oder Emergent-Key im OpenAI-Feld führt zu einem Fehler.
+Es gibt für den gemeinsamen Text-Client keinen stillen Anbieterwechsel
+und keinen Emergent-Fallback.
 
-### Schritt 1 — Scraping (`scripts/news-scraper.ts`, Funktion `processAllNews`)
+Der SDK-Client verwendet 90 Sekunden Timeout und höchstens eine
+SDK-Wiederholung. Die vollständige Redaktionsprüfung verwendet für ihre
+strukturierten Aufrufe 120 Sekunden Timeout und höchstens eine
+SDK-Wiederholung. Technische Wiederholungen sind von der einmaligen
+inhaltlichen Überarbeitung zu unterscheiden.
 
-Holt RSS/HTML von den Funktions-Defaults: **Cinemaholic, Deadline, Variety,
-Hollywood Reporter, Netflix Tudum, TVLine, Google News (Streaming-Suche)**.
-Die produktive Route `/api/cron/news` übergibt explizit nur die ersten sechs
-Quellen und lässt Google News aus.
-Dedupliziert gegen bereits importierte `sourceUrl`-Werte (unique constraint
-in `articles`). Optionen: `limit` (max. Artikel pro Lauf), `dryRun`,
-`onlyNew` (nur Artikel, die noch nicht in der DB sind).
+Die Aufrufe verwenden `max_completion_tokens`. Die Redaktionsprüfung
+verlangt ein striktes JSON-Schema. Abgebrochene oder verweigerte Antworten,
+ungültiges JSON und fehlende Felder bestehen keine Prüfung. Auch der
+Writer akzeptiert nur vollständige Antworten mit Titel, Vorspann,
+Beschreibung und gültigen Textabschnitten.
 
-⚠️ **Historischer Bug (behoben)**: `screenrant-scraper.ts` wurde früher vom
-Scheduler aufgerufen, aber `screenrant.com` steht in `WEAK_HOSTS` (Schritt 2)
-— jeder Lauf wurde lautlos komplett geblockt, meldete aber fälschlich
-`processed: 1`, weil die Erfolgszählung nicht auf einem echten DB-Check
-basierte. `news-scheduler.ts` ruft seitdem ausschließlich `processAllNews()`
-auf. `screenrant-scraper.ts` bleibt im Repo als Referenz, wird aber vom
-Scheduler nicht mehr genutzt.
+`parseLLMJson()` bleibt für andere Aufrufer vorhanden, ersetzt aber nicht
+die neue Paketvalidierung. `EMERGENT_LLM_KEY` in der Beispielkonfiguration
+gehört zu verbleibenden Legacy-Funktionen außerhalb dieses gemeinsamen
+Textzugangs und wird nicht als News-Ausweichlösung aktiviert.
 
-### Schritt 2 — Pro Artikel: `scripts/pipeline-v2.ts` (`runPipelineV2`)
+## 1. Quellen finden und Arbeit begrenzen
 
-Die Kern-Orchestrierung (3185 Zeilen). Reihenfolge der Gate-Checks und
-Verarbeitungsschritte (siehe Imports am Dateianfang für alle beteiligten
-`lib/*`-Module):
+`/api/cron/news` authentifiziert den Aufruf und startet
+`processAllNews()` in `scripts/news-scraper.ts`. Vor Arbeitsbeginn
+stehen Pausenschalter, gemeinsame Datenbanksperre und gegebenenfalls
+Nachprüfung bereits gespeicherter Veröffentlichungen.
 
-1. **Alters-Gate**: bei Cron-Trigger werden Quellen `>6h` alt verworfen.
-2. **`WEAK_HOSTS`-Blockliste** (`lib/series-blocklist.ts` bzw. Konstante in
-   `pipeline-v2.ts`) — bewusst ausgeschlossene Quellen als Anti-"Helpful
-   Content Update"-Maßnahme. Aktuell (Stand letzter bekannter Code-Stand):
-   `screenrant.com`, `collider.com`, `whats-on-netflix.com`,
-   `tvinsider.com`. Vor Erweiterung der Quellenliste immer prüfen, ob eine
-   neue Quelle hier ausgeschlossen ist.
-3. **Blocklist-Check** gegen `blocklist_entries` (Admin-gepflegt, DB-basiert
-   — anders als `WEAK_HOSTS`, das hardcodiert ist).
-4. **Film-vs-Serie-Filter**, **Genre-Filter** (`lib/genre-filter.ts`),
-   **US-Corporate-News-Filter** (`lib/us-corporate-news-filter.ts` — blockt
-   US-Börsen-/Konzernmeldungen wie Quartalszahlen, selbst wenn ein
-   DACH-Streamer im Titel als Aufhänger steht), diverse weitere strukturelle
-   Sperren (`show-age-cutoff`, `us-daytime-talk-brands`,
-   `unreleased-project-filter`, `sammel-recap-detector` — siehe
-   `next.config.ts`-Redirect-Kommentare für historische Beispiel-Artikel,
-   die diese Filter nachträglich ausgelöst haben).
-5. **DACH-Verfügbarkeits-Check** (`lib/dach-availability.ts`, `checkDachAvailability`).
-6. **Klassifikation** (`lib/content-classifier.ts`, `classifyContent`,
-   `shouldSkipArticle`) — LLM-Call, entscheidet Relevanz/Kategorie.
-7. **Fingerprint-/Duplikat-Gate** (`lib/duplicate-checker.ts`,
-   `lib/story-fingerprint.ts`) — verhindert mehrere Artikel zum exakt
-   gleichen Ereignis.
-8. **Fakten-Extraktion** (`lib/fact-extractor.ts`, `lib/reporters-notebook.ts`,
-   `lib/full-text-fetcher.ts`) — holt den vollen Quelltext + strukturierte
-   Fakten.
-9. **Content-Generierung** (`lib/structured-content-generator.ts`,
-   `generateStructuredContent`) — **ein** LLM-Call erzeugt Body
-   (H2-Struktur, Markdown), Meta-Title/Description, Q&A-Box zusammen.
-10. **Übersetzung/Treue-Check** (`lib/faithful-translator.ts`) — stellt
-    sicher, dass die deutsche Fassung inhaltlich zur Quelle passt.
-11. **Fact-Safety-Layer** (`lib/fact-safety-layer.ts`, `factSafetyCheck`) —
-    Hallucination-Check gegen TMDB-DE-Provider-Daten (schreibt bei Treffer
-    in `hallucination_log`).
-12. **Charakter-/Cast-Linking** (`lib/character-linking-markdown.ts`,
-    `lib/cast-linking-markdown.ts`, `scripts/import-characters.ts`,
-    `lib/cast-importer.ts`) — verlinkt erwähnte Figuren/Schauspieler, ggf.
-    Import neuer Charaktere.
-13. **Charakter-Bio-Generierung** (`scripts/generate-character-content.py`,
-    **Python**, eigener OpenAI-Call) — falls neue/unbekannte Figuren erwähnt
-    werden.
-14. **Markdown → HTML** (`lib/markdown-to-html.ts`), **interne Verlinkung**
-    (`lib/internal-linking-engine.ts`), **Quellen-Embeds**
-    (`lib/source-embeds.ts`).
-15. **Qualitäts-/Anti-AI-Checks** (`lib/quality-checker.ts`,
-    `lib/anti-ai-filter.ts`) und **Discover-Gate** (`lib/discover-gate.ts`,
-    schreibt `discover_audits`/`discover_score_dashboards`). Bei Score
-    `<60`: Auto-Retry mit niedrigerer `temperature`.
-16. **Erklärboxen** (`lib/was-bedeutet-das.ts`) — generiert
-    `wasBedeutetDasText`, `darumRelevantText`, `bisherigerStandText`.
-17. **Hero-Bild** (`lib/nano-banana-hero.ts`, Modell `gpt-image-1`),
-    **Bild-Upload** (`lib/blob-uploader.ts`, R2/Blob), Backdrop-Auswahl
-    (`lib/tmdb-backdrops.ts`).
-18. **Trailer-Suche** (`lib/trailer-downloader.ts`,
-    `findTrailerYouTubeId`/`downloadYouTubeTrailer`/
-    `searchYouTubeTrailerViaAPI`, RapidAPI-basiert — bekanntes Backlog-
-    Problem: HTTP 403 bei allen 3 Fallbacks, siehe `OPERATIONS_RUNBOOK.md`).
-19. **Zeitachsen-Korrektur** (`lib/time-axis-correction.ts`,
-    `classifyContentAge`, `shouldPublishBasedOnAge`,
-    `neutralizeOldContentHeadline`) — verhindert, dass alte Ereignisse als
-    "News" präsentiert werden.
-20. **Speichern** in `articles` (Status `published`), Autor-Rotation über
-    `EDITORIAL_AUTHORS`-Array (11 feste Autoren-IDs, zufällig gewählt via
-    `getRandomAuthor()`).
-21. **Nachbearbeitung**: Sitemap-Prewarm
-    (`/api/internal/revalidate-sitemap`, schreibt `sitemap_prewarm_log`),
-    Facebook-Post (`lib/facebook-poster.ts`, schreibt `facebook_post_log`),
-    Google-Indexing-Ping (`lib/google-indexing.ts`), IndexNow
-    (`lib/indexnow.ts`).
+Die HTTP-Route nutzt Cinemaholic, Deadline, Variety, Hollywood Reporter,
+Netflix Tudum und TVLine. Der Funktionsstandard enthält zusätzlich
+Google News Streaming. Blockierte Quellen wie ScreenRant, Collider,
+What's on Netflix und TVInsider werden nicht durch bloßes Hinzufügen
+zu einer Feedliste zugelassen.
 
-Jeder Lauf wird in `pipeline_runs` protokolliert (Status, Timing,
-`errorStep`/`errorMessage` bei Fehlschlag) — **erster Anlaufpunkt für
-Debugging**, siehe `OPERATIONS_RUNBOOK.md`.
+RSS-Discovery sammelt standardmäßig bis zu 24 Stunden alte Einträge;
+einzelne Quellen haben eigene Fenster. Das frühe harte Pipeline-Altersgate
+liegt bei 72 Stunden für nichtmanuelle Kandidaten mit belastbarem Datum.
+Zusätzlich gelten die spätere Quellzeitpunkt- und Aktualitätsprüfung.
+Entdeckungsfenster und Publikationsfreigabe sind unterschiedliche Dinge.
 
-### Optionaler Scheduler-Loop (`scripts/news-scheduler.ts`, nicht Produktion)
+Bestehende `sourceUrl`-Datensätze und Laufhistorie werden **vor** dem
+Gesamtlimit geprüft. Standardmäßig werden höchstens fünf Kandidaten
+insgesamt aus wechselnden Quellen verarbeitet. Quellenfehler, Entwürfe,
+zurückgestellte Kandidaten und verifizierte Veröffentlichungen sind
+getrennte Ergebnisse; es gibt keine Pflicht, eine Artikelquote zu füllen.
 
-```
-Startup → runNewsImport() sofort einmal
-        → setInterval(runNewsImport, NEWS_INTERVAL_HOURS Stunden)
-```
+## 2. Serie, Relevanz und Originalquelle
 
-Wenn dieser optionale Worker bewusst separat betrieben wird, gelten:
-`NEWS_INTERVAL_HOURS` (Default `1`) und `NEWS_LIMIT` (Default
-`5`, Artikel pro Lauf). Schreibt zusätzlich ein eigenes Textlog nach
-`logs/news-scheduler.log` (relativ zum CWD des Prozesses).
+`scripts/pipeline-v2.ts` protokolliert jeden Kandidaten. Vorhandene
+Quellen-/Serienblocklisten, Film-/Serien- und Themenfilter,
+Serienzuordnung, eigene Duplikatprüfungen und Mengenbegrenzungen bleiben aktiv.
+DACH-Relevanz und regionale Behauptungen von NEWS prüft die Quellenredaktion.
+Ein ausländischer Produktionssender oder ein älterer Konkurrenzartikel zum
+gleichen Schauspieler ist kein pauschaler Ablehnungsgrund für eine neue Meldung.
+Ähnlich benannte Sendungen sind kein korrekter Serientreffer.
 
-## 3. LLM-Konfiguration — zentral in `lib/llm-config.ts`
+Der bisherige pauschale Ausschluss wegen deutscher Berichterstattung
+(`german-angle-coverage`) gilt nicht mehr als hartes News-Gate: Ein Bericht
+über denselben Schauspieler oder dieselbe Serie beweist kein identisches
+Ereignis. Eigene Ereignis-/Artikeldublettenprüfung und Quellenprüfung
+bleiben erhalten. Alte Ablehnungen dieses Schritts erhalten keine
+dauerhafte inhaltliche Sperre mehr.
 
-```ts
-// Gekürzter Ablauf; der echte Code validiert den fehlenden Key zuerst.
-export function getLLMConfig() {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY;
-  if (!apiKey) throw new Error('No LLM API key found');
-  const isEmergentKey = apiKey.startsWith('sk-emergent-');
-  return {
-    apiKey,
-    baseURL: isEmergentKey ? 'https://integrations.emergentagent.com/llm' : 'https://api.openai.com/v1',
-    model: isEmergentKey ? 'claude-sonnet-4-6' : 'gpt-5.4',
-  };
-}
-```
+Ohne explizite Autor-ID verwendet die Pipeline
+`AUTOMATED_EDITORIAL_AUTHOR_ID`, standardmäßig `redaktion`.
+Das Konto muss mit Rolle `author` existieren. Automatischer Inhalt erhält
+keine zufällige fremde Autorenidentität.
 
-- **Produktionsvorgabe**: `OPENAI_API_KEY` (→ Modell-String `gpt-5.4`, direkt
-  gegen `api.openai.com`). Der Code enthält noch einen historischen Zweig für
-  `EMERGENT_LLM_KEY` (→ `claude-sonnet-4-6` über den Emergent-Proxy). Auf dem
-  aktuellen Hetzner-Host ist das kein unterstützter Failover. Den Zweig nach
-  vollständiger Inventarisierung entfernen; fehlende OpenAI-Credits nicht
-  durch eine blinde Key-Umschaltung kaschieren.
-- Alle Content-generierenden Module (`content-classifier.ts`,
-  `structured-content-generator.ts`, `was-bedeutet-das.ts`,
-  `heading-generator.ts`, `duplicate-checker.ts`, `seo-auditor.ts`,
-  `faithful-translator.ts`, `generate-person-bios.ts`,
-  `generate-author-full-bios.ts`, `generate-series-overviews.ts`,
-  `generate-characters.ts`, sowie `app/api/debug/llm-version/route.ts` und
-  `app/api/admin/question-radar/route.ts`) importieren diese zentrale
-  Konfiguration — **nie** einen Modellnamen oder Base-URL hardcodiert an
-  anderer Stelle einbauen.
-- `parseLLMJson()` — robustes JSON-Parsing für LLM-Antworten (kein
-  natives `response_format: json_object` im Einsatz). Behandelt
-  Markdown-Codeblöcke, deutsche Anführungszeichen (`„`, `"`), Kontrollzeichen.
-- Bild-Generierung getrennt in `lib/nano-banana-hero.ts` — Modell
-  `gpt-image-1`, eigener OpenAI-Key. Der Dateiname ist historisch bedingt
-  (frühere Version nutzte Gemini "Nano Banana"); hat funktional nichts mehr
-  mit Google/Gemini zu tun.
-- `scripts/generate-character-content.py` (Python) hat eine **eigene**,
-  separate OpenAI-Client-Initialisierung (nicht über `llm-config.ts`, da
-  TypeScript-Modul) — bei Key-Rotation **zusätzlich** hier prüfen.
+Originalvolltext und belastbarer Quellzeitpunkt sind Grundlage der
+Faktenextraktion und Schlussprüfung. Letztere verlangt mindestens
+600 Zeichen Quelltext; Feedtitel oder Suchsnippet genügen nicht.
+Bei Überschreitung des vollständigen Prüfbudgets wird kein Rest
+stillschweigend ungeprüft weggelassen.
 
-## 4. GPT-5-Familie — kritische Besonderheit
+Internationale Produktions-, Casting- oder Verlängerungsnachrichten
+können relevant sein, ohne dass ein Deutschlandtermin bekannt ist.
+Eine Benelux-, US- oder UK-Mitteilung belegt aber keinen deutschen Start.
+TMDB-Katalogverfügbarkeit alter Staffeln bestätigt weder Termin noch
+Anbieter einer neuen Staffel. Fehlende TMDB-Daten beweisen umgekehrt
+keine Nichtverfügbarkeit.
 
-**`max_tokens` wird von GPT-5.x abgelehnt (HTTP 400).** Der korrekte
-Parameter heißt **`max_completion_tokens`**. `temperature` funktioniert
-weiterhin normal (kein Reasoning-Modell-Limit wie bei o1/o3). Dieser Fehler
-blockierte beim Umstieg auf `gpt-5.4` einmal **100 % der Content-
-Generierung**, bis er in allen betroffenen Call-Sites gefixt wurde
-(betroffen waren u. a. `structured-content-generator.ts`,
-`duplicate-checker.ts`, `seo-auditor.ts`, `faithful-translator.ts`,
-`generate-person-bios.ts`, `generate-author-full-bios.ts`,
-`generate-series-overviews.ts`, `generate-characters.ts`, sowie die beiden
-o.g. API-Routen). **Bei jedem zukünftigen Modell-Upgrade (GPT-6, neue
-Reasoning-Modelle etc.) zuerst die OpenAI-Parameter-Kompatibilität für das
-neue Modell prüfen**, bevor ein Modellnamen-Wechsel gemacht wird — ein
-falscher Parameter lässt den Fehler lautlos in Retries verschwinden
-(3 Versuche mit Backoff, siehe Retry-Logs unten), nicht sofort als
-offensichtlicher Crash.
+## 3. Eigenständige Nachrichten schreiben
 
-## 5. Bekannte Fehlerbilder & wie man sie erkennt
+`lib/news-writing-policy.ts` definiert den News-Auftrag;
+`lib/structured-content-generator.ts` erstellt Headline,
+Meta-Beschreibung, separaten Vorspann und Artikelkörper.
 
-### OpenAI 429 "no credits remaining"
-Log-Beispiel (Klassifikations-Schritt, mit Retry-Logik):
-```
-⚠️  Classifier attempt 2/3 failed: 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/. — retry in 4000ms
-```
-→ **Kein Code-Fehler.** Bedeutet: OpenAI-Konto-Guthaben ist aufgebraucht.
-Betrifft **jeden** LLM-Call in der Pipeline (Klassifikation ist meist der
-erste LLM-Call, daher meist der erste sichtbare Fehler). Lösung: Guthaben im
-OpenAI-Billing-Dashboard aufladen. Danach den nächsten Coolify Scheduled Task
-abwarten oder nach Freigabe genau einen kontrollierten Lauf auslösen und
-`pipeline_runs` auf frische `status: 'success'`-Einträge prüfen.
+- Wichtigste belegte Neuigkeit zuerst, konkrete Namen und aktive Verben.
+- Umfang nach Quellenlage; die begrenzte Prompt-Zielgröße ist eine
+  Orientierung, kein Grund zum Auffüllen.
+- Keine verpflichtenden 1500 Wörter, keine Pflicht-FAQ, kein Standardfazit
+  und keine generischen „Was bedeutet das?“-Kästen für News.
+- Zwischenüberschriften nur, wenn sie beim Lesen helfen.
+- Keine erfundenen Zitate, Fanreaktionen, Konflikte, Rekorde,
+  Währungsumrechnungen oder Deutschlandtermine.
+- Den tatsächlichen Urheber nennen; Fremdrecherche nicht als eigene
+  Bestätigung ausgeben.
+- Konkrete Daten statt alternder Headline-Angaben wie „morgen“.
 
-### `tsx: not found`
-```
-sh: 1: tsx: not found
-```
-→ Globale `npm install -g tsx` überlebt keinen Server-/Pod-Neustart. Fix:
-`tsx` als echte `devDependency` via `npm install -D tsx`; bei einem optionalen
-Worker dessen Command auf
-`node_modules/.bin/tsx` zeigen lassen (bereits so konfiguriert, siehe
-Abschnitt 1 — falls der Fehler wieder auftritt: prüfen, ob `node_modules`
-komplett fehlt, z. B. nach Volume-Reset, dann `npm ci` erneut ausführen).
+Der frühere „Faithful“-Übersetzungsweg ist für `NEWS` kein
+Veröffentlichungspfad. Alte Zielgrößen und Sonderformate anderer Module
+sind keine Anforderungen an reguläre Nachrichten. News werden
+eigenständig formuliert und anschließend am Original geprüft.
 
-### Kein neuer Artikel trotz ausgeführtem Scheduled Task
-Erste Anlaufstelle: `pipeline_runs`-Tabelle nach den letzten Einträgen
-filtern (`ORDER BY startedAt DESC`). `status`/`errorStep`/`errorMessage`
-zeigen exakt, an welchem der ~21 Schritte aus Abschnitt 2 der Lauf
-gescheitert ist. **Nicht** allein auf Scheduler-Log-Zeilen wie "processed: N"
-vertrauen — das zählt nur, ob eine Exception geworfen wurde, nicht, ob
-wirklich publiziert wurde (siehe Lessons Learned in `HANDOFF.md`).
+## 4. Vollständige Quellenprüfung und eine gezielte Revision
 
-### `PrismaClientKnownRequestError` Code `P1001`
-Die Produktionsdatenbank läuft dauerhaft als PostgreSQL-Service in Coolify;
-Neon-Cold-Starts sind dort keine Erklärung. Einmal retryen, dann
-Datenbank-Healthcheck, Logs, Connection-Limit und das private Coolify-Netzwerk
-prüfen. Werte aus `DATABASE_URL` niemals ausgeben.
+`lib/editorial-review.ts` erhält das fertige Veröffentlichungspaket:
+Headline, Vorspann, Meta-Beschreibung und vollständiges HTML,
+Originalquelle sowie ausdrücklich beobachteten Kontext.
+Die Prüfung erfolgt nach den redaktionellen Textbearbeitungen.
+Anschließend darf kein ungeprüfter FAQ- oder Erklärungstext angehängt werden.
 
-## 6. Sonstige LLM-nutzende Skripte außerhalb der Kernpipeline
+Die strukturierte Prüfausgabe bestätigt jedes Kurztextfeld und jeden
+sichtbaren Fließtextabsatz. Externe Tatsachen benötigen Artikelpassagen
+und exakte Belege aus dem gelieferten Original oder Kontext. Der Code
+prüft, ob die zitierten Passagen dort tatsächlich vorkommen.
+Unbelegte oder widersprochene Aussagen, ausgelassene Absätze und ein
+fehlender sichtbarer Quellenlink verhindern die Freigabe.
 
-- `scripts/p3-trends.ts`, `scripts/demo-ende-erklaert.mjs` — nutzen ebenfalls
-  `gpt-5.4` (früher `gpt-4o`, mit umgestellt).
-- `scripts/generate-author-bios.ts`, `generate-author-full-bios.ts`,
-  `generate-person-bios.ts`, `generate-series-overview(s).ts`,
-  `generate-characters.ts` — Batch-/Backfill-Generatoren, laufen manuell via
-  `tsx`, nicht Teil des automatischen Schedulers.
-- `scripts/optimize-headline.ts`, `scripts/batch-rewrite-scorereveal.ts` —
-  Headline-Rewrite-Tools (füllen `headline_comparisons`).
+Nachrichtenwert, Klarheit und eigenständige Sprache sind eigene Kriterien.
+Klarheit und Eigenständigkeit benötigen jeweils mindestens 4 von 5.
+Diese Skalen sind Prüfheuristiken, keine Garantie journalistischer Qualität.
+
+Bei behebbaren Mängeln erfolgt **höchstens eine gezielte Überarbeitung**
+anhand konkreter Befunde. Das gesamte überarbeitete Paket wird erneut
+geprüft. Ein ausdrückliches `reject` oder weiter bestehende Mängel
+werden nicht durch endlose Rewrite-Schleifen umgangen.
+
+## 5. Struktur und abschließende Freigabe
+
+`lib/article-structure.ts` liest echte HTML-/Markdown-Blöcke statt
+aus zusammengezogenem Text die Absatzstruktur zu erraten.
+Datumsangaben und übliche deutsche Abkürzungen werden bei der
+Satzzählung berücksichtigt.
+
+Für News gelten:
+
+- Strukturwert mindestens 70, ohne harten Strukturfehler.
+- Mindestens 120 belegte eigenständige Wörter, nicht 1500.
+- Mindestens zwei Absätze, ab 320 Wörtern mindestens drei.
+- Vorspann höchstens drei Sätze und 80 Wörter.
+- Lange oder wiederholte Absätze ergeben konkrete Befunde; mehr als
+  fünf Sätze oder 140 Wörter in einem Absatz sind ein harter Fehler.
+
+Das abschließende Tor verlangt Quellenprüfung, HTML-Sicherheit, Qualität,
+Sprache, Faktensicherheit, gültige Quelle, Aktualität, belegte
+Artikelaussagen und eingeschalteten Release-Modus. Für News beruhen
+inhaltliche Qualitäts-/Faktenentscheidungen auf der vollständigen
+Schlussprüfung, nicht auf mehreren widersprüchlichen Kurztexturteilen.
+
+Nur `AUTOMATED_NEWS_PUBLISHING_ENABLED=true` erlaubt automatische
+Veröffentlichung. Fehlende Freigabe oder verbleibende redaktionelle
+Befunde führen zum Entwurf. Eine technisch nicht abgeschlossene
+Quellenprüfung führt zu `editorial-dependency`, einem später
+wiederholbaren Fehler. Ein technisch ungeprüfter Entwurf soll die
+Quell-URL nicht dauerhaft blockieren.
+
+## 6. Passendes Bild vor Veröffentlichung bestätigen
+
+`lib/publication-verification.ts` prüft das tatsächliche Artikelbild.
+Reguläre News brauchen ein echtes TMDB-Backdrop der zugeordneten Serie;
+die Bilddatei muss in deren abgefragter Galerie vorkommen.
+Generierte Illustrationen und allgemeine Streamerlogos ersetzen
+diesen Beleg nicht.
+
+Die Prüfung lädt begrenzte Bilddaten von zugelassenen Ursprüngen,
+dekodiert das Rasterbild und verlangt mindestens 1200 × 500 Pixel
+im Querformat (auch ein echtes 2,39:1-Breitbild ist zulässig).
+HTTP 200 allein genügt nicht. Bei einer defekten ersten Auswahl werden
+höchstens zwei weitere bereits der Serie zugeordnete Galeriemotive geprüft.
+`image-verification` verhindert bei einem Fehler den
+Publikations-Insert. Ein Entwurf darf einen statischen Platzhalter
+tragen; das bestätigt kein veröffentlichungsfähiges Artikelbild.
+
+Cloudflare R2 ist die vorhandene eigene Speicheranbindung; ein direkter
+TMDB-Link braucht keinen R2-Upload. Vercel-Blob- und Bildgeneratorpfade
+anderer Formate sind gesonderter Altbestand und kein News-Fallback.
+
+## 7. Speichern und öffentliche Anzeige bestätigen
+
+Nach dem Artikel-Insert werden relevante Cache-Tags und Seiten
+aktualisiert: Artikel, Startseite, `/news` und Sitemaps.
+Bevorzugt wird ein separater authentifizierter HTTP-Request mit
+`REVALIDATE_SECRET`. Die direkte Revalidierung im laufenden Next.js-
+Handler wird bis zu seiner Antwort nur **vorgemerkt**. Ein gleichzeitig
+ausgeführter GET kann weiterhin den alten Cache sehen.
+
+Die Live-Prüfung kontrolliert kanonische Artikelseite, sichtbare
+Headline, eingebundenes und tatsächlich geladenes Hero-Bild sowie die
+erwartete Startseiten-/Carousel- und News-Anzeige. Auch Next.js-
+optimierte Bild-URLs werden geprüft.
+`publicationVerified=true` kennzeichnet den bestätigten Zustand.
+
+Ein Datenbankstatus `published` allein zählt nicht als voller Erfolg.
+Bleibt die Anzeige unbestätigt, bleibt der Artikel bestehen und sein Lauf
+erhält `partial` mit `publication-verification`. Der nächste Cronlauf
+prüft eine begrenzte Zahl gespeicherter Artikel erneut, ohne sie erneut
+zu generieren oder einzufügen. Das gilt insbesondere nach vorgemerkter
+In-process-Revalidierung ohne verfügbaren HTTP-Secret-Fallback.
+
+Sitemap-/Indexierungs- und Social-Nachbearbeitung haben eigene Resultate.
+Eine bestätigte Artikelseite beweist weder Google-Aufnahme noch
+Social-Zustellung. `DISCOVER` und `SEARCH_ONLY` sind interne Einstufungen,
+keine Zusage einer Google-Ausspielung.
+
+## Abgrenzung anderer Wege
+
+`scripts/p3-trends.ts` und `scripts/p4-yt.ts` bleiben **draft-only**.
+Ihre bisherigen Trend-/Video-Abläufe ersetzen nicht die vollständige
+neue News-Prüfung. Das News-Flag öffnet diese alten Publisher nicht.
+
+Bio-, Figuren-, Serien- und sonstige Batchskripte sind ebenfalls kein
+Teil des regulären News-Schedulers. Kosten und Nebenwirkungen ihrer
+manuellen Ausführung sind getrennt zu prüfen.
+
+## Diagnose und Einführung
+
+`pipeline_runs` mit `errorStep`, Artikelzuordnung und Abschlusszeit ist
+der erste Diagnosepunkt. Die Scheduler-Referenz erläutert Pausenschalter,
+Laufsperre, Backoff, Recovery und echte Ergebniszähler. Ein öffentlicher
+Healthcheck prüft nicht automatisch Datenbank, Anbieter und Pipeline.
+
+Bei OpenAI 429 konkrete Fehlerkategorie und dem Key zugeordnetes Projekt
+prüfen: Rate-Limit, Projektquote und Abrechnung sind verschiedene
+Ursachen. Guthaben in einem anderen Projekt oder Konto ist kein Beleg
+für den verwendeten Zugang. Keine Keys im Chat senden und nicht blind
+auf einen Proxy ausweichen.
+
+Bei PostgreSQL-Fehlern Coolify-Service, Netzwerk und Verbindungsgrenzen
+prüfen. Bei `image-verification` Bildzuordnung und Bildantwort prüfen.
+Bei `publication-verification` öffentliche Anzeige und Cache prüfen,
+statt denselben Artikel erneut einzufügen.
+
+Vor jeder Produktionsänderung **Datenbank- und Volume-Backups samt
+Wiederherstellungsweg verifizieren**. Produktionsbranch, Commit und
+Deploy-Trigger bestätigen; keine Prisma-Migration gegen Produktion.
+Nach dem Rollout ist ein begleiteter automatischer Einzellauf mit
+Quellen-, Fakten-, Regions-, Bild- und Sichtbarkeitskontrolle erforderlich.
+Gegebenenfalls den anschließenden Recovery-Lauf mitprüfen.
+
+Lokal steht `npm run test:pipeline` für isolierte Regressionstests bereit:
+Faktenextraktion, Schreib-/Strukturregeln, vollständige Quellenprüfung,
+einmalige Revision, Bild-/Publikationskontrolle, Retry, Sperre und Recovery.
+Das ersetzt keine Produktionsabnahme. Bis zu diesem separaten Nachweis
+sind die dokumentierten Änderungen **lokal, nicht live verifiziert**.

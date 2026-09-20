@@ -1,224 +1,232 @@
-# Content Pipeline Scheduler Documentation
+# Betrieb der automatischen News-Pipeline
 
-## ✅ Setup Complete
+Stand: 20. September 2026, lokaler Arbeitsstand auf `codex/takeover`.
 
-Automatische Content-Pipelines wurden erfolgreich eingerichtet für:
-- **TVLine** - Alle 2 Stunden zur vollen Stunde
-- **CinemaHolic** - Alle 2 Stunden zur vollen Stunde, offset +1h
+**Die beschriebenen Verbesserungen sind lokal implementiert und noch nicht
+ausgerollt. Dieses Dokument bestätigt keinen erfolgreichen Produktivlauf
+und keine aktuell eingeschaltete automatische Veröffentlichung.**
 
----
+## Produktionsumgebung
 
-## 📅 Zeitplan
+serien.de und PostgreSQL laufen auf Hetzner unter Coolify. Die
+Management-Oberfläche `http://168.119.171.20:8000/` spricht auf Port 8000
+HTTP. Neon wird nicht verwendet.
 
-### TVLine Auto-Pipeline
-- **Frequenz**: Alle 2 Stunden
-- **Zeitpunkte**: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00
-- **Skript**: `/app/serien-nextjs/scripts/tvline-auto-pipeline.ts`
-- **Log**: `/var/log/tvline-pipeline.log`
+Das bekannte Betriebsmodell ist ein Next.js-Anwendungscontainer mit einem
+separaten PostgreSQL-Service. Coolify Scheduled Tasks rufen geschützte
+`/api/cron/*`-Routen auf. Tatsächlicher Produktionsbranch, Commit,
+Dockerfile, Task-Liste und Deploy-Trigger müssen vor dem Rollout erneut
+geprüft werden. Ältere Aussagen über `main` sind keine Deploy-Freigabe.
 
-### CinemaHolic Auto-Pipeline
-- **Frequenz**: Alle 2 Stunden (offset)
-- **Zeitpunkte**: 01:00, 03:00, 05:00, 07:00, 09:00, 11:00, 13:00, 15:00, 17:00, 19:00, 21:00, 23:00
-- **Skript**: `/app/serien-nextjs/scripts/cinemaholic-auto-pipeline.ts`
-- **Log**: `/var/log/cinemaholic-pipeline.log`
+Die bisherigen Behauptungen über separate TVLine-/Cinemaholic-Supervisor-
+Jobs, automatisch rotierte Logdateien und „fully operational“ waren kein
+belastbarer Produktionsnachweis. Für den neuen News-Betrieb gilt:
 
-**Warum zeitversetzt?**
-Die Pipelines laufen zeitversetzt, um Server-Last zu verteilen und gleichzeitige Ressourcen-Konflikte zu vermeiden.
-
----
-
-## 🔧 Technische Details
-
-### Scheduler Implementation
-- **Tool**: `node-cron` (Node.js-basierter Cron-Scheduler)
-- **Supervisor Service**: `pipeline-scheduler`
-- **Skript**: `/app/serien-nextjs/scripts/pipeline-scheduler.ts`
-- **Auto-Start**: ✅ Ja (via Supervisor)
-- **Auto-Restart**: ✅ Ja (bei Fehlern)
-
-### Warum node-cron?
-- Container-freundlich (kein systemd/cron erforderlich)
-- Programmatische Kontrolle
-- Besseres Error Handling
-- Einfaches Logging
-
----
-
-## 📊 Monitoring & Verwaltung
-
-### Status prüfen
-```bash
-# Scheduler Status
-sudo supervisorctl status pipeline-scheduler
-
-# Live-Logs anzeigen
-sudo supervisorctl tail -f pipeline-scheduler
-
-# Pipeline-spezifische Logs
-tail -f /var/log/tvline-pipeline.log
-tail -f /var/log/cinemaholic-pipeline.log
+```text
+Coolify Scheduled Task → /api/cron/news
+  → Pause und gemeinsame Laufsperre
+  → gespeicherte Artikel gegebenenfalls erneut sichtbar prüfen
+  → Quellen finden und bereits behandelte Kandidaten aussortieren
+  → begrenzt schreiben, prüfen und gegebenenfalls veröffentlichen
+  → Cache-Aktualisierung und öffentliche Prüfung
+  → tatsächliches Ergebnis protokollieren
 ```
 
-### Scheduler steuern
-```bash
-# Stoppen
-sudo supervisorctl stop pipeline-scheduler
+## Aufruf und Einstellungen
 
-# Starten
-sudo supervisorctl start pipeline-scheduler
+`GET` und `POST /api/cron/news` verlangen einen Bearer-Header mit dem
+intern gesetzten `CRON_SECRET`. Keine Secrets in URL-Parametern.
+Fehlende Serverkonfiguration ergibt HTTP 503, ungültige Authentifizierung
+HTTP 401. Secret-Werte niemals in Chat, Dokumentation oder Logs ausgeben.
 
-# Neustarten
-sudo supervisorctl restart pipeline-scheduler
+Der produktive Rhythmus wird in **Coolify Scheduled Tasks** eingestellt.
+`NEWS_INTERVAL_HOURS` verändert diesen Zeitplan nicht.
+
+| Einstellung | Verhalten im lokalen Code |
+| --- | --- |
+| `OPENAI_API_KEY` | Eigener direkter OpenAI-Zugang; `gpt-5.4`, kein Emergent-Fallback |
+| `TMDB_API_KEY` | Serienzuordnung, Metadaten und Backdrops |
+| `AUTOMATED_NEWS_PUBLISHING_ENABLED` | Nur exakt `true` erlaubt nach bestandenen Prüfungen das Veröffentlichen; Beispielkonfiguration bleibt `false` |
+| `AUTOMATED_EDITORIAL_AUTHOR_ID` | Vorhandenes Konto mit Rolle `author`; Standard `redaktion` |
+| `NEWS_LIMIT` | Standard 5 Kandidaten insgesamt pro Lauf, zulässig 1–20; keine vorgeschriebene Veröffentlichungszahl |
+| `NEWS_RUN_BUDGET_MS` | Standard 210000 ms; Route/Daemon begrenzen auf 600000 ms |
+| `CRON_SECRET` | Authentifizierung des Scheduled Tasks |
+| `REVALIDATE_SECRET` | Authentifizierung des separaten internen Cache-Requests |
+| `NEWS_INTERVAL_HOURS` | Nur optionaler Daemon: Standard 1 Stunde, positive Ganzzahl bis 24 |
+
+P3-Trends und P4-YouTube bleiben unabhängig vom News-Flag **Entwurfswege**.
+Details zu Inhalten und Prüfungen:
+[PIPELINE_AND_LLM.md](PIPELINE_AND_LLM.md).
+
+## Pause, Laufsperre und Laufzeit
+
+In `app_settings` trägt der Pausenschalter den Schlüssel
+`pipeline.cron.paused`. Die Werte `true` oder `1` pausieren den Import.
+Route, normaler CLI-Import und optionaler Daemon prüfen vor Arbeitsbeginn
+und erneut vor jedem neuen Kandidaten. Ist die Einstellung nicht lesbar,
+stoppt der Lauf. Ein bereits laufender Artikel wird nicht abrupt beendet.
+
+Eine atomar übernommene Sperre unter `pipeline.news.import.lease` in
+derselben vorhandenen Tabelle schützt gegen parallele News-Importe über
+mehrere Prozesse/Container. Es ist keine Migration nötig.
+
+- Eindeutiger Besitzer je Lauf, Erneuerung alle 30 Sekunden.
+- Nach 30 Minuten ohne Erneuerung ist eine verwaiste Sperre übernehmbar.
+- Nur der Besitzer darf erneuern oder freigeben.
+- Verliert ein Lauf seine Sperre, beginnt er keinen weiteren Kandidaten.
+- Ein konkurrierender Aufruf meldet `skipped: true` und
+  `reason: already-running`; das ist keine Veröffentlichung.
+
+Das Zeitbudget stoppt den **Beginn weiterer Arbeit**. Bereits laufende
+Generierung oder Veröffentlichung wird abgewartet. Ein Timeout wird nicht
+mit einem unbeaufsichtigt weiterpublizierenden Hintergrundprozess
+verwechselt. Die Route deklariert `maxDuration = 900`; Coolify-Aufrufer
+und Proxy brauchen passende eigene Timeouts. Die Code-Deklaration
+konfiguriert diese Infrastruktur nicht automatisch.
+
+RSS-/HTML-Anfragen haben jeweils 20 Sekunden Timeout. Zwischen
+Kandidaten liegen zwei Sekunden Pause. Google-News-Decoding besitzt
+zusätzliche begrenzte Netzwerkaufrufe.
+
+## Auswahl und Wiederholungen
+
+Die HTTP-Route nutzt Cinemaholic, Deadline, Variety, Hollywood Reporter,
+Netflix Tudum und TVLine. Der Funktionsstandard des optionalen Workers
+enthält zusätzlich Google News Streaming.
+
+Pro Quelle gelangen höchstens 60 gefundene Artikel in den Auswahlpool.
+Bestehende `sourceUrl`-Datensätze und bisherige Versuche werden **vor**
+dem Gesamtlimit geprüft. Alte Einträge am Feedanfang blockieren dadurch
+nicht mehr neue Meldungen dahinter. Quellen wechseln sich ab; der
+Startpunkt rotiert in 15-Minuten-Schritten.
+
+- Bestehender Artikel, auch Entwurf: keine erneute Generierung derselben
+  Quelle. Entwürfe gezielt redaktionell bearbeiten.
+- Erfolg innerhalb 24 Stunden oder laufender Versuch innerhalb einer
+  Stunde: zurückstellen.
+- Bekannte inhaltliche Ausschlussgründe: bis zu sieben Tage zurückstellen.
+  Zweimalige inhaltliche Klassifikationsablehnung innerhalb 72 Stunden
+  verhindert wiederkehrende Klassifikationsschleifen.
+- Vorübergehende Fehler: nach einem Fehler 15 Minuten, nach zwei Fehlern
+  eine Stunde, ab drei Fehlern sechs Stunden Pause. Grundlage ist die
+  Endzeit des letzten Versuchs, falls vorhanden.
+- Anbieter-, Netzwerk- und Quotenprobleme erzeugen keine pauschale
+  siebentägige Artikelsperre. Erkannte Anbieterfehler beenden den Batch;
+  weitere Kandidaten bleiben verfügbar.
+- `editorial-dependency` bedeutet nicht abgeschlossene Quellenprüfung;
+  `image-verification` bedeutet nicht bestätigtes Artikelbild.
+  Beides zählt als Fehler, nicht als Veröffentlichung.
+
+RSS-Discovery verwendet standardmäßig 24 Stunden; das harte frühe
+Pipeline-Altersgate liegt bei 72 Stunden. Weitere Prüfungen des
+Quellzeitpunkts und Nachrichtenwerts gelten zusätzlich. Ein altes
+Ereignis wird nicht durch ein frisches Importdatum zur Neuigkeit.
+
+## Öffentliche Anzeige nachholen
+
+Nach dem Artikel-Insert werden Cache-Aktualisierung und öffentliche
+Kontrolle angestoßen. Ein separater authentifizierter HTTP-Request mit
+`REVALIDATE_SECRET` wird bevorzugt. Die direkte Next.js-Revalidierung
+im laufenden Handler ist bis zu dessen Antwort **vorgemerkt**; sie ist
+kein Nachweis, dass ein gleichzeitig ausgeführter öffentlicher GET schon
+neue Daten sieht. Ohne Secret kann deshalb der nächste Cronlauf die
+erste vollständige Sichtbarkeitsbestätigung liefern.
+
+Ein gespeicherter Artikel zählt erst bei bestätigter kanonischer Seite,
+Headline, tatsächlich ausgeliefertem Bild und erwarteter Listenanzeige
+als verifizierte Veröffentlichung. Bei unbestätigter Anzeige bleibt der
+Datensatz bestehen; der Lauf erhält `partial` und
+`errorStep: publication-verification`.
+
+Der nächste Import prüft bis zu drei solche Artikel aus den letzten
+36 Stunden erneut, mit mindestens 15 Minuten Abstand je Artikel.
+Er aktualisiert den Cache und prüft die Anzeige; er generiert keinen
+neuen Text und fügt keinen zweiten Artikel ein. Bei Erfolg wird der
+bisher unbestätigte Lauf auf `success` gesetzt.
+
+Die Carousel-Erwartung folgt der Startseite: neueste Meldungen, höchstens
+eine pro Serie, dann die ersten fünf. Inzwischen verdrängte Meldungen
+müssen nicht dauerhaft im Carousel bleiben; kanonische Seite und Bild
+werden weiterhin geprüft. Offene veröffentlichte Artikel bleiben auch
+bei Cooldown oder ausgeschöpftem Prüfkontingent als ausstehend sichtbar.
+Der offene Bestand zählt eindeutige noch publizierte Artikel, keine
+gelöschten oder zurückgezogenen Datensätze. Offene Fälle außerhalb des
+36-Stunden-Fensters bleiben sichtbar, benötigen aber eine gezielte
+Untersuchung statt weiterer automatischer Nachprüfungen.
+
+## Resultate richtig lesen
+
+| Feld | Bedeutung |
+| --- | --- |
+| `processed` / `attempted` | Angefangene Kandidaten, auch bei Ablehnung oder Fehler |
+| `published` | Neu gespeichert und öffentlich verifiziert |
+| `drafted` | Entwürfe, keine Veröffentlichung |
+| `publicationPending` | Noch offene öffentliche Bestätigungen gespeicherter Artikel |
+| `publicationRecovered` | Frühere Veröffentlichung jetzt erfolgreich nachgeprüft |
+| `failed` / `sourceErrors` | Kandidatenfehler / fehlgeschlagene Quellenabfragen |
+| `deferred` | Wegen Limit, Budget, Pause oder Anbieterproblem zurückgestellt |
+| `skipped` | Bereits behandelte oder inhaltlich ausgeschlossene Kandidaten |
+
+Ein `cron-news`-Lauf kann auch ohne neue Meldung technisch erfolgreich
+enden. HTTP 200 oder sein `status: success` allein beweisen **keinen
+neuen Artikel**. Einzelne `pipeline-v2`-Läufe, Artikeldatensätze und
+öffentliche Kontrollen sind maßgeblich.
+
+Entwürfe, unbestätigte Anzeige, Teilfehler und Budgetende ergeben
+Teilerfolg. Wenn alle Quellen scheitern, ein Anbieter ausfällt oder
+trotz eingeschalteter Automatik über 36 Stunden kein automatisch
+veröffentlichter Artikel nachweisbar ist, antwortet die Route mit
+HTTP 503. Manuelle Artikel verdecken diesen Ausfall nicht.
+
+Lesende Diagnose ohne Konfigurationswerte:
+
+```sql
+SELECT pipeline, trigger, status, "errorStep", "articleSlug",
+       "startedAt", "completedAt", "durationMs"
+FROM pipeline_runs
+WHERE pipeline IN ('pipeline-v2', 'cron-news')
+ORDER BY "startedAt" DESC
+LIMIT 30;
 ```
 
-### Manuelle Ausführung (für Tests)
-```bash
-# TVLine manuell ausführen
-cd /app/serien-nextjs
-npx tsx scripts/tvline-auto-pipeline.ts
+Interne Altlogs vor Weitergabe auf Secrets prüfen. Die neuen
+Scheduler-Fehlerausgaben verwenden sichere Fehlerkategorien.
 
-# CinemaHolic manuell ausführen
-npx tsx scripts/cinemaholic-auto-pipeline.ts
-```
+## Optionaler Daemon
 
----
+`scripts/news-scheduler.ts` ist eine ausdrücklich einzurichtende
+Alternative zum HTTP-Scheduled-Task. Er wartet einen Import vollständig
+ab und beginnt erst danach die konfigurierte Wartezeit. Er nutzt
+denselben Pausenschalter und dieselbe Sperre. Ein Stoppsignal wartet
+den aktiven Import ab.
 
-## 📝 Log-Rotation
+Logs gehen nach stdout. Aufbewahrung und Rotation müssen im eingesetzten
+Containerbetrieb eingerichtet und geprüft werden. Ein eigenes unbegrenzt
+wachsendes `news-scheduler.log` wird nicht mehr erzeugt. Einen zusätzlichen
+Supervisor-Job nicht ohne bewusste Betriebsumstellung starten.
 
-Logs werden automatisch rotiert:
-- **Max Dateigröße**: 10 MB
-- **Backups**: 3
-- **Älteste werden automatisch gelöscht**
+## Einführung in Produktion
 
-Manuelle Log-Bereinigung:
-```bash
-# Alte Logs löschen
-rm /var/log/tvline-pipeline.log
-rm /var/log/cinemaholic-pipeline.log
+1. Produktionsbranch, Commit, Build-Konfiguration, Scheduled Tasks und
+   Deploy-on-push-Trigger live bestätigen. Auf `codex/takeover` bleiben;
+   `main` ohne ausdrückliche Freigabe weder ändern noch mergen oder deployen.
+2. Vor jeder Produktionsänderung aktuelles Datenbankbackup **und**
+   persistente Volume-Backups samt Wiederherstellungsweg verifizieren:
+   Zeitpunkt, Integrität und erreichbaren Speicherort belegen.
+   Ein vorhandenes Volume ist kein Backup.
+3. Lokal `npm run test:pipeline` ausführen und Änderungen prüfen.
+   Isolierte Tests ersetzen keinen Live-Lauf.
+4. Den geprüften Stand über den bestätigten Deploymentweg ausrollen.
+   Anbieterzugang, Autorenkonto und Cron-Authentifizierung ohne
+   Secret-Ausgabe prüfen. Keine Prisma-Migration gegen Produktion.
+5. Einen begleiteten automatischen Einzellauf mit kleinem Kandidatenlimit
+   über den regulären Cronweg durchführen. Quelle, Fakten, Region,
+   Bildzuordnung, gespeicherten Status, kanonische Seite, geladenes Bild,
+   Startseite/Carousel und `/news` gemeinsam kontrollieren. Falls die
+   Revalidierung vorgemerkt blieb, auch den Recovery-Lauf prüfen.
+6. Erst nach diesem Nachweis regelmäßige Automatik freigeben
+   beziehungsweise fortsetzen und die ersten Ergebnisse kontrollieren.
+   Bei Fehlern pausieren und diagnostizieren, nicht Prüfungen abschalten.
 
-# Scheduler neu starten (erstellt neue Logs)
-sudo supervisorctl restart pipeline-scheduler
-```
-
----
-
-## 🛠️ Wartung & Anpassungen
-
-### Zeitplan ändern
-
-**Datei bearbeiten**: `/app/serien-nextjs/scripts/pipeline-scheduler.ts`
-
-```typescript
-// TVLine: Alle 2 Stunden
-cron.schedule('0 */2 * * *', () => { ... });
-
-// Beispiele für andere Frequenzen:
-// Stündlich:        '0 * * * *'
-// Alle 4 Stunden:   '0 */4 * * *'
-// Täglich 10:00:    '0 10 * * *'
-// Zweimal täglich:  '0 9,21 * * *'
-```
-
-**Nach Änderung**:
-```bash
-sudo supervisorctl restart pipeline-scheduler
-```
-
-### Weitere Pipelines hinzufügen
-
-1. **Skript erstellen**: `/app/serien-nextjs/scripts/[source]-auto-pipeline.ts`
-2. **In Scheduler hinzufügen**:
-   ```typescript
-   cron.schedule('0 */2 * * *', () => {
-     runPipeline('[Source]', 'scripts/[source]-auto-pipeline.ts', '/var/log/[source]-pipeline.log');
-   });
-   ```
-3. **Scheduler neu starten**
-
----
-
-## 🚨 Troubleshooting
-
-### Problem: Scheduler läuft nicht
-```bash
-# Status prüfen
-sudo supervisorctl status pipeline-scheduler
-
-# Logs prüfen
-tail -50 /var/log/supervisor/pipeline-scheduler.log
-
-# Neustart erzwingen
-sudo supervisorctl restart pipeline-scheduler
-```
-
-### Problem: Keine Artikel werden verarbeitet
-1. **Logs prüfen**: `tail -50 /var/log/tvline-pipeline.log`
-2. **Manuell testen**: `npx tsx scripts/tvline-auto-pipeline.ts`
-3. **Quell-Website prüfen**: Ist die Seite erreichbar?
-4. **Datenbank prüfen**: Sind bereits alle Artikel verarbeitet?
-
-### Problem: Zu viele Fehler
-1. **Rate Limiting**: Websites blockieren möglicherweise zu häufige Requests
-   - Lösung: Frequenz reduzieren (z.B. auf alle 4 Stunden)
-2. **API-Grenzen**: TMDB oder LLM-APIs haben Limits erreicht
-   - Lösung: Limits überprüfen, ggf. upgraden
-3. **Pipeline-Bug**: Ein Fehler in der Pipeline bricht alle Läufe ab
-   - Lösung: Fehler in den Logs identifizieren und fixen
-
----
-
-## 📈 Performance-Tipps
-
-### Ressourcen-Nutzung optimieren
-- **Parallele Läufe vermeiden**: Zeitversatz beibehalten
-- **Delay zwischen Artikeln**: Aktuell 2-3 Sekunden, kann angepasst werden
-- **Batch-Größe begrenzen**: Nicht mehr als 10-20 Artikel pro Lauf
-
-### Kosten senken
-- **Duplikat-Check**: Verhindert doppelte Verarbeitung (✅ bereits implementiert)
-- **Intelligentes Filtern**: Nur relevante Artikel verarbeiten (✅ bereits implementiert)
-- **Off-Peak Hours**: Günstigere API-Preise nachts (optional)
-
----
-
-## 🔐 Sicherheit
-
-### Best Practices
-- ✅ Logs rotieren automatisch
-- ✅ Fehler werden geloggt, brechen aber nicht den Scheduler
-- ✅ Jede Pipeline läuft isoliert
-- ⚠️ API-Keys in `.env` gespeichert (sicher, aber bei Key-Rotation neu starten)
-
-### Bei Key-Rotation
-```bash
-# .env-Datei aktualisieren
-nano /app/serien-nextjs/.env
-
-# Scheduler neu starten
-sudo supervisorctl restart pipeline-scheduler
-```
-
----
-
-## ✅ Setup-Checklist
-
-- [x] TVLine Auto-Pipeline Skript erstellt
-- [x] CinemaHolic Auto-Pipeline Skript erstellt
-- [x] node-cron installiert
-- [x] Scheduler-Skript erstellt
-- [x] Supervisor-Konfiguration erstellt
-- [x] Scheduler läuft und ist aktiv
-- [x] Logs werden korrekt geschrieben
-- [x] Zeitplan getestet (nächste Läufe: TVLine 16:00, CinemaHolic 15:00)
-
----
-
-## 📞 Support
-
-Bei Problemen:
-1. Logs prüfen (siehe "Monitoring & Verwaltung")
-2. Manuellen Test-Lauf durchführen
-3. Scheduler-Status verifizieren
-4. Im Zweifel: Scheduler neu starten
-
-**Status**: ✅ **FULLY OPERATIONAL**
+Dies ist die Anleitung für die noch ausstehende Einführung. Durchführung
+und Live-Erfolg sind danach separat zu dokumentieren.

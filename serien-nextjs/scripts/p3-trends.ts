@@ -1344,7 +1344,9 @@ ${articleSources}
         : 'P3 erfasst noch keinen strukturierten Quellzeitpunkt; redaktionelle Prüfung erforderlich',
     });
 
-    const releaseModeEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    // The auto-news flag belongs to the source-reviewed news importer only.
+    // Trend generation has not passed that full-source/image/publication gate.
+    const releaseModeEnabled = false;
     editorialGateOutcomes.push({
       gate: 'release-mode',
       status: releaseModeEnabled ? 'pass' : 'fail',

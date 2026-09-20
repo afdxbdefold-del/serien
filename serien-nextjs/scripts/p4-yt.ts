@@ -1222,7 +1222,9 @@ ${additionalSources}
       editorialGateOutcomes.push({ gate: 'freshness', status: 'error', reason });
     }
 
-    const releaseModeEnabled = process.env.AUTOMATED_NEWS_PUBLISHING_ENABLED === 'true';
+    // Video-derived drafts need the full source-reviewed publication workflow.
+    // Enabling automatic news must not silently publish through this legacy path.
+    const releaseModeEnabled = false;
     editorialGateOutcomes.push({
       gate: 'release-mode',
       status: releaseModeEnabled ? 'pass' : 'fail',

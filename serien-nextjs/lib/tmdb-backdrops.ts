@@ -39,7 +39,7 @@ export async function fetchTopBackdrops(
 
     // Fetch images from TMDB
     const url = `${TMDB_BASE_URL}/${type}/${id}/images?api_key=${TMDB_API_KEY}&include_image_language=en,null`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
 
     if (!response.ok) {
       console.error(`TMDB images API failed: ${response.status}`);

@@ -1,3 +1,5 @@
+import { load } from 'cheerio';
+
 /**
  * Content Sanitizer: Remove artificial/placeholder headings from article HTML
  * while preserving legitimate editorial headings like "Zusammenfassung" and "Story"
@@ -73,18 +75,9 @@ function isArtificialHeading(text: string): boolean {
   return artificialPatterns.some(pattern => pattern.test(normalized));
 }
 
-/**
- * Calculate word overlap ratio between two texts (0-1).
- */
-function calculateWordOverlap(a: string, b: string): number {
-  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  if (wordsA.size === 0 || wordsB.size === 0) return 0;
-  let overlap = 0;
-  for (const w of wordsA) {
-    if (wordsB.has(w)) overlap++;
-  }
-  return overlap / Math.min(wordsA.size, wordsB.size);
+/** Compare visible text, decoding entities and ignoring only formatting whitespace. */
+function normalizeVisibleText(html: string): string {
+  return load(html, {}, false).text().normalize('NFC').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -158,25 +151,20 @@ export function sanitizeArticleContent(html: string, excerpt?: string): string {
 
   // STEP 1: Remove duplicate lead if it appears at the start of content
   // The excerpt/lead is shown separately above the content, so remove it from
-  // contentHtml ONLY when it is a near-1:1 repeat (Word-Overlap ≥ 60 %).
-  // Never strip the first <p> unconditionally — that destroys real body text.
+  // contentHtml ONLY when its full visible text exactly equals the excerpt.
+  // Similar wording or a shared opening can still carry additional facts.
   if (excerpt) {
     const excerptClean = excerpt.trim();
-    const firstPMatch = sanitized.match(/<p[^>]*>(.*?)<\/p>/s);
+    const firstPMatch = sanitized.match(/<p[^>]*>([\s\S]*?)<\/p>/);
 
     if (firstPMatch) {
       const firstPContent = firstPMatch[1].trim();
-      const firstPPlain = firstPContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      const excerptPlain = excerptClean.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-
-      const shouldRemove =
-        firstPPlain === excerptPlain ||
-        firstPPlain.startsWith(excerptPlain.substring(0, Math.min(50, excerptPlain.length))) ||
-        excerptPlain.startsWith(firstPPlain.substring(0, Math.min(50, firstPPlain.length))) ||
-        calculateWordOverlap(firstPPlain, excerptPlain) >= 0.6;
+      const firstPPlain = normalizeVisibleText(firstPContent);
+      const excerptPlain = normalizeVisibleText(excerptClean);
+      const shouldRemove = excerptPlain.length > 0 && firstPPlain === excerptPlain;
 
       if (shouldRemove) {
-        sanitized = sanitized.replace(/<p[^>]*>.*?<\/p>/s, '').trim();
+        sanitized = sanitized.replace(/<p[^>]*>[\s\S]*?<\/p>/, '').trim();
       }
     }
   }

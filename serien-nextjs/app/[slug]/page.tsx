@@ -619,7 +619,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 ) : (
                   <InlineVideoPlayer
                     heroImageUrl={heroImageUrlCB || (article.tmdbId && article.tmdbType ? `/img/hero/${article.tmdbType}/${article.tmdbId}` : article.heroLocalUrl!)}
-                    trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
+                    trailerUrl={article.heroVideoUrl || article.trailerLocalUrl || (article.contentType !== 'NEWS' && article.series?.localTrailerPath && article.series.localTrailerPath !== 'unavailable' && article.series.localTrailerPath !== 'SKIP' && article.series.localTrailerPath.startsWith('http') ? article.series.localTrailerPath : null)}
                     title={article.title}
                     fullWidth={false}
                   />

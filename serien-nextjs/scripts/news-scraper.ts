@@ -1,14 +1,17 @@
 /**
- * Valnet TV News Scraper (ScreenRant + Collider)
- * 
- * Scrapes TV news from Valnet-powered sites (same HTML structure)
- * Works on Vercel and other serverless platforms
+ * Multi-source series-news discovery with bounded, serialized pipeline work.
  */
 
-import { load, type Cheerio, type Element } from 'cheerio';
+import { load, type Cheerio } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import { PrismaClient } from '@prisma/client';
-import { runPipelineV2 } from './pipeline-v2';
 import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
+import { acquireNewsImportLease } from '../lib/news-import-lease';
+import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
+import {
+  candidateRetryReason, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT,
+  isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates, SOURCE_TIMEOUT_MS,
+} from '../lib/news-import-reliability';
 
 const prisma = new PrismaClient();
 
@@ -264,6 +267,7 @@ async function scrapeValnetNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   console.log(`🔍 Scraping ${source.name} TV News...\n`);
   
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -283,7 +287,7 @@ async function scrapeValnetNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   const seenUrls = new Set<string>();
   
   // Helper: Decode base64 time from Valnet's data-b64-ts attribute
-  const decodeTimeFromB64 = ($el: Cheerio<Element>): string => {
+  const decodeTimeFromB64 = ($el: Cheerio<AnyNode>): string => {
     const b64Time = $el.find('[data-b64-ts]').first().attr('data-b64-ts');
     if (b64Time) {
       try {
@@ -396,6 +400,7 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
   console.log(`🔍 Scraping ${source.name} TV News (WordPress)...\n`);
   
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Accept': 'text/html',
@@ -430,7 +435,7 @@ async function scrapeWordPressNews(sourceKey: SourceKey): Promise<NewsArticle[]>
       );
       console.log(`   ℹ️  Loaded ${knownSeriesSlugs.size} known series slugs for Cinemaholic override.`);
     } catch (e) {
-      console.warn('   ⚠️  Could not pre-cache series slugs for Cinemaholic filter', e);
+      console.warn('   ⚠️  Could not pre-cache series slugs for Cinemaholic filter', safeNewsError(e));
     }
   }
 
@@ -547,6 +552,7 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   console.log(`🔍 Scraping ${source.name} (RSS)...\n`);
 
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Accept': 'application/rss+xml, application/xml, text/xml',
@@ -561,9 +567,9 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
   const results: NewsArticle[] = [];
   const seenUrls = new Set<string>();
-  // Per-source max-age (default 6h für hochfrequente Quellen wie Netflix Tudum;
-  // für gemächliche Quellen wie What's-on-Netflix kann pro Eintrag erweitert werden).
-  const maxAgeHours = (source as any).maxAgeHours ?? 6;
+  // A 24h discovery window tolerates overnight gaps. The pipeline still verifies
+  // the actual source timestamp before writing any article.
+  const maxAgeHours = (source as any).maxAgeHours ?? 24;
   const ageCutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
 
   for (const item of items) {
@@ -591,7 +597,7 @@ async function scrapeRssNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
     // Only include items within configured max-age window
     if (pubMatch) {
       const pubTime = new Date(pubMatch[1]).getTime();
-      if (!Number.isFinite(pubTime) || pubTime < ageCutoff) continue;
+      if (!Number.isFinite(pubTime) || pubTime < ageCutoff || pubTime > Date.now() + 15 * 60_000) continue;
     }
 
     seenUrls.add(url);
@@ -619,6 +625,7 @@ async function scrapeGoogleNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   console.log(`🔍 Scraping ${source.name} (Google News)...\n`);
 
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       Accept: 'application/rss+xml, application/xml, text/xml',
@@ -686,7 +693,7 @@ async function scrapeGoogleNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   // Decode wrapper URLs in batches of 6 to avoid Google rate-limiting.
   const decoded: NewsArticle[] = [];
   const BATCH = 6;
-  for (let i = 0; i < wrapped.length; i += BATCH) {
+  for (let i = 0; i < Math.min(wrapped.length, 30); i += BATCH) {
     const batch = wrapped.slice(i, i + BATCH);
     const results = await Promise.all(batch.map(async (a) => {
       const real = await decodeGoogleNewsUrl(a.url);
@@ -712,6 +719,7 @@ async function scrapeTudumNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   console.log(`\n📡 ${source.name} (${source.url})`);
 
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
@@ -790,6 +798,7 @@ async function scrapeTvlineNews(sourceKey: SourceKey): Promise<NewsArticle[]> {
   console.log(`\n📡 ${source.name} (${source.url})`);
 
   const response = await fetch(source.url, {
+    signal: AbortSignal.timeout(SOURCE_TIMEOUT_MS),
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
@@ -847,7 +856,7 @@ export async function fetchNewsFromSource(sourceKey: SourceKey): Promise<NewsArt
     return scrapeGoogleNews(sourceKey);
   }
 
-  throw new Error(`Unknown source type: ${source.type}`);
+  throw new Error(`Unsupported source: ${sourceKey}`);
 }
 
 interface ProcessOptions {
@@ -855,9 +864,12 @@ interface ProcessOptions {
   limit?: number;
   dryRun?: boolean;
   onlyNew?: boolean;
+  /** Soft budget: don't start another article after this; finish in-flight work. */
+  maxRunMs?: number;
+  invalidatePublicationCaches?: (paths: string[], tags: string[]) => void | Promise<void>;
 }
 
-interface ProcessStats {
+export interface ProcessStats {
   processed: number;
   published: number;
   drafted: number;
@@ -865,12 +877,39 @@ interface ProcessStats {
   skipped: number;
   sourceErrors: number;
   bySource: Record<string, number>;
+  deferred: number;
+  skipReason?: 'pipeline.cron.paused' | 'already-running';
+  budgetExhausted?: boolean;
+  providerUnavailable?: boolean;
+  publicationPending: number;
+  publicationRecovered: number;
+}
+
+function emptyStats(): ProcessStats {
+  return { processed: 0, published: 0, drafted: 0, failed: 0, skipped: 0,
+    sourceErrors: 0, bySource: {}, deferred: 0, publicationPending: 0, publicationRecovered: 0 };
 }
 
 /**
  * Process news from multiple sources
  */
 export async function processAllNews(options: ProcessOptions = {}): Promise<ProcessStats> {
+  if (options.dryRun) return processNewsBatch(options, async () => {});
+  // A settings outage must never silently bypass an operator's pause switch.
+  const paused = await prisma.app_settings.findUnique({ where: { key: 'pipeline.cron.paused' } });
+  if (paused?.value === 'true' || paused?.value === '1') {
+    return { ...emptyStats(), skipReason: 'pipeline.cron.paused' };
+  }
+  const lease = await acquireNewsImportLease(prisma);
+  if (!lease) return { ...emptyStats(), skipReason: 'already-running' };
+  try {
+    return await processNewsBatch(options, lease.assertHeld);
+  } finally {
+    await lease.release();
+  }
+}
+
+async function processNewsBatch(options: ProcessOptions, assertLease: () => Promise<void>): Promise<ProcessStats> {
   const {
     // DEFAULT SOURCES — screenrant / collider / whats-on-netflix wurden
     // entfernt: hohes Volumen (~430/Monat in Summe), aber schwacher Discover-
@@ -879,35 +918,37 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     // --whatsOnNetflix / --tvinsider triggern. tvinsider raus Juni 2026:
     // Cloudflare-JS-Challenge → kein Full-Text → Halluzinations-Risiko.
     sources = ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline', 'googleNewsStreaming'],
-    limit = 5,
+    limit: requestedLimit = DEFAULT_NEWS_LIMIT,
     dryRun = false,
     onlyNew = true,
   } = options;
+  const limit = positiveInteger(requestedLimit, DEFAULT_NEWS_LIMIT, 20);
+  const maxRunMs = positiveInteger(options.maxRunMs, DEFAULT_NEWS_BUDGET_MS, 15 * 60_000);
+  const deadline = Date.now() + maxRunMs;
 
   console.log('\n' + '='.repeat(70));
   console.log('📰 NEWS SCRAPER (P2 Pipeline)');
   console.log('='.repeat(70));
   console.log(`   Sources: ${sources.join(', ')}`);
-  console.log(`   Limit: ${limit} per source`);
+  console.log(`   Limit: ${limit} total candidates after deduplication`);
   console.log(`   Dry run: ${dryRun}`);
   console.log(`   Only new: ${onlyNew}`);
   console.log('='.repeat(70) + '\n');
 
-  const stats: ProcessStats = {
-    processed: 0,
-    published: 0,
-    drafted: 0,
-    failed: 0,
-    skipped: 0,
-    sourceErrors: 0,
-    bySource: {},
-  };
+  const stats = emptyStats();
 
   try {
+    if (!dryRun) {
+      await assertLease();
+      const recovery = await recoverPendingNewsPublications(prisma, { invalidate: options.invalidatePublicationCaches });
+      stats.publicationPending = recovery.pending;
+      stats.publicationRecovered = recovery.recovered;
+    }
     // Scrape all sources
     let allArticles: NewsArticle[] = [];
     
     for (const sourceKey of sources) {
+      if (Date.now() >= deadline) { stats.budgetExhausted = true; break; }
       try {
         const source = NEWS_SOURCES[sourceKey as SourceKey];
         let articles: NewsArticle[];
@@ -931,10 +972,12 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         const channel = discoveryChannelForType(source.type);
         for (const a of articles) a.discoveryChannel = channel;
 
-        allArticles = allArticles.concat(articles.slice(0, limit));
+        // First feed entries may already exist or have been rejected: only
+        // limit the discovery pool here, then apply the run limit after dedup.
+        allArticles = allArticles.concat(articles.slice(0, 60));
         stats.bySource[sourceKey] = articles.length;
       } catch (error: any) {
-        console.error(`❌ Failed to scrape ${sourceKey}: ${error.message}`);
+        console.error(`❌ Failed to scrape ${sourceKey}: ${safeNewsError(error)}`);
         stats.bySource[sourceKey] = 0;
         stats.sourceErrors++;
       }
@@ -953,122 +996,37 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     if (onlyNew) {
       const newArticles: NewsArticle[] = [];
       
-      // Phase-A Stop-Loss: URLs mit deterministischem Fail-Step nicht erneut
-      // verarbeiten. Diese Steps werden sich auf erneutem Lauf NICHT lösen
-      // (gleiche TMDB-Network, gleiche Source-Blocklist, gleiches Listicle-
-      // Pattern …) → spart bis zu 80% LLM-Calls pro Cron-Run.
-      // Classification kann in Einzelfällen transient sein (Claude-Hiccup),
-      // aber bei ≥2 Fails auf derselben URL ist das deterministisch — Bezug
-      // des Artikels ändert sich nicht. Gesonderter Count-Check weiter unten.
-      const DETERMINISTIC_FAIL_STEPS = [
-        'multi-series-skip',
-        'dach-availability',
-        'blocklist-source',
-        'blocklist-tmdb',
-        'genre-out-of-scope',
-        'topic-out-of-scope',
-        'topic-age-check',           // Article wird nicht jünger → permanent
-        'source-age-check',          // dito
-        'tmdb-no-match',             // TMDB fügt die Show nicht plötzlich hinzu
-        'primary-series-mismatch',
-        'primary-series-unresolvable',
-        'german-angle-coverage',     // DE-Publisher-Coverage verschwindet selten → permanent
-        'duplicate-llm',
-        'duplicate-jaccard-title',
-        'duplicate-core-event',
-        'duplicate-fingerprint',
-        'duplicate-url',
-        'us-context-only',
-        'headline-banned-metaphor',
-        'unreleased-project',
-        'sammel-recap',
-        'plagiarism-similar-article',  // TF-Cosine matched an existing recent article → permanent
-        'us-streaming-only',            // News is exclusively US streaming event with token DACH side-note
-        // 'per-series-cap' (Juni 2026): Wenn eine Serie ihr 5-Artikel/Monat
-        // Limit gerissen hat, lockert sich das innerhalb der nächsten 7 Tage
-        // praktisch nie — eine kreisförmige Re-Verarbeitung alle 15 Min
-        // verbrennt nur Source-Slots. Cap hebt sich frühestens nach 30 Tagen
-        // auf, ein 7-Tage-Skip ist konservativ.
-        'per-series-cap',
-      ];
-      const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
+      // Batch-read history for the complete discovery pool. Filtering BEFORE
+      // the run limit lets unseen stories behind old feed entries get a turn.
+      const urls = Array.from(new Set(allArticles.map((article) => article.url)));
+      const [existingArticles, previousAttempts] = await Promise.all([
+        prisma.articles.findMany({
+          where: { sourceUrl: { in: urls } }, select: { sourceUrl: true },
+        }),
+        prisma.pipeline_runs.findMany({
+          where: { pipeline: 'pipeline-v2', inputSource: { in: urls },
+            startedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60_000) } },
+          select: { inputSource: true, status: true, errorStep: true,
+            errorMessage: true, startedAt: true, completedAt: true },
+          orderBy: { startedAt: 'desc' },
+        }),
+      ]);
+      const existingUrls = new Set(existingArticles.map((article) => article.sourceUrl));
+      const attemptsByUrl = new Map<string, typeof previousAttempts>();
+      for (const attempt of previousAttempts) {
+        if (!attempt.inputSource) continue;
+        const attempts = attemptsByUrl.get(attempt.inputSource) || [];
+        attempts.push(attempt);
+        attemptsByUrl.set(attempt.inputSource, attempts);
+      }
       for (const article of allArticles) {
-        // Check 1: Published article exists
-        const exists = await prisma.articles.findFirst({
-          where: { sourceUrl: article.url },
-          select: { id: true }
-        });
-
-        // Check 2: URL was successfully processed in last 24h.
-        const recentSuccess = !exists ? await prisma.pipeline_runs.findFirst({
-          where: {
-            inputSource: article.url,
-            status: 'success',
-            startedAt: { gte: TWENTY_FOUR_HOURS_AGO },
-          },
-          select: { id: true }
-        }) : null;
-
-        // Check 3: URL hit a deterministic-fail step in last 7 days → permanently skip.
-        const detFail = !exists && !recentSuccess ? await prisma.pipeline_runs.findFirst({
-          where: {
-            inputSource: article.url,
-            status: 'failed',
-            errorStep: { in: DETERMINISTIC_FAIL_STEPS },
-            startedAt: { gte: SEVEN_DAYS_AGO },
-          },
-          select: { id: true, errorStep: true }
-        }) : null;
-
-        // Check 4: URL failed `classification` ≥2× in the last 3 days. Single
-        // Claude-Hiccup kann transient sein, aber 2+ Fails in 72h bedeuten:
-        // Artikel ist strukturell kein TV-Serien-Content (Sport, Politik,
-        // Movie-Listicle …). Ohne diese Heuristik geht dieselbe URL alle 15
-        // Min wieder durch den Classifier → tausend unnötige LLM-Calls/Tag.
-        const THREE_DAYS_AGO = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-        const clsFailCount = !exists && !recentSuccess && !detFail ? await prisma.pipeline_runs.count({
-          where: {
-            inputSource: article.url,
-            status: 'failed',
-            errorStep: 'classification',
-            startedAt: { gte: THREE_DAYS_AGO },
-          },
-        }) : 0;
-        const clsFailedRepeatedly = clsFailCount >= 2;
-
-        // Check 5: 3-STRIKE-RULE — wenn EINE URL ≥3× in 7 Tagen aus IRGENDEINEM
-        // Grund failed (auch nicht-deterministischen), markieren wir sie als
-        // permanent unbrauchbar. Schützt gegen Sources die durch transiente
-        // Fehler kreisen (DNS-Timeouts, partial-scrape-Fehler, Race-Conditions
-        // mit anderen Caps wie daily-cap-during-fill etc.). Konservativ: 3×
-        // bedeutet wirklich permanent broken, einzelne Hiccups gehen durch.
-        const anyFailCount = !exists && !recentSuccess && !detFail && !clsFailedRepeatedly
-          ? await prisma.pipeline_runs.count({
-              where: {
-                inputSource: article.url,
-                status: 'failed',
-                startedAt: { gte: SEVEN_DAYS_AGO },
-              },
-            })
-          : 0;
-        const threeStrikesOut = anyFailCount >= 3;
-
-        if (!exists && !recentSuccess && !detFail && !clsFailedRepeatedly && !threeStrikesOut) {
-          newArticles.push(article);
-        } else {
-          const reason = exists
-            ? 'exists'
-            : recentSuccess
-              ? 'recent-success'
-              : detFail
-                ? `det-fail:${detFail.errorStep}`
-                : clsFailedRepeatedly
-                  ? `cls-repeat:${clsFailCount}×`
-                  : `3-strike:${anyFailCount}×`;
+        const reason = existingUrls.has(article.url) ? 'exists'
+          : candidateRetryReason(attemptsByUrl.get(article.url) || []);
+        if (reason) {
           console.log(`⏭️  SKIP (${reason}): ${article.title.substring(0, 50)}...`);
           stats.skipped++;
+        } else {
+          newArticles.push(article);
         }
       }
       articlesToProcess = newArticles;
@@ -1080,12 +1038,30 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
       return stats;
     }
 
+    const eligibleCount = new Set(articlesToProcess.map((article) => article.url)).size;
+    articlesToProcess = selectNewsCandidates(articlesToProcess, limit, Math.floor(Date.now() / (15 * 60_000)));
+    stats.deferred = eligibleCount - articlesToProcess.length;
+
     // Process articles
     console.log('='.repeat(70));
     console.log(`📝 Processing ${articlesToProcess.length} articles:`);
     console.log('='.repeat(70));
 
-    for (const article of articlesToProcess) {
+    for (const [index, article] of articlesToProcess.entries()) {
+      if (Date.now() >= deadline) {
+        stats.budgetExhausted = true;
+        stats.deferred += articlesToProcess.length - index;
+        break;
+      }
+      await assertLease();
+      if (!dryRun) {
+        const pause = await prisma.app_settings.findUnique({ where: { key: 'pipeline.cron.paused' } });
+        if (pause?.value === 'true' || pause?.value === '1') {
+          stats.skipReason = 'pipeline.cron.paused';
+          stats.deferred += articlesToProcess.length - index;
+          break;
+        }
+      }
       console.log(`\n🔄 [${article.source}] ${article.title}`);
       console.log(`   ${article.url}`);
       console.log(`   ⏰ ${article.timeAgo || 'Unbekannt'}`);
@@ -1096,7 +1072,11 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
         continue;
       }
       
+      const attemptStartedAt = new Date();
+      stats.processed++;
       try {
+        // A paused/dry-run scraper must not instantiate any LLM clients.
+        const { runPipelineV2 } = await import('./pipeline-v2');
         const pipelineResult = await runPipelineV2({
           title: article.title,
           url: article.url,
@@ -1106,20 +1086,42 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
           trigger: 'cron',
           discoveryChannel: article.discoveryChannel || 'rss-direct',
         });
-        stats.processed++;
-        if (pipelineResult?.status === 'published') {
+        if (pipelineResult?.status === 'published' && pipelineResult.publicationVerified) {
           stats.published++;
           console.log('   ✅ PUBLISHED');
+        } else if (pipelineResult?.status === 'published') {
+          stats.publicationPending++;
+          console.log('   Publication saved; public visibility pending recheck');
         } else if (pipelineResult?.status === 'draft') {
           stats.drafted++;
           console.log('   📝 REVIEW DRAFT');
         } else {
-          stats.skipped++;
-          console.log('   ⏭️  SKIPPED (see pipeline_runs for reason)');
+          // Pipeline gates normally return null; distinguish editorial rejection
+          // from a swallowed provider outage before calling this a healthy run.
+          const lastAttempt = await prisma.pipeline_runs.findFirst({
+            where: { pipeline: 'pipeline-v2', inputSource: article.url, startedAt: { gte: attemptStartedAt } },
+            orderBy: { startedAt: 'desc' }, select: { errorMessage: true, errorStep: true },
+          });
+          if (lastAttempt?.errorStep === 'editorial-dependency' || isProviderFailure(lastAttempt?.errorMessage || '')) {
+            stats.failed++;
+            stats.providerUnavailable = true;
+          } else if (lastAttempt?.errorStep === 'image-verification') {
+            stats.failed++;
+          } else {
+            stats.skipped++;
+            console.log('   ⏭️  SKIPPED (see pipeline_runs for reason)');
+          }
         }
       } catch (error: any) {
         stats.failed++;
-        console.log(`   ❌ FAILED: ${error.message}`);
+        stats.providerUnavailable = isProviderFailure(error instanceof Error ? error.message : String(error));
+        console.log(`   ❌ FAILED: ${safeNewsError(error)}`);
+      }
+
+      if (stats.providerUnavailable) {
+        stats.deferred += articlesToProcess.length - index - 1;
+        console.log('   Provider unavailable; remaining candidates deferred until next run');
+        break;
       }
       
       // Delay between articles
@@ -1143,10 +1145,8 @@ export async function processAllNews(options: ProcessOptions = {}): Promise<Proc
     return stats;
 
   } catch (error: any) {
-    console.error('❌ Scraper error:', error.message);
+    console.error('❌ Scraper error:', safeNewsError(error));
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -1157,7 +1157,7 @@ export { processAllNews as processScreenrantNews };
 // CLI usage
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const limit = parseInt(args.find(a => a.startsWith('--limit='))?.split('=')[1] || '5');
+  const limit = positiveInteger(args.find(a => a.startsWith('--limit='))?.split('=')[1], DEFAULT_NEWS_LIMIT, 20);
   const dryRun = args.includes('--dry-run');
   const screenrantOnly = args.includes('--screenrant');
   const colliderOnly = args.includes('--collider');
@@ -1171,6 +1171,7 @@ if (require.main === module) {
   if (deadlineOnly) sources = ['deadline'];
   
   processAllNews({ sources, limit, dryRun, onlyNew: true })
-    .then(() => process.exit(0))
-    .catch(() => process.exit(1));
+    .then((stats) => { process.exitCode = stats.failed > 0 || stats.providerUnavailable ? 1 : 0; })
+    .catch(() => { process.exitCode = 1; })
+    .finally(() => prisma.$disconnect());
 }
