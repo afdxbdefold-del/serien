@@ -41,6 +41,9 @@ ARG DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public"
 ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Build-only V8 heap ceiling. The external builder additionally caps total
+# RAM, swap and CPU; do not carry this setting into the independent runner.
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
