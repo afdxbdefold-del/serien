@@ -1,10 +1,16 @@
-# Astra-News: lokaler Umbau und Abnahme
+# Astra-News: Umbau, Abnahme und Rollout
 
 Stand: 21. September 2026, ausschließlich Branch `codex/takeover`.
 Ausgangspunkt dieser Runde: `b04d34de634120f7a4636f04b31066ce796194b4`.
-**Lokal umgesetzt, nicht gepusht oder ausgerollt.** Der vorherige Live-Audit
-bleibt historischer Produktionsbeleg; ein erfolgreicher GPT-5.4-Probeaufruf
-ist kein Nachweis für Astra-Zugriff oder redaktionelle Qualität.
+**Rollout wegen starker Host-Überlastung gestoppt; Astra noch nicht live.**
+Der Takeover-Stand ist auf GitHub verfügbar. Coolify hat am 21. September 2026
+um 09:35 UTC das manuelle Deployment von
+`fbd68a98163631251e7b1e19e306780bfbc80db1` begonnen. Ein gestarteter Build ist
+noch kein Nachweis, dass dieser Commit gesund in Produktion läuft oder ein
+erster echter Artikel erfolgreich veröffentlicht wurde. Die bisherige Produktion
+`2d75e26` ist nach dem Abbruch wieder gesund. `main` bleibt unberührt.
+Der frühere GPT-5.4-Test bleibt nur historischer Beleg; der Astra-Zugriff wurde
+für diesen Rollout separat geprüft, siehe datierten Nachtrag unten.
 
 ## Verbindlicher redaktioneller Auftrag
 
@@ -121,22 +127,108 @@ sind nicht dadurch vollständig modernisiert oder für Automatik freigegeben.
   erzeugte JavaScript zu verändern. Compile-Build und Regressionstests
   ersetzen die spätere Behebung der übrigen Typfehler nicht.
 
-Noch erforderlich vor Produktion:
+## Rollout-Nachtrag: 21. September 2026, 09:35 UTC
 
-1. Astra-Modellzugriff über das vorhandene eigene OpenAI-Projekt sicher prüfen;
-   lokale Implementierung und Mocktests bestätigen keine Accountberechtigung.
-2. Echte Modellabnahme der sieben Fälle und zusätzlicher aktueller Originalquellen:
-   natürliche deutsche Sprache, Fakten, Deutschlandrelevanz, Laufzeiten/Kosten.
-   Keine synthetischen Artikel veröffentlichen.
-3. Frische Datenbank-/Volume-Backups und isolierten Restore-Weg erneut bestätigen,
-   externe private Kopie und fehlenden automatischen Backupplan klären.
-4. Separate Betreiberfreigabe für Rollout. **Push nach `codex/takeover` kann
-   Produktion deployen**, daher auch keinen bloßen „Testpush“ durchführen.
-5. Coolify-Task-Timeout auf vollständigen Einzellauf abstimmen; der letzte Audit
-   zeigte 300 Sekunden Tasklimit, 900 Sekunden Handlerlimit und 210 Sekunden
-   weiches Startbudget. Das Startbudget beendet keinen laufenden Artikel.
-6. Ein begleiteter freigegebener End-to-End-Lauf, echtes Bild und öffentliche
-   Anzeige kontrollieren; erst danach Pausenschalter/Automatik freigeben.
+Nach Betreiberfreigabe wurden folgende Voraussetzungen tatsächlich geprüft:
 
-Keine Prisma-Migration, Secretrotation, DNS-, R2-Berechtigungs- oder Coolify-
-Änderung gehört zu diesem lokalen Umbau.
+- Der vorhandene eigene OpenAI-Zugang beantwortete den getrennten Probeaufruf
+  für `gpt-6-astra` mit HTTP 200. Das bestätigt Modellzugriff, nicht allein
+  Artikelqualität; keine Zugangsdaten wurden ausgegeben.
+- Die sieben synthetischen Redaktionsfälle liefen mit echten Astra-Aufrufen
+  in einer getrennten Node-20-Testumgebung. Alle sieben automatischen
+  Fallprüfungen bestanden; sämtliche manipulierten Fakten-Gegenproben des
+  Harness wurden erkannt. Keine Datenbankanbindung und keine Veröffentlichung
+  synthetischer Texte. Geprüfter Quellenstand: `efc1621e`; Writer, Quellenreview
+  und Evaluationsfälle sind im Deploystand `fbd68a98` identisch.
+- Die erzeugten Texte wurden zusätzlich durch den Agenten sprachlich gesichtet.
+  Das ist **keine menschliche Redaktionsabnahme**. Eine solche wird hier nicht
+  behauptet; die synthetischen Fälle beweisen auch noch keinen echten RSS-,
+  TMDB-, Datenbank-, Bild- oder öffentlichen Publikationslauf.
+- Die am selben Morgen erstellten logischen und physischen Sicherungen unter
+  `/data/coolify/backups/serien-manual/20260921-onQQ0y/` sind isoliert
+  wiederhergestellt worden. Prüfsummen und Restore-Nachweise wurden vor dem
+  Rollout erneut geprüft. Eine frische private Offsite-Kopie und eine
+  automatische überwachte Backupplanung bleiben offen.
+- Der automatische Deploytrigger wurde vor dem Push vorübergehend auf
+  ausschließlich manuelle Deployments gestellt. So konnte der geprüfte Branch
+  bereitgestellt werden, ohne bereits durch den Push Produktion zu ersetzen.
+  Das genannte Deployment wurde anschließend gezielt manuell gestartet.
+- Für die begleitete Abnahme sind `NEWS_LIMIT=1` und
+  `AUTOMATED_NEWS_PUBLISHING_ENABLED=true` gesetzt, während
+  `pipeline.cron.paused` weiterhin aktiv bleibt. Ein gesetztes Release-Flag
+  allein hebt die globale Pause nicht auf. Ein Kandidat bedeutet außerdem
+  nicht garantiert einen freigegebenen Artikel.
+- Das News-Task-Zeitfenster wurde auf 3600 Sekunden abgestimmt. Die einzelnen
+  Modellversuche können einschließlich einer Revision bereits bis zu
+  1500 Sekunden beanspruchen, zusätzlich zu Wartezeiten und übrigen Diensten.
+  Bestehende TMDB-Aufrufe sind nicht durchgehend zeitbegrenzt: 3600 Sekunden
+  sind ein praktisches beaufsichtigtes Fenster, **keine garantierte maximale
+  Laufzeit**. Das 210-Sekunden-Startbudget und `maxDuration=900` ersetzen keinen
+  zuverlässigen Abbruch laufender Arbeit. Nach Client-Timeout zuerst Run und
+  Lease prüfen, niemals unbesehen einen zweiten Import auslösen.
+- Der zusätzliche Dashboard-Fix verhindert, dass bloßes Öffnen der Übersicht
+  laufende Jobs nach zehn Minuten als fehlgeschlagen markiert. Vollständige
+  lokale Regressionstests und Compile-Build des Deploystands bestanden;
+  die bekannten projektweiten Typdiagnosen sind dadurch nicht behoben.
+
+Noch offen bei Beginn dieses Deployments:
+
+1. Erfolgreichen Coolify-Build, tatsächlich gestarteten Commit, Containerzustand
+   und öffentliche Website bestätigen. Bis dahin nicht als live abgeschlossen
+   melden; keinen zweiten Deploy parallel starten.
+2. Genau einen beaufsichtigten echten Quellenkandidaten unter Ausschluss
+   konkurrierender News-/P3-/P4-Läufe prüfen. Globale Pause erst dafür kurz
+   freigeben und bis zur Abnahme wieder aktivieren. Originalquelle, belegten
+   Deutschlandbezug, natürliches Deutsch, Fakten und Artikelpaket prüfen.
+3. Bei einer tatsächlichen Veröffentlichung den gespeicherten Datensatz,
+   Canonical, ausgelieferte Bilddatei, Startseiten-Karussell und News-Liste
+   gemeinsam bestätigen. `partial/publication-verification` verlangt einen
+   Sichtbarkeits-Recheck des bestehenden Artikels, keine neue Generierung.
+4. Erst nach bestandener Ende-zu-Ende-Abnahme die regelmäßige Automatik
+   freigeben und Fehler-/Freshness-Beobachtung bestätigen. Offsite-Sicherung
+   und automatische Backupplanung bleiben als getrennte Betriebsaufgaben offen.
+
+Keine Prisma-Migration, Secretrotation, DNS- oder R2-Berechtigungsänderung ist
+Teil dieses Rollouts. Coolify-Änderungen beschränken sich auf den kontrollierten
+Deploytrigger, die genannte News-Laufzeitkonfiguration und das freigegebene
+App-Deployment; die Produktionsdatenbank wird nicht neu gestartet.
+
+## Abbruch und sichere Wiederaufnahme
+
+Der Build vom 21. September 09:34:58 UTC verursachte auf dem 3819-MiB-Host
+ohne Swap starke Speicher- und I/O-Belastung. Gemessen wurden 151 MiB freier
+verfügbarer Speicher und eine Last von 52.64; öffentliche Website und Coolify
+lieferten vorübergehend Timeouts. Ein OOM-Kill ist damit nicht nachgewiesen.
+Nur der neue Build-Helfer wurde gezielt gestoppt, nicht App oder Datenbank.
+Coolify führt das Deployment nach 09m12s als fehlgeschlagen.
+
+Danach verschwanden die beobachteten Build-Prozesse. Um 09:46 UTC antworteten
+Origin und öffentlicher Healthcheck mit HTTP 200; die alte App war gesund,
+hatte weiterhin null Neustarts und `OOMKilled=false`. Rund 1144 MiB waren
+wieder verfügbar. Die Datenbank zeigte unverändert 4360 Artikel und die
+aktive globale Pipeline-Pause. Auch die öffentliche Startseite wurde danach
+mit HTTP 200 und vorhandenem Artikelinhalt geprüft.
+
+News-, YouTube- und Video-Schedules bleiben für die nicht abgeschlossene
+Abnahme deaktiviert. Push-Deployments bleiben bewusst gesperrt; ein erneuter
+unbegrenzter Build könnte die Website wieder beeinträchtigen. Die neuen
+Runtime-Variablen sind in Coolify hinterlegt, aber nicht in den weiterhin
+laufenden alten Container übernommen. Es wurde kein News-Testlauf in
+Produktion gestartet und kein synthetischer Artikel veröffentlicht.
+
+Lokal sind nun ein einzelner Next-Seitenworker, eine parallele Seitengenerierung
+und Webpack-Speicheroptimierung mit Regressionstests vorbereitet. Vollständige
+Tests, gezielter Lint und Compile-Build bestanden. Ein vollständiger lokaler
+Build kompilierte erfolgreich und erreichte die statische Generierung, stoppte
+dann erwartungsgemäß am Datenbank-Prerender mit der absichtlich unerreichbaren
+Platzhalterdatenbank. Das ist kein grüner vollständiger Produktionsbuild.
+
+Diese Next-Einstellungen sind kein Gesamt-Speicherlimit. Vor dem nächsten
+Versuch muss entweder das tatsächlich ausführende Build-Cgroup wirksam
+begrenzt und geprüft werden oder ein freigegebener separater Linux-Builder
+verwendet werden. Ein App-Runtime- oder Helper-Limit allein genügt nicht.
+Docker Engine 29.6.1 und Buildx 0.35.0 wurden beobachtet; lokale Docker-
+Build-Infrastruktur ist nicht eingerichtet. Danach folgen weiterhin die
+oben beschriebenen echten Quellen-, Bild- und Sichtbarkeitsprüfungen vor
+Freigabe der Automatik. Keine Änderung der Servergröße oder neue kostenpflichtige
+Infrastruktur ohne Betreiberentscheidung.

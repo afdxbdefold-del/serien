@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   // schrumpft von ~1.5 GB auf ~180 MB.
   output: 'standalone',
 
+  // Builds share the production host with the app and database. Serialize
+  // page generation and reduce Webpack's peak memory; these are not a
+  // substitute for an independently enforced build-container resource limit.
+  experimental: {
+    cpus: 1,
+    staticGenerationMaxConcurrency: 1,
+    webpackMemoryOptimizations: true,
+  },
+
   typescript: {
     ignoreBuildErrors: true,
   },
