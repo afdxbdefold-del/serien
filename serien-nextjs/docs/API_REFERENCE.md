@@ -152,7 +152,7 @@ Schedulern wie Vercel Cron / Coolify Scheduled Tasks / Crontab aufgerufen).
 |---|---|---|
 | `health` | GET | Health-Check-Endpoint (für Docker/Coolify/Load-Balancer-Probes) |
 | `debug-headers` | GET | Debug: eingehende Request-Header spiegeln |
-| `debug/llm-version` | GET | Debug: aktuell konfiguriertes LLM-Modell/Key-Typ anzeigen |
+| `debug/llm-version` | GET | Admin: News-Modell/Reasoning, Key nur als vorhanden/nicht vorhanden; kleiner kostenpflichtiger Astra-Probeaufruf, keine Secrets/Provider-Rohfehler |
 | `indexnow` | POST | IndexNow-Ping an Bing/Yandex bei neuem Content |
 | `internal/revalidate` | POST | ISR-Cache-Revalidation für einzelne Pfade |
 | `internal/revalidate-sitemap` | POST | Sitemap-Cache-Invalidierung nach Publish (schreibt `sitemap_prewarm_log`) |

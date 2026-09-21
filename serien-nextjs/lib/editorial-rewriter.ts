@@ -249,7 +249,7 @@ if (require.main === module) {
     });
     
     console.log('\nREWRITTEN ARTICLE:');
-    const paras = result.rewritten_article_html.match(/<p>(.*?)<\/p>/g) || [];
+    const paras: string[] = result.rewritten_article_html.match(/<p>(.*?)<\/p>/g) || [];
     paras.forEach((p, i) => {
       const text = p.replace(/<\/?p>/g, '');
       console.log(`\n[Absatz ${i + 1}]`);

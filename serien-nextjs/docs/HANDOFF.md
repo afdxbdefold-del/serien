@@ -13,7 +13,8 @@ Ordner (`serien-nextjs/docs/`):
 | **`TAKEOVER_STATUS.md`** | Verifizierter Übernahmestand, No-Go-Kriterien und benötigte Zugänge |
 | **`API_REFERENCE.md`** | Alle ~90 API-Routen mit Methode, Zweck, Auth-Anforderung |
 | **`DATA_MODEL.md`** | Alle 43 Prisma-Modelle mit Zweck, Relationen, wichtigen Feldern |
-| **`PIPELINE_AND_LLM.md`** | Kompletter News-Pipeline-Ablauf, LLM-Konfiguration, GPT-5-Fallen |
+| **`PIPELINE_AND_LLM.md`** | News-Ablauf, Astra-Konfiguration und verbindliche Deutschlandrelevanz |
+| **`NEWS_PIPELINE_ASTRA.md`** | Lokaler Umbau, entfernte Altregeln, Tests und offene Modell-/Rolloutabnahme |
 | **`AD_STACK.md`** | ads.txt, Prebid/Yieldlab, TheMoneytizer/CMP, Primis/Freestar, Diagnose-Tools |
 | **`OPERATIONS_RUNBOOK.md`** | Betriebs-Runbook: "keine News", "OpenAI 429", Supervisor-Fallen, Troubleshooting |
 | **`PIPELINE_LIVE_AUDIT_2026-09-21.md`** | Aktueller Branch/Commit, aktive Pause, Tasks, neue Backups und getrennte Restore-Nachweise |
@@ -65,7 +66,7 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 | Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Image `postgres:17-alpine`, Zugriff über **Prisma ORM 6.19.2**. Das leere Feld für die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver Datenbankname ist daher `postgres`. Persistenz: Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`. Neon wird nicht verwendet. |
 | Backups | Coolify hat weiterhin keinen automatischen Backupplan. Am 21. September wurden nach Freigabe ein neuer Custom-Dump und ein konsistentes physisches Basebackup erstellt; SHA-256/Gzip bestanden. Beide erfolgreich in getrennten netzwerkisolierten PostgreSQL-17-Testcontainern wiederhergestellt: 4.360 Artikel, 44 Tabellen. Neue Offsite-Kopie offen; siehe Live-Audit. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
-| LLM (Text) | OpenAI, Modell-String `gpt-5.4` (siehe `lib/llm-config.ts`), über eigenen `OPENAI_API_KEY`, direktes `openai` npm-SDK (v6.25.0) |
+| LLM (Text) | News lokal `gpt-6-astra` / `low`, sonstige Texte bisher `gpt-5.4`; direkter eigener `OPENAI_API_KEY` und `openai` SDK. Keine Aussage über bereits ausgerolltes Modell. |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
@@ -162,7 +163,7 @@ kanonische Liste steht in `.env.example`.
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL-Verbindungs-URL; in Produktion zeigt sie auf den privaten Coolify-Datenbankservice. | **Ja** |
 | `DIRECT_URL` | Direkte PostgreSQL-Verbindung für Prisma-CLI-Schritte. In `prisma/schema.prisma` referenziert (`directUrl = env("DIRECT_URL")`), im verifizierten Coolify-App-Environment aber nicht vorhanden. Vor jedem Schema-/Migrationsversuch müssen Backup, Schema-Baseline und diese Variable separat geprüft werden; gegen Produktion sind Migrationen bis dahin gesperrt. | Für Prisma-CLI/Build prüfen; nicht für normale Runtime-Queries |
-| `OPENAI_API_KEY` | Eigener OpenAI-Key — treibt Text (`gpt-5.4`) + Bild (`gpt-image-1`) | Ja; kein unterstützter Produktions-Fallback |
+| `OPENAI_API_KEY` | Eigener OpenAI-Key — News lokal Astra, sonstige Texte bisher GPT-5.4; Bildpfade gesondert | Ja; kein unterstützter Produktions-Fallback |
 | `EMERGENT_LLM_KEY` | Legacy-Kompatibilität für einen noch vorhandenen Emergent-Proxy-Codepfad. Der Variablenname existiert in Produktion, ist auf dem aktuellen Hetzner-Host aber kein belastbarer Failover und soll nach vollständiger Inventarisierung entfallen. | Nein |
 | `TMDB_API_KEY` | The Movie Database — Serien-/Episoden-Metadaten | Ja |
 | `JWT_SECRET` | Signatur-Secret für Admin-/User-Login-Tokens (`lib/auth.ts`) | Ja |
@@ -206,18 +207,21 @@ entbehrliche Datenbank gedacht und dürfen nicht auf Produktion zeigen.
 
 ## 7. News-Pipeline & LLM — Kurzüberblick
 
-Voller Ablauf inkl. aller Gate-Checks, Fehlerpfade und GPT-5-Besonderheiten:
+Voller Ablauf inkl. aller Gate-Checks, Fehlerpfade und Astra-Kompatibilität:
 **`PIPELINE_AND_LLM.md`**.
 
 Kurzfassung: `scripts/news-scheduler.ts` kann als Dauerprozess (`setInterval`)
 laufen und übergibt neue Funde aus `scripts/news-scraper.ts`
-(`processAllNews`) an `scripts/pipeline-v2.ts` (`runPipelineV2`, 3185 Zeilen).
+(`processAllNews`) an `scripts/pipeline-v2.ts` (`runPipelineV2`).
 In der am 1. September 2026 verifizierten Produktion läuft dieser Daemon
 jedoch nicht: Coolify Scheduled Tasks rufen stattdessen die geschützten
 `/api/cron/*`-Routen auf. Der komplette Pipeline-Weg reicht von der Roh-URL
-bis zum publizierten, SEO-optimierten, bebilderten deutschen Artikel inklusive
-Klassifikation, Fact-Checking, Charakter-Import, Hero-Bild, Trailer-Suche,
-Sitemap-Prewarm, Facebook-Post und Google-Indexing.
+bis zum belegten, bebilderten deutschen Artikel: Klassifikation, Serienzuordnung,
+Ereignisvergleich, Fakten, Writer, vollständige Quellen-/Deutschlandprüfung,
+Bildnachweis und bestätigte öffentliche Anzeige. Generische Trailer,
+Charakter-Bioimporte und nachträgliche ungeprüfte Textergänzungen gehören
+nicht mehr zur automatischen NEWS-Strecke. Verteilungsfunktionen haben
+separate Ergebnisse; ein Indexierungsaufruf beweist keine Google-Aufnahme.
 
 ## 8. Ad-Stack — Kurzüberblick
 

@@ -173,7 +173,7 @@ export function validateInternalLinks(
   }
 
   // Rule 2: Series name must appear in links exactly as-is
-  const links = html.match(/<a [^>]*>([^<]+)<\/a>/g) || [];
+  const links: string[] = html.match(/<a [^>]*>([^<]+)<\/a>/g) || [];
   links.forEach(link => {
     if (link.includes(seriesName)) {
       // Check if series name is altered

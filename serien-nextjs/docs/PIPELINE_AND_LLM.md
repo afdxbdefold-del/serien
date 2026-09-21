@@ -1,6 +1,6 @@
 # News-Pipeline und LLM-Integration
 
-Stand: 20. September 2026, lokaler Arbeitsstand auf `codex/takeover`.
+Stand: 21. September 2026, lokaler Astra-Arbeitsstand auf `codex/takeover`.
 
 **Die neue Pipeline ist lokal umgesetzt, aber noch nicht ausgerollt.
 Dieses Dokument beschreibt den Code, keinen erfolgreichen Produktivlauf.**
@@ -9,8 +9,8 @@ Konfiguration und Betriebsablauf stehen in
 
 ## Ziel und Grenze
 
-Automatisch publiziert werden sollen eigenständige, konkrete und belegte
-Serienmeldungen. Umfang richtet sich nach der Substanz. Die Pipeline
+Automatisch publiziert werden sollen ausschließlich **für Deutschland relevante**,
+eigenständige, konkrete und belegte Serienmeldungen. Umfang richtet sich nach der Substanz. Die Pipeline
 veröffentlicht bei fehlender Evidenz nicht ungeprüft und dokumentiert
 den Grund. Auch diese Prüfungen garantieren keine absolute Fehlerfreiheit.
 
@@ -22,7 +22,12 @@ Vor einem Rollout tatsächlichen Branch, Commit und Deploy-Trigger prüfen.
 ## Direkter OpenAI-Zugang
 
 `lib/llm-config.ts` verwendet ausschließlich den eigenen
-`OPENAI_API_KEY`, `https://api.openai.com/v1` und `gpt-5.4`.
+`OPENAI_API_KEY` und `https://api.openai.com/v1`.
+Die aktive News-Klassifikation, Dublettenprüfung, Faktenextraktion, der NEWS-Writer
+und die vollständige Schlussprüfung einschließlich Revision verwenden
+`gpt-6-astra` mit `reasoning_effort: low`, zentral über `getNewsRequestConfig`.
+`low` ist eine kompatible Ausgangskonfiguration, kein Qualitätsnachweis.
+Andere Formate, Bios und SEO behalten vorerst ihren vorhandenen `gpt-5.4`-Pfad.
 Ein fehlender Key oder Emergent-Key im OpenAI-Feld führt zu einem Fehler.
 Es gibt für den gemeinsamen Text-Client keinen stillen Anbieterwechsel
 und keinen Emergent-Fallback.
@@ -32,6 +37,14 @@ SDK-Wiederholung. Die vollständige Redaktionsprüfung verwendet für ihre
 strukturierten Aufrufe 120 Sekunden Timeout und höchstens eine
 SDK-Wiederholung. Technische Wiederholungen sind von der einmaligen
 inhaltlichen Überarbeitung zu unterscheiden.
+
+Klassifikation und Dublettenprüfung haben je höchstens zwei explizite Versuche,
+ohne zusätzliche SDK-Retries. Astra erhält keine `temperature`, `top_p`,
+`top_logprobs` oder `logprobs`. Der Textpfad verwendet keine Tools und bleibt
+deshalb bei Chat Completions. Limits: Klassifikation/Dubletten je 4096,
+Writer 8192, Fakten/Review/Revision je 12000 Completion-Tokens, einschließlich
+Reasoning. Quelle und Providerfehler werden nie zu einer erfundenen Freigabe.
+Migrationsgrundlage: [offizielle Astra-Anleitung](https://developers.openai.com/api/docs/guides/latest-model).
 
 Die Aufrufe verwenden `max_completion_tokens`. Die Redaktionsprüfung
 verlangt ein striktes JSON-Schema. Abgebrochene oder verweigerte Antworten,
@@ -73,8 +86,9 @@ getrennte Ergebnisse; es gibt keine Pflicht, eine Artikelquote zu füllen.
 
 `scripts/pipeline-v2.ts` protokolliert jeden Kandidaten. Vorhandene
 Quellen-/Serienblocklisten, Film-/Serien- und Themenfilter,
-Serienzuordnung, eigene Duplikatprüfungen und Mengenbegrenzungen bleiben aktiv.
-DACH-Relevanz und regionale Behauptungen von NEWS prüft die Quellenredaktion.
+Serienzuordnung, eigene Ereignis-Dublettenprüfung und tägliche Kostenbegrenzung bleiben aktiv.
+Die pauschale Fünf-Artikel-pro-Serie-Monatsquote entfällt. Deutschlandrelevanz
+und regionale Behauptungen von NEWS prüft die Quellenredaktion ausdrücklich.
 Ein ausländischer Produktionssender oder ein älterer Konkurrenzartikel zum
 gleichen Schauspieler ist kein pauschaler Ablehnungsgrund für eine neue Meldung.
 Ähnlich benannte Sendungen sind kein korrekter Serientreffer.
@@ -96,9 +110,24 @@ Faktenextraktion und Schlussprüfung. Letztere verlangt mindestens
 600 Zeichen Quelltext; Feedtitel oder Suchsnippet genügen nicht.
 Bei Überschreitung des vollständigen Prüfbudgets wird kein Rest
 stillschweigend ungeprüft weggelassen.
+Automatische News nutzen den direkten, DNS-geprüften Originalabruf aus
+`editorial-source-fetch.ts`, ohne Jina- oder RSS-Teaser-Fallback. Mehrdeutige
+Artikelcontainer, Paywall-Kurztexte und fehlende Originale halten den Lauf an.
+Klassifikation, Dublettenvergleich, Writer und Schlussredaktion sehen den
+vollständigen verfügbaren Originaltext statt nur seiner ersten Absätze.
 
 Internationale Produktions-, Casting- oder Verlängerungsnachrichten
-können relevant sein, ohne dass ein Deutschlandtermin bekannt ist.
+können relevant sein, ohne dass ein Deutschlandtermin bekannt ist, aber nur
+mit positiv belegtem Deutschlandbezug der Serie. `germanyRelevance` ist ein
+Pflichtfeld der strukturierten Schlussprüfung: exakter Quellenbeleg oder
+serverseitig abgefragter deutscher Katalogeintrag derselben Serie plus
+wesentliche Produktions-, Casting-, Staffel-, Trailer- oder Serienpreis-Nachricht.
+Deutsche Seriencharts/Quoten/Rekorde brauchen dagegen einen Originalbeleg
+zum deutschen Markt; ein DE-Katalogeintrag genügt für Auslandszahlen nicht.
+Ausländische lokale Talkshows, Sendeplatzänderungen, reine Auslandsstarts,
+Quoten und Klatsch reichen nicht; auch ein beiläufiger Netflix-Verweis nicht.
+Fehlender oder unklarer Bezug verhindert die Freigabe, statt durch Umschreiben
+einen Deutschlandbezug zu erfinden.
 Eine Benelux-, US- oder UK-Mitteilung belegt aber keinen deutschen Start.
 TMDB-Katalogverfügbarkeit alter Staffeln bestätigt weder Termin noch
 Anbieter einer neuen Staffel. Fehlende TMDB-Daten beweisen umgekehrt
@@ -233,6 +262,11 @@ keine Zusage einer Google-Ausspielung.
 `scripts/p3-trends.ts` und `scripts/p4-yt.ts` bleiben **draft-only**.
 Ihre bisherigen Trend-/Video-Abläufe ersetzen nicht die vollständige
 neue News-Prüfung. Das News-Flag öffnet diese alten Publisher nicht.
+Die separaten Quality-/Anti-AI-/TMDB-Fact-Safety-Aufrufe und automatischen
+Figuren-/Cast-Bioimporte sind dort entfernt. Entwürfe melden ehrlich
+`source-grounding` ausstehend und benötigen vor Freigabe denselben vollständigen
+Originalquellen- und Deutschlandreview. TMDB-Handlungsbeschreibungen sind keine
+zusätzliche Nachrichtenquelle.
 
 Bio-, Figuren-, Serien- und sonstige Batchskripte sind ebenfalls kein
 Teil des regulären News-Schedulers. Kosten und Nebenwirkungen ihrer
@@ -277,7 +311,7 @@ erfasst; tatsächliche Coolify-Konfiguration, Taskpause und Restore-Belege in
 generische Video-Anreicherung sind lokal zusätzlich abgesichert. Ruhende
 Alt-Publisher dürfen nicht als Ersatz für den neuen Import gestartet werden.
 
-`npm run eval:news` prüft nur die sechs synthetischen Testfälle und ihre
+`npm run eval:news` prüft nur die synthetischen Testfälle und ihre
 Erwartungen, ohne Netzwerk oder Modell. Ein ausdrückliches `--live` aktiviert
 den echten Faktenextraktor, NEWS-Writer und Prüfer; mit `--case <id>` begrenzen.
 `--output-dir <neues-absolutes-lokales-Verzeichnis>` speichert ausschließlich

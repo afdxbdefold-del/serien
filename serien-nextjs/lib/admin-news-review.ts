@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { load } from 'cheerio';
-import { reviewAndRepairArticle, type EditorialArticle } from './editorial-review';
+import { reviewAndRepairArticle, type EditorialArticle, type GermanyCatalogEvidence } from './editorial-review';
 import { fetchEditorialSource } from './editorial-source-fetch';
 import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from './article-html-safety';
 import { classifyContentAge } from './time-axis-correction';
@@ -11,6 +11,8 @@ interface ManualNewsInput {
   sourcePublishedAt: Date | null;
   sourceConfirmed: boolean;
   seriesName: string;
+  /** Server-observed DE catalog only; never accept this from an editor's body. */
+  germanyCatalog?: GermanyCatalogEvidence;
 }
 
 /** Explicit human publication, not an automatic release-mode escape hatch.
@@ -53,6 +55,7 @@ export async function reviewManualNews(input: ManualNewsInput, deps: {
   const review = await (deps.review || reviewAndRepairArticle)(article, {
     sourceUrl: input.sourceUrl, sourceTitle: source.title, sourceText: source.fullText,
     sourcePublishedAt: sourcePublishedAt.toISOString(), seriesName: input.seriesName, now: deps.now,
+    germanyCatalog: input.germanyCatalog,
   }, { maxRevisions: 0 });
   return {
     article, decision: review.decision, sourcePublishedAt,

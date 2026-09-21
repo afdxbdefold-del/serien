@@ -20,15 +20,10 @@ import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
-import { antiAiFilter } from '../lib/anti-ai-filter';
-import { qualityCheck } from '../lib/quality-checker';
-import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { classifyContentAge } from '../lib/time-axis-correction';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { downloadYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
-import { importSeriesCharacters } from './import-characters';
-import { importSeriesCast } from '../lib/cast-importer';
 import { generateWasBedeutetDas } from '../lib/was-bedeutet-das';
 import { discoverGate } from '../lib/discover-gate';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
@@ -728,16 +723,7 @@ async function generateVideoDraft(video: YouTubeVideo, trigger: TriggerType): Pr
             });
             console.log(`   ✓ Serie erstellt: ${dbSeries.name}`);
             
-            // Import characters and cast in parallel - same as p3-trends
-            try {
-              await Promise.all([
-                importSeriesCharacters(tmdbData.tmdbId),
-                importSeriesCast(tmdbData.tmdbId)
-              ]);
-              console.log(`   ✓ Characters & Cast importiert`);
-            } catch (e) {
-              console.log('   ⚠️ Character/Cast Import fehlgeschlagen');
-            }
+            // Character profiles and actor biographies are separate editorial work.
           } catch (createError: any) {
             console.log(`   ⚠️ Serie erstellen fehlgeschlagen: ${createError.message}`);
           }
@@ -748,25 +734,10 @@ async function generateVideoDraft(video: YouTubeVideo, trigger: TriggerType): Pr
         logger.addMetadata('tmdbId', tmdbData.tmdbId);
         logger.addMetadata('seriesDbId', dbSeries?.id);
         
-        // Check if series is still active (not ended years ago)
-        const seriesStatus = tmdbData.status?.toLowerCase() || '';
-        const isEnded = seriesStatus === 'ended' || seriesStatus === 'canceled';
-        
-        if (isEnded) {
-          // Check if it ended more than 2 years ago (allow revivals)
-          const lastAirDate = dbSeries?.lastAirDate || tmdbData.lastAirDate;
-          if (lastAirDate) {
-            const endedDate = new Date(lastAirDate);
-            const twoYearsAgo = new Date();
-            twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-            
-            if (endedDate < twoYearsAgo) {
-              console.log(`   ⚠️ Serie beendet vor >2 Jahren - überspringe`);
-              await logger.fail('Serie bereits beendet (keine aktuelle News)', 'tmdb-check');
-              return { success: false, videoId: video.videoId, error: 'Serie bereits beendet' };
-            }
-          }
-        }
+        // A current trailer can announce a revival or a German re-release of
+        // an ended show. The original video's date, not the show's last episode,
+        // determines source freshness. P4 remains draft-only pending full review.
+        logger.addMetadata('seriesStatus', tmdbData.status || null);
       } else {
         console.log(`   ⚠️ Keine TMDB-Serie gefunden via API`);
         
@@ -857,32 +828,8 @@ async function generateVideoDraft(video: YouTubeVideo, trigger: TriggerType): Pr
       }
     }
     
-    // FALLBACK: Wenn immer noch zu wenig, nutze erweiterte TMDB-Daten
-    if (totalWordCount < 200 && tmdbData) {
-      console.log(`   📺 Erweitere mit TMDB-Details...`);
-      
-      // Hole Cast-Details für reichhaltigeren Content
-      if (dbSeries) {
-        try {
-          const castMembers = await prisma.characters.findMany({
-            where: { seriesTmdbId: dbSeries.tmdbId },
-            include: { persons: true },
-            take: 10,
-          });
-          
-          if (castMembers.length > 0) {
-            const castInfo = castMembers
-              .map((c) => `${c.persons?.name || 'Unbekannt'} als ${c.name || 'unbekannte Rolle'}`)
-              .join(', ');
-            additionalSources += `\n\n═══════════════════════════════════════════════════════════\nCAST: ${castInfo}`;
-            console.log(`   ✓ ${castMembers.length} Cast-Mitglieder aus DB`);
-          }
-        } catch (e) {
-          // Ignore
-        }
-      }
-    }
-    
+    // Missing source evidence is not padded with catalogue cast or biographies.
+
     console.log(`   📊 Gesamt: ${totalWordCount} Wörter aus externen Quellen`);
     
     // ========== STEP 4: GENERATE CONTENT ==========
@@ -890,21 +837,8 @@ async function generateVideoDraft(video: YouTubeVideo, trigger: TriggerType): Pr
     console.log('STEP 4: CONTENT GENERIEREN');
     console.log('━'.repeat(60));
     
-    // Build series context from TMDB data
-    let seriesContext = '';
-    if (tmdbData) {
-      seriesContext = `
-═══════════════════════════════════════════════════════════
-SERIEN-KONTEXT (aus TMDB - für Hintergrund-Informationen):
-═══════════════════════════════════════════════════════════
-SERIE: ${tmdbData.name}
-${tmdbData.overview ? `BESCHREIBUNG: ${tmdbData.overview}` : ''}
-${tmdbData.status ? `STATUS: ${tmdbData.status}` : ''}
-${tmdbData.firstAirDate ? `ERSTAUSSTRAHLUNG: ${tmdbData.firstAirDate}` : ''}
-`;
-    }
-    
-    // Combine video info + series context + additional sources
+    // Source evidence is the original video description and attributed articles,
+    // never a catalogue overview or auto-generated cast biography.
     const sourceText = `
 VIDEO-TITEL: ${video.title}
 KANAL: ${video.channelName}
@@ -912,7 +846,6 @@ VERÖFFENTLICHT: ${video.publishedAt.toLocaleDateString('de-DE', { timeZone: 'Eu
 
 VIDEO-BESCHREIBUNG:
 ${video.description || 'Keine Beschreibung verfügbar.'}
-${seriesContext}
 ${additionalSources ? `
 ═══════════════════════════════════════════════════════════
 ZUSÄTZLICHE QUELLEN (für Kontext und Fakten):
@@ -1017,7 +950,7 @@ ${additionalSources}
     
     // Video wird im Hero-Bereich angezeigt, kein Embed im Artikel-Content nötig
     
-    // ========== STEP 5.5: CHARACTER & CAST IMPORT & LINKING (wie P2) ==========
+    // ========== STEP 5.5: EXISTING CHARACTER & CAST LINKS (wie P2) ==========
     console.log('\n━'.repeat(60));
     console.log('STEP 5.5: CHARACTER & CAST LINKING');
     console.log('━'.repeat(60));
@@ -1025,24 +958,7 @@ ${additionalSources}
     let processedMarkdown = structuredContent.markdown;
     
     if (dbSeries) {
-      // Import characters first (like P2)
-      console.log(`   📥 Importiere Characters für Serie ${dbSeries.tmdbId}...`);
-      try {
-        await importSeriesCharacters(dbSeries.tmdbId);
-        console.log(`   ✓ Characters importiert`);
-      } catch (e: any) {
-        console.log(`   ⚠️ Character-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
-      }
-      
-      // Import cast (like P2)
-      console.log(`   📥 Importiere Cast...`);
-      try {
-        await importSeriesCast(dbSeries.tmdbId);
-        console.log(`   ✓ Cast importiert`);
-      } catch (e: any) {
-        console.log(`   ⚠️ Cast-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
-      }
-      
+      // Link only profiles already present. No model-backed imports or bios.
       // Link characters in markdown
       try {
         const charResult = await linkCharactersInMarkdown(processedMarkdown, dbSeries.tmdbId);
@@ -1123,18 +1039,17 @@ ${additionalSources}
       console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
     }
 
-    // ========== STEP 7.5: FINAL QUALITY GATES ==========
+    // ========== STEP 7.5: DRAFT SAFETY AND SOURCE-REVIEW HOLD ==========
     // Run on the exact HTML/headline that will be persisted. Any failed or
     // unavailable checker holds the article for editorial review.
     console.log('\n━'.repeat(60));
-    console.log('STEP 7.5: FINAL QUALITY GATES');
+    console.log('STEP 7.5: DRAFT SAFETY AND SOURCE-REVIEW HOLD');
     console.log('━'.repeat(60));
 
     const editorialGateOutcomes: EditorialGateOutcome[] = [];
     // P4 only accepts trailer/teaser news; ranking relaxations must never apply.
     const isRankingList = false;
     const primarySeriesName = tmdbData?.name || dbSeries?.name || seriesName || video.title;
-    let antiAiScore = 0;
 
     try {
       const htmlSafety = validateAndNormalizeArticleHtml(htmlContent);
@@ -1148,86 +1063,14 @@ ${additionalSources}
       editorialGateOutcomes.push({ gate: 'html-safety', status: 'error', reason });
     }
 
-    try {
-      await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
-      const qualityResult = await qualityCheck({
-        generatedArticleHtml: htmlContent,
-        finalHeadline: structuredContent.headline,
-        primarySeriesName,
-        extractedFacts: JSON.stringify(facts),
-        isRankingList,
-      });
-      const passed = qualityResult.status === 'PASS';
-      editorialGateOutcomes.push({
-        gate: 'quality',
-        status: passed ? 'pass' : 'fail',
-        reason: passed ? undefined : qualityResult.failReasons.join('; ') || 'Quality-Check nicht bestanden',
-      });
-      console.log(`   ${passed ? '✅' : '⚠️'} Quality check: ${qualityResult.status}`);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'quality', status: 'error', reason });
-      console.log(`   ⚠️ Quality check fehlgeschlagen: ${reason}`);
-    }
-
-    try {
-      const antiAiResult = await antiAiFilter({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        seriesName: primarySeriesName,
-        isRankingList,
-      });
-      antiAiScore = antiAiResult.antiAiScore;
-      const passed = antiAiResult.status === 'PASS';
-      editorialGateOutcomes.push({
-        gate: 'anti-ai',
-        status: passed ? 'pass' : 'fail',
-        reason: passed ? undefined : antiAiResult.failReasons.join('; ') || `Anti-AI Score ${antiAiScore}`,
-      });
-      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      await logger.update({ antiAiScore });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'anti-ai', status: 'error', reason });
-      console.log(`   ⚠️ Anti-AI check fehlgeschlagen: ${reason}`);
-    }
-
-    try {
-      const rawLastAirDate = dbSeries?.lastAirDate || tmdbData?.lastAirDate;
-      const lastAirDate = rawLastAirDate instanceof Date
-        ? rawLastAirDate.toISOString()
-        : typeof rawLastAirDate === 'string'
-          ? rawLastAirDate
-          : undefined;
-      await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
-      const factSafetyResult = await factSafetyCheck({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        extractedFacts: JSON.stringify(facts),
-        tmdbSeriesData: {
-          status: dbSeries?.status || tmdbData?.status,
-          lastAirDate,
-          numberOfSeasons: dbSeries?.numberOfSeasons || tmdbData?.numberOfSeasons || undefined,
-        },
-      });
-      const passed = factSafetyResult.status === 'SAFE';
-      editorialGateOutcomes.push({
-        gate: 'fact-safety',
-        status: passed ? 'pass' : 'fail',
-        reason: passed
-          ? undefined
-          : [
-              ...factSafetyResult.headlineViolations,
-              ...factSafetyResult.rejectedFacts.map((fact) => fact.claim),
-            ].join('; ') || 'Fact-Safety-Check nicht bestanden',
-      });
-      console.log(`   ${passed ? '✅' : '⚠️'} Fact safety: ${factSafetyResult.status}`);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'fact-safety', status: 'error', reason });
-      console.log(`   ⚠️ Fact safety check fehlgeschlagen: ${reason}`);
-    }
+    // Draft-only paths have not completed a full original-source review.
+    // Do not spend three extra model calls or report a synthetic quality pass.
+    editorialGateOutcomes.push({
+      gate: 'source-grounding',
+      status: 'fail',
+      reason: 'Vollständiger Abgleich von Titel, Vorspann, Metadaten und Inhalt mit der Originalquelle steht im Admin-Review aus',
+    });
+    logger.addMetadata('sourceGrounding', 'pending-full-original-source-review');
 
     const sourceUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
     const sourceIsValid = /^[A-Za-z0-9_-]{6,32}$/.test(video.videoId);
@@ -1273,7 +1116,7 @@ ${additionalSources}
     const editorialDecision = decideEditorialPublication({
       alreadyDraft: false,
       outcomes: editorialGateOutcomes,
-      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'release-mode'],
+      requiredGates: ['html-safety', 'source-grounding', 'source', 'freshness', 'release-mode'],
     });
     const publicationStatus = editorialDecision.status;
     const draftReason = publicationStatus === 'draft' ? editorialDecision.reason : undefined;
@@ -1560,7 +1403,6 @@ ${additionalSources}
     if (draftReason) console.log(`⚠️ Grund: ${draftReason}`);
     if (publicationStatus === 'published') console.log(`🔗 URL: /${article.slug}`);
     console.log(`🎬 Video: https://www.youtube.com/watch?v=${video.videoId}`);
-    console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
     if (publicationStatus === 'draft') {

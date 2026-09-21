@@ -4,6 +4,12 @@ Stand: 21. September 2026. Geprüfter Ausgangspunkt: Branch `codex/takeover`, Co
 
 ## Prüfumfang und Aussagegrenzen
 
+Lokaler Nachtrag vom selben Tag: `NEWS_PIPELINE_ASTRA.md` beschreibt die danach
+erfolgte Astra-Umstellung und Bereinigung der aktiven News-Wege. Insbesondere
+sind die alten Zusatz-KI-Gates und Charakter-/Bioimporte aus P3/P4 entfernt;
+Deutschlandrelevanz ist verpflichtender Bestandteil des Quellenreviews.
+Die nachfolgende Pfadkarte bleibt ein Inventar, keine Freigabe der Alt-Publisher.
+
 Erfasst wurden alle elf Routen unter `app/api/cron`, der optionale News-Dauerläufer, die P3-/P4-Entdeckung und Generierung, sämtliche im Repository gefundenen direkten Aufrufe von `runPipelineV2`, alle zwölf direkten `articles.create`-Stellen unter `app`, `lib` und `scripts` sowie die benannten Import-/Legacy-Pfade. Zusätzlich wurden `Dockerfile`, `vercel.json`, Paket-Skripte und Dateien mit Scheduler-/Worker-/Cron-/Supervisor-/Compose-Bezug geprüft.
 
 „Erreichbar“ bedeutet: Der Anwendungscode stellt den Pfad bereit. Es bedeutet **nicht**, dass Coolify ihn momentan regelmäßig aufruft. „Dormant“ bedeutet: Im geprüften Repository wurde kein aktiver aufrufender Anwendungspfad oder hinterlegter Zeitplan gefunden; ein unbekannter externer Prozess kann allein durch Quelltextprüfung nicht ausgeschlossen werden.

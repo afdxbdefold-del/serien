@@ -17,6 +17,7 @@ const reviewDecision = (article: EditorialArticle, passed: boolean, issueQuote =
   passed, reasons: passed ? [] : ['Testbefund'], payloadHash: 'test-only',
   review: {
     complete: true, newsworthy: true, verdict: passed ? 'publish' : 'revise', clarity: 4, originality: 4,
+    germanyRelevance: { relevant: true, basis: 'original', evidenceQuote: 'Synthetic available in Germany.', reason: 'Nur Test für Harness-Steuerung.', newsCategory: 'series-production', localOnly: false },
     coverage: { headline: true, excerpt: true, metaDescription: true, bodyParagraphIndexes: [1] },
     issues: issueQuote ? [{ code: 'facts', reason: 'Absichtlich verfälschte Aussage', articleQuote: issueQuote }] : [],
     claims: [{ articleQuote: article.excerpt, sourceQuote: 'A fictional source passage.', source: 'original', assessment: 'supported' }],
@@ -31,7 +32,7 @@ async function run(): Promise<void> {
     assert.throws(() => parseEvaluationOptions(invalid));
   }
   validateEditorialFixtures(EDITORIAL_FIXTURES);
-  assert.equal(EDITORIAL_FIXTURES.length, 6);
+  assert.equal(EDITORIAL_FIXTURES.length, 7);
   assert.deepEqual(new Set(EDITORIAL_FIXTURES.map(fixture => fixture.kind)), new Set(['normal', 'edge', 'adversarial']));
   assert.throws(() => validateEditorialFixtures([]));
   assert.throws(() => validateEditorialFixtures([EDITORIAL_FIXTURES[0], EDITORIAL_FIXTURES[0]]));
@@ -73,7 +74,12 @@ async function run(): Promise<void> {
       review: async (article, evidence, maxRevisions) => {
         reviewLimits.push(maxRevisions);
         assert.equal(evidence.sourceText, fixture.sourceText);
-        return { article, decision: reviewDecision(article, maxRevisions === 1, maxRevisions === 0 ? fixture.challenge.text : ''), revisions: 0 };
+        const decision = reviewDecision(article, maxRevisions === 1 && fixture.expectedOutcome !== 'hold', maxRevisions === 0 ? fixture.challenge.text : '');
+        if (fixture.expectedOutcome === 'hold') {
+          decision.reasons.push('Deutschlandrelevanz fehlt');
+          decision.review.germanyRelevance = { relevant: false, basis: 'none', evidenceQuote: '', reason: 'Keine relevante DE-Meldung.', newsCategory: 'other', localOnly: true };
+        }
+        return { article, decision, revisions: 0 };
       },
     });
     assert.equal(result.summary.status, 'automatic-checks-passed');
@@ -105,7 +111,7 @@ async function run(): Promise<void> {
   assert.equal(summary.automaticChecksPassed, null, 'offline fixtures are not proof of model quality');
   assert.equal(summary.humanApproval, 'not-recorded');
   assert.equal(summary.artifactsWritten, false);
-  assert.equal(summary.selectedCases, 6);
+  assert.equal(summary.selectedCases, 7);
   assert.match(summary.implementationHash, /^[a-f0-9]{64}$/);
   assert(!offline.stdout.includes(EDITORIAL_FIXTURES[0].sourceText));
   assert.equal(JSON.parse(invoke(['--case', 'casting-talks']).stdout).selectedCases, 1);

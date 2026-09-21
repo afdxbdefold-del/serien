@@ -1,6 +1,6 @@
 # Betrieb der automatischen News-Pipeline
 
-Stand: 20. September 2026, lokaler Arbeitsstand auf `codex/takeover`.
+Stand: 21. September 2026, lokaler Arbeitsstand auf `codex/takeover`.
 
 **Die beschriebenen Verbesserungen sind lokal implementiert und noch nicht
 ausgerollt. Dieses Dokument bestätigt keinen erfolgreichen Produktivlauf
@@ -44,7 +44,7 @@ Der produktive Rhythmus wird in **Coolify Scheduled Tasks** eingestellt.
 
 | Einstellung | Verhalten im lokalen Code |
 | --- | --- |
-| `OPENAI_API_KEY` | Eigener direkter OpenAI-Zugang; `gpt-5.4`, kein Emergent-Fallback |
+| `OPENAI_API_KEY` | Eigener direkter OpenAI-Zugang; NEWS `gpt-6-astra` / `low`, kein Emergent-Fallback |
 | `TMDB_API_KEY` | Serienzuordnung, Metadaten und Backdrops |
 | `AUTOMATED_NEWS_PUBLISHING_ENABLED` | Nur exakt `true` erlaubt nach bestandenen Prüfungen das Veröffentlichen; Beispielkonfiguration bleibt `false` |
 | `AUTOMATED_EDITORIAL_AUTHOR_ID` | Vorhandenes Konto mit Rolle `author`; Standard `redaktion` |
@@ -121,6 +121,11 @@ RSS-Discovery verwendet standardmäßig 24 Stunden; das harte frühe
 Pipeline-Altersgate liegt bei 72 Stunden. Weitere Prüfungen des
 Quellzeitpunkts und Nachrichtenwerts gelten zusätzlich. Ein altes
 Ereignis wird nicht durch ein frisches Importdatum zur Neuigkeit.
+Das abschließende automatische NEWS-Gate verwendet dasselbe 72-Stunden-Fenster.
+Entfernte Keyword-, Genre-, Quoten- und unscharfe Dublettenfilter sperren
+Kandidaten über ihre alte Laufhistorie nicht länger sieben Tage. Ihre Historie
+bleibt erhalten; Retry-Abstand, explizite Sperrlisten und aktuelle echte
+Ereignis-Dubletten bleiben wirksam.
 
 ## Öffentliche Anzeige nachholen
 

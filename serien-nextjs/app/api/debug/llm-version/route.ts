@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createLLMClient, getLLMConfig } from '@/lib/llm-config';
+import { createLLMClient, NEWS_LLM_CONFIG } from '@/lib/llm-config';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
-  const cfg = getLLMConfig();
   const base = {
-    model: cfg.model,
-    baseURL: cfg.baseURL,
-    apiKeyConfigured: Boolean(cfg.apiKey),
-    buildMarker: 'v-2026-04-21-dash-protect-series-names',
+    model: NEWS_LLM_CONFIG.model,
+    reasoningEffort: NEWS_LLM_CONFIG.reasoning_effort,
+    baseURL: 'https://api.openai.com/v1',
+    apiKeyConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    buildMarker: 'news-astra-2026-09-21',
     serverTime: new Date().toISOString(),
   };
 
@@ -20,27 +20,30 @@ export async function GET() {
   try {
     const client = createLLMClient();
     const r = await client.chat.completions.create({
-      model: cfg.model,
+      ...NEWS_LLM_CONFIG,
       messages: [{ role: 'user', content: 'Antworte nur mit OK.' }],
-      max_completion_tokens: 5,
-    });
+      max_completion_tokens: 1024,
+    }, { timeout: 45_000, maxRetries: 0 });
+    const choice = r.choices[0];
+    const ok = choice?.finish_reason === 'stop' && !choice.message.refusal && choice.message.content?.trim() === 'OK';
     return NextResponse.json({
       ...base,
       ping: {
-        ok: true,
+        ok,
         durationMs: Date.now() - t0,
-        response: r.choices[0]?.message?.content?.trim()?.slice(0, 50) || '',
+        response: ok ? 'OK' : '',
+        ...(ok ? {} : { errorMessage: 'Provider probe returned no complete expected answer' }),
       },
     });
-  } catch (e: any) {
+  } catch (error) {
+    const status = (error as { status?: unknown })?.status;
     return NextResponse.json({
       ...base,
       ping: {
         ok: false,
         durationMs: Date.now() - t0,
-        errorMessage: (e?.message || String(e)).slice(0, 500),
-        errorStatus: e?.status ?? null,
-        errorCode: e?.code ?? null,
+        errorMessage: 'News model provider check failed; inspect private configuration',
+        errorStatus: typeof status === 'number' && Number.isInteger(status) && status >= 100 && status < 600 ? status : null,
       },
     });
   }

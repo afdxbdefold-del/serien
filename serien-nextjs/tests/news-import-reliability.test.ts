@@ -51,11 +51,14 @@ test('cooldown begins at completion, not before an expensive attempt', () => {
 });
 
 test('deterministic content rejection remains blocked but provider errors override that classification', () => {
-  assert.equal(candidateRetryReason([attempt(500, 'topic-out-of-scope', 'Not a series')], now), 'editorial-rejection');
+  assert.equal(candidateRetryReason([attempt(500, 'blocklist-tmdb', 'Explicitly blocked series')], now), 'editorial-rejection');
   assert.equal(candidateRetryReason([attempt(30, 'topic-out-of-scope', 'API timeout')], now), null);
   assert.equal(candidateRetryReason([attempt(100, 'classification', 'Movie'), attempt(200, 'classification', 'Movie')], now), 'repeated-classification-rejection');
   assert.equal(candidateRetryReason([attempt(8 * 24 * 60, 'topic-out-of-scope', 'Not a series')], now), null);
-  for (const oldGate of ['german-angle-coverage', 'dach-availability', 'us-context-only']) {
+  for (const oldGate of ['german-angle-coverage', 'dach-availability', 'us-context-only',
+    'topic-out-of-scope', 'sammel-recap', 'genre-out-of-scope', 'unreleased-project', 'primary-series-mismatch',
+    'per-series-cap', 'duplicate-jaccard-title', 'duplicate-core-event', 'duplicate-fingerprint',
+    'us-streaming-only', 'plagiarism-similar-article']) {
     assert.equal(candidateRetryReason([attempt(30, oldGate, 'Legacy broad source filter')], now), null,
       `${oldGate}: an old broad filter must not permanently suppress a story now assessed by full source review`);
     assert.equal(candidateRetryReason([
@@ -64,6 +67,9 @@ test('deterministic content rejection remains blocked but provider errors overri
       attempt(500, oldGate, 'Legacy broad source filter'),
     ], now), null, `${oldGate}: repeated old exclusions may cool down but must become retryable`);
   }
+  assert.equal(candidateRetryReason([attempt(30, 'blocklist-source', 'URL-Pattern blockt (tv-ratings): old rule')], now), null);
+  assert.equal(candidateRetryReason([attempt(2, 'blocklist-source', 'URL-Pattern blockt (tv-ratings): old rule')], now), 'retry-cooldown');
+  assert.equal(candidateRetryReason([attempt(30, 'blocklist-source', 'Weak source domain blocked')], now), 'editorial-rejection');
 });
 
 test('recent success and active processing protect against duplicate spending', () => {

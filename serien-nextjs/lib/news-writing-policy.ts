@@ -11,6 +11,8 @@ export interface NewsWritingInput {
 }
 
 export function buildNewsWritingPrompt(input: NewsWritingInput): string {
+  if (typeof input.sourceText !== 'string' || !input.sourceText.trim()) throw new Error('NEWS writer requires a nonempty original source');
+  if (input.sourceText.length > 60_000) throw new Error('Original source exceeds the complete NEWS writing budget');
   const target = Math.min(650, Math.max(180, input.wordCountTarget || 350));
   return `Schreibe eine eigenständige deutschsprachige Seriennachricht für serien.de.
 Heutiges Datum: ${new Date().toISOString().slice(0, 10)}.
@@ -18,6 +20,7 @@ Heutiges Datum: ${new Date().toISOString().slice(0, 10)}.
 REDAKTIONELLE REGELN:
 - Die wichtigste neue, belegte Information steht zuerst. Erkläre konkret, was passiert ist und was noch offenbleibt. Kein erfundener Konflikt, kein künstliches Rätsel, keine behauptete Fanreaktion.
 - Natürliches, präzises Deutsch mit konkreten Namen und aktiven Verben. Keine Werbesprache, KI-Floskeln oder leere Schlussabsätze. Unterschiedlich lange Sätze ergeben sich aus dem Inhalt, nicht aus einem mechanischen Rhythmusschema.
+- Schreibe zusammenhängenden Fließtext; jeder Absatz entwickelt einen konkreten Gedanken. Keine Listen oder Tabellen als Standardschema und keine vorangestellten Erklärungen deiner Arbeitsweise. Verwende einfache Wörter statt Fachjargon und zeige Zusammenhänge direkt statt mit leeren Übergängen oder künstlichen Gegenüberstellungen.
 - Zielgröße ungefähr ${target} Wörter, aber ausschließlich so viel, wie die Quelle trägt. Eine vollständige kürzere Meldung ist besser als Wiederholungen oder unbelegtes Auffüllen. Keine Pflicht-FAQ, kein Fazit, keine generischen Kästen „Was bedeutet das?“ oder „Darum ist das relevant“.
 - Schreibe eine klare Headline, einen eigenständigen Vorspann mit ein bis drei Sätzen (höchstens 80 Wörter) und einen vollständigen Artikelkörper. Der Vorspann wird separat angezeigt. Der Körper muss auch ohne Vorspann verständlich sein. Im Körper jeden Fakt nur einmal ausführen.
 - Absätze mit ein bis vier Sätzen, üblicherweise höchstens 100 Wörter. Zwei bis vier sachbezogene Zwischenüberschriften, wenn sie beim Lesen helfen; eine kurze Nachricht darf ohne Überschrift auskommen. Überschriften beschreiben den konkreten Inhalt.
@@ -41,7 +44,7 @@ ${JSON.stringify({
   seriesName: input.seriesName,
   url: input.sourceUrl || null,
   publishedAt: input.sourcePublishedAt || null,
-  text: input.sourceText.slice(0, 24000),
+  text: input.sourceText,
   extractedFacts: input.facts,
   existingCatalogProvidersDE: input.dachContext?.dachStreamers || [],
   originalNetworks: input.dachContext?.originalNetworks || [],

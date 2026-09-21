@@ -52,9 +52,10 @@ aufgetreten):
    ORDER BY "startedAt" DESC
    LIMIT 20;
    ```
-   - `errorStep = 'us-corporate-news'` o. ä. → struktureller Filter hat
-     legitim alle aktuellen Quellen-Artikel verworfen (kein Bug, ggf. Quellen
-     erweitern).
+   - `errorStep = 'us-corporate-news'` oder andere alte Schlagwortfilter →
+     zuerst laufenden Commit prüfen. Der lokale Astra-NEWS-Pfad ersetzt solche
+     Pauschalsperren durch vollständige Quellen- und Deutschlandprüfung.
+     Eine alte Ablehnung ist kein Beweis, dass die Meldung irrelevant war.
    - `errorMessage` enthält `429`/`credits` → OpenAI-Billing-Problem, siehe
      unten.
    - Keine neuen Zeilen seit Stunden trotz ausgeführtem Coolify-Task →
@@ -68,6 +69,14 @@ aufgetreten):
    gegenprüfen.
 
 ## "OpenAI 429 — You have no credits remaining"
+
+Die lokale NEWS-Konfiguration ist jetzt `gpt-6-astra` / `low`. Ein früherer
+erfolgreicher GPT-5.4-Test beweist keinen Astra-Zugriff. Vor dem Rollout die
+Modellberechtigung und echte Textqualität getrennt prüfen. Der admin-geschützte
+`/api/debug/llm-version` führt einen kleinen, kostenpflichtigen Astra-Probeaufruf
+aus (maximal 1024 Completion-Tokens, 45 Sekunden, keine Wiederholung) und gibt
+nur Konfiguration/Status zurück. Nicht als periodischen Healthcheck verwenden.
+`npm run eval:news` bleibt standardmäßig ohne Modellaufruf.
 
 ```
 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.

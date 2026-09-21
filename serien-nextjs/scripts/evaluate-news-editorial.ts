@@ -43,13 +43,15 @@ async function main(): Promise<void> {
     implementationHash.update(file).update(await readFile(path.resolve(path.dirname(process.argv[1]), '../lib', file)));
   }
   let model: string | null = null;
+  let reasoningEffort: string | null = null;
   if (options.live) {
     // These modules have no Prisma/DB/publication dependencies. No full pipeline import.
     await withMutedEvaluationLogs(async () => {
-      const [{ extractFacts }, { generateStructuredContent }, { reviewAndRepairArticle }, { LLM_CONFIG }] = await Promise.all([
+      const [{ extractFacts }, { generateStructuredContent }, { reviewAndRepairArticle }, { NEWS_LLM_CONFIG }] = await Promise.all([
         import('../lib/fact-extractor'), import('../lib/structured-content-generator'), import('../lib/editorial-review'), import('../lib/llm-config'),
       ]);
-      model = LLM_CONFIG.model;
+      model = NEWS_LLM_CONFIG.model;
+      reasoningEffort = NEWS_LLM_CONFIG.reasoning_effort;
       const dependencies: EvaluationDependencies = {
         extract: extractFacts,
         write: (fixture, facts) => generateStructuredContent({
@@ -77,7 +79,7 @@ async function main(): Promise<void> {
   const summary = {
     synthetic: true, publicationForbidden: true, fixtureVersion: EDITORIAL_FIXTURE_VERSION,
     fixtureHash: createHash('sha256').update(JSON.stringify(fixtures)).digest('hex'),
-    implementationHash: implementationHash.digest('hex'), model,
+    implementationHash: implementationHash.digest('hex'), model, reasoningEffort,
     mode: options.live ? 'live-model-evaluation' : 'offline-fixture-validation',
     modelJudgmentEvaluated: options.live && results.some(result => result.reviewOutcome !== undefined),
     humanReviewRequired: true, humanApproval: 'not-recorded',

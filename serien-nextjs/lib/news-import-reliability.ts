@@ -18,11 +18,7 @@ export interface PreviousNewsAttempt {
 
 const PERMANENT_STEPS = new Set([
   'multi-series-skip', 'blocklist-source', 'blocklist-tmdb',
-  'genre-out-of-scope', 'topic-out-of-scope', 'topic-age-check', 'source-age-check',
-  'primary-series-mismatch', 'duplicate-llm',
-  'duplicate-jaccard-title', 'duplicate-core-event', 'duplicate-fingerprint',
-  'duplicate-url', 'unreleased-project', 'sammel-recap',
-  'plagiarism-similar-article', 'us-streaming-only', 'per-series-cap',
+  'topic-age-check', 'source-age-check', 'duplicate-llm', 'duplicate-url',
 ]);
 
 export function isProviderFailure(message = ''): boolean {
@@ -42,7 +38,12 @@ export function candidateRetryReason(attempts: PreviousNewsAttempt[], now = Date
     return 'already-running';
   }
   const failures = recent.filter((attempt) => attempt.status === 'failed');
-  if (failures.some((attempt) => PERMANENT_STEPS.has(attempt.errorStep || '') && !isProviderFailure(attempt.errorMessage || ''))) {
+  // Historical keyword/genre/quota/fingerprint decisions must not defeat the
+  // new source-aware policy for seven days. Keep history and ordinary cooldown;
+  // only the explicit old URL-pattern reason is exempt from source blocklists.
+  if (failures.some((attempt) => PERMANENT_STEPS.has(attempt.errorStep || '')
+    && !(attempt.errorStep === 'blocklist-source' && /^URL-Pattern blockt \(/.test(attempt.errorMessage || ''))
+    && !isProviderFailure(attempt.errorMessage || ''))) {
     return 'editorial-rejection';
   }
   if (failures.filter((attempt) => attempt.errorStep === 'classification'

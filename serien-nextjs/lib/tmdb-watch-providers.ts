@@ -40,6 +40,7 @@ export async function getTVWatchProviders(seriesId: number): Promise<WatchProvid
   try {
     const url = `https://api.themoviedb.org/3/tv/${seriesId}/watch/providers?api_key=${apiKey}`;
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(15_000),
       next: { revalidate: 86400 } // Cache for 24 hours
     });
 
@@ -53,8 +54,9 @@ export async function getTVWatchProviders(seriesId: number): Promise<WatchProvid
     // Return German (DE) providers
     return data.results?.DE || null;
     
-  } catch (error) {
-    console.error('Error fetching TMDB watch providers:', error);
+  } catch {
+    // Fetch errors can include the credential-bearing request URL.
+    console.error('TMDB DE watch providers unavailable');
     return null;
   }
 }

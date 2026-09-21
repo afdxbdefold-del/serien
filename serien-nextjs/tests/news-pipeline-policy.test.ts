@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { NEWS_SOURCE_MAX_AGE_MS, newsSourceIsFresh, sourceMentionsSeries, isNewsClassification, matchesResolvedSeries } from '../lib/news-pipeline-policy';
+
+const now = new Date('2026-09-21T12:00:00Z');
+assert(newsSourceIsFresh(now, now));
+assert(newsSourceIsFresh(new Date(now.getTime() - NEWS_SOURCE_MAX_AGE_MS), now));
+assert(!newsSourceIsFresh(new Date(now.getTime() - NEWS_SOURCE_MAX_AGE_MS - 1), now));
+assert(!newsSourceIsFresh(new Date(now.getTime() + 3_600_001), now));
+assert(!newsSourceIsFresh(new Date('invalid'), now));
+assert(!newsSourceIsFresh(null, now));
+assert(!newsSourceIsFresh(now, new Date('invalid')));
+assert(sourceMentionsSeries('The Pitt', 'Eine neue Staffel', 'Einleitender Text. '.repeat(200) + 'The Pitt bekommt neue Folgen.'));
+assert(sourceMentionsSeries('9-1-1', '9–1–1 bekommt neue Folgen', 'Ein Beispieltext.'));
+assert(sourceMentionsSeries('Grey’s Anatomy', "Grey's Anatomy bekommt neue Folgen", 'Ein Beispieltext.'));
+assert(sourceMentionsSeries('ER', 'ER kehrt zurück', 'Ein Beispieltext.'));
+assert(!sourceMentionsSeries('ER', 'Der neue Trailer', 'Andere Serien'));
+assert(!sourceMentionsSeries('Snoopy in Space', 'Ryan Gosling in Space', 'Keine andere Serie erwähnt.'));
+assert(!sourceMentionsSeries('The Fixers', 'The Fixer', 'Ähnlicher Titel, andere Sendung.'));
+assert(!sourceMentionsSeries('  ', 'Headline', 'Text'));
+assert(isNewsClassification('SINGLE_SERIES_NEWS'), 'news about a true-story adaptation remains NEWS');
+assert(!isNewsClassification('FEATURE_ESSAY'));
+assert(matchesResolvedSeries('Money Heist', ['Haus des Geldes', 'Money Heist']));
+assert(matchesResolvedSeries('ER', ['ER', 'ER']));
+assert(matchesResolvedSeries('9-1-1', ['9–1–1']));
+assert(!matchesResolvedSeries('The Fixers', ['The Fixer']), 'similar title is not the same series');
+assert(!matchesResolvedSeries('Snoopy in Space', ['Lost in Space']), 'a shared long word is not identity');
+assert(!matchesResolvedSeries('', ['']));
+console.log('PASS full-source series identity and unified 72-hour news freshness policy');

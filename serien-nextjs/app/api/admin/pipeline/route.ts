@@ -996,12 +996,12 @@ export async function POST(request: NextRequest) {
         }
         
         // Fetch full text first
-        const { fetchFullArticleText } = await import('@/lib/full-text-fetcher');
+        const { fetchEditorialSource } = await import('@/lib/editorial-source-fetch');
         debugLog.push(`🔄 Hole Volltext...`);
         
-        const fullTextResult = await fetchFullArticleText(url);
+        const fullTextResult = await fetchEditorialSource(url);
         const fullText = fullTextResult.fullText;
-        if (!fullText || fullText.length < 200) {
+        if (!fullText || fullText.length < 600) {
           debugLog.push(`❌ Volltext zu kurz: ${fullText?.length || 0} Zeichen`);
           return NextResponse.json({
             success: false,

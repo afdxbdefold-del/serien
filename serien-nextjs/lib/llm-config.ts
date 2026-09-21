@@ -8,6 +8,30 @@
 
 import OpenAI from 'openai';
 
+/** News routing is explicit: unrelated bios/SEO/legacy formats keep their model. */
+export const NEWS_LLM_CONFIG = {
+  model: 'gpt-6-astra',
+  // Astra has no none/minimal mode. Low is the nearest supported migration
+  // setting to the former implicit effort; quality must be evaluated separately.
+  reasoning_effort: 'low',
+} as const;
+
+const NEWS_COMPLETION_BUDGETS = {
+  classification: 4096,
+  deduplication: 4096,
+  facts: 12_000,
+  writing: 8192,
+  review: 12_000,
+  revision: 12_000,
+} as const;
+
+export type NewsLLMRole = keyof typeof NEWS_COMPLETION_BUDGETS;
+
+/** Text-only Chat Completions; no tools or unsupported sampling parameters. */
+export function getNewsRequestConfig(role: NewsLLMRole) {
+  return { ...NEWS_LLM_CONFIG, max_completion_tokens: NEWS_COMPLETION_BUDGETS[role] };
+}
+
 export function getLLMConfig() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   

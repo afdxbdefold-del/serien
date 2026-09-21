@@ -1,4 +1,4 @@
-import { createLLMClient, LLM_CONFIG } from './llm-config';
+import { createLLMClient, getNewsRequestConfig } from './llm-config';
 
 export interface ExtractedFacts {
   series_names: string[];
@@ -72,7 +72,7 @@ export async function extractFacts(sourceTitle: string, sourceText: string): Pro
   const input = buildFactExtractionInput(sourceTitle, sourceText);
   try {
     const response = await createLLMClient().chat.completions.create({
-      model: LLM_CONFIG.model,
+      ...getNewsRequestConfig('facts'),
       messages: [
         {
           role: 'system',
@@ -83,7 +83,6 @@ Extract series names, season and episode numbers, people, factual statements, re
         { role: 'user', content: JSON.stringify(input) },
       ],
       response_format: { type: 'json_schema', json_schema: { name: 'series_news_facts', strict: true, schema: FACT_EXTRACTION_SCHEMA } },
-      max_completion_tokens: 12_000,
     }, { timeout: 90_000, maxRetries: 1 });
     const facts = parseFactExtractionResponse(response.choices[0]);
     console.log(`Facts extracted: ${facts.key_statements.length} statements, ${facts.series_names.length} series, ${facts.people_names.length} people`);

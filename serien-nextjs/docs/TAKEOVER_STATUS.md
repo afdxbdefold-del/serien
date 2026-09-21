@@ -29,6 +29,10 @@ Er hat Vorrang vor dem historischen Snapshot unten:
   Die frische externe Kopie ist noch offen; Details im Live-Audit.
 - Pipeline-Reparaturen liegen lokal und sind noch nicht ausgerollt.
   `main`, Produktionsschema, DNS und Secrets blieben unverändert.
+- Weiterer lokaler Umbau: Astra für die aktive News-Redaktion, verpflichtende
+  Deutschlandrelevanz und Entfernung alter Doppelprüfungen/Schlagwortsperren.
+  Details und Abnahmegrenzen: `NEWS_PIPELINE_ASTRA.md`. Kein Push/Deploy und
+  keine Aussage, dass Astra bereits produktiv Nachrichten schreibt.
 
 ## Historischer Produktionssnapshot (12. September 2026)
 

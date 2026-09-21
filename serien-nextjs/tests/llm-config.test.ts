@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict';
-import { getLLMConfig, createLLMClient } from '../lib/llm-config';
+import { getLLMConfig, createLLMClient, NEWS_LLM_CONFIG, getNewsRequestConfig, type NewsLLMRole } from '../lib/llm-config';
+
+assert.equal(NEWS_LLM_CONFIG.model, 'gpt-6-astra');
+for (const role of ['classification', 'deduplication', 'facts', 'writing', 'review', 'revision'] as NewsLLMRole[]) {
+  const request = getNewsRequestConfig(role);
+  assert.equal(request.model, 'gpt-6-astra');
+  assert.equal(request.reasoning_effort, 'low');
+  assert.ok(request.max_completion_tokens >= 4096, 'reasoning and visible output share the completion budget');
+  assert.deepEqual(Object.keys(request).sort(), ['max_completion_tokens', 'model', 'reasoning_effort']);
+}
 
 const previous = { openai: process.env.OPENAI_API_KEY, emergent: process.env.EMERGENT_LLM_KEY };
 try {

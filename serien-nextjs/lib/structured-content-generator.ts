@@ -120,18 +120,21 @@ export async function generateStructuredContent(
   console.log(`   Series: ${seriesName}`);
   console.log(`   Type: ${contentType}`);
   console.log(`   Target: ${wordCountTarget} words`);
-  if (temperature !== undefined) console.log(`   Temperature: ${temperature}`);
+  if (contentType !== 'NEWS' && temperature !== undefined) console.log(`   Temperature: ${temperature}`);
   
   // Build prompt based on content type
   const prompt = buildPrompt(input);
   
   // Call LLM with structured output
-  const response = await callLLMStructured(prompt, 2, temperature);
+  const response = await callLLMStructured(prompt, contentType, 2, temperature);
 
-  // POST-PROCESS: strip em/en-dashes (AI-tells). Replace with natural punctuation.
-  // But protect dashes that are part of the series name (e.g. "Verbotene Liebe – Next Generation").
-  const protectedNames = [input.seriesName].filter((n): n is string => Boolean(n));
-  stripDashesDeep(response, protectedNames);
+  // NEWS names, source quotations and punctuation remain exactly as written;
+  // factual/style edits belong to the source-grounded final review. Preserve
+  // the existing punctuation treatment for unrelated article formats.
+  if (contentType !== 'NEWS') {
+    const protectedNames = [input.seriesName].filter((n): n is string => Boolean(n));
+    stripDashesDeep(response, protectedNames);
+  }
 
   // Validate and assemble
   const output = assembleMarkdown(response);
@@ -599,14 +602,19 @@ Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, N
  * Writer failures are explicit; never alter source facts to evade a refusal.
  * A bounded retry handles incomplete or malformed responses before any save.
  */
-async function callLLMStructured(prompt: string, retries = 2, temperature?: number): Promise<any> {
-  const { createLLMClient, LLM_CONFIG } = await import('./llm-config');
+async function callLLMStructured(prompt: string, contentType: StructuredContentInput['contentType'], retries = 2, temperature?: number): Promise<any> {
+  const { createLLMClient, LLM_CONFIG, getNewsRequestConfig } = await import('./llm-config');
   const openai = createLLMClient();
+  // Astra does not accept sampling knobs. Do not spread legacy parameters
+  // into NEWS requests or silently switch back after an upstream rejection.
+  const requestConfig = contentType === 'NEWS'
+    ? getNewsRequestConfig('writing')
+    : { model: LLM_CONFIG.model, temperature: temperature ?? 0.4, max_completion_tokens: 8192 };
   let lastFailure = 'Writer request failed';
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const response = await openai.chat.completions.create({
-        model: LLM_CONFIG.model,
+        ...requestConfig,
         messages: [
           {
             role: 'system',
@@ -630,8 +638,6 @@ NEWS enthält keine FAQ. Bei anderen Artikelarten nur konkrete, quellengestützt
 Keine zusätzlichen Erklärungen, keine Markdown-Codeblöcke.`,
           },
         ],
-        temperature: temperature ?? 0.4,
-        max_completion_tokens: 8192,
       }, { timeout: 120000, maxRetries: 0 });
       return parseCompletedWriterResponse(response.choices[0]);
     } catch (error: any) {

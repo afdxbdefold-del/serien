@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  editorialBodyParagraphs, editorialPayloadHash, parseEditorialReview, reviewAndRepairArticle, validateEditorialReview,
+  editorialBodyParagraphs, editorialPayloadHash, germanyCatalogEvidenceText, parseEditorialReview, reviewAndRepairArticle, validateEditorialReview,
   type EditorialArticle, type EditorialEvidence, type EditorialReview,
 } from '../lib/editorial-review';
 
@@ -21,7 +21,8 @@ const article: EditorialArticle = {
   contentHtml: paragraphs.map(p => `<p>${p}</p>`).join('\n') + sourceLink,
 };
 const sourceQuote = 'Filming on the second season of Nordhafen begins this week.';
-const sourceText = `${sourceQuote} The production team confirmed that the season will contain six new episodes. The story returns to the harbour district and follows the same two investigators. Both lead actors will reprise their existing roles. Filming begins at locations already used in the first season, with further locations to follow during production. The announcement does not identify those additional locations or provide a daily filming schedule. No new characters or guest actors are announced. The team describes the continuation as the next stage of the same investigation. No broadcast date or trailer has been announced, and the announcement does not establish a release date for any territory.`;
+const germanyProof = 'The announcement confirms that Nordhafen is available in Germany.';
+const sourceText = `${sourceQuote} The production team confirmed that the season will contain six new episodes. The story returns to the harbour district and follows the same two investigators. Both lead actors will reprise their existing roles. Filming begins at locations already used in the first season, with further locations to follow during production. The announcement does not identify those additional locations or provide a daily filming schedule. No new characters or guest actors are announced. The team describes the continuation as the next stage of the same investigation. No broadcast date or trailer has been announced, and the announcement does not establish a release date for any territory. ${germanyProof}`;
 const evidence: EditorialEvidence = {
   sourceTitle: 'Nordhafen returns to production', sourceUrl: 'https://studio.example/news/nordhafen',
   sourceText, sourcePublishedAt: '2026-09-20T08:00:00.000Z', seriesName: 'Nordhafen',
@@ -29,6 +30,7 @@ const evidence: EditorialEvidence = {
 };
 const goodReview = (candidate = article): EditorialReview => ({
   complete: true, newsworthy: true, verdict: 'publish', clarity: 4, originality: 4,
+  germanyRelevance: { relevant: true, basis: 'original', evidenceQuote: germanyProof, reason: 'Wesentliche Produktionsnachricht einer ausdrücklich in Deutschland verfügbaren Serie.', newsCategory: 'series-production', localOnly: false },
   coverage: { headline: true, excerpt: true, metaDescription: true, bodyParagraphIndexes: editorialBodyParagraphs(candidate).map(p => p.index) },
   issues: [], claims: [{
     articleQuote: 'Die Dreharbeiten zur zweiten Staffel von Nordhafen beginnen.',
@@ -58,6 +60,13 @@ async function run() {
     { ...goodReview(), verdict: 'PASS' },
     { ...goodReview(), clarity: 6 },
     { ...goodReview(), originality: 4.5 },
+    { ...goodReview(), germanyRelevance: undefined },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, relevant: 'true' } },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, basis: 'brand-name' } },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, evidenceQuote: 123 } },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, reason: '' } },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, newsCategory: 'gossip' } },
+    { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, localOnly: undefined } },
     { ...goodReview(), coverage: undefined },
     { ...goodReview(), coverage: { ...goodReview().coverage, excerpt: 'true' } },
     ...[0, -1, 1.5, 513, '1'].map(index => ({ ...goodReview(), coverage: { ...goodReview().coverage, bodyParagraphIndexes: [index] } })),
@@ -66,6 +75,114 @@ async function run() {
     { ...goodReview(), claims: [{ ...goodReview().claims[0], sourceQuote: 123 }] },
     { ...goodReview(), claims: [{ ...goodReview().claims[0], assessment: 'probably' }] },
   ]) assert.throws(() => parseEditorialReview(malformed));
+
+  const noGermanyEvidence = { ...evidence, sourceText: sourceText.replace(germanyProof, '') };
+  assert.equal(decision(goodReview(), article, noGermanyEvidence).passed, false, 'a claimed DE quotation must actually exist');
+  for (const patch of [{ relevant: false }, { basis: 'none' }, { localOnly: true }, { newsCategory: 'other' }, { evidenceQuote: sourceQuote }]) {
+    assert.equal(decision({ ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, ...patch } }).passed, false);
+  }
+  for (const falseProof of [
+    'Global streaming giant FixtureStream has announced a UK-only talk show.',
+    'The series is not available in Germany.',
+    'Germany is excluded from this worldwide release.',
+    'The series premieres worldwide, excluding Germany.',
+    'Die Serie ist nicht in Deutschland verfügbar.',
+    'Die weltweite Marke FixtureStream kündigt ein UK-Gastinterview an.',
+  ]) {
+    const wronglyApproved = { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, evidenceQuote: falseProof } };
+    assert.equal(decision(wronglyApproved, article, { ...noGermanyEvidence, sourceText: `${noGermanyEvidence.sourceText} ${falseProof}` }).passed, false, falseProof);
+  }
+  const worldwideProof = 'Nordhafen is available worldwide on the same service.';
+  assert.equal(decision({ ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, evidenceQuote: worldwideProof } }, article, { ...noGermanyEvidence, sourceText: `${noGermanyEvidence.sourceText} ${worldwideProof}` }).passed, true);
+  const catalogEvidence: EditorialEvidence = {
+    ...noGermanyEvidence, germanyCatalog: { country: 'DE', seriesName: 'Nordhafen', providers: ['FixtureStream'] },
+  };
+  const catalogProof = germanyCatalogEvidenceText(catalogEvidence)!;
+  const catalogReview = { ...goodReview(), germanyRelevance: { ...goodReview().germanyRelevance, basis: 'catalog-context' as const, evidenceQuote: catalogProof } };
+  assert.equal(decision(catalogReview, article, catalogEvidence).passed, true);
+  const catalogClaim = 'Nordhafen ist in Deutschland bei FixtureStream verfügbar.';
+  assert.equal(decision({ ...catalogReview, claims: [...catalogReview.claims, { articleQuote: catalogClaim, sourceQuote: catalogProof, source: 'context', assessment: 'supported' }] }, { ...article, excerpt: catalogClaim }, catalogEvidence).passed, true, 'validated catalogue evidence may support an actual availability statement');
+  assert.equal(decision(catalogReview, article, { ...noGermanyEvidence, verifiedContext: catalogProof }).passed, false, 'free-form context is not validated DE catalogue evidence');
+  assert.equal(decision({ ...catalogReview, germanyRelevance: { ...catalogReview.germanyRelevance, newsCategory: 'germany-release' } }, article, catalogEvidence).passed, false, 'old DE catalogue entries prove no new DE release');
+  for (const patch of [{ localOnly: true }, { newsCategory: 'other' }, { evidenceQuote: 'FixtureStream' }]) {
+    assert.equal(decision({ ...catalogReview, germanyRelevance: { ...catalogReview.germanyRelevance, ...patch } }, article, catalogEvidence).passed, false, 'catalogue relevance cannot launder local slots, talk shows, ratings or gossip');
+  }
+  // These synthetic events exercise the deterministic evidence contract, not
+  // a real model's ability to judge whether an award or chart is newsworthy.
+  const audienceClaim = 'Nordhafen führt die wöchentlichen Streamingcharts in Deutschland an.';
+  const audienceArticle = { ...article, headline: 'Nordhafen führt die deutschen Streamingcharts an',
+    excerpt: audienceClaim, contentHtml: `${article.contentHtml}<p>${audienceClaim}</p>` };
+  for (const audienceProof of [
+    "Nordhafen tops Germany's weekly streaming chart.",
+    'Nordhafen tops the German streaming charts this week.',
+    'Nordhafen leads the streaming chart in Germany this week.',
+    'Nordhafen führt die wöchentlichen Streamingcharts in Deutschland an.',
+    'Nordhafen tops the streaming chart in Germany while placing third in the US.',
+  ]) {
+    const audienceEvidence = { ...noGermanyEvidence, sourceText: `${noGermanyEvidence.sourceText} ${audienceProof}` };
+    const audienceReview: EditorialReview = { ...goodReview(audienceArticle),
+      germanyRelevance: { ...goodReview().germanyRelevance, newsCategory: 'germany-audience', evidenceQuote: audienceProof },
+      claims: [{ articleQuote: audienceClaim, sourceQuote: audienceProof, source: 'original', assessment: 'supported' }],
+    };
+    assert.equal(decision(audienceReview, audienceArticle, audienceEvidence).passed, true, audienceProof);
+    assert.equal(decision({ ...audienceReview, germanyRelevance: { ...audienceReview.germanyRelevance,
+      basis: 'catalog-context', evidenceQuote: catalogProof } }, audienceArticle, { ...audienceEvidence, germanyCatalog: catalogEvidence.germanyCatalog }).passed, false,
+    'even a real German catalogue cannot substitute for the geography of audience metrics');
+  }
+  const usChartProof = 'Nordhafen leads the US streaming charts this week.';
+  for (const proof of [usChartProof, worldwideProof]) {
+    assert.equal(decision({ ...goodReview(audienceArticle), germanyRelevance: {
+      ...goodReview().germanyRelevance, newsCategory: 'germany-audience', evidenceQuote: proof,
+    } }, audienceArticle, { ...catalogEvidence, sourceText: `${sourceText} ${usChartProof} ${worldwideProof}` }).passed, false,
+    'foreign metrics or worldwide availability alone cannot supply an original DE audience proof');
+  }
+  for (const unrelatedProof of [germanyProof, worldwideProof, `${germanyProof} ${usChartProof}`]) {
+    const audienceEvidence = { ...catalogEvidence, sourceText: `${sourceText} ${worldwideProof} ${usChartProof}` };
+    const audienceReview: EditorialReview = { ...goodReview(audienceArticle),
+      germanyRelevance: { ...goodReview().germanyRelevance, newsCategory: 'germany-audience', evidenceQuote: unrelatedProof },
+      claims: [{ articleQuote: audienceClaim, sourceQuote: usChartProof, source: 'original', assessment: 'unsupported' }],
+    };
+    assert.equal(decision(audienceReview, audienceArticle, audienceEvidence).passed, false,
+      'a semantic review finding that the US metric does not support a German result must block publication');
+    assert.equal(decision({ ...audienceReview, germanyRelevance: { ...audienceReview.germanyRelevance,
+      basis: 'catalog-context', evidenceQuote: catalogProof } }, audienceArticle, audienceEvidence).passed, false,
+    'foreign charts cannot acquire German relevance through catalogue evidence');
+  }
+  const awardClaim = 'Nordhafen gewinnt den fiktiven Serienpreis für die beste Dramaserie.';
+  const awardProof = 'Nordhafen won the fictional best drama series award.';
+  const awardArticle = { ...article, headline: 'Nordhafen gewinnt den fiktiven Serienpreis',
+    excerpt: awardClaim, contentHtml: `${article.contentHtml}<p>${awardClaim}</p>` };
+  const awardEvidence = { ...catalogEvidence, sourceText: `${sourceText} ${awardProof}` };
+  const awardReview: EditorialReview = { ...goodReview(awardArticle),
+    germanyRelevance: { ...goodReview().germanyRelevance, newsCategory: 'series-award' },
+    claims: [{ articleQuote: awardClaim, sourceQuote: awardProof, source: 'original', assessment: 'supported' }],
+  };
+  assert.equal(decision(awardReview, awardArticle, awardEvidence).passed, true, 'a substantive award with original DE evidence may pass');
+  const catalogAwardReview = { ...awardReview, germanyRelevance: { ...awardReview.germanyRelevance,
+    basis: 'catalog-context' as const, evidenceQuote: catalogProof } };
+  assert.equal(decision(catalogAwardReview, awardArticle, awardEvidence).passed, true, 'a substantive series award may use verified DE catalogue relevance');
+  const synonymousAwardProof = 'Nordhafen secured the Emmy for best drama series.';
+  const synonymousAwardClaim = 'Nordhafen hat den Emmy als beste Dramaserie erhalten.';
+  const synonymousAwardArticle = { ...awardArticle, headline: 'Nordhafen erhält den Emmy als beste Dramaserie',
+    excerpt: synonymousAwardClaim, contentHtml: awardArticle.contentHtml.replace(awardClaim, synonymousAwardClaim) };
+  assert.equal(decision({ ...catalogAwardReview, claims: [{ articleQuote: synonymousAwardClaim, sourceQuote: synonymousAwardProof,
+    source: 'original', assessment: 'supported' }] }, synonymousAwardArticle, { ...awardEvidence, sourceText: `${awardEvidence.sourceText} ${synonymousAwardProof}` }).passed, true,
+  'valid award wording must not depend on a lexical win/nomination checklist');
+  const galaProof = 'The lead actor will host the fictional awards gala.';
+  assert.equal(decision({ ...catalogAwardReview, claims: [{ articleQuote: awardClaim, sourceQuote: galaProof,
+    source: 'original', assessment: 'unsupported' }] }, awardArticle, { ...awardEvidence, sourceText: `${awardEvidence.sourceText} ${galaProof}` }).passed, false,
+  'a semantic review finding that gala attendance does not support an award must block publication');
+  assert.equal(decision({ ...catalogAwardReview, germanyRelevance: { ...catalogAwardReview.germanyRelevance,
+    localOnly: true } }, awardArticle, awardEvidence).passed, false, 'award labels must not bypass the local-only exclusion');
+  for (const germanyCatalog of [
+    { country: 'US', seriesName: 'Nordhafen', providers: ['FixtureStream'] },
+    { country: 'DE', seriesName: 'Other Show', providers: ['FixtureStream'] },
+    { country: 'DE', seriesName: 'Nordhafen', providers: [] },
+    { country: 'DE', seriesName: 'Nordhafen', providers: [''] },
+  ]) {
+    assert.equal(germanyCatalogEvidenceText({ ...catalogEvidence, germanyCatalog } as EditorialEvidence), null);
+    assert.equal(decision(catalogReview, article, { ...catalogEvidence, germanyCatalog } as EditorialEvidence).passed, false);
+  }
 
   for (const field of ['headline', 'excerpt', 'metaDescription'] as const) {
     assert.equal(decision({ ...goodReview(), coverage: { ...goodReview().coverage, [field]: false } }).passed, false);
@@ -150,6 +267,21 @@ async function run() {
   const passed = await reviewAndRepairArticle(article, evidence, { callJson: async () => goodReview() });
   assert.equal(passed.decision.passed, true);
   assert.equal(passed.revisions, 0);
+  let relevanceCalls = 0;
+  const heldForGermany = await reviewAndRepairArticle(article, noGermanyEvidence, { callJson: async () => {
+    relevanceCalls++;
+    return { ...goodReview(), verdict: 'revise', germanyRelevance: { ...goodReview().germanyRelevance, relevant: false, basis: 'none', evidenceQuote: '', reason: 'Kein Deutschlandbeleg.' } };
+  } });
+  assert.equal(heldForGermany.decision.passed, false);
+  assert.equal(relevanceCalls, 1, 'missing DE evidence cannot be manufactured through a rewrite');
+  await reviewAndRepairArticle(article, catalogEvidence, { callJson: async (_name, _schema, instructions, data) => {
+    assert.equal((data as { germanyCatalogEvidenceText: string }).germanyCatalogEvidenceText, catalogProof);
+    assert(instructions.includes('Lokale UK-/US-Talkshows'));
+    assert(instructions.includes('geografische Zuordnung der Zahlen oder Chartposition selbst'));
+    assert(instructions.includes('ein separater Satz über deutsche Verfügbarkeit reicht nicht'));
+    assert(instructions.includes('Erfasse den konkreten Auszeichnungs-/Nominierungsvorgang ausdrücklich in claims'));
+    return catalogReview;
+  } });
 
   // No first-1500-character truncation: the late allegation must reach review.
   const allegation = 'Ein Hauptdarsteller wurde wegen Betrugs verurteilt.';

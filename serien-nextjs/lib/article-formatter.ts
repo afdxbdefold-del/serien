@@ -209,7 +209,7 @@ export function validateArticleHTML(html: string): { valid: boolean; errors: str
   });
 
   // Check paragraph lengths (rough check)
-  const paragraphs = html.match(/<p[^>]*>([^<]+)<\/p>/g) || [];
+  const paragraphs: string[] = html.match(/<p[^>]*>([^<]+)<\/p>/g) || [];
   paragraphs.forEach((p, i) => {
     const text = p.replace(/<[^>]+>/g, '');
     const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);

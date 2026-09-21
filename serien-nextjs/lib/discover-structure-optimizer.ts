@@ -126,7 +126,7 @@ function optimizeParagraphs(content: string): string {
   let optimizedContent = content;
   
   // Split long paragraphs (more than 5 sentences)
-  const paragraphs = optimizedContent.match(/<p>(.*?)<\/p>/gs) || [];
+  const paragraphs: string[] = optimizedContent.match(/<p>(.*?)<\/p>/gs) || [];
   
   paragraphs.forEach(p => {
     const pContent = p.replace(/<\/?p>/g, '');

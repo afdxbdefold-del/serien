@@ -1,13 +1,7 @@
 /**
- * PIPELINE V2 - OPTIMIZED
- * 
- * Key improvements over v1:
- * 1. Single LLM call for content + H2s + meta + Q&A
- * 2. Character linking BEFORE HTML conversion
- * 3. Parallelized post-processing
- * 4. Faster, cleaner, more reliable
- * 5. URL Dedup: Prevents re-processing same source URL within 24h (saves LLM costs)
- * 6. Auto-Retry: Re-generates content with lower temperature if Discover Score < 60
+ * Source-grounded news orchestration. Astra classifies, extracts facts, writes
+ * and reviews the complete package. One evidence-led revision maximum.
+ * Legacy manually requested formats remain isolated from automatic NEWS.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -17,9 +11,8 @@ import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/charac
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { injectSourceEmbeds } from '../lib/source-embeds';
-import { classifyContent, shouldSkipArticle } from '../lib/content-classifier';
+import { classifyContent } from '../lib/content-classifier';
 import { blockReasonForSource, blockReasonForTmdbId } from '../lib/series-blocklist';
-import { resolveTmdbSeries } from '../lib/tmdb-resolver';
 import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
 import { getTvDetailsComplete } from '../lib/tmdb';
 import { extractFacts } from '../lib/fact-extractor';
@@ -35,12 +28,12 @@ import { uploadSeriesImages } from '../lib/blob-uploader';
 import { fetchTopBackdrops, selectBackdropForArticle } from '../lib/tmdb-backdrops';
 import { getStreamerFallbackImage } from '../lib/streamer-fallback-images';
 import { factSafetyCheck } from '../lib/fact-safety-layer';
-import { classifyContentAge, shouldPublishBasedOnAge, neutralizeOldContentHeadline } from '../lib/time-axis-correction';
+import { classifyContentAge } from '../lib/time-axis-correction';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { shouldSkipByGenre } from '../lib/genre-filter';
 import { checkDachAvailability } from '../lib/dach-availability';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
-import { checkForDuplicate, quickTitleSimilarityCheck, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
+import { checkForDuplicate, preFilterDuplicate, normalizeCoreEvent } from '../lib/duplicate-checker';
 import { computeStoryFingerprint } from '../lib/story-fingerprint';
 import { indexNowArticle } from '../lib/indexnow';
 import { postArticleToFacebook } from '../lib/facebook-poster';
@@ -52,6 +45,9 @@ import { reviewAndRepairArticle, type EditorialReviewDecision } from '../lib/edi
 import { inspectArticleStructure } from '../lib/article-structure';
 import { verifyPublicationImage, revalidatePublicationCaches, verifyPublishedArticle } from '../lib/publication-verification';
 import { safeNewsError } from '../lib/news-import-reliability';
+import { NEWS_LLM_CONFIG } from '../lib/llm-config';
+import { newsSourceIsFresh, sourceMentionsSeries, isNewsClassification, matchesResolvedSeries } from '../lib/news-pipeline-policy';
+import { fetchEditorialSource } from '../lib/editorial-source-fetch';
 
 const prisma = new PrismaClient();
 
@@ -298,6 +294,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logStep('0_author_resolution');
     const resolvedAuthorId = await resolveEditorialAuthorId(source);
     logger.addMetadata('authorResolution', source.authorId?.trim() ? 'explicit' : 'editorial-default');
+    logger.addMetadata('newsModel', NEWS_LLM_CONFIG);
     
     if (trigger !== 'manual') {
       // Nur SUCCESSFUL Runs der letzten 24h blockieren — gescheiterte Runs
@@ -336,7 +333,15 @@ export async function runPipelineV2(source: PipelineV2Source) {
     let sourceTwitterStatusUrls: string[] = [];
     let fetchedSourcePublishedAt: Date | null = null;
     
-    if (source.useFullTextMode || trigger !== 'manual') {
+    if (trigger !== 'manual') {
+      // Automatic news uses the same bounded, DNS-pinned original-source fetch
+      // as editorial review. No third-party reader or RSS-teaser fallback.
+      const original = await fetchEditorialSource(source.url);
+      fullSourceText = original.fullText;
+      source.title = original.title;
+      fetchedSourcePublishedAt = original.publishDate || null;
+      logger.addMetadata('sourceReader', 'direct-original');
+    } else if (source.useFullTextMode) {
       const fullTextResult = await fetchFullArticleText(source.url);
       fetchedSourcePublishedAt = fullTextResult.publishDate || null;
       
@@ -370,21 +375,18 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Pipeline-V2 verarbeitet einzelne News-Artikel - das Artikel-Datum IST das Thema-Datum
     // A missed scheduler run must not discard the entire news day. Editorial
     // review still verifies the actual event and uses explicit source dates.
-    const maxAgeMs = 72 * 60 * 60 * 1000;
 
     // RSS/JSON-LD timestamps are authoritative. Dates mentioned in prose may
     // be release dates or historical context and are never used for freshness.
-    const articleDate = parseSourcePublishedAt(source.sourcePublishedAt) || fetchedSourcePublishedAt;
+    const articleDate = fetchedSourcePublishedAt || parseSourcePublishedAt(source.sourcePublishedAt);
     
     if (articleDate) {
       const articleAge = now.getTime() - articleDate.getTime();
       const articleAgeHours = Math.round(articleAge / (60 * 60 * 1000) * 10) / 10;
       
-      if (articleAge > maxAgeMs && trigger !== 'manual') {
-        console.log(`\n⏰ THEMA ZU ALT: Artikel von vor ${articleAgeHours} Stunden (max: 72 Stunden)`);
-        console.log(`   → Überspringe. Nur manuelle Trigger erlaubt für ältere Themen.`);
-        logger.log(`Thema zu alt: ${articleAgeHours}h (max 72h)`);
-        await logger.fail(`Thema zu alt: ${articleAgeHours}h`, 'topic-age-check');
+      if (!newsSourceIsFresh(articleDate, now) && trigger !== 'manual') {
+        logger.log(`Quellzeitpunkt außerhalb des Nachrichtenfensters: ${articleAgeHours}h`);
+        await logger.fail('Quellzeitpunkt zukünftig oder älter als 72 Stunden', 'topic-age-check');
         return null;
       }
       
@@ -394,155 +396,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
       return null;
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // TOPIC OUT-OF-SCOPE GATE (Phase B Feb 2026, **VOR LLM** seit Phase C)
-    //   Deterministischer Block für US-Talkshow-/Boulevard-Klatsch (SNL,
-    //   Met-Gala-Outfits, Late-Show-Interviews ohne News-Substanz). Diese
-    //   Artikel haben null DACH-Discover-Wert und kosten E-E-A-T.
-    //
-    //   Vorgezogen vor Step 2 (Classification), damit kein LLM-Token mehr für
-    //   Late-Night-Smalltalk verbrannt wird. checkTopicOutOfScope nutzt nur
-    //   Title + erste 800 Zeichen — alles bereits nach Step 1 verfügbar.
-    // ══════════════════════════════════════════════════════════════════════
-    {
-      const { checkTopicOutOfScope } = await import('../lib/topic-out-of-scope');
-      const leadSample = (fullSourceText || '').slice(0, 800);
-      const topicCheck = checkTopicOutOfScope(source.title, leadSample);
-      if (topicCheck.skip) {
-        console.log(`⚠️  TOPIC-OUT-OF-SCOPE (pre-LLM): "${source.title.slice(0, 80)}"`);
-        console.log(`   Grund: ${topicCheck.reason} (Treffer: "${topicCheck.hit}")`);
-        await logger.fail(
-          `Topic out-of-scope (pre-LLM): ${topicCheck.reason} — "${topicCheck.hit}"`,
-          'topic-out-of-scope',
-        );
-        return null;
-      }
-    }
-
+    // One source-aware classifier replaces overlapping keyword/region gates.
+    // Ratings, awards and overseas announcements can contain genuine series news.
     logStep('2_classification');
-
-    // ══════════════════════════════════════════════════════════════════════
-    // URL-PATTERN SHORT-CIRCUIT (Phase B+ Feb 2026)
-    // Bevor wir teures LLM-Classification zahlen, prüfen wir URL + Titel
-    // gegen kurze Pattern-Liste, die strukturell nie TV-Serien-News sein
-    // können (Sport-Live-Guides, Wahlen, Wetter, Börse, Listicles über Filme).
-    // Alle diese fallen eh später durch den Classifier — wir sparen Tokens.
-    // ══════════════════════════════════════════════════════════════════════
-    {
-      const urlLc = (source.url || '').toLowerCase();
-      const titleLc = (source.title || '').toLowerCase();
-      const combined = `${urlLc} ${titleLc}`;
-      const NON_TV_URL_PATTERNS: Array<{ re: RegExp; label: string }> = [
-        { re: /\bwhere[\s-]*to[\s-]*watch[\s-]*(?:the[\s-]*)?(?:f1|formula[\s-]*one|nfl|nba|nhl|mlb|ufc|boxing|golf|tennis|nascar|indycar|motogp|premier[\s-]*league|super[\s-]*bowl|wrestlemania|ncaa|college[\s-]*(?:football|basketball)|world[\s-]*cup|olympics?|grand[\s-]*prix)\b/i, label: 'sports-where-to-watch' },
-        { re: /\b(?:f1|formula[\s-]*one)[\s-]*(?:miami|monaco|bahrain|silverstone|spa|monza|austin|sao[\s-]*paulo|abu[\s-]*dhabi)[\s-]*grand[\s-]*prix/i, label: 'f1-race' },
-        { re: /\b(?:how|where)[\s-]*to[\s-]*watch[\s-]*(?:the[\s-]*)?(?:kentucky[\s-]*derby|preakness|belmont|triple[\s-]*crown|breeders[\s-]*cup|indy[\s-]*500|daytona[\s-]*500|nascar)/i, label: 'horse-racing-motorsport' },
-        { re: /\belection[\s-]*(?:results|night|coverage)\b/i, label: 'election-news' },
-        { re: /\b(?:weather|hurricane|storm|tornado|wildfire)[\s-]*(?:forecast|warning|coverage)/i, label: 'weather-news' },
-        { re: /\b(?:stock|market|nasdaq|dow[\s-]*jones|s&p[\s-]*500|crypto|bitcoin|ethereum)[\s-]*(?:report|close|today)/i, label: 'finance-markets' },
-        { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:comedies?|movies?|films?|musicals?)[\s-]*on[\s-]*(?:amazon[\s-]*prime|netflix|hulu|disney|paramount|hbo|max|apple|peacock|starz)/i, label: 'movie-listicle' },
-        { re: /\b(?:best|top[\s-]*\d+)[\s-]*(?:rewatch|rewatchable|feel[\s-]*good|underrated|forgotten)[\s-]*movies?\b/i, label: 'movie-listicle' },
-        // Ratings / Einschaltquoten — for DACH readers this is US-Nielsen
-        // noise that adds no value AND risks Discover penalties because
-        // the article body inevitably trends toward US-only context.
-        { re: /\b(?:tv|television|cable|broadcast|streaming|primetime|weekly|nightly|sunday|monday|tuesday|wednesday|thursday|friday|saturday)[\s-]*ratings\b/i, label: 'tv-ratings' },
-        { re: /\bratings[\s-]*(?:report|recap|roundup|winner|loser|drop|jump|surge|slide|breakdown|wrap|race|war|battle|king|queen|crown|champion|hit|dud|disaster|flop|update|day|news|tracker|tracker)/i, label: 'tv-ratings' },
-        { re: /\b(?:live[\s-]*\+[\s-]*[37]|l\+sd|l\+3|l\+7|live[\s-]*plus[\s-]*(?:three|seven)|nielsen|household[\s-]*ratings?|key[\s-]*demo|adults?[\s-]*18[\s-]*-[\s-]*49|18[\s-]*-[\s-]*49[\s-]*demo|demo[\s-]*ratings?|total[\s-]*viewers?)\b/i, label: 'nielsen-ratings' },
-        { re: /\b(?:einschaltquot|tv-quote|tv[\s-]*bilanz|quotensieger|quotenrekord|quoten[\s-]*(?:hit|flop|sieg|bombe|krone|krise|könig|king|queen|erfolg)|marktanteil)/i, label: 'de-einschaltquoten' },
-        { re: /\b(?:tops?[\s-]+and[\s-]+flops?|top[\s-]+rated|rating[\s-]*report|how[\s-]*[a-z\s-]{1,30}[\s-]*performed[\s-]*(?:on|with|in)[\s-]*(?:tv|its[\s-]*premiere|the[\s-]*ratings))/i, label: 'tv-ratings' },
-      ];
-      for (const { re, label } of NON_TV_URL_PATTERNS) {
-        const m = combined.match(re);
-        if (m) {
-          console.log(`⚠️  URL-Pattern-Block: "${source.title.slice(0,70)}"`);
-          console.log(`   Typ: ${label} — Treffer: "${m[0]}"`);
-          await logger.fail(
-            `URL-Pattern blockt (${label}): "${m[0]}" — "${source.title}"`,
-            'blocklist-source',
-          );
-          return null;
-        }
-      }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // SAMMEL-RECAP GATE (Feb 2026)
-    //   TVInsider/Decider Multi-Show-Roundups ("Show1, Show2 & Show3 Season
-    //   Finales") werden vom LLM-Classifier oft als SINGLE_SERIES_NEWS
-    //   geroutet, weil die letzte/prominenteste Serie als primary_series
-    //   gewählt wird → MULTI_SERIES_EDITORIAL-Filter mit DEATH/PLATFORM/
-    //   AWARD-Override greift NICHT mehr. Frühe deterministische Sperre
-    //   am URL+Titel spart LLM-Tokens und schließt das Bypass-Loch.
-    // ══════════════════════════════════════════════════════════════════════
-    {
-      const { detectSammelRecap } = await import('../lib/sammel-recap-detector');
-      const recap = detectSammelRecap(source.title || '', source.url || '');
-      if (recap.isSammelRecap) {
-        console.log(`⛔ SAMMEL-RECAP SKIP: "${source.title.slice(0, 80)}"`);
-        console.log(`   Grund: ${recap.reason} (Treffer: "${recap.hit}")`);
-        await logger.fail(
-          `Sammel-Recap: ${recap.reason} — "${recap.hit}"`,
-          'sammel-recap',
-        );
-        return null;
-      }
-    }
-
-    // ========== STEP 2: CLASSIFICATION ==========
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 2: CLASSIFICATION');
-    console.log('━'.repeat(70));
     console.time('⏱️  STEP 2: Classification');
-
-    // ═══════════════════════════════════════════════════════════════════
-    // US-INDUSTRY-EVENT PRE-FILTER (deterministic, kein LLM-Call)
-    // Blockt AAFCA/PGA/DGA/SAG/WGA/GLAAD/etc. Award-News die für DACH-
-    // Publikum irrelevant sind. Läuft VOR dem Classifier → spart LLM-
-    // Budget auf offensichtlich irrelevantem Content. Emmy/Golden Globes
-    // sind bewusst NICHT gefiltert (haben DACH-Awareness).
-    // ═══════════════════════════════════════════════════════════════════
-    try {
-      const { checkUsIndustryEvent } = await import('../lib/us-industry-event-filter');
-      const usEventCheck = checkUsIndustryEvent({
-        headline: source.title,
-        sourceTitle: source.title,
-      });
-      if (usEventCheck.blocked) {
-        console.log(`⛔ US-INDUSTRY-EVENT SKIP: "${source.title.slice(0, 80)}"`);
-        console.log(`   Grund: ${usEventCheck.reason}`);
-        logger.addMetadata('usIndustryEventSignals', usEventCheck.signals);
-        await logger.fail(usEventCheck.reason || 'US-Industry-Event', 'us-industry-event');
-        console.timeEnd('⏱️  STEP 2: Classification');
-        return null;
-      }
-    } catch (error: any) {
-      console.log(`⚠️  US-Industry-Event check skipped: ${error.message}`);
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // FAST TITLE PRE-CHECK - Erkennt Listicles/Editorials am Titel (spart LLM-Kosten)
-    // ══════════════════════════════════════════════════════════════════════════
-    const titleLower = source.title.toLowerCase();
-    
-    // Patterns die auf MULTI_SERIES_EDITORIAL hindeuten
-    const editorialPatterns = [
-      /favorite\s*(series|show|tv)/i,
-      /lieblings?\s*serie/i,
-      /all[- ]time\s*favorite/i,
-      /top\s*\d+/i,
-      /best\s*(series|shows|tv)/i,
-      /worst\s*(series|shows|tv)/i,
-      /ranking/i,
-      /\d+\s*(best|top|greatest)/i,
-      /must[- ]watch/i,
-      /binge[- ]worthy/i,
-    ];
-    
-    const isLikelyEditorial = editorialPatterns.some(p => p.test(source.title));
-    
-    if (isLikelyEditorial) {
-      console.log(`   📋 Titel-Pattern erkannt: Wahrscheinlich Editorial/Listicle`);
-    }
-    
     const classification = await classifyContent(
       source.title,
       source.url,
@@ -620,69 +477,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
       return null;
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // HALLUCINATION GUARD — primary_series muss im Artikel vorkommen
-    //
-    // Der Classifier halluziniert gelegentlich eine primary_series, die im
-    // Original-Artikel gar nicht erwähnt wird. Beispiel:
-    //   Titel: „Ryan Gosling landet als Astronaut auf Prime Video"
-    //   Classifier: primary_series = „Snoopy in Space"
-    //     (LLM assoziiert Astronaut + Prime + Space fälschlich mit Snoopy)
-    // Ergebnis: Artikel wurde unter Snoopy in Space publiziert — 100 %
-    // Falschzuordnung, hoher Discover-Trust-Schaden.
-    //
-    // Fix: mindestens EIN nicht-triviales Token der primary_series muss
-    // als Substring in Titel oder erste ~800 Zeichen des Bodys auftauchen.
-    // Sonst → Hard-Skip als Halluzination. Manual-Trigger erlaubt Override.
-    // ══════════════════════════════════════════════════════════════════════
-    if (
-      classification.primary_series &&
-      classification.content_type === 'SINGLE_SERIES_NEWS' &&
-      source.trigger !== 'manual'
-    ) {
-      // Stopwords aus dem Series-Titel raus (Artikel/Präpositionen/…)
-      const STOPWORDS = new Set([
-        'the', 'a', 'an', 'and', 'of', 'in', 'on', 'to', 'for', 'with',
-        'die', 'der', 'das', 'ein', 'eine', 'und', 'oder', 'auf', 'im', 'am',
-        'im', 'am', 'zu', 'von', 'aus', 'bei',
-      ]);
-      const seriesTokens = classification.primary_series
-        .toLowerCase()
-        .split(/[^a-z0-9äöüß]+/i)
-        .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
-
-      // Serie mit z.B. nur Zahlen/Kürzeln (9-1-1, CSI, ER): skip Check
-      // um False-Positives zu vermeiden.
-      if (seriesTokens.length > 0) {
-        const scanText = (
-          source.title + ' ' + (fullSourceText || '').slice(0, 800)
-        ).toLowerCase();
-        const hits = seriesTokens.filter((t) => scanText.includes(t));
-
-        if (hits.length === 0) {
-          console.log(
-            `⛔ HALLUCINATION-GUARD: primary_series="${classification.primary_series}" ` +
-              `nicht im Artikel-Titel/Body erwähnt (Tokens gesucht: ${seriesTokens.join(', ')})`,
-          );
-          logger.addMetadata('hallucinationGuard', {
-            primarySeries: classification.primary_series,
-            seriesTokens,
-            scannedChars: scanText.length,
-          });
-          await logger.fail(
-            `Classifier-Halluzination: "${classification.primary_series}" nicht im Artikel`,
-            'classifier-hallucination',
-          );
-          return null;
-        }
-      }
+    // The classifier names a series actually present anywhere in the source.
+    // A shared token or an actor-based association is not evidence of identity.
+    if (classification.content_type === 'SINGLE_SERIES_NEWS' &&
+        (!classification.primary_series || !sourceMentionsSeries(classification.primary_series, source.title, fullSourceText))) {
+      await logger.fail('Primäre Serie nicht im vollständigen Original belegt', 'classifier-hallucination');
+      return null;
     }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // TOPIC-OUT-OF-SCOPE wurde nach **vor** Step 2 verschoben (Phase C).
-    // Der Pre-LLM-Gate sitzt direkt nach dem Thema-Alter-Check und spart die
-    // Classification-Tokens für Talkshow-/Boulevard-Themen.
-    // ══════════════════════════════════════════════════════════════════════
 
     // ══════════════════════════════════════════════════════════════════════
     // MULTI-SERIES EDITORIAL FILTER
@@ -720,15 +521,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // URL-based ENDING_EXPLAINED detection: any `/ending-explained/` slug on
     // any source (Cinemaholic, Decider etc.) is treated as recap-content and
     // routed through the dedicated generator + headline format enforcement.
-    const isEndingExplainedUrl = /ending-explained/i.test(source.url || '') ||
-      /ending\s+explained/i.test(source.title || '');
+    const classifiedAsNews = isNewsClassification(classification.content_type);
+    const isEndingExplainedUrl = !classifiedAsNews && (/ending-explained/i.test(source.url || '') ||
+      /ending\s+explained/i.test(source.title || ''));
     // URL/Source-based TRUE_STORY detection. Triggers: "true story", "real
     // story", "where are they now", "wahre geschichte", "basiert auf einer
     // wahren". Eigene Pflicht-Headline-Patterns ("Die wahre Geschichte hinter
     // X. Wie ging es weiter?" / "Basiert X auf einer wahren Geschichte? Wie
     // ging es weiter?"), Routing wie ENDING_EXPLAINED.
     const { isTrueStorySource, assessTrueStoryCertainty } = await import('../lib/true-story-format');
-    const isTrueStoryUrl = !isEndingExplainedUrl && isTrueStorySource(source.url, source.title);
+    const isTrueStoryUrl = !classifiedAsNews && !isEndingExplainedUrl && isTrueStorySource(source.url, source.title);
     let trueStoryCertainty: 'confirmed' | 'uncertain' = 'uncertain';
     if (isTrueStoryUrl) {
       trueStoryCertainty = assessTrueStoryCertainty(source.title, fullSourceText, []);
@@ -737,10 +539,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
       ? 'ENDING_EXPLAINED'
       : isTrueStoryUrl
         ? 'TRUE_STORY'
-      : (classification.content_type === 'SINGLE_SERIES_NEWS' || classification.content_type === 'PERSONALITY_NEWS') ? 'NEWS' : 'RANKING';
+      : classifiedAsNews ? 'NEWS' : 'RANKING';
     if (trigger !== 'manual' && contentType !== 'NEWS') {
       await logger.fail('Automatik veröffentlicht ausschließlich belegte Seriennachrichten', 'format-not-automatic-news');
       return null;
+    }
+    if (contentType === 'NEWS') {
+      logger.addMetadata('newsRelevancePolicy', 'source-reviewed-germany-relevance-not-genre-show-age-or-placeholder-title');
     }
     if (isEndingExplainedUrl) {
       console.log(`   📝 ENDING_EXPLAINED pipeline aktiv (URL-Signal: "ending-explained")`);
@@ -929,7 +734,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
       const substringMatch =
         primaryLc.length >= 4 &&
         (primaryLc.includes(resolvedLc) || resolvedLc.includes(primaryLc));
-      if (!overlap && !substringMatch) {
+      const knownNameMatches = matchesResolvedSeries(classification.primary_series,
+        [searchResult.name, searchResult.originalName || '']);
+      if (contentType === 'NEWS' ? !knownNameMatches : !overlap && !substringMatch) {
         // ENDING_EXPLAINED: URL-Signal + TMDB-Match sind ausreichend. Englischer
         // Titel aus der Cinemaholic-Quelle ("Envious") vs. Originaltitel in TMDB
         // ("Envidiosa") würde sonst zuschlagen, obwohl es dieselbe Serie ist.
@@ -964,35 +771,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // GATE B — PER-SERIES MONTHLY CAP
-    // Caps how many articles we publish per series per rolling 30-day window.
-    // Over-coverage (currently 30 series have >5 articles/month, summing to
-    // 334 articles = 27% of total volume) gives diminishing returns — extra
-    // articles cannibalise each other in Discover and SERP. 5/month is the
-    // sweet spot: covers all major story beats (renewal, finale, casting,
-    // streaming-arrival, ending-explained) without dilution.
-    //
-    // Manual runs bypass — editorial overrides always work.
-    // ══════════════════════════════════════════════════════════════════════
-    const PER_SERIES_MONTHLY_CAP = 5;
-    if (source.trigger !== 'manual') {
-      const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const seriesCount = await prisma.articles.count({
-        where: {
-          status: 'published',
-          primarySeriesId: searchResult.tmdbId,
-          publishedAt: { gte: since30 },
-        },
-      });
-      if (seriesCount >= PER_SERIES_MONTHLY_CAP) {
-        console.log(`⛔ PER-SERIES CAP reached: ${seriesCount} ≥ ${PER_SERIES_MONTHLY_CAP} for tmdb:${searchResult.tmdbId}`);
-        await logger.fail(`Per-series cap (${seriesCount}/${PER_SERIES_MONTHLY_CAP}) for tmdb:${searchResult.tmdbId}`, 'per-series-cap');
-        console.timeEnd('⏱️  STEP 3: TMDB Resolution');
-        return null;
-      }
-    }
-    
+    // Distinct relevant events are not rejected by an arbitrary monthly quota.
+    // Daily cost bounds, semantic event deduplication and review still apply.
     // Check if series exists in DB
     let dbSeries = await prisma.series.findUnique({
       where: { tmdbId: searchResult.tmdbId },
@@ -1195,10 +975,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // GENRE SAFETY NET — skip US late-night / talk / game / reality shows
-    // BEFORE any LLM spend. Source: TVInsider/Variety/Deadline RSS-noise.
+    // Legacy genre filter for non-news formats only. Genre/season count alone
+    // cannot distinguish a German soap or reality show from foreign-local TV.
+    // NEWS must prove German relevance in the final source-grounded review.
     // ══════════════════════════════════════════════════════════════════════
-    {
+    if (contentType !== 'NEWS') {
       // Prefer DB genres; fall back to an on-the-fly TMDB fetch so we
       // still catch shows whose DB record is stale (e.g. empty genres[]).
       let genresForCheck: string[] = dbSeries.genres || [];
@@ -1283,12 +1064,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SHOW-AGE CUTOFF — skip Ended/Canceled series whose lastAirDate is
+    // LEGACY NON-NEWS SHOW-AGE CUTOFF — skip Ended/Canceled series whose lastAirDate is
     // older than 10 years, unless source contains Reboot/Revival/Death/
     // Reunion-Premiere keywords. Catches Boulevard-Gossip on retired US
     // sitcoms (Happy Days, Cheers, Frasier, Seinfeld …).
     // ══════════════════════════════════════════════════════════════════════
-    {
+    if (contentType !== 'NEWS') {
       const { checkShowAgeCutoff } = await import('../lib/show-age-cutoff');
       const ageCheck = checkShowAgeCutoff(
         {
@@ -1309,7 +1090,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // UNRELEASED-PROJECT FILTER — skip TMDB stubs ("Untitled <X> Series",
+    // LEGACY NON-NEWS UNRELEASED-PROJECT FILTER — skip TMDB stubs ("Untitled <X> Series",
     // "Untitled <X> Project") that have no firstAirDate and a planned/null
     // status. Such placeholders generate unsearchable headlines like
     // "Was viele über Oscar Isaac nicht wussten, bevor Untitled Las Vegas
@@ -1317,7 +1098,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Whitelist: status="In Production" (working title is real).
     // Override: source explicitly announces the official title.
     // ══════════════════════════════════════════════════════════════════════
-    {
+    if (contentType !== 'NEWS') {
       const { checkUnreleasedProject } = await import('../lib/unreleased-project-filter');
       const projectCheck = checkUnreleasedProject(
         {
@@ -1398,7 +1179,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // STAGE A: Jaccard title + core-event pre-filter (0 LLM calls)
     // Catches ~80% of "same story, different publisher" hits before we burn
     // an LLM call on them.
-    const preFilterHit = await preFilterDuplicate({
+    // NEWS compares events against the full source below. Lexically similar
+    // headlines can describe different dates, territories or new developments.
+    const preFilterHit = contentType === 'NEWS' ? null : await preFilterDuplicate({
       newTitle: source.title,
       seriesTmdbIds: [dbSeries.tmdbId],
       storyFingerprint: null, // facts not yet extracted
@@ -1420,7 +1203,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // STAGE B: LLM semantic check (bestehend, aber fail-closed)
     const duplicateResult = await checkForDuplicate(
       source.title,
-      fullSourceText.substring(0, 500), // Erste 500 Zeichen als Zusammenfassung
+      fullSourceText,
       dbSeries.tmdbId,
       dbSeries.name || dbSeries.title || ''
     );
@@ -1460,12 +1243,13 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.log(`✅ Extracted ${facts.key_statements.length} facts`);
     console.timeEnd('⏱️  STEP 4: Fact Extraction');
 
-    // ========== STEP 4.5: STORY FINGERPRINT GATE ==========
-    // Hash over structured facts → catches "same story, different publisher"
-    // even when titles differ. Runs BEFORE content generation (cheapest stop).
-    logStep('4.5_fingerprint_gate');
+    // ========== STEP 4.5: STORY FINGERPRINT ==========
+    // NEWS keeps the historical hash for diagnostics only. Its truncated token
+    // set does not prove event identity and must not override semantic dedupe.
+    logStep(contentType === 'NEWS' ? '4.5_fingerprint_metadata' : '4.5_fingerprint_gate');
     console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.5: STORY FINGERPRINT GATE 🧬');
+    console.log(contentType === 'NEWS' ? 'STEP 4.5: STORY FINGERPRINT (METADATEN) 🧬' : 'STEP 4.5: STORY FINGERPRINT GATE 🧬');
+    logger.addMetadata('fingerprintMode', contentType === 'NEWS' ? 'diagnostic-only' : 'legacy-hard-gate');
     console.log('━'.repeat(70));
     console.time('⏱️  STEP 4.5: Fingerprint Gate');
 
@@ -1479,7 +1263,9 @@ export async function runPipelineV2(source: PipelineV2Source) {
       storyFingerprintValue = fingerprintBundle.fingerprint;
       console.log(`   🧬 Fingerprint: ${fingerprintBundle.fingerprint.slice(0, 12)}…`);
 
-      const fingerprintHit = await preFilterDuplicate({
+      // Historical fingerprints use only a subset of statement tokens. Keep
+      // them for diagnosis, but do not overrule a full-source event comparison.
+      const fingerprintHit = contentType === 'NEWS' ? null : await preFilterDuplicate({
         newTitle: source.title,
         seriesTmdbIds: [dbSeries.tmdbId],
         storyFingerprint: fingerprintBundle.fingerprint,
@@ -1503,11 +1289,8 @@ export async function runPipelineV2(source: PipelineV2Source) {
     console.timeEnd('⏱️  STEP 4.5: Fingerprint Gate');
 
     // ========== STEP 4.6: DACH LOCALIZATION CONTEXT ==========
-    // Phase B Feb 2026: TMDB /watch/providers (region=DE) liefert konkrete
-    // DACH-Streamer für die Serie. Fallback: Network-Mapping. Wenn beides
-    // leer: explizit "Deutsche Ausstrahlung steht aus".
-    // Damit hat Claude im Content-Generation-Prompt einen DACH-Anker und
-    // schreibt nicht über CBS/NBC/ABC, sondern über Disney+/Paramount+/Sky.
+    // Observed catalog providers are context, not proof of a new season's date.
+    // NEWS never infers German availability from a US production network.
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 4.6: DACH LOCALIZATION CONTEXT 🇩🇪');
     console.log('━'.repeat(70));
@@ -1528,7 +1311,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
         const uniq = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
         dachContext.dachStreamers = uniq;
       }
-      if (dachContext.dachStreamers.length === 0) {
+      if (contentType !== 'NEWS' && dachContext.dachStreamers.length === 0) {
         const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
         const expectation = mapNetworksToDach(dachContext.originalNetworks);
         if (expectation) {
@@ -1565,7 +1348,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // Independent source-grounded writing, no whole-source translation.
     let structuredContent: any = null;
 
-    // -------- REBUILT-FROM-FACTS (Path B, legacy + non-NEWS types) --------
+    // One source-grounded writer for headline, lead, metadata and article body.
     if (!structuredContent) {
       structuredContent = await generateStructuredContent({
       facts,
@@ -1728,10 +1511,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // run only after retry, HTML conversion and headline/intro selection. Their
     // verdict must describe the exact payload that is inserted.
 
-    // Plagiarism / near-duplicate gate (TF-Cosine over 14-day published corpus).
-    // Catches re-writes of our own old articles that `duplicate-llm` would miss
-    // (LLM judges by event semantics; this gate catches lexical overlap that
-    // Google would treat as self-cannibalization regardless of intent).
+    // Lexical overlap over the recent corpus is diagnostic for NEWS, not an
+    // event-identity verdict: a new development can share cast/background with
+    // a previous report. Semantic dedupe and source-grounded editing remain
+    // required. Preserve the legacy hard gate only for non-news formats.
     try {
       const { findSimilarArticles } = await import('../lib/article-similarity');
       const similar = await findSimilarArticles(structuredContent.markdown || '', {
@@ -1741,20 +1524,24 @@ export async function runPipelineV2(source: PipelineV2Source) {
       });
       const top = similar[0];
       if (top && top.similarity >= 0.75) {
-        logger.log(`Plagiat-Gate: ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit zu /${top.slug}`, 'warn');
+        logger.log(`Textähnlichkeit: ${(top.similarity * 100).toFixed(0)}% zu /${top.slug}`, 'warn');
         logger.addMetadata('plagiarismCheck', {
+          mode: contentType === 'NEWS' ? 'diagnostic-only' : 'legacy-hard-gate',
           similarity: top.similarity,
           matchSlug: top.slug,
           matchTitle: top.title,
           others: similar.slice(1, 3).map((s) => ({ slug: s.slug, sim: s.similarity })),
         });
-        await logger.fail(
-          `Plagiat-Verdacht: ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit zu /${top.slug}`,
-          'plagiarism-similar-article',
-        );
-        return null;
+        if (contentType !== 'NEWS') {
+          await logger.fail(
+            `Plagiat-Verdacht: ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit zu /${top.slug}`,
+            'plagiarism-similar-article',
+          );
+          return null;
+        }
+        logger.log('Hinweis: Textähnlichkeit allein ist kein Ereignisduplikat; Quellenredaktion und semantische Dublettenprüfung entscheiden.');
       }
-      if (top) {
+      if (top && top.similarity < 0.75) {
         logger.log(`Plagiat-Gate: max ${(top.similarity * 100).toFixed(0)}% Ähnlichkeit (OK, unter Schwellenwert 75%)`);
       }
     } catch (error: any) {
@@ -1765,7 +1552,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // den USA bei MHz Choice" class of articles that pass the LLM-based
     // german-angle filter via a perfunctory "in Deutschland bei Netflix
     // verfügbar" side-note.
-    try {
+    if (contentType !== 'NEWS') try {
       const { checkUsOnlyStreaming } = await import('../lib/us-only-streaming-filter');
       const usCheck = checkUsOnlyStreaming({
         headline: structuredContent.headline || '',
@@ -1810,7 +1597,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     // krise, Warner Bros. Discovery Umsatzeinbruch, NBCUniversal CEO-Wechsel),
     // selbst wenn ein DACH-Streamer wie Netflix nur als Aufhänger im Titel
     // steht. Reine Show-News mit US-Studio-Erwähnung passieren den Filter.
-    try {
+    if (contentType !== 'NEWS') try {
       const { checkUsCorporateNews } = await import('../lib/us-corporate-news-filter');
       const corpCheck = checkUsCorporateNews({
         headline: structuredContent.headline || '',
@@ -2343,6 +2130,10 @@ export async function runPipelineV2(source: PipelineV2Source) {
         sourceText: fullSourceText,
         sourcePublishedAt: articleDate?.toISOString() || '',
         seriesName: dbSeries.name || dbSeries.title || '',
+        germanyCatalog: {
+          country: 'DE', seriesName: dbSeries.name || dbSeries.title || '',
+          providers: dachContext.dachStreamers,
+        },
         verifiedContext: JSON.stringify({
           series: dbSeries.name || dbSeries.title,
           tmdbId: dbSeries.tmdbId,
@@ -2475,6 +2266,12 @@ export async function runPipelineV2(source: PipelineV2Source) {
       } else if (!articleDate) {
         editorialGateOutcomes.push({ gate: 'freshness', status: 'fail', reason: 'Belastbarer Quellzeitpunkt fehlt' });
         console.log('⚠️  Content age: missing structured source timestamp');
+      } else if (contentType === 'NEWS') {
+        const fresh = newsSourceIsFresh(articleDate);
+        editorialGateOutcomes.push({
+          gate: 'freshness', status: fresh ? 'pass' : 'fail',
+          reason: fresh ? 'Originalquelle innerhalb des 72-Stunden-Fensters' : 'Quellzeitpunkt ungültig, zukünftig oder älter als 72 Stunden',
+        });
       } else {
         const contentAge = classifyContentAge({
           sourcePublishedAt: articleDate,

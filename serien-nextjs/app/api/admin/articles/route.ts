@@ -465,8 +465,10 @@ export async function PATCH(request: NextRequest) {
     const seriesName = article.series?.name || article.series?.title || '';
     const gateOutcomes: EditorialGateOutcome[] = [];
     const normalizedContentType = (article.contentType || '').trim().toUpperCase();
-    const isTimelessEditorial = article.isRankingArticle
-      || ['RANKING', 'RANKING_LIST', 'FEATURE', 'FEATURE_ESSAY'].includes(normalizedContentType);
+    // An obsolete ranking flag must never exempt explicit NEWS from the
+    // original-source/Germany review or the final reviewed-payload hash check.
+    const isTimelessEditorial = normalizedContentType !== 'NEWS' && (article.isRankingArticle
+      || ['RANKING', 'RANKING_LIST', 'FEATURE', 'FEATURE_ESSAY'].includes(normalizedContentType));
     const editorialReviewConfirmed = isTimelessEditorial
       ? body.editorialReviewConfirmed === true
       : body.sourceConfirmed === true;
@@ -487,9 +489,16 @@ export async function PATCH(request: NextRequest) {
     let sourceReviewAudit: Record<string, unknown> | null = null;
     if (!isTimelessEditorial) {
       try {
+        // Country is selected by the server-side TMDB helper, not supplied by
+        // the editor. A known brand alone is not evidence of German relevance.
+        const providers = article.primarySeriesId ? await getTVWatchProviders(article.primarySeriesId) : null;
+        const providerNames = [...new Set([
+          ...(providers?.flatrate || []), ...(providers?.free || []), ...(providers?.ads || []),
+        ].map(provider => provider.provider_name).filter(name => typeof name === 'string' && name.trim()))];
         const reviewed = await reviewManualNews({
           article: { headline: title, excerpt: excerpt || '', metaDescription: metaDescription || '', contentHtml },
           sourceUrl: sourceUrl || '', sourcePublishedAt, sourceConfirmed: editorialReviewConfirmed, seriesName,
+          germanyCatalog: { country: 'DE', seriesName, providers: providerNames },
         });
         draftData.contentHtml = reviewed.article.contentHtml;
         draftData.sourcePublishedAt = reviewed.sourcePublishedAt;

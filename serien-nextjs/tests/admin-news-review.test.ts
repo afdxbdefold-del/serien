@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
 import { reviewManualNews } from '../lib/admin-news-review';
 import { editorialBodyParagraphs, editorialPayloadHash, reviewAndRepairArticle, type EditorialReview } from '../lib/editorial-review';
 import { fetchEditorialSource, publicSourceAddress } from '../lib/editorial-source-fetch';
@@ -14,8 +16,11 @@ const article = {
   contentHtml: `<p>${paragraph}</p><p>${paragraph.replace('Die Dreharbeiten', 'Die Arbeiten')}</p><p>${paragraph.replace('Die Dreharbeiten', 'Die Produktion')}</p>`,
 };
 const sourceQuote = 'Filming on the second season of Nordhafen begins.';
+const germanyQuote = 'The announcement confirms that Nordhafen is available in Germany.';
+const germanyRelevance: EditorialReview['germanyRelevance'] = { relevant: true, basis: 'original', evidenceQuote: germanyQuote,
+  reason: 'Neue Produktion einer laut Originalquelle in Deutschland verfügbaren Serie.', newsCategory: 'series-production', localOnly: false };
 const source = { title: 'Nordhafen returns', publishDate: now,
-  fullText: `${sourceQuote} Both actors return to their roles. No release date has been announced. `.repeat(8),
+  fullText: `${germanyQuote} ${`${sourceQuote} Both actors return to their roles. No release date has been announced. `.repeat(8)}`,
 };
 const input = { article, sourceUrl, sourcePublishedAt: now, sourceConfirmed: true, seriesName: 'Nordhafen' };
 
@@ -31,6 +36,7 @@ async function run() {
     reviews++;
     return reviewAndRepairArticle(candidate, evidence, { maxRevisions: 0, callJson: async () => ({
       complete: true, newsworthy: true, verdict: 'publish', clarity: 4, originality: 4,
+      germanyRelevance,
       coverage: { headline: true, excerpt: true, metaDescription: true, bodyParagraphIndexes: editorialBodyParagraphs(candidate).map(p => p.index) },
       issues: [], claims: [{ articleQuote: 'Die Dreharbeiten zur zweiten Staffel von Nordhafen beginnen.', sourceQuote, source: 'original', assessment: 'supported' }],
     } satisfies EditorialReview) });
@@ -80,12 +86,29 @@ async function run() {
         assert(payload[field].includes(lateClaim), 'late metadata facts must reach source review');
         return reviewAndRepairArticle(payload, evidence, { ...options, callJson: async () => ({
           complete: true, newsworthy: true, verdict: 'publish', clarity: 5, originality: 5,
+          germanyRelevance,
           coverage: { headline: true, excerpt: true, metaDescription: true, bodyParagraphIndexes: editorialBodyParagraphs(payload).map(p => p.index) },
           issues: [], claims: [{ articleQuote: lateClaim, sourceQuote, source: 'original', assessment: 'unsupported' }],
         }) });
       },
     });
     assert.equal(result.decision.passed, false, `one unsupported ${field} claim blocks publication`);
+  }
+  for (const relevance of [
+    { ...germanyRelevance, relevant: false, basis: 'none' as const, evidenceQuote: '', reason: 'Kein verifizierter Deutschlandbezug.' },
+    { ...germanyRelevance, evidenceQuote: 'Nordhafen is confirmed on an invented German streaming service.' },
+    { ...germanyRelevance, localOnly: true, reason: 'Nur lokaler ausländischer Programmplatz.' },
+  ]) {
+    const result = await reviewManualNews(input, {
+      fetchSource: async () => source,
+      review: (payload, evidence, options) => reviewAndRepairArticle(payload, evidence, { ...options, callJson: async () => ({
+        complete: true, newsworthy: true, verdict: 'publish', clarity: 5, originality: 5,
+        germanyRelevance: relevance,
+        coverage: { headline: true, excerpt: true, metaDescription: true, bodyParagraphIndexes: editorialBodyParagraphs(payload).map(p => p.index) },
+        issues: [], claims: [{ articleQuote: 'Die Dreharbeiten zur zweiten Staffel von Nordhafen beginnen.', sourceQuote, source: 'original', assessment: 'supported' }],
+      }) }),
+    });
+    assert.equal(result.decision.passed, false, 'manual release must not bypass mandatory verified Germany relevance');
   }
   for (const addresses of [[], ['127.0.0.1'], ['10.0.0.3'], ['169.254.169.254'], ['100.64.0.1'], ['8.8.8.8', '192.168.1.2'], ['::1']]) {
     assert.throws(() => publicSourceAddress(addresses));
@@ -97,6 +120,36 @@ async function run() {
   assert.equal(extracted.publishDate?.toISOString(), now.toISOString());
   await assert.rejects(fetchEditorialSource(sourceUrl, { requestHtml: async () => '<h1>No article</h1><p>Only a login page.</p>' }), /body-missing/);
   const route = readFileSync(new URL('../app/api/admin/articles/route.ts', import.meta.url), 'utf8');
+  // Exercise the actual route's classification expression without importing its
+  // database/client side effects. Whitespace or parenthesis edits do not affect
+  // this regression, unlike a textual condition snapshot.
+  const parsedRoute = ts.createSourceFile('route.ts', route, ts.ScriptTarget.Latest, true);
+  const declarations = new Map<string, string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer
+      && ['normalizedContentType', 'isTimelessEditorial'].includes(node.name.text)) {
+      declarations.set(node.name.text, node.initializer.getText(parsedRoute));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsedRoute);
+  assert.equal(declarations.size, 2, 'route classification must remain independently testable');
+  const classificationCode = ts.transpileModule(
+    `const normalizedContentType = ${declarations.get('normalizedContentType')};\nconst isTimelessEditorial = ${declarations.get('isTimelessEditorial')};\nisTimelessEditorial;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
+  for (const contentType of ['NEWS', 'news', ' NEWS ']) {
+    for (const isRankingArticle of [false, true]) {
+      assert.equal(runInNewContext(classificationCode, { article: { contentType, isRankingArticle } }), false,
+        'explicit NEWS must use Germany/source review and the reviewed-payload hash even with a stale ranking flag');
+    }
+  }
+  for (const contentType of ['RANKING', 'RANKING_LIST', 'FEATURE', 'FEATURE_ESSAY']) {
+    assert.equal(runInNewContext(classificationCode, { article: { contentType, isRankingArticle: false } }), true,
+      'the NEWS safeguard must not silently change the explicit timeless workflow');
+  }
+  assert.equal(runInNewContext(classificationCode, { article: { contentType: null, isRankingArticle: true } }), true);
+  assert.equal(runInNewContext(classificationCode, { article: { contentType: null, isRankingArticle: false } }), false);
   assert(route.includes("action === 'verify-publication'"));
   assert(route.includes("status: 'partial'"));
   assert(route.includes('editorialPayloadHash('));

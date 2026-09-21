@@ -20,13 +20,8 @@ import { markdownToHtml } from '../lib/markdown-to-html';
 import { resolveTmdbSeries } from '../lib/tmdb-resolver';
 import { searchTvEnhanced } from '../lib/tmdb-search-enhanced';
 import { getTvDetailsComplete } from '../lib/tmdb';
-import { importSeriesCharacters } from './import-characters';
-import { importSeriesCast } from '../lib/cast-importer';
 import { generateSeriesSlug } from '../lib/slug-utils';
 import { extractFacts } from '../lib/fact-extractor';
-import { antiAiFilter } from '../lib/anti-ai-filter';
-import { qualityCheck } from '../lib/quality-checker';
-import { factSafetyCheck } from '../lib/fact-safety-layer';
 import { generateInternalLinks, validateInternalLinks } from '../lib/internal-linking-engine';
 import { findTrailerYouTubeId, downloadYouTubeTrailer, searchYouTubeTrailer } from '../lib/trailer-downloader';
 import { PipelineLogger, type TriggerType } from '../lib/pipeline-logger';
@@ -83,77 +78,6 @@ async function resolveAutomatedEditorialAuthorId(): Promise<string> {
   }
 
   return author.id;
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// LLM REWRITE FOR HUMAN TONE
-// ══════════════════════════════════════════════════════════════════════════
-async function rewriteForHumanTone(
-  markdown: string,
-  headline: string,
-  seriesName: string,
-  problems: string[]
-): Promise<string | null> {
-  console.log('   🔄 Rewrite für menschlicheren Ton...');
-  
-  const problemList = problems.slice(0, 5).join('\n- ');
-  
-  const systemPrompt = `Du bist ein erfahrener deutscher TV-Redakteur. Deine Aufgabe ist es, KI-generierte Texte menschlicher zu machen.
-
-REGELN:
-1. Variiere Satzanfänge - nie zwei gleiche hintereinander
-2. Maximal 3 Sätze pro Absatz
-3. Erster Absatz MUSS einen konkreten Fakt enthalten (Datum, Name, Zahl)
-4. Keine Füllwörter: "Es ist wichtig", "Insgesamt", "Darüber hinaus"
-5. Direkt und knapp schreiben
-6. Behalte alle Links [Text](URL) exakt bei
-7. Behalte die Markdown-Struktur (## Überschriften)
-
-VERMEIDE:
-- Generische Einleitungen
-- "spannend", "aufregend", "interessant"
-- Wiederholungen des Seriennamens (max 2x pro Absatz)`;
-
-  const userPrompt = `HEADLINE: ${headline}
-SERIE: ${seriesName}
-
-PROBLEME IM TEXT:
-- ${problemList}
-
-ORIGINALER MARKDOWN:
-${(markdown || '').substring(0, 3000)}
-
-Schreibe den Text um, behebe die Probleme. Antworte NUR mit dem verbesserten Markdown:`;
-
-  try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY,
-      baseURL: 'https://api.openai.com/v1',
-    });
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-5.4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      max_completion_tokens: 2000,
-    });
-
-    const rewritten = response.choices?.[0]?.message?.content;
-    
-    if (rewritten && rewritten.length > 500) {
-      console.log('   ✅ Rewrite erfolgreich');
-      return rewritten;
-    }
-    
-    return null;
-  } catch (error) {
-    console.log('   ⚠️ Rewrite fehlgeschlagen:', error instanceof Error ? error.message : '');
-    return null;
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -987,15 +911,7 @@ async function generateTrendDraft(trendId: string, searchTerm: string, trigger: 
         });
         console.log(`   ✓ Serie erstellt: ${dbSeries.name}`);
         
-        // Import characters and cast in parallel
-        try {
-          await Promise.all([
-            importSeriesCharacters(info.tmdbData.tmdbId),
-            importSeriesCast(info.tmdbData.tmdbId)
-          ]);
-        } catch (e) {
-          console.log('   ⚠️ Character/Cast Import fehlgeschlagen');
-        }
+        // Draft generation does not create character profiles or actor bios.
       } else {
         console.log(`   ✓ Serie existiert: ${dbSeries.name}`);
       }
@@ -1006,28 +922,12 @@ async function generateTrendDraft(trendId: string, searchTerm: string, trigger: 
     console.log('STEP 3: PREMIUM CONTENT GENERIEREN (Google Discover)');
     console.log('━'.repeat(60));
     
-    // Build TMDB context if series exists
-    let tmdbContext = '';
-    if (dbSeries) {
-      tmdbContext = `
-═══════════════════════════════════════════════════════════
-SERIEN-DATEN (aus Datenbank):
-═══════════════════════════════════════════════════════════
-SERIE: ${dbSeries.name || dbSeries.title}
-${dbSeries.overview ? `BESCHREIBUNG: ${dbSeries.overview}` : ''}
-${dbSeries.status ? `STATUS: ${dbSeries.status}` : ''}
-${dbSeries.firstAirDate ? `ERSTAUSSTRAHLUNG: ${dbSeries.firstAirDate}` : ''}
-${dbSeries.networks ? `SENDER/PLATTFORM: ${dbSeries.networks}` : ''}
-`;
-    }
-    
-    // Combine all source texts with TMDB context
+    // Only original articles provide news evidence. Catalogue metadata stays separate.
     const articleSources = info.articles
       .map(a => `[Quelle: ${a.source}]\n${a.content}`)
       .join('\n\n---\n\n');
     
     const combinedSourceText = `
-${tmdbContext}
 ═══════════════════════════════════════════════════════════
 RECHERCHIERTE ARTIKEL (${info.articles.length} Quellen, ${info.totalWordCount} Wörter):
 ═══════════════════════════════════════════════════════════
@@ -1090,32 +990,15 @@ ${articleSources}
     console.log(`   ✓ Sections: ${structuredContent.sections?.length || 0}`);
     console.log(`   ✓ Q&A: ${structuredContent.qa?.length || 0}`);
     
-    // ========== STEP 4: CHARACTER & CAST IMPORT & LINKING (wie P2) ==========
+    // ========== STEP 4: EXISTING CHARACTER & CAST LINKS (wie P2) ==========
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 4: CHARACTER & CAST IMPORT & LINKING');
+    console.log('STEP 4: EXISTING CHARACTER & CAST LINKS');
     console.log('━'.repeat(60));
     
     let processedMarkdown = structuredContent.markdown;
     
     if (dbSeries) {
-      // Import characters first (like P2)
-      console.log(`   📥 Importiere Characters für Serie ${dbSeries.tmdbId}...`);
-      try {
-        await importSeriesCharacters(dbSeries.tmdbId);
-        console.log(`   ✓ Characters importiert`);
-      } catch (e: any) {
-        console.log(`   ⚠️ Character-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
-      }
-      
-      // Import cast (like P2)
-      console.log(`   📥 Importiere Cast...`);
-      try {
-        await importSeriesCast(dbSeries.tmdbId);
-        console.log(`   ✓ Cast importiert`);
-      } catch (e: any) {
-        console.log(`   ⚠️ Cast-Import fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
-      }
-      
+      // Link only profiles already present. No model-backed imports or bios.
       // Link characters in markdown
       try {
         const charResult = await linkCharactersInMarkdown(processedMarkdown, dbSeries.tmdbId);
@@ -1142,7 +1025,7 @@ ${articleSources}
         console.log(`   ⚠️ Cast-Linking fehlgeschlagen: ${(e.message || '').substring(0, 50)}`);
       }
     } else {
-      console.log(`   ⚠️ Keine Serie - überspringe Character/Cast Import & Linking`);
+      console.log(`   ⚠️ Keine Serie - überspringe Character/Cast-Verlinkung`);
     }
     
     // Link streamers to hub pages
@@ -1202,17 +1085,16 @@ ${articleSources}
       console.log(`   ⚠️ Internal linking skipped: ${error.message}`);
     }
 
-    // ========== STEP 7: FINAL QUALITY GATES ==========
+    // ========== STEP 7: DRAFT SAFETY AND SOURCE-REVIEW HOLD ==========
     // These checks deliberately run after all content transformations so the
     // exact HTML that will be persisted is what decides the release status.
     console.log('\n' + '━'.repeat(60));
-    console.log('STEP 7: FINAL QUALITY GATES');
+    console.log('STEP 7: DRAFT SAFETY AND SOURCE-REVIEW HOLD');
     console.log('━'.repeat(60));
 
     const editorialGateOutcomes: EditorialGateOutcome[] = [];
     const isRankingList = contentType === 'RANKING';
     const primarySeriesName = dbSeries?.name || dbSeries?.title || info.seriesName || searchTerm;
-    let antiAiScore = 0;
 
     try {
       const htmlSafety = validateAndNormalizeArticleHtml(htmlContent);
@@ -1226,86 +1108,14 @@ ${articleSources}
       editorialGateOutcomes.push({ gate: 'html-safety', status: 'error', reason });
     }
 
-    try {
-      await assertDraftPipelineMayContinue(prisma, 'p3-trends');
-      const qualityResult = await qualityCheck({
-        generatedArticleHtml: htmlContent,
-        finalHeadline: structuredContent.headline,
-        primarySeriesName,
-        extractedFacts: JSON.stringify(facts),
-        isRankingList,
-      });
-      const passed = qualityResult.status === 'PASS';
-      editorialGateOutcomes.push({
-        gate: 'quality',
-        status: passed ? 'pass' : 'fail',
-        reason: passed ? undefined : qualityResult.failReasons.join('; ') || 'Quality-Check nicht bestanden',
-      });
-      console.log(`   ${passed ? '✅' : '⚠️'} Quality check: ${qualityResult.status}`);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'quality', status: 'error', reason });
-      console.log(`   ⚠️ Quality check fehlgeschlagen: ${reason}`);
-    }
-
-    try {
-      const antiAiResult = await antiAiFilter({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        seriesName: primarySeriesName,
-        isRankingList,
-      });
-      antiAiScore = antiAiResult.antiAiScore;
-      const passed = antiAiResult.status === 'PASS';
-      editorialGateOutcomes.push({
-        gate: 'anti-ai',
-        status: passed ? 'pass' : 'fail',
-        reason: passed ? undefined : antiAiResult.failReasons.join('; ') || `Anti-AI Score ${antiAiScore}`,
-      });
-      console.log(`   📊 Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      logger.log(`Anti-AI Score: ${antiAiScore}/100 (${antiAiResult.status})`);
-      await logger.update({ antiAiScore });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'anti-ai', status: 'error', reason });
-      console.log(`   ⚠️ Anti-AI check fehlgeschlagen: ${reason}`);
-    }
-
-    try {
-      const rawLastAirDate = dbSeries?.lastAirDate || info.tmdbData?.lastAirDate;
-      const lastAirDate = rawLastAirDate instanceof Date
-        ? rawLastAirDate.toISOString()
-        : typeof rawLastAirDate === 'string'
-          ? rawLastAirDate
-          : undefined;
-      await assertDraftPipelineMayContinue(prisma, 'p3-trends');
-      const factSafetyResult = await factSafetyCheck({
-        articleHtml: htmlContent,
-        headline: structuredContent.headline,
-        extractedFacts: JSON.stringify(facts),
-        tmdbSeriesData: {
-          status: dbSeries?.status || info.tmdbData?.status,
-          lastAirDate,
-          numberOfSeasons: dbSeries?.numberOfSeasons || info.tmdbData?.numberOfSeasons,
-        },
-      });
-      const passed = factSafetyResult.status === 'SAFE';
-      editorialGateOutcomes.push({
-        gate: 'fact-safety',
-        status: passed ? 'pass' : 'fail',
-        reason: passed
-          ? undefined
-          : [
-              ...factSafetyResult.headlineViolations,
-              ...factSafetyResult.rejectedFacts.map((fact) => fact.claim),
-            ].join('; ') || 'Fact-Safety-Check nicht bestanden',
-      });
-      console.log(`   ${passed ? '✅' : '⚠️'} Fact safety: ${factSafetyResult.status}`);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      editorialGateOutcomes.push({ gate: 'fact-safety', status: 'error', reason });
-      console.log(`   ⚠️ Fact safety check fehlgeschlagen: ${reason}`);
-    }
+    // Draft-only paths have not completed a full original-source review.
+    // Do not spend three extra model calls or report a synthetic quality pass.
+    editorialGateOutcomes.push({
+      gate: 'source-grounding',
+      status: 'fail',
+      reason: 'Vollständiger Abgleich von Titel, Vorspann, Metadaten und Inhalt mit der Originalquelle steht im Admin-Review aus',
+    });
+    logger.addMetadata('sourceGrounding', 'pending-full-original-source-review');
 
     const sourceUrlForPublication = info.articles[0]?.url?.trim() || null;
     const sourceUrlIsValid = sourceUrlForPublication
@@ -1342,7 +1152,7 @@ ${articleSources}
     const editorialDecision = decideEditorialPublication({
       alreadyDraft: false,
       outcomes: editorialGateOutcomes,
-      requiredGates: ['html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'release-mode'],
+      requiredGates: ['html-safety', 'source-grounding', 'source', 'freshness', 'release-mode'],
     });
     const publicationStatus = editorialDecision.status;
     const draftReason = publicationStatus === 'draft' ? editorialDecision.reason : undefined;
@@ -1625,7 +1435,6 @@ ${articleSources}
     console.log(`📌 Status: ${publicationStatus}`);
     if (draftReason) console.log(`⚠️ Grund: ${draftReason}`);
     if (publicationStatus === 'published') console.log(`🔗 URL: /${article.slug}`);
-    console.log(`📊 Anti-AI Score: ${antiAiScore}/100`);
     console.log('═'.repeat(70) + '\n');
     
     logger.log(`Artikel gespeichert: ${article.slug} (${publicationStatus})`);

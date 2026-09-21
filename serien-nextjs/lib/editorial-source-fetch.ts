@@ -3,7 +3,7 @@ import { get as httpGet } from 'node:http';
 import { get as httpsGet } from 'node:https';
 import { load } from 'cheerio';
 import { isSafePublicHttpUrl } from './article-html-safety';
-import { findJsonLdPublishedAt, parseSourcePublishedAt } from './source-published-at';
+import { parseSourcePublishedAt } from './source-published-at';
 
 export interface EditorialSource {
   title: string;
@@ -85,29 +85,115 @@ async function requestSourceHtml(url: URL, remainingRedirects = 3): Promise<stri
   return response.html || '';
 }
 
-/** Original publisher HTML only. No third-party reader or logged source URL. */
-export async function fetchEditorialSource(
-  rawUrl: string, deps: { requestHtml?: (url: URL) => Promise<string> } = {},
-): Promise<EditorialSource> {
+// These are exact article-body anchors, not broad typography/content classes.
+// A publisher redesign must fail closed until its new body is verified.
+const PUBLISHER_BODY_SELECTORS: Record<string, string[]> = {
+  'deadline.com': ['.entry-content', '.article__content'],
+  'variety.com': ['article .a-content', '.c-content', '.article-body'],
+  'hollywoodreporter.com': ['.entry-content', '.article-body'],
+  'tvline.com': ['.entry-content', '.article-content', '.article-body'],
+  'netflix.com': ['[data-uia="article-body"]', '[data-testid="article-body"]', '[data-uia="article-content"]'],
+};
+const ARTICLE_BODY_SELECTORS = ['[itemprop~="articleBody"]', '.entry-content', '.article-body', '.article-content', '.post-content'];
+
+function comparableSourceUrl(value: string, baseUrl: string): string | null {
+  try {
+    const url = new URL(value, baseUrl);
+    if (!isSafePublicHttpUrl(url.href)) return null;
+    return `${url.protocol}//${url.hostname.replace(/^www\./, '')}${url.port ? `:${url.port}` : ''}${url.pathname.replace(/\/$/, '')}${url.search}`;
+  } catch { return null; }
+}
+
+/** Do not borrow dates from related-story lists or arbitrary nested JSON-LD. */
+function primaryArticleDates(raw: unknown, sourceUrl: string, canonicalUrl: string | undefined, now: Date): Date[] {
+  const acceptedUrls = new Set([comparableSourceUrl(sourceUrl, sourceUrl)]);
+  if (canonicalUrl) {
+    try {
+      const canonical = new URL(canonicalUrl, sourceUrl);
+      const comparable = comparableSourceUrl(canonical.href, sourceUrl);
+      if (comparable && canonical.hostname.replace(/^www\./, '') === new URL(sourceUrl).hostname.replace(/^www\./, '')) acceptedUrls.add(comparable);
+    } catch { /* invalid canonical */ }
+  }
+  const dates: Date[] = [];
+  const walk = (node: unknown, depth: number): void => {
+    if (depth > 8 || !node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { for (const entry of node) walk(entry, depth + 1); return; }
+    const record = node as Record<string, unknown>;
+    const types = Array.isArray(record['@type']) ? record['@type'] : [record['@type']];
+    if (types.some(type => typeof type === 'string' && ['Article', 'NewsArticle', 'BlogPosting'].includes(type.split(/[\/#]/).pop()!))) {
+      const page = record.mainEntityOfPage;
+      const identity = typeof record.url === 'string' ? record.url
+        : typeof page === 'string' ? page
+          : page && typeof page === 'object' && typeof (page as Record<string, unknown>)['@id'] === 'string' ? (page as Record<string, string>)['@id']
+            : typeof record['@id'] === 'string' ? record['@id'] : null;
+      if (!identity || acceptedUrls.has(comparableSourceUrl(identity, sourceUrl))) {
+        const date = parseSourcePublishedAt(typeof record.datePublished === 'string' ? record.datePublished : undefined, now);
+        if (date) dates.push(date);
+      }
+    }
+    walk(record['@graph'], depth + 1);
+    walk(record.mainEntity, depth + 1);
+  };
+  walk(raw, 0);
+  return dates;
+}
+
+/** Pure parser for offline publisher-markup fixtures; never a body/main fallback. */
+export function parseEditorialSourceHtml(html: string, rawUrl: string, now = new Date()): EditorialSource {
   if (!isSafePublicHttpUrl(rawUrl)) throw new Error('source-url-not-public');
-  const $ = load(await (deps.requestHtml || requestSourceHtml)(new URL(rawUrl)));
-  const title = $('h1').first().text().trim() || $('meta[property="og:title"]').attr('content') || $('title').text().trim();
-  let publishDate = parseSourcePublishedAt($('meta[property="article:published_time"]').attr('content')
-    || $('meta[name="article:published_time"]').attr('content') || $('meta[itemprop="datePublished"]').attr('content')
-    || $('time[itemprop="datePublished"]').attr('datetime'));
-  $('script[type="application/ld+json"]').each((_, element) => {
-    if (publishDate) return;
-    try { publishDate = findJsonLdPublishedAt(JSON.parse($(element).text())); } catch { /* malformed metadata */ }
-  });
-  $('script,style,iframe,nav,header,footer,aside,.ad,.advertisement,.related-posts,.comments,button,form').remove();
-  let content = $('article').first();
-  if (!content.length) content = $('[itemprop="articleBody"],.entry-content,.article-body,main').first();
+  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > 2 * 1024 * 1024) throw new Error('source-response-too-large');
+  const url = new URL(rawUrl);
+  const $ = load(html);
+  const jsonLd = $('script[type="application/ld+json"]').toArray().map(element => $(element).text());
+  const canonical = $('link[rel="canonical"]').attr('href');
+  $('script,style,noscript,iframe,nav,footer,aside,button,form,[hidden],[aria-hidden="true"],.ad,.advertisement,.ads,.related,.related-posts,.related-content,.related-stories,.injected-related-story,.read-next,.newsletter,.subscribe,.promo,.sponsored,.comments,.author-bio,.author-box,.c-author,.social-share').remove();
+  // Article headers can contain the actual headline and standfirst; site
+  // headers are navigation, not editorial evidence.
+  $('header').filter((_, element) => !$(element).closest('article').length).remove();
+  const selectors = [
+    '[itemprop~="articleBody"]',
+    ...(PUBLISHER_BODY_SELECTORS[url.hostname.replace(/^www\./, '')] || []),
+    ...ARTICLE_BODY_SELECTORS, 'article',
+  ];
+  let content = $('___missing_editorial_body___');
+  for (const selector of [...new Set(selectors)]) {
+    const candidates = $(selector).toArray().filter(element => $(element).text().trim());
+    // Nested instances belong to one body; multiple sibling articles are a
+    // listing or an ambiguous page, never an invitation to pick the first.
+    const roots = candidates.filter(element => !$(element).parents(selector).length);
+    if (roots.length > 1) throw new Error('source-article-body-ambiguous');
+    if (roots.length === 1) { content = $(roots[0]); break; }
+  }
   if (!content.length) throw new Error('source-article-body-missing');
+  const articleScope = content.closest('article').length ? content.closest('article') : content;
+  const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
+  const title = clean(articleScope.find('h1').first().text()) || clean($('h1').first().text())
+    || clean($('meta[property="og:title"]').attr('content') || '') || clean($('title').text());
   const fullText = content.find('p,h2,h3,h4,li,blockquote').toArray()
     .filter(element => $(element).find('p,li,blockquote').length === 0)
-    .map(element => $(element).text().replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n\n');
-  if (!title || fullText.length < 600 || fullText.length + title.length > 60_000) {
-    throw new Error('source-complete-evidence-unavailable');
+    .map(element => clean($(element).text())).filter(Boolean).join('\n\n');
+  if (!title || title.length > 2000 || fullText.length < 600 || fullText.length + title.length > 60_000) throw new Error('source-complete-evidence-unavailable');
+
+  const metaDates = $('meta[property="article:published_time"],meta[name="article:published_time"],meta[itemprop~="datePublished"]').toArray()
+    .map(element => $(element).attr('content'));
+  const articleDates = articleScope.find('time[itemprop~="datePublished"]').toArray().map(element => $(element).attr('datetime'));
+  let publishDate = [...metaDates, ...articleDates].map(value => parseSourcePublishedAt(value, now)).find((date): date is Date => Boolean(date));
+  if (!publishDate) {
+    const dates = jsonLd.flatMap(text => {
+      try { return primaryArticleDates(JSON.parse(text), rawUrl, canonical, now); } catch { return []; }
+    });
+    // Conflicting unlabelled article dates are not a reliable publication date.
+    const uniqueDates = new Set(dates.map(date => date.toISOString()));
+    if (uniqueDates.size === 1) publishDate = dates[0];
   }
-  return { title, fullText, publishDate: publishDate || undefined };
+  return { title, fullText, publishDate };
+}
+
+/** Original publisher HTML only. No third-party reader or logged source URL. */
+export async function fetchEditorialSource(
+  rawUrl: string, deps: { requestHtml?: (url: URL) => Promise<string>; now?: Date } = {},
+): Promise<EditorialSource> {
+  if (!isSafePublicHttpUrl(rawUrl)) throw new Error('source-url-not-public');
+  const html = await (deps.requestHtml || requestSourceHtml)(new URL(rawUrl));
+  return parseEditorialSourceHtml(html, rawUrl, deps.now);
 }

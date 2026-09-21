@@ -57,6 +57,7 @@ export function fixtureEvidence(fixture: EditorialFixture): EditorialEvidence {
     sourceTitle: fixture.sourceTitle, sourceUrl: fixture.sourceUrl,
     sourceText: fixture.sourceText, sourcePublishedAt: fixture.sourcePublishedAt,
     seriesName: fixture.seriesName,
+    germanyCatalog: fixture.germanyCatalog,
     // Fixed evidence clock makes reviewer date handling reproducible. Source
     // fixtures use absolute dates; the production writer retains its own clock.
     now: new Date('2026-09-20T12:00:00.000Z'),
@@ -103,6 +104,7 @@ export function reviewFailureCategories(decision: EditorialReviewDecision): Edit
   if (decision.passed) return [];
   const text = [...decision.reasons, ...decision.review.issues.map(issue => `${issue.code} ${issue.reason}`)].join(' ').toLowerCase();
   const mappings: Array<[EditorialFailureCategory, RegExp]> = [
+    ['germany-relevance', /deutschlandrelevanz|deutschlandbeleg|katalogkontext|lokale oder sachfremde/],
     ['territory', /region|territor|deutschland|benelux|us-start/],
     ['uncertainty', /unsicher|verhand|gerücht|speculat|uncertain/],
     ['event-status', /absetz|verlänger|final|cancell|renew/],
@@ -157,6 +159,9 @@ export async function evaluateEditorialFixture(fixture: EditorialFixture, depend
     summary.reviewFailureCategories = reviewFailureCategories(reviewed.decision);
     summary.revisions = reviewed.revisions;
     if (!reviewed.decision.passed && fixture.expectedOutcome === 'publish') summary.failureCategories.push('unexpected-hold');
+    if (fixture.expectedOutcome === 'hold' && (reviewed.decision.passed || !summary.reviewFailureCategories.includes('germany-relevance'))) {
+      summary.failureCategories.push('germany-relevance');
+    }
     if (reviewed.decision.passed) {
       const { headline, excerpt, metaDescription, contentHtml } = reviewed.article;
       summary.failureCategories.push(...checkFixtureText(fixture, [headline, excerpt, metaDescription, contentHtml].join('\n')));
