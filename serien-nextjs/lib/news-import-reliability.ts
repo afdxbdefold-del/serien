@@ -2,6 +2,7 @@
 export const DEFAULT_NEWS_LIMIT = 5;
 export const DEFAULT_NEWS_BUDGET_MS = 210_000;
 export const SOURCE_TIMEOUT_MS = 20_000;
+export const NEWS_SOURCE_CURSOR_KEY = 'pipeline.news.import.last-source';
 
 export function positiveInteger(value: unknown, fallback: number, maximum: number): number {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -59,8 +60,12 @@ export function candidateRetryReason(attempts: PreviousNewsAttempt[], now = Date
   return now - failedAt < cooldown ? 'retry-cooldown' : null;
 }
 
-/** Limit only after history filtering and alternate sources to prevent starvation. */
-export function selectNewsCandidates<T extends { source: string; url: string }>(articles: T[], limit: number, rotation = 0): T[] {
+/** Rotate after the last actually attempted source, not a clock-derived index.
+ * Keep temporarily empty sources in the configured ring so queue-size changes
+ * cannot reinterpret the cursor. This function does not advance that cursor. */
+export function selectNewsCandidates<T extends { source: string; url: string }>(
+  articles: T[], limit: number, lastAttemptedSource?: string | null, sourceOrder: readonly string[] = [],
+): T[] {
   const queues = new Map<string, T[]>();
   const seen = new Set<string>();
   for (const article of articles) {
@@ -71,9 +76,11 @@ export function selectNewsCandidates<T extends { source: string; url: string }>(
     queues.set(article.source, queue);
   }
   const selected: T[] = [];
-  const sourceQueues = Array.from(queues.values());
-  const offset = sourceQueues.length ? rotation % sourceQueues.length : 0;
-  const orderedQueues = sourceQueues.slice(offset).concat(sourceQueues.slice(0, offset));
+  const sourceNames = [...new Set([...sourceOrder, ...queues.keys()])];
+  const lastIndex = lastAttemptedSource ? sourceNames.indexOf(lastAttemptedSource) : -1;
+  const offset = lastIndex < 0 ? 0 : (lastIndex + 1) % sourceNames.length;
+  const orderedQueues = sourceNames.slice(offset).concat(sourceNames.slice(0, offset))
+    .map(source => queues.get(source)).filter((queue): queue is T[] => Boolean(queue?.length));
   while (selected.length < limit) {
     let found = false;
     for (const queue of orderedQueues) {

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import ts from 'typescript';
 import type { PrismaClient } from '@prisma/client';
 import { acquireNewsImportLease } from '../lib/news-import-lease';
 import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
@@ -31,8 +33,99 @@ test('new candidates behind rejected/known feed entries remain selectable', () =
   const eligible = discovered.filter((article) => !['known', 'rejected'].includes(article.url));
   assert.deepEqual(selectNewsCandidates(eligible, 2).map((article) => article.url), ['fresh-A', 'fresh-B']);
   assert.deepEqual(selectNewsCandidates(eligible, 10).map((article) => article.url), ['fresh-A', 'fresh-B', 'fresh-A-2']);
-  assert.deepEqual(selectNewsCandidates(eligible, 1, 1).map((article) => article.url), ['fresh-B']);
+  assert.deepEqual(selectNewsCandidates(eligible, 1, 'A').map((article) => article.url), ['fresh-B']);
   assert.deepEqual(selectNewsCandidates([], 5), []);
+});
+
+test('one-candidate hourly and same-quarter manual runs visit every source with 6, 4 or 2 queues', (context) => {
+  for (const queueCount of [6, 4, 2]) {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F'].slice(0, queueCount);
+    const candidates = names.map(source => ({ source, url: `https://example.test/${source}` }));
+    for (const spacingMs of [3_600_000, 1000]) {
+      let clock = now;
+      const clockMock = context.mock.method(Date, 'now', () => clock);
+      let cursor: string | undefined;
+      const attempted: string[] = [];
+      for (let index = 0; index < queueCount * 2; index++) {
+        const selected = selectNewsCandidates(candidates, 1, cursor, names);
+        cursor = selected[0].source;
+        attempted.push(cursor);
+        clock += spacingMs;
+      }
+      clockMock.mock.restore();
+      assert.deepEqual(attempted, [...names, ...names]);
+      assert.deepEqual(candidates.map(candidate => candidate.source), names, 'input queues are not consumed');
+    }
+  }
+});
+
+test('source-name cursor survives empty, returning and removed queues without numeric reinterpretation', () => {
+  const ring = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const candidates = (names: string[]) => names.map(source => ({ source, url: source }));
+  assert.equal(selectNewsCandidates(candidates(['A', 'C', 'F']), 1, 'B', ring)[0].source, 'C');
+  assert.equal(selectNewsCandidates(candidates(['A', 'C', 'F']), 1, 'E', ring)[0].source, 'F');
+  assert.equal(selectNewsCandidates(candidates(['A', 'B', 'C', 'F']), 1, 'F', ring)[0].source, 'A');
+  assert.equal(selectNewsCandidates(candidates(['A', 'B', 'C', 'F']), 1, 'A', ring)[0].source, 'B');
+  assert.equal(selectNewsCandidates(candidates(['A', 'C']), 1, 'retired-source', ['A', 'C'])[0].source, 'A');
+  assert.deepEqual(selectNewsCandidates([], 1, 'B', ring), []);
+  assert.deepEqual(selectNewsCandidates([
+    { source: 'A', url: 'shared' }, { source: 'B', url: 'shared' }, { source: 'B', url: 'unique' },
+  ], 5, null, ['A', 'A', 'B']).map(article => article.url), ['shared', 'unique']);
+});
+
+test('interrupted multi-candidate batch resumes after the last attempted source, not the last selected source', () => {
+  const candidates = ['A', 'B', 'C'].map(source => ({ source, url: source }));
+  const selected = selectNewsCandidates(candidates, 3, null, ['A', 'B', 'C']);
+  assert.deepEqual(selected.map(article => article.source), ['A', 'B', 'C']);
+  // A was attempted; B/C remained deferred when the run budget or pause intervened.
+  assert.equal(selectNewsCandidates(candidates, 1, selected[0].source, ['A', 'B', 'C'])[0].source, 'B');
+});
+
+test('actual scraper advances its persistent cursor only after attempt guards and fails closed on DB errors', () => {
+  // Do not import this executable scraper: it owns live DB/provider clients.
+  const source = readFileSync(new URL('../scripts/news-scraper.ts', import.meta.url), 'utf8');
+  const file = ts.createSourceFile('news-scraper.ts', source, ts.ScriptTarget.Latest, true);
+  const functions = file.statements.filter(ts.isFunctionDeclaration);
+  const batch = functions.find(node => node.name?.text === 'processNewsBatch');
+  const entry = functions.find(node => node.name?.text === 'processAllNews');
+  assert(batch?.body && entry?.body);
+  const nodes: ts.Node[] = [];
+  const visit = (node: ts.Node) => { nodes.push(node); ts.forEachChild(node, visit); };
+  visit(batch.body);
+  const outerTry = batch.body.statements.find(ts.isTryStatement);
+  assert(outerTry?.catchClause);
+  assert(outerTry.catchClause.block.statements.some(ts.isThrowStatement), 'cursor DB failures escape the whole batch');
+  const loop = outerTry.tryBlock.statements.find((node): node is ts.ForOfStatement =>
+    ts.isForOfStatement(node) && node.expression.getText(file) === 'articlesToProcess.entries()');
+  assert(loop && ts.isBlock(loop.statement));
+  const statements = [...loop.statement.statements];
+  const advance = statements.findIndex(node => node.getText(file).includes('prisma.app_settings.upsert'));
+  assert(advance > 0);
+  assert.match(statements[advance].getText(file), /^await prisma\.app_settings\.upsert/);
+  assert.match(statements[advance].getText(file), /value: article\.source/);
+  assert.match(statements[advance].getText(file), /key: NEWS_SOURCE_CURSOR_KEY/);
+  const before = statements.slice(0, advance).map(node => node.getText(file)).join('\n');
+  assert.match(before, /if \(Date\.now\(\) >= deadline\)[\s\S]*?break;/);
+  assert.match(before, /await assertLease\(\)/);
+  assert.match(before, /if \(!dryRun\)[\s\S]*?key: 'pipeline\.cron\.paused'[\s\S]*?break;/);
+  assert.match(before, /if \(dryRun\)[\s\S]*?continue;/);
+  const attemptTry = statements.slice(advance + 1).find(ts.isTryStatement);
+  assert(attemptTry && /await runPipelineV2\(/.test(attemptTry.tryBlock.getText(file)),
+    'cursor write is outside the per-article catch and before any provider attempt');
+  const cursor = nodes.find((node): node is ts.VariableDeclaration =>
+    ts.isVariableDeclaration(node) && node.name.getText(file) === 'cursor');
+  assert(cursor?.initializer && ts.isConditionalExpression(cursor.initializer));
+  assert.equal(cursor.initializer.condition.getText(file), 'dryRun');
+  assert.equal(cursor.initializer.whenTrue.kind, ts.SyntaxKind.NullKeyword);
+  assert.match(cursor.initializer.whenFalse.getText(file), /^await prisma\.app_settings\.findUnique/);
+  const preCursor = source.slice(batch.pos, cursor.pos);
+  assert.match(preCursor, /if \(articlesToProcess\.length === 0\)[\s\S]*?return stats;/);
+  assert.match(entry.getText(file), /if \(options\.dryRun\) return processNewsBatch/);
+  assert.match(entry.getText(file), /if \(!lease\) return/);
+  assert.match(entry.getText(file), /processNewsBatch\(options, lease\.assertHeld\)/);
+  assert.match(source, /sources\.map\(source => NEWS_SOURCES\[source\]\.name\)/);
+  assert.doesNotMatch(source, /selectNewsCandidates\([^;]*Date\.now/);
+  assert.deepEqual(ts.transpileModule(source, { fileName: 'news-scraper.ts', reportDiagnostics: true }).diagnostics, []);
 });
 
 test('temporary provider failure never creates permanent classification blacklist', () => {

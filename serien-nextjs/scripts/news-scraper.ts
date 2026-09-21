@@ -9,7 +9,7 @@ import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
 import { acquireNewsImportLease } from '../lib/news-import-lease';
 import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
 import {
-  candidateRetryReason, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT,
+  candidateRetryReason, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT, NEWS_SOURCE_CURSOR_KEY,
   isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates, SOURCE_TIMEOUT_MS,
 } from '../lib/news-import-reliability';
 
@@ -1039,7 +1039,13 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
     }
 
     const eligibleCount = new Set(articlesToProcess.map((article) => article.url)).size;
-    articlesToProcess = selectNewsCandidates(articlesToProcess, limit, Math.floor(Date.now() / (15 * 60_000)));
+    // The non-dry-run path owns the shared news lease. A cursor read failure
+    // stops the batch instead of silently reverting to the first publisher.
+    const cursor = dryRun ? null : await prisma.app_settings.findUnique({
+      where: { key: NEWS_SOURCE_CURSOR_KEY }, select: { value: true },
+    });
+    articlesToProcess = selectNewsCandidates(articlesToProcess, limit, cursor?.value,
+      sources.map(source => NEWS_SOURCES[source].name));
     stats.deferred = eligibleCount - articlesToProcess.length;
 
     // Process articles
@@ -1072,11 +1078,19 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
         continue;
       }
       
+      // Only a real guarded attempt advances the cursor, never selection,
+      // dry-run, pause, an exhausted budget, or an unavailable lease. Persist
+      // before calling providers and outside the per-article catch: if this DB
+      // write fails, abort the batch without generating or trying another URL.
+      const { runPipelineV2 } = await import('./pipeline-v2');
+      await prisma.app_settings.upsert({
+        where: { key: NEWS_SOURCE_CURSOR_KEY },
+        create: { key: NEWS_SOURCE_CURSOR_KEY, value: article.source, updatedBy: 'news-import' },
+        update: { value: article.source, updatedBy: 'news-import' },
+      });
       const attemptStartedAt = new Date();
       stats.processed++;
       try {
-        // A paused/dry-run scraper must not instantiate any LLM clients.
-        const { runPipelineV2 } = await import('./pipeline-v2');
         const pipelineResult = await runPipelineV2({
           title: article.title,
           url: article.url,
