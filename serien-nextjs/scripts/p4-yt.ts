@@ -37,6 +37,8 @@ import {
   type EditorialGateOutcome,
 } from '../lib/editorial-publication-gate';
 import { validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
+import { assertDraftPipelineMayContinue, draftSourcePreflight, draftPipelineDeadline, DRAFT_SOURCE_WINDOW_MS, isFreshDraftSource, withDraftPipelineLease, type DraftSkipReason } from '../lib/draft-pipeline-reliability';
+import { positiveInteger, safeNewsError } from '../lib/news-import-reliability';
 
 const prisma = new PrismaClient();
 
@@ -200,12 +202,12 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
     });
     
     if (!response.ok) {
-      console.log(`   ⚠️ RSS Feed nicht verfügbar: ${response.status}`);
-      return videos;
+      throw new Error('YouTube RSS feed unavailable');
     }
     
     const xml = await response.text();
     const $ = cheerioLoad(xml, { xmlMode: true });
+    if (!$('feed').length) throw new Error('Invalid YouTube RSS feed');
     
     // Get channel name from feed
     const channelName = $('feed > title').text() || 'Unknown Channel';
@@ -223,7 +225,7 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
       const thumbnailUrl = $(el).find('media\\:thumbnail').attr('url') ||
                           `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
       
-      if (videoId && title) {
+      if (videoId && title && Number.isFinite(new Date(published).getTime())) {
         videos.push({
           videoId,
           title,
@@ -239,7 +241,7 @@ async function fetchChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
     console.log(`   ✓ ${videos.length} Videos von ${channelName}`);
     
   } catch (error) {
-    console.error(`   ❌ Fehler beim Laden des Feeds:`, error instanceof Error ? error.message : error);
+    throw new Error('YouTube RSS feed unavailable');
   }
   
   return videos;
@@ -278,25 +280,40 @@ export async function initializeChannels(): Promise<void> {
 // CHECK FOR NEW VIDEOS
 // ══════════════════════════════════════════════════════════════════════════
 export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
+  return withDraftPipelineLease(prisma, 'p4-youtube', discoverYouTubeVideos, () => []);
+}
+
+async function discoverYouTubeVideos(): Promise<YouTubeVideo[]> {
   console.log('\n🔍 Prüfe auf neue Videos...');
   
   const newVideos: YouTubeVideo[] = [];
+  let feedFailures = 0;
   
   // Get all active channels
-  const channels = await prisma.youtube_channels.findMany({
+  let channels = await prisma.youtube_channels.findMany({
     where: { isActive: true }
   });
   
   if (channels.length === 0) {
-    console.log('   ⚠️ Keine aktiven Kanäle gefunden. Initialisiere...');
+    // An operator may intentionally disable every channel. Do not recursively
+    // reinitialise or reactivate them; seed defaults only in a truly empty DB.
+    if (await prisma.youtube_channels.count() > 0) return [];
     await initializeChannels();
-    return checkForNewVideos();
+    channels = await prisma.youtube_channels.findMany({ where: { isActive: true } });
+    if (channels.length === 0) return [];
   }
   
   for (const channel of channels) {
+    await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
     console.log(`\n📡 Prüfe: ${channel.name}`);
     
-    const videos = await fetchChannelVideos(channel.channelId);
+    let videos: YouTubeVideo[];
+    try {
+      videos = await fetchChannelVideos(channel.channelId);
+    } catch {
+      feedFailures++;
+      continue; // One unavailable channel must not starve every later channel.
+    }
     
     for (const video of videos) {
       // Check if video already exists
@@ -341,6 +358,7 @@ export async function checkForNewVideos(): Promise<YouTubeVideo[]> {
   }
   
   console.log(`\n📊 ${newVideos.length} neue Videos gefunden`);
+  if (feedFailures) throw new Error('One or more YouTube RSS feeds unavailable');
   return newVideos;
 }
 
@@ -569,12 +587,27 @@ export interface YTArticleResult {
   draftReason?: string;
   videoId: string;
   error?: string;
+  skipReason?: DraftSkipReason;
 }
 
 export async function generateArticleFromVideo(
   video: YouTubeVideo, 
   trigger: 'cron' | 'manual' | 'api' = 'manual'
 ): Promise<YTArticleResult> {
+  return withDraftPipelineLease(prisma, 'p4-youtube', async () => {
+    const { existing, retry } = await draftSourcePreflight(prisma, 'p4-youtube', video.videoId);
+    if (existing) return {
+      success: false, videoId: video.videoId, articleId: existing.id, slug: existing.slug, title: existing.title,
+      status: existing.status === 'published' ? 'published' : 'draft', skipReason: 'existing-article',
+      draftReason: existing.status === 'draft' ? 'Bereits gespeicherter Entwurf wartet auf Redaktion' : undefined,
+    };
+    if (trigger !== 'manual' && !isFreshDraftSource(video.publishedAt)) return { success: false, videoId: video.videoId, skipReason: 'source-too-old' };
+    if (retry) return { success: false, videoId: video.videoId, skipReason: retry };
+    return generateVideoDraft(video, trigger);
+  }, (skipReason) => ({ success: false, videoId: video.videoId, skipReason }));
+}
+
+async function generateVideoDraft(video: YouTubeVideo, trigger: TriggerType): Promise<YTArticleResult> {
   // Initialize logger
   const logger = new PipelineLogger('p4-youtube', trigger);
   await logger.start({
@@ -597,15 +630,15 @@ export async function generateArticleFromVideo(
   
   const now = new Date();
   
-  // ========== SOURCE AGE CHECK (6 Stunden Maximum) ==========
+  // The shared preflight already checked the actual video publication date.
   const videoAge = now.getTime() - video.publishedAt.getTime();
-  const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
+  const maxAgeMs = DRAFT_SOURCE_WINDOW_MS;
   const videoAgeHours = Math.round(videoAge / (60 * 60 * 1000) * 10) / 10;
   
   if (videoAge > maxAgeMs && trigger !== 'manual') {
-    console.log(`\n⏰ VIDEO ZU ALT: ${videoAgeHours} Stunden (max: 6 Stunden)`);
+    console.log(`\n⏰ VIDEO ZU ALT: ${videoAgeHours} Stunden (max: 24 Stunden)`);
     console.log(`   → Überspringe Video. Nur manuelle Trigger erlaubt für ältere Quellen.`);
-    logger.log(`Video zu alt: ${videoAgeHours}h (max 6h)`);
+    logger.log(`Video zu alt: ${videoAgeHours}h (max 24h)`);
     await logger.fail(`Video zu alt: ${videoAgeHours}h`, 'source-age-check');
     return { success: false, videoId: video.videoId, error: `Video zu alt: ${videoAgeHours}h` };
   }
@@ -895,6 +928,7 @@ ${additionalSources}
     
     // Extract facts from video info
     console.log('   📊 Extrahiere Fakten...');
+    await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
     const facts = await extractFacts(
       seriesName || video.title,
       sourceText
@@ -915,9 +949,10 @@ ${additionalSources}
     console.log('   🤖 Generiere Premium-Artikel via LLM...');
     logger.log('LLM Content-Generierung gestartet (Google Discover Qualität)');
     
-    // Word count target: MINIMUM 1200, ideal 1500-2000 für Google Discover
-    const wordCountTarget = Math.max(1500, Math.min(sourceWordCount * 2, 2500));
+    // A short announcement does not justify an inflated long-form article.
+    const wordCountTarget = Math.max(300, Math.min(sourceWordCount, 650));
     
+    await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
     const structuredContent = await generateStructuredContent({
       facts,
       seriesName: tmdbData?.name || seriesName || video.title,
@@ -1114,6 +1149,7 @@ ${additionalSources}
     }
 
     try {
+      await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
       const qualityResult = await qualityCheck({
         generatedArticleHtml: htmlContent,
         finalHeadline: structuredContent.headline,
@@ -1164,6 +1200,7 @@ ${additionalSources}
         : typeof rawLastAirDate === 'string'
           ? rawLastAirDate
           : undefined;
+      await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
       const factSafetyResult = await factSafetyCheck({
         articleHtml: htmlContent,
         headline: structuredContent.headline,
@@ -1265,10 +1302,9 @@ ${additionalSources}
       logger.log('Artikel existiert bereits - übersprungen', 'warn');
       const existingStatus = existing.status === 'published' ? 'published' : 'draft';
 
-      // A review draft must not consume the source video. It stays available
-      // until an editor publishes it or explicitly dismisses the item.
-      if (existingStatus === 'published') {
-        await prisma.youtube_videos.update({
+      // Consume generation once; a draft still requires editorial publication.
+      {
+        await prisma.youtube_videos.updateMany({
           where: { videoId: video.videoId },
           data: {
             processed: true,
@@ -1287,7 +1323,8 @@ ${additionalSources}
       });
       
       return {
-        success: existingStatus === 'published',
+        success: false,
+        skipReason: 'existing-article',
         videoId: video.videoId,
         articleId: existing.id,
         slug: existing.slug,
@@ -1329,7 +1366,11 @@ ${additionalSources}
     // TMDB images are usually higher quality and more suitable for hero display
     let heroImageUrl = video.thumbnailUrl;
     
-    if (publicationStatus === 'published' && tmdbData?.backdropPath && seriesIdForArticle) {
+    if (tmdbData?.backdropPath) {
+      // A held draft still needs the already-known landscape backdrop. Only
+      // optional rotation performs extra network work after publication.
+      heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
+      if (publicationStatus === 'published' && seriesIdForArticle) {
       // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
       try {
         const articleCount = await prisma.articles.count({
@@ -1353,10 +1394,7 @@ ${additionalSources}
         heroImageUrl = `https://image.tmdb.org/t/p/w1280${tmdbData.backdropPath}`;
         console.log(`   🖼️ Hero Image: TMDB Backdrop (Rotation fehlgeschlagen)`);
       }
-    } else if (tmdbData?.posterPath) {
-      // Fallback to poster if no backdrop
-      heroImageUrl = `https://image.tmdb.org/t/p/w780${tmdbData.posterPath}`;
-      console.log(`   🖼️ Hero Image: TMDB Poster`);
+      }
     } else if (video.thumbnailUrl) {
       // Use YouTube thumbnail as last resort
       // Try maxresdefault first, fallback to hqdefault
@@ -1366,7 +1404,9 @@ ${additionalSources}
       console.log(`   🖼️ Hero Image: YouTube Thumbnail`);
     }
     
-    const article = await prisma.articles.create({
+    await assertDraftPipelineMayContinue(prisma, 'p4-youtube');
+    const article = await prisma.$transaction(async (tx) => {
+    const saved = await tx.articles.create({
       data: {
         id: articleId,
         title: structuredContent.headline,
@@ -1390,20 +1430,17 @@ ${additionalSources}
         updatedAt: now,
       }
     });
-    
-    // Only a public article consumes the source video. Review drafts remain
-    // retryable and do not mutate the ingestion queue.
-    if (publicationStatus === 'published') {
-      await prisma.youtube_videos.update({
+      await tx.youtube_videos.updateMany({
         where: { videoId: video.videoId },
         data: {
           processed: true,
           processedAt: now,
-          articleId: article.id,
-          articleSlug: article.slug,
+          articleId: saved.id,
+          articleSlug: saved.slug,
         }
       });
-    }
+    return saved;
+    });
     
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
     logger.log(`Artikel gespeichert: ${article.slug}`);
@@ -1554,8 +1591,8 @@ ${additionalSources}
     };
     
   } catch (error) {
-    console.error('❌ Pipeline Fehler:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = safeNewsError(error);
+    console.error('❌ Pipeline Fehler:', errorMessage);
     await logger.fail(errorMessage, 'unknown');
     return {
       success: false,
@@ -1569,6 +1606,12 @@ ${additionalSources}
 // PROCESS UNPROCESSED VIDEOS
 // ══════════════════════════════════════════════════════════════════════════
 export async function processUnprocessedVideos(limit: number = 5, trigger: TriggerType = 'cron'): Promise<YTArticleResult[]> {
+  return withDraftPipelineLease(prisma, 'p4-youtube', () => processVideoQueue(limit, trigger),
+    (skipReason) => [{ success: false, videoId: '', skipReason }]);
+}
+
+async function processVideoQueue(limit: number, trigger: TriggerType): Promise<YTArticleResult[]> {
+  const deadline = draftPipelineDeadline();
   console.log('\n🎬 Verarbeite unverarbeitete Videos...\n');
   console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 24h alte Quellen'})`);
   
@@ -1590,7 +1633,7 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
       publishedAt: { gte: cutoffDate }
     },
     orderBy: { publishedAt: 'desc' },
-    take: limit,
+    take: positiveInteger(limit, 5, 10) * 4,
     include: { youtube_channels: true }
   });
   
@@ -1604,6 +1647,7 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
   const results: YTArticleResult[] = [];
   
   for (const video of unprocessedVideos) {
+    if (Date.now() >= deadline || results.filter((result) => !result.skipReason).length >= positiveInteger(limit, 5, 10)) break;
     const result = await generateArticleFromVideo({
       videoId: video.videoId,
       title: video.title,
@@ -1615,9 +1659,10 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
     }, trigger);
     
     results.push(result);
+    if (result.skipReason === 'pipeline.cron.paused' || result.skipReason === 'already-running') break;
     
     // Delay between articles
-    await new Promise(r => setTimeout(r, 2000));
+    if (!result.skipReason) await new Promise(r => setTimeout(r, 1000));
   }
   
   return results;
@@ -1628,21 +1673,27 @@ export async function processUnprocessedVideos(limit: number = 5, trigger: Trigg
 // ══════════════════════════════════════════════════════════════════════════
 // MAIN: P4 PIPELINE (für Admin Dashboard Trigger)
 // ══════════════════════════════════════════════════════════════════════════
-export async function runP4YTPipeline(trigger: TriggerType = 'cron'): Promise<{
+export async function runP4YTPipeline(trigger: TriggerType = 'cron', limit = 5): Promise<{
   newVideos: number;
   processed: number;
   results: YTArticleResult[];
+  skipReason?: DraftSkipReason;
 }> {
+  return withDraftPipelineLease(prisma, 'p4-youtube', () => runVideoCycle(trigger, limit),
+    (skipReason) => ({ newVideos: 0, processed: 0, results: [], skipReason }));
+}
+
+async function runVideoCycle(trigger: TriggerType, limit: number) {
   console.log('\n' + '═'.repeat(70));
   console.log('🚀 P4-YT PIPELINE START');
-  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})`);
+  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 24h alte Quellen'})`);
   console.log('═'.repeat(70));
   
   // Step 1: Check for new videos
   const newVideos = await checkForNewVideos();
   
   // Step 2: Process unprocessed videos
-  const results = await processUnprocessedVideos(5, trigger);
+  const results = await processUnprocessedVideos(limit, trigger);
   
   const successful = results.filter(r => r.success).length;
   
@@ -1656,7 +1707,7 @@ export async function runP4YTPipeline(trigger: TriggerType = 'cron'): Promise<{
   
   return {
     newVideos: newVideos.length,
-    processed: successful,
+    processed: results.filter((result) => !result.skipReason).length,
     results
   };
 }

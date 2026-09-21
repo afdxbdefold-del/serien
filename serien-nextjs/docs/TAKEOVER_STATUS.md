@@ -1,6 +1,6 @@
 # Übernahmestatus serien.de
 
-Stand: 12. September 2026
+Stand: 21. September 2026
 
 Arbeitsbranch: `codex/takeover`
 
@@ -9,7 +9,28 @@ Ausgangspunkt: `main` bei `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
 Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 Übernahme. Es ersetzt keine Live-Prüfung der Produktionssysteme.
 
-## Live verifizierte Produktion (12. September 2026)
+## Aktueller Live-Nachtrag (21. September 2026)
+
+Der neue vollständige Befund steht in `PIPELINE_LIVE_AUDIT_2026-09-21.md`.
+Er hat Vorrang vor dem historischen Snapshot unten:
+
+- Produktion baut mittlerweile **`codex/takeover`**, laufender Commit
+  `2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`. Der App-Anzeigename mit `main`
+  ist veraltet. **Deploy on push ist aktiv: nicht unkontrolliert pushen.**
+- PostgreSQL 17 auf Hetzner/Coolify und dasselbe persistente Volume erneut
+  bestätigt; effektive Datenbank `postgres`. Kein Neon.
+- Der stündliche News-Task läuft, antwortet aber mit
+  `skipped / pipeline.cron.paused`. Die Pause ist in der Datenbank bestätigt.
+- Weiterhin kein automatischer Backupplan in Coolify. Nach ausdrücklicher
+  Betreiberfreigabe neue logische und physische Backups am 21. September
+  erstellt, Kompression/Prüfsummen geprüft und **beide getrennt erfolgreich
+  wiederhergestellt**: 4.360 Artikel (4.275 veröffentlicht, 75 Entwürfe,
+  10 archiviert), 44 Tabellen. Keine Produktionsdaten zurückgespielt.
+  Die frische externe Kopie ist noch offen; Details im Live-Audit.
+- Pipeline-Reparaturen liegen lokal und sind noch nicht ausgerollt.
+  `main`, Produktionsschema, DNS und Secrets blieben unverändert.
+
+## Historischer Produktionssnapshot (12. September 2026)
 
 - Produktion läuft auf einem Hetzner-Server über Coolify. Die lokale
   Management-Oberfläche ist unter `http://168.119.171.20:8000/` erreichbar.

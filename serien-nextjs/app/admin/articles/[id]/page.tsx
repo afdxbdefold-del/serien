@@ -25,6 +25,7 @@ interface ReviewArticle {
   authorName: string;
   seriesName: string | null;
   reviewReason: string | null;
+  canVerifyPublication?: boolean;
 }
 
 interface GateResult {
@@ -99,7 +100,7 @@ export default function ArticleReviewPage() {
   const [form, setForm] = useState<DraftForm | null>(null);
   const [gates, setGates] = useState<GateResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<'save-draft' | 'review-and-publish' | null>(null);
+  const [saving, setSaving] = useState<'save-draft' | 'review-and-publish' | 'verify-publication' | null>(null);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'warn' | 'error'; text: string } | null>(null);
 
@@ -141,7 +142,7 @@ export default function ArticleReviewPage() {
     setReviewConfirmed(false);
   };
 
-  const submit = async (action: 'save-draft' | 'review-and-publish') => {
+  const submit = async (action: 'save-draft' | 'review-and-publish' | 'verify-publication') => {
     if (!form || !article) return;
     const normalizedContentType = (article.contentType || '').trim().toUpperCase();
     const isTimelessEditorial = article.isRankingArticle
@@ -190,10 +191,10 @@ export default function ArticleReviewPage() {
         } : current);
       }
       if (data.published) {
-        setArticle((current) => current ? { ...current, status: 'published' } : current);
-        setMessage(data.cacheRevalidated === false
-          ? { kind: 'warn', text: data.warning || 'Artikel veröffentlicht; Cache-Aktualisierung bitte prüfen.' }
-          : { kind: 'ok', text: 'Artikel wurde nach bestandener Prüfung veröffentlicht.' });
+        setArticle((current) => current ? { ...current, status: 'published', canVerifyPublication: true } : current);
+        setMessage(data.publicationVerified === false || data.verificationAuditSaved === false
+          ? { kind: 'warn', text: data.warning || 'Artikel gespeichert und freigegeben; öffentliche Anzeige noch nicht bestätigt. Nicht erneut veröffentlichen.' }
+          : { kind: 'ok', text: 'Artikel veröffentlicht; öffentliche Artikelansicht, Bild und aktuelle Platzierung bestätigt.' });
       } else if (action === 'review-and-publish') {
         setMessage({ kind: 'warn', text: data.reason || 'Mindestens eine Prüfung ist noch nicht bestanden.' });
       } else {
@@ -278,7 +279,7 @@ export default function ArticleReviewPage() {
           <label className="block">
             <span className="block text-sm font-medium text-gray-700 mb-1">Hero-Bild-URL</span>
             <input value={form.heroImageUrl} disabled={!isDraft} onChange={(event) => updateForm({ heroImageUrl: event.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 disabled:bg-gray-100" />
-            <span className="mt-1 block text-xs text-gray-500">Zulässig sind erreichbare lokale Bildpfade und Bilder von image.tmdb.org. Andere Hosts bleiben gesperrt.</span>
+            <span className="mt-1 block text-xs text-gray-500">Zulässig sind lokale Bilder, TMDB und der konfigurierte R2-Speicher. Das Motiv redaktionell prüfen; vor Freigabe werden Bilddatei, Querformat und Mindestgröße geprüft.</span>
           </label>
           <label className="block">
             <span className="block text-sm font-medium text-gray-700 mb-1">Quell-URL</span>
@@ -317,6 +318,11 @@ export default function ArticleReviewPage() {
               </button>
               </div>
             </div>
+          )}
+          {!isDraft && article.status === 'published' && article.canVerifyPublication && (
+            <button onClick={() => void submit('verify-publication')} disabled={saving !== null} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              {saving === 'verify-publication' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Live-Anzeige nachprüfen
+            </button>
           )}
         </section>
 

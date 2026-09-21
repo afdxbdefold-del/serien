@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import { load as cheerioLoad } from 'cheerio';
 import { PrismaClient } from '@prisma/client';
+import { assertDraftPipelineMayContinue, draftPipelineDeadline, withDraftPipelineLease } from '../lib/draft-pipeline-reliability';
 
 const prisma = new PrismaClient();
 
@@ -96,6 +97,7 @@ async function loadSeriesFromDB(): Promise<string[]> {
  */
 async function fetchTrendsRSS(): Promise<string[]> {
   const allTrends: string[] = [];
+  let validFeeds = 0;
   
   for (const url of TRENDS_URLS) {
     try {
@@ -103,13 +105,16 @@ async function fetchTrendsRSS(): Promise<string[]> {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/rss+xml, application/xml, text/xml',
-        }
+        },
+        signal: AbortSignal.timeout(15_000),
       });
       
       if (!response.ok) continue;
       
       const xml = await response.text();
       const $ = cheerioLoad(xml, { xmlMode: true });
+      if (!$('rss channel').length) continue;
+      validFeeds++;
       
       $('item title').each((_, el) => {
         const title = $(el).text().trim();
@@ -118,10 +123,11 @@ async function fetchTrendsRSS(): Promise<string[]> {
         }
       });
     } catch (error) {
-      console.error(`Failed to fetch ${url}:`, error);
+      console.error('Google Trends RSS feed unavailable');
     }
   }
   
+  if (!validFeeds) throw new Error('Google Trends RSS unavailable');
   return allTrends;
 }
 
@@ -201,7 +207,7 @@ async function filterSeriesTrends(trends: string[]): Promise<string[]> {
  */
 async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; tmdbId?: number; name?: string }> {
   const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) return { isSeries: false };
+  if (!apiKey) throw new Error('TMDB configuration unavailable');
   
   const lower = trend.toLowerCase();
   
@@ -228,7 +234,8 @@ async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; t
     if (searchTerm.length < 3) return { isSeries: false };
     
     const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(searchTerm)}&language=de-DE`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error('TMDB discovery unavailable');
     const data = await response.json();
     
     if (data.results && data.results.length > 0) {
@@ -249,7 +256,7 @@ async function checkTMDBForSeries(trend: string): Promise<{ isSeries: boolean; t
       }
     }
   } catch (error) {
-    // Ignore errors
+    throw new Error('TMDB discovery unavailable');
   }
   
   return { isSeries: false };
@@ -266,6 +273,8 @@ async function filterSeriesTrendsEnhanced(trends: string[]): Promise<string[]> {
   const unchecked = trends.filter(t => !basicFiltered.includes(t));
   
   for (const trend of unchecked.slice(0, 10)) { // Limit API calls
+    if (Date.now() >= draftPipelineDeadline()) break;
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
     const tmdbCheck = await checkTMDBForSeries(trend);
     if (tmdbCheck.isSeries) {
       console.log(`   ✓ TMDB match: "${trend}" → ${tmdbCheck.name}`);
@@ -289,7 +298,8 @@ async function findNewsForTrend(trend: string): Promise<string[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/html',
-      }
+      },
+      signal: AbortSignal.timeout(15_000),
     });
     
     if (!response.ok) return newsUrls;
@@ -325,6 +335,8 @@ async function saveTrendingTopics(trends: string[]): Promise<void> {
   today.setHours(0, 0, 0, 0);
   
   for (const trend of trends) {
+    if (Date.now() >= draftPipelineDeadline()) break;
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
     try {
       // TMDB-Validierung: Nur Trends mit bestätigter Serie speichern
       const tmdbCheck = await checkTMDBForSeries(trend);
@@ -359,8 +371,7 @@ async function saveTrendingTopics(trends: string[]): Promise<void> {
         }
       });
     } catch (error) {
-      // Table might not exist yet - that's ok
-      console.log(`   Could not save trend: ${trend}`);
+      throw new Error('Trend queue discovery or persistence unavailable');
     }
   }
 }
@@ -372,6 +383,11 @@ export async function fetchGoogleTrends(): Promise<{
   trends: string[];
   newsUrls: Map<string, string[]>;
 }> {
+  return withDraftPipelineLease(prisma, 'p3-trends', discoverGoogleTrends,
+    () => ({ trends: [], newsUrls: new Map<string, string[]>() }));
+}
+
+async function discoverGoogleTrends(): Promise<{ trends: string[]; newsUrls: Map<string, string[]> }> {
   console.log('🔍 Fetching Google Trends for Germany...\n');
   
   // Fetch from RSS
@@ -386,6 +402,8 @@ export async function fetchGoogleTrends(): Promise<{
   const newsUrls = new Map<string, string[]>();
   
   for (const trend of seriesTrends.slice(0, 10)) { // Limit to top 10
+    if (Date.now() >= draftPipelineDeadline()) break;
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
     console.log(`\n   📰 Searching news for: ${trend}`);
     const urls = await findNewsForTrend(trend);
     if (urls.length > 0) {
@@ -398,6 +416,7 @@ export async function fetchGoogleTrends(): Promise<{
   }
   
   // Save to DB
+  await assertDraftPipelineMayContinue(prisma, 'p3-trends');
   await saveTrendingTopics(seriesTrends);
   
   return {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin-auth';
 import prisma from '@/lib/prisma';
 import { downloadYouTubeTrailer, findTrailerYouTubeId } from '@/lib/trailer-downloader';
+import { allowsGenericSeriesTrailer } from '@/lib/article-media-policy';
 
 export const maxDuration = 60;
 
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
         slug: true,
         heroVideoUrl: true,
         primarySeriesId: true,
+        contentType: true,
       }
     });
     
@@ -51,6 +53,10 @@ export async function GET(request: NextRequest) {
     
     if (!article.primarySeriesId) {
       return NextResponse.json({ error: 'Article has no series assigned' }, { status: 400 });
+    }
+
+    if (!allowsGenericSeriesTrailer(article.contentType)) {
+      return NextResponse.json({ success: false, error: 'News require an explicitly selected, source-relevant video; no generic series trailer was attached.' }, { status: 409 });
     }
     
     // Get series trailers
@@ -80,10 +86,13 @@ export async function GET(request: NextRequest) {
     
     if (downloadResult.success && downloadResult.localPath) {
       // Update article
-      await prisma.articles.update({
-        where: { id: article.id },
+      const attached = await prisma.articles.updateMany({
+        where: { id: article.id, contentType: article.contentType, primarySeriesId: article.primarySeriesId, heroVideoUrl: null },
         data: { heroVideoUrl: downloadResult.localPath }
       });
+      if (attached.count !== 1) {
+        return NextResponse.json({ success: false, error: 'Article changed during media processing; no video attached.' }, { status: 409 });
+      }
       
       console.log(`✅ Video saved: ${downloadResult.localPath}`);
       

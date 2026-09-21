@@ -165,6 +165,21 @@ async function fetchRaster(url: URL, deps: VerificationDependencies): Promise<Im
   return inspection;
 }
 
+/** Human-selected image: verify actual raster bytes and suitability only.
+ * Does not manufacture TMDB provenance or claim visual subject recognition.
+ */
+export async function verifyEditorialImage(
+  url: string, deps: VerificationDependencies = {},
+): Promise<PublicationCheck & Partial<ImageInspection>> {
+  try {
+    const inspection = await fetchRaster(imageUrl(url, deps), deps);
+    if (inspection.width < 1200 || inspection.height < 500 || inspection.width / inspection.height < 1.2) {
+      throw new VerificationError('image-size-or-aspect-insufficient');
+    }
+    return { ok: true, code: 'editor-selected-image-bytes-verified', ...inspection };
+  } catch (error) { return failure(error); }
+}
+
 /**
  * Prepublication gate. Verifies served bytes, raster decode and trusted source
  * provenance. It does not claim visual recognition or prove that an upstream

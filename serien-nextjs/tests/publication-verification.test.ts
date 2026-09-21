@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {
-  publicationCacheTargets, revalidatePublicationCaches, verifyPublicationImage,
+  publicationCacheTargets, revalidatePublicationCaches, verifyPublicationImage, verifyEditorialImage,
   verifyPublishedArticle, type PublicationImageInput,
 } from '../lib/publication-verification';
 
@@ -29,6 +29,17 @@ async function run() {
   assert.equal(valid.ok, true);
   assert.equal(valid.width, 1280);
   assert.equal(valid.format, 'png');
+  const handSelected = await verifyEditorialImage('https://pub-owned.r2.dev/manual/my-image.png', {
+    fetch: pngFetch, imageOrigins: ['https://pub-owned.r2.dev'],
+  });
+  assert.equal(handSelected.ok, true, 'a manually selected image needs no invented TMDB provenance');
+  assert.equal(handSelected.code, 'editor-selected-image-bytes-verified');
+  assert.equal((await verifyEditorialImage(imageUrl, {
+    fetch: network(() => response(Buffer.from('broken raster'), 'image/png')),
+  })).ok, false, 'MIME header alone must not allow a broken manually selected image');
+  assert.equal((await verifyEditorialImage(imageUrl, {
+    fetch: network(() => response(validImage.subarray(0, 80), 'image/png')),
+  })).ok, false, 'truncated manually selected images fail decoding');
 
   const noFetch = network(() => { throw new Error('must not fetch'); });
   for (const input of [

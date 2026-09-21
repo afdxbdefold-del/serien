@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { verifyAdminRequest } from '@/lib/admin-auth';
 import { jwtVerify } from 'jose';
 import { classifyContentAge } from '@/lib/time-axis-correction';
@@ -10,6 +10,14 @@ import { getTVWatchProviders } from '@/lib/tmdb-watch-providers';
 import { parseSourcePublishedAt } from '@/lib/source-published-at';
 import { validateAndNormalizeArticleHtml } from '@/lib/article-html-safety';
 import type { Prisma } from '@prisma/client';
+import { reviewManualNews } from '@/lib/admin-news-review';
+import { editorialPayloadHash } from '@/lib/editorial-review';
+import { fetchNewsArticles } from '@/app/news/_data';
+import { PAGE_SIZE as NEWS_PAGE_SIZE } from '@/app/news/_lib';
+import {
+  revalidatePublicationCaches, verifyEditorialImage, verifyPublishedArticle,
+  type PublishedArticleVerification,
+} from '@/lib/publication-verification';
 import {
   decideEditorialPublication,
   type EditorialGateOutcome,
@@ -17,6 +25,80 @@ import {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function editorialImageOrigins(): string[] {
+  return [process.env.R2_PUBLIC_URL, process.env.NEXT_PUBLIC_R2_URL].filter(Boolean) as string[];
+}
+
+/** The article is already committed. Never signal a failed write or retry it. */
+async function checkCommittedPublication(
+  article: { id: string; slug: string; title: string; heroImageUrl: string | null },
+  runId: string, metadata: Record<string, unknown>,
+) {
+  let invalidation = await revalidatePublicationCaches(article.slug);
+  if (!invalidation.ok) invalidation = await revalidatePublicationCaches(article.slug, {
+    invalidate(paths, tags) {
+      for (const tag of tags) revalidateTag(tag);
+      for (const path of paths) revalidatePath(path);
+    },
+  });
+  let verification: PublishedArticleVerification;
+  try {
+    const [latest, currentNewsPage] = await Promise.all([
+      prisma.articles.findMany({ where: { status: { in: ['published', 'PUBLISHED'] } },
+        orderBy: { publishedAt: 'desc' }, take: 40, select: { id: true, primarySeriesId: true } }),
+      fetchNewsArticles({ limit: NEWS_PAGE_SIZE }),
+    ]);
+    // Match the actual per-series homepage selection. Older/superseded stories
+    // must not remain "pending" merely because newer articles took their slot.
+    const homepageIds: string[] = [];
+    const seenSeries = new Set<number>();
+    for (const candidate of latest) {
+      if (candidate.primarySeriesId != null) {
+        if (seenSeries.has(candidate.primarySeriesId)) continue;
+        seenSeries.add(candidate.primarySeriesId);
+      }
+      homepageIds.push(candidate.id);
+      if (homepageIds.length === 11) break;
+    }
+    const position = homepageIds.indexOf(article.id);
+    verification = await verifyPublishedArticle({
+      slug: article.slug, title: article.title, heroImageUrl: article.heroImageUrl || '',
+      expectedOnHomepage: position >= 0,
+      expectedCarousel: position >= 0 && position < 5 ? 'present' : undefined,
+      expectedInNews: currentNewsPage.some(candidate => candidate.id === article.id),
+    }, { imageOrigins: editorialImageOrigins() });
+  } catch {
+    verification = { ok: false, checks: { publication: { ok: false, code: 'verification-unavailable' } }, homepagePlacement: 'not-checked' };
+  }
+  let verificationAuditSaved = true;
+  try {
+    await prisma.pipeline_runs.update({
+      where: { id: runId },
+      data: {
+        status: verification.ok ? 'success' : 'partial',
+        errorStep: verification.ok ? null : 'publication-verification',
+        errorMessage: verification.ok ? null : 'Artikel gespeichert; öffentliche Anzeige noch nicht vollständig bestätigt',
+        completedAt: new Date(),
+        metadata: JSON.stringify({ ...metadata, cacheInvalidation: invalidation,
+          publicationVerification: verification, publicationRecheckedAt: new Date().toISOString() }),
+      },
+    });
+  } catch {
+    verificationAuditSaved = false;
+    console.error('Manual publication verification audit could not be updated');
+  }
+  return {
+    publicationVerified: verification.ok,
+    publicationVerification: verification,
+    cacheRevalidated: invalidation.ok && invalidation.code !== 'cache-invalidation-queued',
+    cacheInvalidation: invalidation,
+    verificationAuditSaved,
+    warning: !verification.ok
+      ? 'Artikel ist gespeichert und freigegeben; die öffentliche Anzeige ist noch nicht vollständig bestätigt. Nicht erneut veröffentlichen, sondern die Live-Anzeige nachprüfen.'
+      : !verificationAuditSaved ? 'Öffentliche Anzeige bestätigt; Prüfprotokoll konnte nicht aktualisiert werden.' : undefined,
+  };
 }
 
 async function getVerifiedAdminId(request: NextRequest): Promise<string | null> {
@@ -60,60 +142,6 @@ function isPrivateHostname(hostname: string): boolean {
     || octets[0] >= 224;
 }
 
-function addConfiguredImageHost(target: Set<string>, configuredUrl: string | undefined): void {
-  if (!configuredUrl) return;
-  try {
-    const parsed = new URL(configuredUrl);
-    if (['http:', 'https:'].includes(parsed.protocol)
-      && parsed.port === ''
-      && !isPrivateHostname(parsed.hostname)) {
-      target.add(parsed.hostname.toLowerCase().replace(/\.$/, ''));
-    }
-  } catch {
-    // Invalid deployment configuration must not broaden the allowlist.
-  }
-}
-
-function getAllowedImageHosts(): { allowed: Set<string>; site: Set<string> } {
-  const siteHosts = new Set([
-    'serien.de',
-    'www.serien.de',
-  ]);
-  const externalHosts = new Set(['image.tmdb.org']);
-
-  for (const configuredUrl of [
-    process.env.NEXT_PUBLIC_BASE_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-  ]) {
-    addConfiguredImageHost(siteHosts, configuredUrl);
-  }
-
-  for (const configuredUrl of [
-    process.env.R2_PUBLIC_URL,
-    process.env.NEXT_PUBLIC_R2_URL,
-    process.env.BLOB_PUBLIC_URL,
-    process.env.NEXT_PUBLIC_BLOB_URL,
-  ]) {
-    addConfiguredImageHost(externalHosts, configuredUrl);
-  }
-
-  return {
-    allowed: new Set([...siteHosts, ...externalHosts]),
-    site: siteHosts,
-  };
-}
-
-function isAllowedLocalImagePath(url: URL): boolean {
-  return [
-    '/img/',
-    '/images/',
-    '/branding/',
-    '/placeholders/',
-    '/series-backdrops/',
-    '/hero-samples/',
-    '/og-samples/',
-  ].some((prefix) => url.pathname.startsWith(prefix));
-}
 
 function validateSourceUrl(rawUrl: string | null): { ok: boolean; reason: string } {
   if (!rawUrl?.trim()) return { ok: false, reason: 'Keine Quell-URL gesetzt' };
@@ -147,65 +175,6 @@ function validatePlainEditorialText(
   return { ok: true, reason: 'Textfeld-Sicherheitsprüfung bestanden' };
 }
 
-async function verifyReachableImage(rawUrl: string | null): Promise<{ ok: boolean; reason: string }> {
-  if (!rawUrl?.trim()) return { ok: false, reason: 'Kein Hero-Bild gesetzt' };
-
-  const siteBase = process.env.NEXT_PUBLIC_SITE_URL || 'https://serien.de';
-  let current: URL;
-  try {
-    current = new URL(rawUrl, siteBase);
-  } catch {
-    return { ok: false, reason: 'Hero-Bild-URL ist ungültig' };
-  }
-
-  const { allowed: allowedHosts, site: siteHosts } = getAllowedImageHosts();
-  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
-    const hostname = current.hostname.toLowerCase();
-    if (!['http:', 'https:'].includes(current.protocol)
-      || current.port !== ''
-      || isPrivateHostname(hostname)
-      || !allowedHosts.has(hostname)) {
-      return { ok: false, reason: 'Hero-Bild-Host ist nicht für serverseitige Prüfungen freigegeben' };
-    }
-    if (hostname === 'image.tmdb.org' && current.protocol !== 'https:') {
-      return { ok: false, reason: 'TMDB-Bilder müssen über HTTPS geladen werden' };
-    }
-    if (siteHosts.has(hostname) && !isAllowedLocalImagePath(current)) {
-      return { ok: false, reason: 'Lokaler Hero-Bildpfad ist nicht freigegeben' };
-    }
-
-    try {
-      const response = await fetch(current, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1023' },
-        redirect: 'manual',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(8_000),
-      });
-
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location');
-        await response.body?.cancel();
-        if (!location || redirectCount === 3) {
-          return { ok: false, reason: 'Hero-Bild-Weiterleitung ist ungültig' };
-        }
-        current = new URL(location, current);
-        continue;
-      }
-
-      const contentType = response.headers.get('content-type')?.toLowerCase() || '';
-      const ok = response.ok && contentType.startsWith('image/');
-      await response.body?.cancel();
-      return ok
-        ? { ok: true, reason: 'Hero-Bild erreichbar' }
-        : { ok: false, reason: `Hero-Bild nicht erreichbar oder kein Bild (HTTP ${response.status})` };
-    } catch {
-      return { ok: false, reason: 'Hero-Bild-Prüfung ist wegen eines Netzwerkfehlers fehlgeschlagen' };
-    }
-  }
-
-  return { ok: false, reason: 'Hero-Bild konnte nicht geprüft werden' };
-}
 
 // GET - List articles with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -256,7 +225,7 @@ export async function GET(request: NextRequest) {
       const lastPipelineRun = await prisma.pipeline_runs.findFirst({
         where: { articleId: id },
         orderBy: { startedAt: 'desc' },
-        select: { status: true, errorMessage: true },
+        select: { status: true, errorMessage: true, pipeline: true },
       });
 
       return NextResponse.json({
@@ -265,6 +234,7 @@ export async function GET(request: NextRequest) {
           authorName: article.users?.name || 'Unbekannt',
           seriesName: article.series?.name || article.series?.title || null,
           reviewReason: lastPipelineRun?.errorMessage || null,
+          canVerifyPublication: lastPipelineRun?.pipeline === 'admin-review',
         },
       });
     } catch (error) {
@@ -343,7 +313,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const id = typeof body.id === 'string' ? body.id : '';
     const action = body.action;
-    if (!id || !['save-draft', 'review-and-publish'].includes(action)) {
+    if (!id || !['save-draft', 'review-and-publish', 'verify-publication'].includes(action)) {
       return NextResponse.json({ error: 'Article ID and valid action required' }, { status: 400 });
     }
 
@@ -380,6 +350,23 @@ export async function PATCH(request: NextRequest) {
 
     if (!article) {
       return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
+    if (action === 'verify-publication') {
+      if (!['published', 'PUBLISHED'].includes(article.status)) {
+        return NextResponse.json({ error: 'Nur bereits veröffentlichte Artikel können nachgeprüft werden' }, { status: 409 });
+      }
+      const run = await prisma.pipeline_runs.findFirst({
+        where: { pipeline: 'admin-review', articleId: article.id }, orderBy: { startedAt: 'desc' },
+        select: { id: true, metadata: true },
+      });
+      if (!run) return NextResponse.json({ error: 'Kein manuelles Veröffentlichungsprotokoll vorhanden' }, { status: 409 });
+      let metadata: Record<string, unknown> = {};
+      try { metadata = JSON.parse(run.metadata || '{}'); } catch { /* older malformed audit */ }
+      const checked = await checkCommittedPublication({ ...article,
+        heroImageUrl: article.heroImageUrl || article.heroLocalUrl || article.heroImagePath }, run.id, metadata);
+      return NextResponse.json({ success: true, published: true, status: 'published', article: {
+        id: article.id, slug: article.slug, title: article.title, status: article.status,
+      }, ...checked });
     }
     if (article.status !== 'draft') {
       return NextResponse.json({ error: 'Nur Entwürfe können über diesen Review-Pfad geändert werden' }, { status: 409 });
@@ -486,7 +473,7 @@ export async function PATCH(request: NextRequest) {
     gateOutcomes.push({ gate: 'text-safety', status: 'pass', reason: textSafety.reason });
     gateOutcomes.push({ gate: 'html-safety', status: 'pass', reason: htmlSafety.reason });
     gateOutcomes.push({
-      gate: 'source-review',
+      gate: 'editor-confirmation',
       status: editorialReviewConfirmed ? 'pass' : 'fail',
       reason: editorialReviewConfirmed
         ? isTimelessEditorial
@@ -497,62 +484,85 @@ export async function PATCH(request: NextRequest) {
           : 'Explizite redaktionelle Bestätigung von Quelle und Quellzeitpunkt fehlt',
     });
 
-    try {
-      const { qualityCheck } = await import('@/lib/quality-checker');
-      const result = await qualityCheck({
-        generatedArticleHtml: contentHtml,
-        finalHeadline: title,
-        primarySeriesName: seriesName,
-        extractedFacts: '',
-        isRankingList: article.isRankingArticle,
-      });
-      gateOutcomes.push({
-        gate: 'quality',
-        status: result.status === 'PASS' ? 'pass' : 'fail',
-        reason: result.failReasons.join('; ') || result.status,
-      });
-    } catch (error) {
-      gateOutcomes.push({ gate: 'quality', status: 'error', reason: errorMessage(error) });
+    let sourceReviewAudit: Record<string, unknown> | null = null;
+    if (!isTimelessEditorial) {
+      try {
+        const reviewed = await reviewManualNews({
+          article: { headline: title, excerpt: excerpt || '', metaDescription: metaDescription || '', contentHtml },
+          sourceUrl: sourceUrl || '', sourcePublishedAt, sourceConfirmed: editorialReviewConfirmed, seriesName,
+        });
+        draftData.contentHtml = reviewed.article.contentHtml;
+        draftData.sourcePublishedAt = reviewed.sourcePublishedAt;
+        sourceReviewAudit = reviewed.audit;
+        gateOutcomes.push({ gate: 'source-review', status: reviewed.decision.passed ? 'pass' : 'fail',
+          reason: reviewed.decision.reasons.join('; ') || 'Vollständiges Veröffentlichungspaket gegen die Originalquelle geprüft' });
+      } catch {
+        gateOutcomes.push({ gate: 'source-review', status: 'error',
+          reason: 'Vollständige Originalquelle, belastbarer Quellzeitpunkt oder vollständiger Quellenreview nicht verfügbar. Entwurf bleibt gespeichert.' });
+      }
     }
 
-    try {
-      const { antiAiFilter } = await import('@/lib/anti-ai-filter');
-      const result = await antiAiFilter({
-        articleHtml: contentHtml,
-        headline: title,
-        seriesName,
-        isRankingList: article.isRankingArticle,
-      });
-      gateOutcomes.push({
-        gate: 'anti-ai',
-        status: result.status === 'PASS' ? 'pass' : 'fail',
-        reason: result.failReasons.join('; ') || result.status,
-      });
-    } catch (error) {
-      gateOutcomes.push({ gate: 'anti-ai', status: 'error', reason: errorMessage(error) });
-    }
+    // Timeless manually classified features retain their existing review path.
+    // For NEWS, the complete source review replaces legacy TMDB-only and
+    // generic anti-AI checks that falsely reject new international announcements.
+    if (isTimelessEditorial) {
+      try {
+        const { qualityCheck } = await import('@/lib/quality-checker');
+        const result = await qualityCheck({
+          generatedArticleHtml: contentHtml,
+          finalHeadline: title,
+          primarySeriesName: seriesName,
+          extractedFacts: '',
+          isRankingList: article.isRankingArticle,
+        });
+        gateOutcomes.push({
+          gate: 'quality',
+          status: result.status === 'PASS' ? 'pass' : 'fail',
+          reason: result.failReasons.join('; ') || result.status,
+        });
+      } catch (error) {
+        gateOutcomes.push({ gate: 'quality', status: 'error', reason: errorMessage(error) });
+      }
 
-    try {
-      const { factSafetyCheck } = await import('@/lib/fact-safety-layer');
-      const result = await factSafetyCheck({
-        articleHtml: contentHtml,
-        headline: title,
-        extractedFacts: '',
-        tmdbSeriesData: {
-          status: article.series?.status || undefined,
-          lastAirDate: article.series?.lastAirDate?.toISOString(),
-          numberOfSeasons: article.series?.numberOfSeasons || undefined,
-        },
-      });
-      gateOutcomes.push({
-        gate: 'fact-safety',
-        status: result.status === 'SAFE' ? 'pass' : 'fail',
-        reason: result.headlineViolations.join('; ')
-          || result.rejectedFacts.map((fact) => fact.claim).join('; ')
-          || result.status,
-      });
-    } catch (error) {
-      gateOutcomes.push({ gate: 'fact-safety', status: 'error', reason: errorMessage(error) });
+      try {
+        const { antiAiFilter } = await import('@/lib/anti-ai-filter');
+        const result = await antiAiFilter({
+          articleHtml: contentHtml,
+          headline: title,
+          seriesName,
+          isRankingList: article.isRankingArticle,
+        });
+        gateOutcomes.push({
+          gate: 'anti-ai',
+          status: result.status === 'PASS' ? 'pass' : 'fail',
+          reason: result.failReasons.join('; ') || result.status,
+        });
+      } catch (error) {
+        gateOutcomes.push({ gate: 'anti-ai', status: 'error', reason: errorMessage(error) });
+      }
+
+      try {
+        const { factSafetyCheck } = await import('@/lib/fact-safety-layer');
+        const result = await factSafetyCheck({
+          articleHtml: contentHtml,
+          headline: title,
+          extractedFacts: '',
+          tmdbSeriesData: {
+            status: article.series?.status || undefined,
+            lastAirDate: article.series?.lastAirDate?.toISOString(),
+            numberOfSeasons: article.series?.numberOfSeasons || undefined,
+          },
+        });
+        gateOutcomes.push({
+          gate: 'fact-safety',
+          status: result.status === 'SAFE' ? 'pass' : 'fail',
+          reason: result.headlineViolations.join('; ')
+            || result.rejectedFacts.map((fact) => fact.claim).join('; ')
+            || result.status,
+        });
+      } catch (error) {
+        gateOutcomes.push({ gate: 'fact-safety', status: 'error', reason: errorMessage(error) });
+      }
     }
 
     const sourceResult = sourceValidation;
@@ -570,12 +580,12 @@ export async function PATCH(request: NextRequest) {
         status: 'pass',
         reason: 'Explizit als zeitloser Feature-/Ranking-Inhalt klassifiziert',
       });
-    } else if (!sourcePublishedAt) {
+    } else if (!draftData.sourcePublishedAt) {
       gateOutcomes.push({ gate: 'freshness', status: 'fail', reason: 'Belastbarer Quellzeitpunkt fehlt' });
     } else {
       try {
         const age = classifyContentAge({
-          sourcePublishedAt,
+          sourcePublishedAt: draftData.sourcePublishedAt,
           headline: title,
           contentType: 'NEWS',
         });
@@ -591,7 +601,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    try {
+    if (isTimelessEditorial) try {
       const providers = article.primarySeriesId
         ? await getTVWatchProviders(article.primarySeriesId)
         : null;
@@ -615,11 +625,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const effectiveImageUrl = heroImageUrl || article.heroLocalUrl || article.heroImagePath;
-    const imageResult = await verifyReachableImage(effectiveImageUrl);
+    const imageResult = await verifyEditorialImage(effectiveImageUrl || '', { imageOrigins: editorialImageOrigins() });
+    // Persist the exact image checked; do not let the rendered article silently
+    // fall back to a different TMDB/legacy URL after a successful image gate.
+    draftData.heroImageUrl = effectiveImageUrl;
     gateOutcomes.push({
       gate: 'hero-image',
       status: imageResult.ok ? 'pass' : 'fail',
-      reason: imageResult.reason,
+      reason: imageResult.code,
     });
     gateOutcomes.push({ gate: 'release-mode', status: 'pass', reason: 'Explizite Admin-Freigabe' });
 
@@ -627,15 +640,12 @@ export async function PATCH(request: NextRequest) {
       alreadyDraft: false,
       outcomes: gateOutcomes,
       requiredGates: [
-        'quality',
+        ...(isTimelessEditorial ? ['quality', 'anti-ai', 'fact-safety', 'body-facts'] : ['source-review']),
         'text-safety',
         'html-safety',
-        'anti-ai',
-        'fact-safety',
-        'source-review',
+        'editor-confirmation',
         'source',
         'freshness',
-        'body-facts',
         'hero-image',
         'release-mode',
       ],
@@ -661,6 +671,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     const publishedAt = new Date();
+    const runId = `admin-review-${randomUUID()}`;
+    const auditMetadata = {
+      reviewedBy: adminUserId, reviewedAt: publishedAt.toISOString(),
+      editorialReviewConfirmed: true, sourceConfirmed: !isTimelessEditorial,
+      imageTrust: 'explicit-editor-selected-image-with-byte-check', imageVerification: imageResult,
+      ...(sourceReviewAudit || { trust: 'explicit-human-timeless-editorial', sourceNotApplicableReason: 'timeless-feature-or-ranking' }),
+    };
+    if (!isTimelessEditorial && sourceReviewAudit?.reviewedPayloadHash !== editorialPayloadHash({
+      headline: draftData.title, excerpt: draftData.excerpt || '', metaDescription: draftData.metaDescription || '', contentHtml: draftData.contentHtml,
+    })) {
+      return NextResponse.json({ error: 'Veröffentlichungspaket stimmt nicht mehr mit dem Quellenreview überein' }, { status: 409 });
+    }
     const published = await prisma.$transaction(async (transaction) => {
       const publication = await transaction.articles.updateMany({
         where: { id, status: 'draft', updatedAt: expectedUpdatedAt },
@@ -675,24 +697,18 @@ export async function PATCH(request: NextRequest) {
 
       await transaction.pipeline_runs.create({
         data: {
-          id: `admin-review-${randomUUID()}`,
+          id: runId,
           pipeline: 'admin-review',
           trigger: 'manual',
-          status: 'success',
+          status: 'partial',
+          errorStep: 'publication-verification',
+          errorMessage: 'Artikel gespeichert; öffentliche Anzeige noch nicht bestätigt',
           inputSource: 'editorial-review',
           articleId: id,
           articleSlug: article.slug,
           articleTitle: title,
           completedAt: publishedAt,
-          metadata: JSON.stringify({
-            reviewedBy: adminUserId,
-            reviewedAt: publishedAt.toISOString(),
-            editorialReviewConfirmed: true,
-            sourceConfirmed: !isTimelessEditorial,
-            ...(isTimelessEditorial
-              ? { sourceNotApplicableReason: 'timeless-feature-or-ranking' }
-              : {}),
-          }),
+          metadata: JSON.stringify(auditMetadata),
         },
       });
 
@@ -705,20 +721,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Der Entwurf wurde zwischenzeitlich geändert. Bitte neu laden.' }, { status: 409 });
     }
 
-    // Public caches are invalidated only after the durable publication write.
-    // A cache API failure must not turn a successful DB publication into a
-    // misleading 500 response that invites a duplicate retry.
-    let cacheRevalidated = true;
-    try {
-      revalidatePath(`/${published.slug}`, 'page');
-      revalidatePath('/', 'page');
-      revalidatePath('/news', 'page');
-      revalidatePath('/news-sitemap.xml');
-      revalidatePath('/sitemap.xml');
-    } catch (error) {
-      cacheRevalidated = false;
-      console.error('Article published, cache revalidation failed:', errorMessage(error));
-    }
+    const checked = await checkCommittedPublication({ ...published, heroImageUrl: effectiveImageUrl }, runId, auditMetadata);
 
     return NextResponse.json({
       success: true,
@@ -726,10 +729,7 @@ export async function PATCH(request: NextRequest) {
       status: 'published',
       article: published,
       gates: gateOutcomes,
-      cacheRevalidated,
-      warning: cacheRevalidated
-        ? undefined
-        : 'Artikel ist veröffentlicht, aber die Cache-Aktualisierung ist fehlgeschlagen. Bitte Live-Seite prüfen.',
+      ...checked,
     });
   } catch (error) {
     console.error('Error reviewing article:', error);

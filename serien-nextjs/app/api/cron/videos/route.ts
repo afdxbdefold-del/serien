@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { downloadYouTubeTrailer, findTrailerYouTubeId } from '@/lib/trailer-downloader';
 import { requireCronAuth } from '@/lib/cron-auth';
+import { allowsGenericSeriesTrailer } from '@/lib/article-media-policy';
 
 const prisma = new PrismaClient();
 
@@ -89,6 +90,7 @@ async function enqueueNewArticles() {
   const articlesWithoutVideo = await prisma.articles.findMany({
     where: {
       heroVideoUrl: null,
+      contentType: { notIn: ['NEWS', 'news'] },
       createdAt: { gte: sevenDaysAgo },
       series: { isNot: null },
       // Not already in queue
@@ -113,6 +115,10 @@ async function enqueueNewArticles() {
   const skipped: string[] = [];
   
   for (const article of articlesWithoutVideo) {
+    if (!allowsGenericSeriesTrailer(article.contentType)) {
+      skipped.push(article.slug);
+      continue;
+    }
     if (!article.series?.trailers) {
       skipped.push(article.slug);
       continue;
@@ -177,6 +183,26 @@ async function processQueue() {
   const results: any[] = [];
   
   for (const item of pendingItems) {
+    const target = await prisma.articles.findUnique({
+      where: { id: item.articleId },
+      select: { contentType: true, primarySeriesId: true, series: { select: { trailers: true } } },
+    });
+    if (!target || !allowsGenericSeriesTrailer(target.contentType)) {
+      await prisma.video_download_queue.update({
+        where: { id: item.id },
+        data: { status: 'failed', attempts: 3, lastError: 'Editorial video selection required for news', updatedAt: new Date() },
+      });
+      results.push({ articleId: item.articleId, status: 'skipped', reason: 'editorial-video-required' });
+      continue;
+    }
+    if (findTrailerYouTubeId(target.series?.trailers) !== item.youtubeId) {
+      await prisma.video_download_queue.update({
+        where: { id: item.id },
+        data: { status: 'failed', attempts: 3, lastError: 'Queued video does not match current series trailer', updatedAt: new Date() },
+      });
+      results.push({ articleId: item.articleId, status: 'skipped', reason: 'series-video-changed' });
+      continue;
+    }
     // Mark as downloading
     await prisma.video_download_queue.update({
       where: { id: item.id },
@@ -197,10 +223,19 @@ async function processQueue() {
       
       if (downloadResult.success && downloadResult.localPath) {
         // Update article
-        await prisma.articles.update({
-          where: { id: item.articleId },
+        const attached = await prisma.articles.updateMany({
+          where: { id: item.articleId, contentType: target.contentType, primarySeriesId: target.primarySeriesId, heroVideoUrl: null },
           data: { heroVideoUrl: downloadResult.localPath }
         });
+
+        if (attached.count !== 1) {
+          await prisma.video_download_queue.update({
+            where: { id: item.id },
+            data: { status: 'failed', attempts: 3, lastError: 'Article changed during media processing', updatedAt: new Date() },
+          });
+          results.push({ articleId: item.articleId, status: 'skipped', reason: 'article-changed' });
+          continue;
+        }
         
         // Mark as completed
         await prisma.video_download_queue.update({

@@ -6,8 +6,8 @@
  * Unterschied zu pipeline-v2:
  * - Keine festen Quellen, sondern Web-Scraping basierend auf Suchbegriff
  * - Sammelt Infos von mehreren Serien-News-Seiten
- * - Erstellt ausführliche Artikel (1000+ Wörter)
- * - Vollautomatisch: Trend → Artikel → Veröffentlicht
+ * - Erstellt quellenbasierte Entwürfe zur redaktionellen Prüfung
+ * - Trend → Recherche → Entwurf (keine automatische Veröffentlichung)
  */
 
 import 'dotenv/config';
@@ -38,6 +38,8 @@ import {
   type EditorialGateOutcome,
 } from '../lib/editorial-publication-gate';
 import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from '../lib/article-html-safety';
+import { assertDraftPipelineMayContinue, draftSourcePreflight, draftPipelineDeadline, DRAFT_SOURCE_WINDOW_MS, isFreshDraftSource, stableTrendSourceUrl, withDraftPipelineLease, type DraftSkipReason } from '../lib/draft-pipeline-reliability';
+import { positiveInteger, safeNewsError } from '../lib/news-import-reliability';
 
 const prisma = new PrismaClient();
 
@@ -234,7 +236,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       `${query} start datum`,
       `${query} cast besetzung`,
       `${query} handlung inhalt`,
-      `"${query}" 2025`, // Exact match with year
+      `"${query}" ${new Date().getFullYear()}`, // Current year, not a frozen news window.
     ];
     
     for (const ddgQuery of ddgQueries) {
@@ -879,6 +881,7 @@ export interface TrendArticleResult {
   draftReason?: string;
   trendId: string;
   error?: string;
+  skipReason?: DraftSkipReason;
 }
 
 export async function runP3TrendsPipeline(
@@ -886,6 +889,24 @@ export async function runP3TrendsPipeline(
   searchTerm: string,
   trigger: TriggerType = 'manual'
 ): Promise<TrendArticleResult> {
+  return withDraftPipelineLease(prisma, 'p3-trends', async () => {
+    const { existing, queue, retry } = await draftSourcePreflight(prisma, 'p3-trends', trendId);
+    if (existing) return {
+      success: false, trendId, articleId: existing.id, slug: existing.slug, title: existing.title,
+      status: existing.status === 'published' ? 'published' : 'draft', skipReason: 'existing-article',
+      draftReason: existing.status === 'draft' ? 'Bereits gespeicherter Entwurf wartet auf Redaktion' : undefined,
+    };
+    // `date` is the discovery day's midnight bucket, NOT a source publication
+    // timestamp. P3 only drafts; it may not manufacture news freshness from it.
+    if (trigger !== 'manual' && (!queue || !('date' in queue) || !isFreshDraftSource(queue.date))) {
+      return { success: false, trendId, skipReason: 'source-too-old' };
+    }
+    if (retry) return { success: false, trendId, skipReason: retry };
+    return generateTrendDraft(trendId, searchTerm, trigger);
+  }, (skipReason) => ({ success: false, trendId, skipReason }));
+}
+
+async function generateTrendDraft(trendId: string, searchTerm: string, trigger: TriggerType): Promise<TrendArticleResult> {
   console.log('\n' + '═'.repeat(70));
   console.log('🔥 P3-TRENDS PIPELINE');
   console.log('═'.repeat(70));
@@ -930,47 +951,7 @@ export async function runP3TrendsPipeline(
       wordsCollected: info.totalWordCount 
     });
     
-    // ========== THEMA-ALTER CHECK (6 Stunden Maximum) ==========
-    // Für Trends: Prüfe wann der TREND erkannt wurde, nicht das Alter der Recherche-Quellen
-    // Die Quellen für die Recherche dürfen älter sein (Wikipedia, Hintergrund etc.)
-    const maxAgeMs = 30 * 60 * 1000; // 30 Minuten
-    
-    // Hole das Trend-Datum aus der Datenbank (falls kein manueller Trend)
-    let trendDate: Date | null = null;
-    let trendAgeHours = 'unbekannt';
-    
-    if (!trendId.startsWith('manual-')) {
-      try {
-        const trendRecord = await prisma.trending_topics.findUnique({
-          where: { id: trendId },
-          select: { date: true }
-        });
-        if (trendRecord?.date) {
-          trendDate = trendRecord.date;
-        }
-      } catch (e) {
-        // Trend nicht in DB - wird als aktuell behandelt
-      }
-    }
-    
-    if (trendDate) {
-      const trendAge = now.getTime() - trendDate.getTime();
-      trendAgeHours = (Math.round(trendAge / (60 * 60 * 1000) * 10) / 10).toString();
-      
-      if (trendAge > maxAgeMs && trigger !== 'manual') {
-        console.log(`\n⏰ THEMA ZU ALT: Trend erkannt vor ${trendAgeHours} Stunden (max: 6 Stunden)`);
-        console.log(`   → Überspringe. Nur manuelle Trigger erlaubt für ältere Themen.`);
-        logger.log(`Thema zu alt: ${trendAgeHours}h (max 6h)`);
-        await logger.fail(`Thema zu alt: ${trendAgeHours}h`, 'topic-age-check');
-        return { success: false, trendId, error: `Thema zu alt: ${trendAgeHours}h` };
-      }
-    }
-    
-    if (trigger === 'manual') {
-      console.log(`   ⏰ Thema-Alter: ${trendAgeHours} Stunden (manueller Trigger - Alterscheck übersprungen)`);
-    } else {
-      console.log(`   ⏰ Thema-Alter: ${trendAgeHours} Stunden ✓`);
-    }
+    logger.log('Discoverydatum geprüft; Quellenalter bleibt unabhängig davon unbestätigt. Nur Entwurf.');
     
     // ========== STEP 2: RESOLVE SERIES ==========
     console.log('\n' + '━'.repeat(60));
@@ -1059,6 +1040,7 @@ ${articleSources}
     // Step 3a: Extract facts from source text
     console.log('   📊 Extrahiere Fakten...');
     logger.log('Extrahiere Fakten aus Quellen...');
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
     const facts = await extractFacts(searchTerm, combinedSourceText || 'Keine Details verfügbar');
     const factCount = facts.key_statements?.length || 0;
     console.log(`   ✓ Fakten: ${factCount} Statements`);
@@ -1077,16 +1059,16 @@ ${articleSources}
     console.log(`   ✓ Content-Typ: ${contentType}`);
     logger.addMetadata('contentType', contentType);
     
-    // Calculate word count target based on available sources
-    const baseWordCount = Math.max(1500, info.totalWordCount); // Minimum 1500
-    const wordCountTarget = contentType === 'RANKING' 
-      ? Math.min(baseWordCount * 1.5, 2500)  // Rankings: bis 2500 Wörter
-      : Math.min(baseWordCount * 1.3, 2000); // News: bis 2000 Wörter
+    // News length follows evidence; no artificial long-form minimum.
+    const wordCountTarget = contentType === 'NEWS'
+      ? Math.max(300, Math.min(info.totalWordCount, 650))
+      : Math.max(500, Math.min(info.totalWordCount, 1200));
     
     // Step 3c: Generate structured content
     console.log(`   🤖 Generiere Premium-Artikel (${wordCountTarget} Wörter Ziel)...`);
     logger.log(`LLM Content-Generierung gestartet (Ziel: ${wordCountTarget} Wörter)`);
     
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
     const structuredContent = await generateStructuredContent({
       facts,
       seriesName: info.seriesName || searchTerm,
@@ -1245,6 +1227,7 @@ ${articleSources}
     }
 
     try {
+      await assertDraftPipelineMayContinue(prisma, 'p3-trends');
       const qualityResult = await qualityCheck({
         generatedArticleHtml: htmlContent,
         finalHeadline: structuredContent.headline,
@@ -1295,6 +1278,7 @@ ${articleSources}
         : typeof rawLastAirDate === 'string'
           ? rawLastAirDate
           : undefined;
+      await assertDraftPipelineMayContinue(prisma, 'p3-trends');
       const factSafetyResult = await factSafetyCheck({
         articleHtml: htmlContent,
         headline: structuredContent.headline,
@@ -1387,10 +1371,9 @@ ${articleSources}
       logger.log('Artikel existiert bereits - übersprungen', 'warn');
       const existingStatus = existing.status === 'published' ? 'published' : 'draft';
 
-      // Once an editor has published a previously held draft, consume only
-      // this concrete trend on the next run. Existing drafts stay retryable.
-      if (existingStatus === 'published' && !trendId.startsWith('manual-')) {
-        await prisma.trending_topics.update({
+      // The generation queue is complete for drafts too; publication is separate.
+      if (!trendId.startsWith('manual-')) {
+        await prisma.trending_topics.updateMany({
           where: { id: trendId },
           data: {
             processed: true,
@@ -1407,7 +1390,8 @@ ${articleSources}
         errorMessage: 'Artikel existiert bereits'
       });
       return { 
-        success: existingStatus === 'published',
+        success: false,
+        skipReason: 'existing-article',
         trendId, 
         articleId: existing.id, 
         slug: existing.slug,
@@ -1421,10 +1405,7 @@ ${articleSources}
     
     // articleId already defined in Step 7.5 for internal linking
     
-    // Generate unique source URL to avoid unique constraint
-    const uniqueSourceUrl = sourceUrlForPublication
-      ? `${sourceUrlForPublication}#trend-${Date.now()}`
-      : null;
+    const uniqueSourceUrl = stableTrendSourceUrl(sourceUrlForPublication, trendId);
     
     // ✅ BACKDROP ROTATION: Wähle rotierendes Backdrop basierend auf Artikelanzahl
     let selectedBackdrop = dbSeries?.backdropPath || info.tmdbData?.backdropPath || null;
@@ -1446,7 +1427,9 @@ ${articleSources}
       }
     }
     
-    const article = await prisma.articles.create({
+    await assertDraftPipelineMayContinue(prisma, 'p3-trends');
+    const article = await prisma.$transaction(async (tx) => {
+    const saved = await tx.articles.create({
       data: {
         id: articleId,
         title: structuredContent.headline,
@@ -1474,7 +1457,12 @@ ${articleSources}
         updatedAt: now,
       }
     });
-    
+    // A draft completes generation, not publication. Keep it linked for review
+    // and prevent repeated paid generation even if the process dies afterwards.
+    await tx.trending_topics.updateMany({ where: { id: trendId }, data: { processed: true, articleId: saved.id, processedAt: now } });
+    return saved;
+    });
+
     console.log(`   ✓ Artikel gespeichert: ${article.slug}`);
 
     if (publicationStatus === 'published') {
@@ -1667,8 +1655,8 @@ ${articleSources}
     };
     
   } catch (error) {
-    console.error('❌ Pipeline Fehler:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = safeNewsError(error);
+    console.error('❌ Pipeline Fehler:', errorMessage);
     await logger.fail(errorMessage, 'unknown');
     return { 
       success: false, 
@@ -1681,14 +1669,21 @@ ${articleSources}
 // ══════════════════════════════════════════════════════════════════════════
 // PROCESS ALL UNPROCESSED TRENDS
 // ══════════════════════════════════════════════════════════════════════════
-export async function processAllTrends(trigger: TriggerType = 'cron'): Promise<TrendArticleResult[]> {
+export async function processAllTrends(trigger: TriggerType = 'cron', limit = 5): Promise<TrendArticleResult[]> {
+  return withDraftPipelineLease(prisma, 'p3-trends', () => processTrendQueue(trigger, limit),
+    (skipReason) => [{ success: false, trendId: '', skipReason }]);
+}
+
+async function processTrendQueue(trigger: TriggerType, limit: number): Promise<TrendArticleResult[]> {
+  const deadline = draftPipelineDeadline();
+  const cutoff = new Date(Date.now() - DRAFT_SOURCE_WINDOW_MS);
   console.log('\n🔥 Verarbeite alle unverarbeiteten Trends...');
-  console.log(`   Trigger: ${trigger} (${trigger === 'manual' ? 'Alterscheck deaktiviert' : 'max 6h alte Quellen'})\n`);
+  console.log(`   Trigger: ${trigger} (Discovery-Tagesdatum max.24h, keine behauptete Quellenaktualität)\n`);
   
   const unprocessedTrends = await prisma.trending_topics.findMany({
-    where: { processed: false },
+    where: { processed: false, ...(trigger === 'manual' ? {} : { date: { gte: cutoff } }) },
     orderBy: { date: 'desc' },
-    take: 5 // Max 5 at a time
+    take: positiveInteger(limit, 5, 10) * 4 // Look past existing drafts/cooldowns without starting unbounded work.
   });
   
   if (unprocessedTrends.length === 0) {
@@ -1701,12 +1696,14 @@ export async function processAllTrends(trigger: TriggerType = 'cron'): Promise<T
   const results: TrendArticleResult[] = [];
   
   for (const trend of unprocessedTrends) {
+    if (Date.now() >= deadline || results.filter((result) => !result.skipReason).length >= positiveInteger(limit, 5, 10)) break;
     // Trigger-Type an Pipeline weitergeben
     const result = await runP3TrendsPipeline(trend.id, trend.query, trigger);
     results.push(result);
+    if (result.skipReason === 'pipeline.cron.paused' || result.skipReason === 'already-running') break;
     
     // Delay between articles
-    await new Promise(r => setTimeout(r, 2000));
+    if (!result.skipReason) await new Promise(r => setTimeout(r, 1000));
   }
   
   return results;

@@ -126,9 +126,10 @@ export default function AdminPipelinePage() {
   
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{
-    type: 'success' | 'review' | 'error';
+    type: 'success' | 'review' | 'pending' | 'error';
     text: string;
     reviewUrl?: string;
+    articleUrl?: string;
   } | null>(null);
   const [v2Url, setV2Url] = useState('');
   const [newChannelUrl, setNewChannelUrl] = useState('');
@@ -260,15 +261,25 @@ export default function AdminPipelinePage() {
         setP2DebugLog(data.debug);
       }
       
-      if (response.ok && data.partial && data.reviewUrl) {
+      if (response.ok && data.stored && data.verificationPending) {
+        setActionMessage({
+          type: 'pending',
+          text: data.message || 'Artikel gespeichert; öffentliche Anzeige noch nicht bestätigt. Bitte nicht erneut importieren.',
+          articleUrl: data.articleUrl,
+        });
+        setTimeout(fetchDashboard, 2000);
+      } else if (response.ok && data.partial && data.reviewUrl) {
         setActionMessage({
           type: 'review',
           text: data.message || 'Review-Entwurf erstellt',
           reviewUrl: data.reviewUrl,
         });
         setTimeout(fetchDashboard, 2000);
+      } else if (response.ok && data.skipped) {
+        setActionMessage({ type: 'pending', text: data.message || 'Auftrag übersprungen; es wurde nichts veröffentlicht.' });
+        setTimeout(fetchDashboard, 2000);
       } else if (response.ok && data.success) {
-        setActionMessage({ type: 'success', text: data.message || 'Aktion erfolgreich' });
+        setActionMessage({ type: 'success', text: data.message || 'Aktion erfolgreich', articleUrl: data.articleUrl });
         setTimeout(fetchDashboard, 2000);
       } else {
         setActionMessage({ type: 'error', text: data.error || data.message || 'Aktion fehlgeschlagen' });
@@ -331,10 +342,16 @@ export default function AdminPipelinePage() {
         setP2DebugLog(data.debug);
       }
       
-      if (data.success || (response.ok && data.partial && data.reviewUrl)) {
-        setActionMessage(data.success
-          ? { type: 'success', text: data.message || 'Artikel importiert' }
-          : {
+      if (response.ok && (data.success || data.stored || (data.partial && data.reviewUrl))) {
+        setActionMessage(data.verificationPending
+          ? {
+              type: 'pending',
+              text: data.message || 'Artikel gespeichert; öffentliche Anzeige noch nicht bestätigt. Bitte nicht erneut importieren.',
+              articleUrl: data.articleUrl,
+            }
+          : data.success
+            ? { type: 'success', text: data.message || 'Artikel importiert', articleUrl: data.articleUrl }
+            : {
               type: 'review',
               text: data.message || 'Review-Entwurf erstellt',
               reviewUrl: data.reviewUrl,
@@ -601,19 +618,24 @@ export default function AdminPipelinePage() {
           <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
             actionMessage.type === 'success' 
               ? 'bg-green-50 text-green-800 border border-green-200'
-              : actionMessage.type === 'review'
+              : actionMessage.type === 'review' || actionMessage.type === 'pending'
                 ? 'bg-amber-50 text-amber-900 border border-amber-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
             {actionMessage.type === 'success'
               ? <CheckCircle className="h-5 w-5 shrink-0" />
-              : actionMessage.type === 'review'
+              : actionMessage.type === 'review' || actionMessage.type === 'pending'
                 ? <AlertTriangle className="h-5 w-5 shrink-0" />
                 : <XCircle className="h-5 w-5 shrink-0" />}
             <span>{actionMessage.text}</span>
             {actionMessage.reviewUrl && (
               <Link href={actionMessage.reviewUrl} className="ml-auto whitespace-nowrap font-medium underline">
                 Entwurf prüfen
+              </Link>
+            )}
+            {actionMessage.articleUrl && (
+              <Link href={actionMessage.articleUrl} className="ml-auto whitespace-nowrap font-medium underline">
+                Artikel öffnen
               </Link>
             )}
           </div>

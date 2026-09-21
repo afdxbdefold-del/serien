@@ -4,7 +4,7 @@ Praktische Troubleshooting-Anleitung für die häufigsten Ausfallmuster.
 Bei jedem Punkt: **erst reproduzieren/verifizieren, dann fixen** — nicht
 raten.
 
-**Produktionsstand 12. September 2026:** Die Anwendung und PostgreSQL laufen
+**Produktionsstand 21. September 2026:** Die Anwendung und PostgreSQL laufen
 als zwei getrennte Coolify-Ressourcen auf einem Hetzner-Server. Der
 Anwendungscontainer startet ausschließlich `next-server`; es gibt keinen
 Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
@@ -12,9 +12,11 @@ Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
 
 Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar. Port 8000
 spricht ausschließlich HTTP; bei Betriebsprüfungen nicht automatisch auf HTTPS
-wechseln. Die Anwendung baut Branch `main`, und `Deploy on push (webhooks)` ist
-aktiv. Ein Push nach `main` kann daher unmittelbar einen Produktivdeploy
-auslösen; Übernahmearbeiten bleiben auf `codex/takeover`.
+wechseln. Die Anwendung baut inzwischen Branch `codex/takeover`, und
+`Deploy on push (webhooks)` ist aktiv. Ein Push auf diesen Branch kann daher
+unmittelbar einen Produktivdeploy auslösen. Laufender Commit:
+`2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`. `main` bleibt unverändert.
+Vollständiger aktueller Befund: `PIPELINE_LIVE_AUDIT_2026-09-21.md`.
 
 ## "Keine neuen News erscheinen"
 
@@ -24,10 +26,11 @@ aufgetreten):
 
 1. **Laufen die Coolify Scheduled Tasks?** In der Anwendung unter
    `Scheduled Tasks` den letzten Status und die Ausführungsausgabe prüfen.
-   Zum Prüfzeitpunkt waren zehn Jobs aktiv. `downgrade-stale` und `videos`
-   scheiterten wiederholt mit HTTP 401; `trends` war nicht angelegt. Das
-   Auth-Problem erst nach verifiziertem Backup und ohne Ausgabe des
-   Secret-Werts beheben.
+   Am 21. September waren zehn Jobs aktiv, kein `trends`-Task sichtbar.
+   Der News-Aufruf antwortete mit `skipped / pipeline.cron.paused` trotz
+   grünem Tasklabel. Deshalb zuerst Pause und Antwortinhalt prüfen.
+   Die am 12. September beobachteten HTTP-401-Fehler von `downgrade-stale`
+   und `videos` sind historische Befunde, nicht erneut aktuell nachgewiesen.
 
 2. **Entspricht jeder Job einer vorhandenen Route?** Route und HTTP-Methode
    im aktuellen Branch prüfen. `tmdb-sync` und `backfill-streaming-series`
@@ -70,11 +73,12 @@ aufgetreten):
 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.
 ```
 
-→ Kein Code-Fehler. Erfordert eine ausdrücklich freigegebene Aktion mit
-möglichen Kosten im OpenAI-Billing-Dashboard (Guthaben aufladen oder
-Auto-Recharge aktivieren). Sobald erledigt: keine Code-Änderung
-nötig; der nächste Coolify Scheduled Task sollte wieder funktionieren. Nach
-der Aufladung: den nächsten Lauf abwarten oder nach ausdrücklicher Freigabe
+→ Zuerst unterscheiden: Rate-Limit, Projektquote und tatsächlich fehlendes
+Guthaben. Ein grüner Kontostand beweist nicht, dass der verwendete Key diesem
+Projekt zugeordnet ist. Aufladen oder Auto-Recharge nur nach ausdrücklicher
+Freigabe; nicht pauschal als Fehlerbehebung empfehlen. Die aktuelle News-Pause
+ist unabhängig davon. Nach bestätigter Anbieter-Funktion und sicherer
+Konfiguration den nächsten Lauf abwarten oder nach ausdrücklicher Freigabe
 genau einen kontrollierten End-to-End-Lauf auslösen und über `pipeline_runs`
 + Live-Check der Homepage/`/news` verifizieren, dass tatsächlich wieder neue
 Artikel publiziert werden — nicht nur den Fehler als "behoben" annehmen,
@@ -187,6 +191,11 @@ Das ist kein echter OpenAI-/TMDB-/PostgreSQL-Probelauf. Der vollständige
 projektweite Typecheck enthält weiterhin Altfehler.
 
 Vor dem Rollout in dieser Reihenfolge:
+
+Nachtrag 21. September: Branch/Commit/Push-Trigger und Taskpause live bestätigt;
+frische logische und physische Backups erfolgreich isoliert wiederhergestellt.
+Offsite-Kopie, echte Modellabnahme und Rollout bleiben offen. Die Zustimmung
+zu Backup/Restore ist keine Freigabe für ein ungeprüftes Deployment.
 
 1. Den angemeldeten serien.de-Tab unter `http://168.119.171.20:8000/`
    öffnen. Andere Coolify-Instanzen sind nicht serien.de. Aktuellen

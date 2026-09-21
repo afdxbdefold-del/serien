@@ -1,72 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { requireCronAuth } from '@/lib/cron-auth';
+import { summarizeDraftOutcomes, withDraftPipelineLease } from '@/lib/draft-pipeline-reliability';
+import { safeNewsError } from '@/lib/news-import-reliability';
 
-export const maxDuration = 300; // 5 minutes max
+// 210s start budget; allow an already-started article to finish safely.
+export const maxDuration = 900;
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   const authFailure = requireCronAuth(request);
   if (authFailure) return authFailure;
-
-  // Check if this is a manual trigger (bypasses age filter)
-  const trigger = request.nextUrl.searchParams.get('trigger') === 'manual' ? 'manual' : 'cron';
-  
-  console.log(`🎬 Starting P4-YT Pipeline (${trigger})...`);
-  const startTime = Date.now();
-
+  // Cron never accepts a query-string override of source freshness.
+  const started = Date.now();
   try {
-    // Import pipeline functions
-    const { checkForNewVideos, processUnprocessedVideos } = await import('@/scripts/p4-yt');
-
-    // Step 1: Check for new videos from all channels
-    console.log('\n📡 Step 1: Checking YouTube channels for new videos...');
-    const newVideos = await checkForNewVideos();
-    console.log(`   Found ${newVideos.length} new videos`);
-
-    // Step 2: Process unprocessed videos (max 3 per run to stay within time limit)
-    console.log('\n📝 Step 2: Processing unprocessed videos...');
-    const results = await processUnprocessedVideos(3, trigger);
-
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    const successCount = results.filter(r => r.success).length;
-
-    console.log(`\n✅ Cron job complete in ${duration}s`);
-    console.log(`   New videos found: ${newVideos.length}`);
-    console.log(`   Articles created: ${successCount}/${results.length}`);
-
-    return NextResponse.json({
-      success: true,
-      trigger,
-      stats: {
-        newVideosFound: newVideos.length,
-        videosProcessed: results.length,
-        articlesCreated: successCount,
-        duration: `${duration}s`,
-      },
-      results: results.map(r => ({
-        videoId: r.videoId,
-        success: r.success,
-        slug: r.slug,
-        title: r.title,
-        error: r.error,
-      })),
-      timestamp: new Date().toISOString(),
-    });
-
-  } catch (error: any) {
-    console.error('❌ YouTube cron error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return await withDraftPipelineLease<NextResponse>(prisma, 'p4-youtube', async () => {
+      const { checkForNewVideos, processUnprocessedVideos } = await import('@/scripts/p4-yt');
+      let discovered = 0;
+      let discoveryError: string | undefined;
+      try {
+        discovered = (await checkForNewVideos()).length;
+      } catch (error) {
+        discoveryError = safeNewsError(error);
+      }
+      // Process queued candidates even when discovery is empty or unavailable.
+      // A discovery outage remains a failure, never a false green empty run.
+      const results = await processUnprocessedVideos(3, 'cron');
+      const summary = summarizeDraftOutcomes(results);
+      const failed = summary.failed > 0 || Boolean(discoveryError);
+      return NextResponse.json({
+        success: summary.success && !discoveryError,
+        status: failed ? 'failed' : summary.status,
+        trigger: 'cron',
+        stats: { ...summary, newVideosFound: discovered, videosProcessed: summary.processed, durationMs: Date.now() - started },
+        results,
+        ...(discoveryError ? { discoveryError } : {}),
+        timestamp: new Date().toISOString(),
+      }, { status: failed ? 503 : 200 });
+    }, (skipReason) => NextResponse.json({ success: false, status: 'skipped', skipReason, results: [], timestamp: new Date().toISOString() }));
+  } catch (error) {
+    const message = safeNewsError(error);
+    console.error('youtube cron failed:', message);
+    return NextResponse.json({ success: false, status: 'failed', error: message }, { status: 503 });
   }
 }
 
-export async function POST(request: NextRequest) {
-  return GET(request);
-}
+export const POST = GET;

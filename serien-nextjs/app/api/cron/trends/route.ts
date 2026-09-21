@@ -1,124 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { requireCronAuth } from '@/lib/cron-auth';
+import { summarizeDraftOutcomes, withDraftPipelineLease } from '@/lib/draft-pipeline-reliability';
+import { safeNewsError } from '@/lib/news-import-reliability';
 
-export const maxDuration = 300; // 5 minutes max
+// 210s start budget; allow an already-started article to finish safely.
+export const maxDuration = 900;
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   const authFailure = requireCronAuth(request);
   if (authFailure) return authFailure;
-
-  // Check if this is a manual trigger (bypasses age filter)
-  const trigger = request.nextUrl.searchParams.get('trigger') === 'manual' ? 'manual' : 'cron';
-
-  console.log(`🔥 Starting P3-Trends Pipeline (${trigger})...`);
-  const startTime = Date.now();
-
+  // Cron never accepts a query-string override of source freshness.
+  const started = Date.now();
   try {
-    // Step 1: Fetch Google Trends
-    console.log('\n📊 Step 1: Fetching Google Trends...');
-    const { fetchGoogleTrends } = await import('@/scripts/google-trends-scraper');
-    const { trends } = await fetchGoogleTrends();
-    
-    console.log(`   Found ${trends.length} series-related trends`);
-    
-    if (trends.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No series-related trends found',
-        stats: { trendsFound: 0, articlesCreated: 0 },
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Step 2: Get unprocessed trends from DB (nur letzte 24 Stunden)
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
-    // Zuerst: Alte Trends automatisch als verarbeitet markieren
-    await prisma.trending_topics.updateMany({
-      where: {
-        processed: false,
-        date: { lt: twentyFourHoursAgo }
-      },
-      data: { processed: true }
-    });
-    
-    const unprocessedTrends = await prisma.trending_topics.findMany({
-      where: { 
-        processed: false,
-        date: { gte: twentyFourHoursAgo }  // Nur frische Trends
-      },
-      orderBy: { date: 'desc' },
-      take: 3, // Max 3 per run to stay within time limit
-    });
-
-    console.log(`\n📝 Step 2: Processing ${unprocessedTrends.length} trends...`);
-
-    // Step 3: Run P3-Trends Pipeline for each
-    const { runP3TrendsPipeline } = await import('@/scripts/p3-trends');
-    const results = [];
-
-    for (const trend of unprocessedTrends) {
-      console.log(`\n   Processing: "${trend.query}"`);
-      
+    return await withDraftPipelineLease<NextResponse>(prisma, 'p3-trends', async () => {
+      const { fetchGoogleTrends } = await import('@/scripts/google-trends-scraper');
+      const { processAllTrends } = await import('@/scripts/p3-trends');
+      let discovered = 0;
+      let discoveryError: string | undefined;
       try {
-        // Pass trigger type to pipeline
-        const result = await runP3TrendsPipeline(trend.id, trend.query, trigger);
-        results.push(result);
-        
-        if (result.success) {
-          console.log(`   ✅ Article created: ${result.slug}`);
-        } else {
-          console.log(`   ❌ Failed: ${result.error}`);
-        }
-      } catch (error: any) {
-        console.error(`   ❌ Error: ${error.message}`);
-        results.push({ success: false, trendId: trend.id, error: error.message });
+        discovered = (await fetchGoogleTrends()).trends.length;
+      } catch (error) {
+        discoveryError = safeNewsError(error);
       }
-
-      // Small delay between articles
-      await new Promise(r => setTimeout(r, 1000));
-    }
-
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    const successCount = results.filter(r => r.success).length;
-
-    console.log(`\n✅ Cron job complete in ${duration}s`);
-    console.log(`   Trends found: ${trends.length}`);
-    console.log(`   Articles created: ${successCount}/${unprocessedTrends.length}`);
-
-    return NextResponse.json({
-      success: true,
-      trigger,
-      stats: {
-        trendsFound: trends.length,
-        trendsProcessed: unprocessedTrends.length,
-        articlesCreated: successCount,
-        duration: `${duration}s`,
-      },
-      results: results.map(r => ({
-        trendId: r.trendId,
-        success: r.success,
-        slug: r.slug,
-        error: r.error,
-      })),
-      timestamp: new Date().toISOString(),
-    });
-
-  } catch (error: any) {
-    console.error('❌ Trends cron error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+      // Process queued candidates even when discovery is empty or unavailable.
+      // A discovery outage remains a failure, never a false green empty run.
+      const results = await processAllTrends('cron', 3);
+      const summary = summarizeDraftOutcomes(results);
+      const failed = summary.failed > 0 || Boolean(discoveryError);
+      return NextResponse.json({
+        success: summary.success && !discoveryError,
+        status: failed ? 'failed' : summary.status,
+        trigger: 'cron',
+        stats: { ...summary, trendsFound: discovered, trendsProcessed: summary.processed, durationMs: Date.now() - started },
+        results,
+        ...(discoveryError ? { discoveryError } : {}),
+        timestamp: new Date().toISOString(),
+      }, { status: failed ? 503 : 200 });
+    }, (skipReason) => NextResponse.json({ success: false, status: 'skipped', skipReason, results: [], timestamp: new Date().toISOString() }));
+  } catch (error) {
+    const message = safeNewsError(error);
+    console.error('trends cron failed:', message);
+    return NextResponse.json({ success: false, status: 'failed', error: message }, { status: 503 });
   }
 }
 
-export async function POST(request: NextRequest) {
-  return GET(request);
-}
+export const POST = GET;

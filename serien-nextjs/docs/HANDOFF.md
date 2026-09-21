@@ -1,6 +1,6 @@
 # serien.de — Technisches Handoff-Dokument (Einstiegspunkt)
 
-Stand: 12. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
+Stand: 21. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine KI
 (ChatGPT/Codex/Claude etc.) soll dieses Projekt **ohne Emergent-Plattform-
 Zugriff und ohne Rückfragen an den vorherigen Betreuer** verstehen, lokal
 aufsetzen, betreiben und weiterentwickeln können.
@@ -16,6 +16,8 @@ Ordner (`serien-nextjs/docs/`):
 | **`PIPELINE_AND_LLM.md`** | Kompletter News-Pipeline-Ablauf, LLM-Konfiguration, GPT-5-Fallen |
 | **`AD_STACK.md`** | ads.txt, Prebid/Yieldlab, TheMoneytizer/CMP, Primis/Freestar, Diagnose-Tools |
 | **`OPERATIONS_RUNBOOK.md`** | Betriebs-Runbook: "keine News", "OpenAI 429", Supervisor-Fallen, Troubleshooting |
+| **`PIPELINE_LIVE_AUDIT_2026-09-21.md`** | Aktueller Branch/Commit, aktive Pause, Tasks, neue Backups und getrennte Restore-Nachweise |
+| **`PIPELINE_PATH_INVENTORY.md`** | Haupt-/Nebenwege, alle Cron-Routen und ruhende Alt-Publisher mit Restbefunden |
 | **`MIGRATION_GUIDE.md`** | Lokales Setup von Null, Hetzner/Coolify-Migration, Secrets-Übergabe |
 
 Ältere Feature-spezifische Dokumente (Trailer-System, Pipeline-Refactoring-
@@ -34,8 +36,12 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 - **Automatisierte News-Pipeline**: scrapt englische Serien-News-Quellen
   (Deadline, Variety, Hollywood Reporter, TVLine, The Cinemaholic und Netflix
   Tudum), lässt ein LLM daraus einen deutschen, SEO-optimierten
-  Artikel schreiben (Text, Meta, Q&A-Box, Hero-Bild, Charakter-Bios) und
-  veröffentlicht ihn automatisch. In Produktion stößt ein stündlicher
+  Artikel schreiben. Die überarbeitete lokale NEWS-Strecke nutzt belegte
+  Fakten, vollständige Quellenprüfung und echte Bild-/Anzeigeprüfung, ohne
+  nachträgliche ungeprüfte Q&A- oder Kontext-Erfindungen. Automatische
+  Veröffentlichung ist ein gesondertes Freigabe-Flag. Am 21. September ist
+  die produktive News-Pipeline pausiert; der Reparaturstand ist noch nicht
+  ausgerollt. In Produktion stößt ein stündlicher
   Coolify Scheduled Task die geschützte HTTP-Cron-Route an; der optionale
   Dauerprozess läuft dort nicht. `processAllNews()` unterstützt zusätzlich
   Google News als Default, die produktive Cron-Route wählt diese Quelle aber
@@ -55,15 +61,15 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 
 | Bereich | Technologie |
 |---|---|
-| Framework | Next.js 15, React 19, TypeScript 5. Das Manifest deklariert `^15.1.6`/`^19.0.0`/`^5.7.0`; der Übernahme-Lockstand löst 15.5.25/19.2.8/5.9.3 auf. Die exakten Pakete des lockfilelosen Live-`main` sind daraus nicht beweisbar. |
+| Framework | Next.js 15, React 19, TypeScript 5. Das Manifest deklariert `^15.1.6`/`^19.0.0`/`^5.7.0`; der lokale Lockstand löst 15.5.25/19.2.8/5.9.3 auf. Die tatsächlich laufenden Paketversionen wurden nicht separat aus dem Container ausgelesen. |
 | Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Image `postgres:17-alpine`, Zugriff über **Prisma ORM 6.19.2**. Das leere Feld für die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver Datenbankname ist daher `postgres`. Persistenz: Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`. Neon wird nicht verwendet. |
-| Backups | In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel konfiguriert; dort werden null Backup-Ausführungen angezeigt. Auf dem Host liegen fünf manuelle Sicherungssätze vom 1. und 5. September 2026. Prüfsummen, Dump-Inhaltsverzeichnisse und Kompressionsarchive wurden am 12. September erfolgreich gelesen; ein isolierter Restore wurde nicht ausgeführt. Weil alle Sätze auf demselben Host liegen, bleiben ein aktuelles Offsite-Backup und ein erfolgreicher Restore-Test vor jeder Produktionsänderung Pflicht. |
+| Backups | Coolify hat weiterhin keinen automatischen Backupplan. Am 21. September wurden nach Freigabe ein neuer Custom-Dump und ein konsistentes physisches Basebackup erstellt; SHA-256/Gzip bestanden. Beide erfolgreich in getrennten netzwerkisolierten PostgreSQL-17-Testcontainern wiederhergestellt: 4.360 Artikel, 44 Tabellen. Neue Offsite-Kopie offen; siehe Live-Audit. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
 | LLM (Text) | OpenAI, Modell-String `gpt-5.4` (siehe `lib/llm-config.ts`), über eigenen `OPENAI_API_KEY`, direktes `openai` npm-SDK (v6.25.0) |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
-| Hosting (live verifiziert am 12. September 2026) | Hetzner-Server mit Coolify; eine Next.js-Anwendung und ein separater PostgreSQL-Service. Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar; Port 8000 spricht nur HTTP und darf nicht automatisch auf HTTPS umgestellt werden. Die Anwendung baut aus Repository `afdxbdefold-del/serien`, Branch `main`, Basisverzeichnis `/serien-nextjs`, Dockerfile `/Dockerfile`. `Deploy on push (webhooks)` ist aktiv, daher kann ein Push nach `main` unmittelbar Produktion deployen; `codex/takeover` ist nicht der Produktivbranch. Vercel ist nicht der aktuelle Anwendungshost. |
+| Hosting (live verifiziert am 21. September 2026) | Hetzner/Coolify; eine Next.js-App und separater PostgreSQL-Service. `http://168.119.171.20:8000/` bleibt HTTP. Repository `afdxbdefold-del/serien`, Branch **`codex/takeover`**, laufender Commit `2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`, Basis `/serien-nextjs`, Dockerfile `/Dockerfile`. **Deploy on push aktiv: Push auf takeover kann Produktion deployen.** App-Anzeigename mit `main` ist veraltet. Vercel ist nicht der Apphost. |
 | Push Notifications | Web Push (`web-push`, VAPID-Keys) |
 | Scraping | `cheerio` (HTML-Parsing), `playwright` (schwierigere Quellen, z. B. JS-gerenderte Seiten) |
 | Video/Trailer | RapidAPI (YouTube-Download-Fallbacks) |

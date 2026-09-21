@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { verifyAdminRequest } from '@/lib/admin-auth';
 import prisma from '@/lib/prisma';
+import { resolveImportSourceTitle } from '@/lib/import-source-title';
+import { pipelineActionOutcome } from '@/lib/pipeline-action-outcome';
+import { draftPipelineActionOutcome, draftPipelineBatchOutcome, draftPipelineSkipMessage } from '@/lib/draft-pipeline-action-outcome';
+import { withDraftPipelineLease } from '@/lib/draft-pipeline-reliability';
 
 // Cron schedules (UTC times) - alle 6 Stunden
 const CRON_SCHEDULES = {
@@ -435,6 +439,7 @@ export async function POST(request: NextRequest) {
 
     // Run P4-YT: Check for new videos
     if (action === 'yt-check') {
+      return withDraftPipelineLease<NextResponse>(prisma, 'p4-youtube', async () => {
       const { checkForNewVideos } = await import('@/scripts/p4-yt');
       const newVideos = await checkForNewVideos();
       return NextResponse.json({ 
@@ -442,6 +447,7 @@ export async function POST(request: NextRequest) {
         message: `${newVideos.length} neue Videos gefunden`,
         count: newVideos.length
       });
+      }, (skipReason) => NextResponse.json({ success: false, skipped: true, status: 'skipped', skipReason, message: draftPipelineSkipMessage(skipReason) }));
     }
 
     // Run P4-YT: Process single video
@@ -470,45 +476,15 @@ export async function POST(request: NextRequest) {
         channelName: video.youtube_channels.name,
       }, 'manual');
 
-      const published = result.status === 'published';
-      const reviewDraft = result.status === 'draft' && Boolean(result.articleId);
-      return NextResponse.json({
-        success: published,
-        partial: reviewDraft,
-        created: Boolean(result.articleId),
-        published,
-        status: result.status || 'failed',
-        message: published
-          ? `Artikel veröffentlicht: ${result.title}`
-          : reviewDraft
-            ? `Review-Entwurf erstellt: ${result.title}`
-            : result.error,
-        draftReason: result.draftReason,
-        reviewUrl: reviewDraft ? `/admin/articles/${result.articleId}` : undefined,
-        result,
-      });
+      return NextResponse.json(draftPipelineActionOutcome(result), { status: result.error && !result.skipReason ? 503 : 200 });
     }
 
     // Run P4-YT: Process next unprocessed videos
     if (action === 'yt-process-batch') {
       const { processUnprocessedVideos } = await import('@/scripts/p4-yt');
       const results = await processUnprocessedVideos(3, 'manual');
-      const publishedCount = results.filter((result) => result.status === 'published').length;
-      const draftCount = results.filter((result) => result.status === 'draft').length;
-      const failedCount = results.filter((result) => !result.success && result.status !== 'draft').length;
-      
-      return NextResponse.json({
-        success: draftCount === 0 && failedCount === 0,
-        partial: draftCount > 0,
-        created: results.filter((result) => Boolean(result.articleId)).length,
-        published: publishedCount,
-        drafts: draftCount,
-        failed: failedCount,
-        status: draftCount > 0 ? 'review' : failedCount > 0 ? 'failed' : 'published',
-        message: `${publishedCount} veröffentlicht, ${draftCount} Review-Entwürfe, ${failedCount} fehlgeschlagen`,
-        reviewUrl: draftCount > 0 ? '/admin/articles' : undefined,
-        results,
-      });
+      const outcome = draftPipelineBatchOutcome(results);
+      return NextResponse.json(outcome, { status: outcome.failed > 0 ? 503 : 200 });
     }
 
     // Run P3-Trends: Process single trend
@@ -520,23 +496,7 @@ export async function POST(request: NextRequest) {
       const { runP3TrendsPipeline } = await import('@/scripts/p3-trends');
       const result = await runP3TrendsPipeline(`manual-${Date.now()}`, searchTerm, 'manual');
 
-      const published = result.status === 'published';
-      const reviewDraft = result.status === 'draft' && Boolean(result.articleId);
-      return NextResponse.json({
-        success: published,
-        partial: reviewDraft,
-        created: Boolean(result.articleId),
-        published,
-        status: result.status || 'failed',
-        message: published
-          ? `Artikel veröffentlicht: ${result.title}`
-          : reviewDraft
-            ? `Review-Entwurf erstellt: ${result.title}`
-            : result.error,
-        draftReason: result.draftReason,
-        reviewUrl: reviewDraft ? `/admin/articles/${result.articleId}` : undefined,
-        result,
-      });
+      return NextResponse.json(draftPipelineActionOutcome(result), { status: result.error && !result.skipReason ? 503 : 200 });
     }
 
     // Run Pipeline-V2 with URL
@@ -544,6 +504,21 @@ export async function POST(request: NextRequest) {
       const { url, authorId } = body;
       if (!url) {
         return NextResponse.json({ error: 'url required' }, { status: 400 });
+      }
+
+      // An unverified public display must not make a retry regenerate an
+      // already committed article. Existing drafts also stay in review.
+      const existing = await prisma.articles.findFirst({
+        where: { sourceUrl: url },
+        select: { id: true, slug: true, title: true, status: true },
+      });
+      if (existing) {
+        return NextResponse.json(pipelineActionOutcome({
+          articleId: existing.id,
+          slug: existing.slug,
+          headline: existing.title,
+          status: existing.status,
+        }, false));
       }
       
       const { runPipelineV2 } = await import('@/scripts/pipeline-v2');
@@ -568,18 +543,8 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const published = result.status === 'published';
       return NextResponse.json({
-        success: published,
-        partial: !published,
-        created: true,
-        published,
-        status: result.status,
-        message: published
-          ? `Artikel veröffentlicht: ${result.headline}`
-          : `Review-Entwurf erstellt: ${result.headline}`,
-        draftReason: result.draftReason,
-        reviewUrl: published ? undefined : `/admin/articles/${result.articleId}`,
+        ...pipelineActionOutcome(result),
         result,
       });
     }
@@ -1020,9 +985,12 @@ export async function POST(request: NextRequest) {
         
         if (existing) {
           return NextResponse.json({
-            success: false,
-            error: 'Artikel bereits importiert',
-            articleSlug: existing.slug,
+            ...pipelineActionOutcome({
+              articleId: existing.id,
+              slug: existing.slug,
+              headline: existing.title,
+              status: existing.status,
+            }, false),
             debug: [...debugLog, `⚠️ Bereits vorhanden: /${existing.slug}`]
           });
         }
@@ -1047,15 +1015,12 @@ export async function POST(request: NextRequest) {
         // Import pipeline-v2 and process
         const { runPipelineV2 } = await import('@/scripts/pipeline-v2');
         
-        // Extract title from URL or use a placeholder
-        const urlParts = url.split('/');
-        const titleFromUrl = urlParts[urlParts.length - 2] || urlParts[urlParts.length - 1] || 'News Article';
-        const cleanTitle = titleFromUrl.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const sourceTitle = resolveImportSourceTitle(url, fullTextResult);
         
         debugLog.push(`🚀 Starte Pipeline...`);
         
         const result = await runPipelineV2({
-          title: cleanTitle,
+          title: sourceTitle,
           url: url,
           text: fullText,
           sourcePublishedAt: fullTextResult.publishDate,
@@ -1080,21 +1045,11 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        const published = result.status === 'published';
-        debugLog.push(`${published ? '✅ Veröffentlicht' : '📝 Review-Entwurf erstellt'}: /${result.slug}`);
+        const outcome = pipelineActionOutcome(result);
+        debugLog.push(outcome.message);
         return NextResponse.json({
-          success: published,
-          partial: !published,
-          created: true,
-          published,
-          status: result.status,
-          message: published
-            ? `✅ Artikel veröffentlicht (${Math.round(duration / 1000)}s)`
-            : `📝 Review-Entwurf erstellt (${Math.round(duration / 1000)}s)`,
-          articleSlug: result.slug,
-          articleTitle: result.headline,
-          draftReason: result.draftReason,
-          reviewUrl: published ? undefined : `/admin/articles/${result.articleId}`,
+          ...outcome,
+          message: `${outcome.message} (${Math.round(duration / 1000)}s)`,
           result,
           debug: debugLog,
         });

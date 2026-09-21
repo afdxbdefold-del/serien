@@ -268,3 +268,23 @@ Faktenextraktion, Schreib-/Strukturregeln, vollständige Quellenprüfung,
 einmalige Revision, Bild-/Publikationskontrolle, Retry, Sperre und Recovery.
 Das ersetzt keine Produktionsabnahme. Bis zu diesem separaten Nachweis
 sind die dokumentierten Änderungen **lokal, nicht live verifiziert**.
+
+### Vertiefung und Qualitätsabnahme vom 21. September
+
+Alle Cron-, Publisher- und Nebenwege sind in `PIPELINE_PATH_INVENTORY.md`
+erfasst; tatsächliche Coolify-Konfiguration, Taskpause und Restore-Belege in
+`PIPELINE_LIVE_AUDIT_2026-09-21.md`. P2/Admin, P3/P4 sowie nachträgliche
+generische Video-Anreicherung sind lokal zusätzlich abgesichert. Ruhende
+Alt-Publisher dürfen nicht als Ersatz für den neuen Import gestartet werden.
+
+`npm run eval:news` prüft nur die sechs synthetischen Testfälle und ihre
+Erwartungen, ohne Netzwerk oder Modell. Ein ausdrückliches `--live` aktiviert
+den echten Faktenextraktor, NEWS-Writer und Prüfer; mit `--case <id>` begrenzen.
+`--output-dir <neues-absolutes-lokales-Verzeichnis>` speichert ausschließlich
+als synthetisch gekennzeichnete Texte, Ergebnisse und eine menschliche Rubrik.
+Keine Datenbank, kein automatisches Nachladen von URLs und keine Publikation.
+Der Lauf testet auch absichtliche Falschbehauptungen in unterschiedlichen
+Artikelfeldern. Ein automatisches Pass ist keine menschliche Freigabe.
+Vor dem Rollout zusätzlich aktuelle echte Originalquellen und echte Bilder
+in einer getrennten Umgebung prüfen. Der synthetische Modelllauf wurde
+in dieser Arbeitsrunde noch nicht durchgeführt.
