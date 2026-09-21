@@ -5,30 +5,56 @@ Stand: 21. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine
 Zugriff und ohne Rückfragen an den vorherigen Betreuer** verstehen, lokal
 aufsetzen, betreiben und weiterentwickeln können.
 
-## Aktueller Live-Stand: 21. September 2026, nach 14:30 UTC
+## Aktueller Live-Stand: 21. September 2026, nach 15:13 UTC
 
-Commit `cbd216ffb3868ca91a986a601984a46db0f71961` auf `codex/takeover`
-wurde um 14:28 UTC erfolgreich ausgerollt, Deployment
-`bqwzdqac1fw9xfyw5ve38vr7`. Der neue App-Container
-`i8e996hq5t8moyf9fw8p0pbs-142026647632` ist gesund, ohne Neustart oder
-OOM-Markierung; PostgreSQL und Schema blieben unverändert. `main` wurde nicht
-geändert. Startseiten-Karussell mit fünf geladenen Bildern, News-Liste und vier
-XML-Sitemaps wurden nach dem Rollout geprüft.
+Bestätigt live ist `17b62e4546582e751fd3db52b749d033f1185724` auf
+`codex/takeover` (Quellenabruf-Fix und persistente Quellenrotation).
+Der geschützte Rollout `aq2vx26tqzt8nlyitv0lpcc1` war um etwa 15:11 UTC
+erfolgreich. Neuer App-Container `i8e996hq5t8moyf9fw8p0pbs-150527161770`:
+gesund, Neustartzähler 0, `OOMKilled=false`; Origin/Public HTTP 200.
+**News-Scheduler seit 15:13:42 UTC aktiviert und gespeicherten Zustand nach
+erneutem Laden bestätigt.**
+`main` und das Datenbankschema bleiben unverändert.
 
-**Code live ist nicht gleich News-Automatik freigegeben:** Sieben synthetische
-Astra-Modellfälle sind bestanden. Zwei echte Quellenläufe scheiterten an der
-alten 2-MiB-HTML-Grenze, irreführend als Timeout gemeldet. Netflix liefert
-rund 3,6 MB HTML; der Folgefix erlaubt begrenzte 8 MiB, ohne den erlaubten
-Quelltextumfang zu erhöhen. News-, YouTube- und Video-Tasks bleiben deaktiviert.
-Globale Pause und Veröffentlichungsfreigabe vor jedem Einzeltest aktuell
-prüfen, nicht aus diesem Snapshot ableiten.
+Ein echter Astra-Pipeline-Publish wurde inzwischen vollständig abgenommen:
+[„Süße Magnolien“ endet nach fünf Staffeln: Stars nehmen Abschied](https://serien.de/sue-e-magnolien-endet-nach-fuenf-staffeln-stars-nehmen-abschied),
+21. September, 14:57:02 UTC; Artikel-ID `pipeline-v2-1790002516287`,
+Run `32a5d3e8-ab7f-471e-bd04-2e0824f4775c`. Kanonische URL, H1,
+ausgeliefertes/dekodiertes Hero-Bild (1280 × 720), erster Karussell-Slide und
+News-Liste bestanden; Quellenbezug und Deutschlandrelevanz geprüft. Alle sieben
+öffentlichen Prüfungen nach dem finalen Deployment erneut bestanden.
+Die Datenbank enthält jetzt 4.361 Artikel; der separat wiederhergestellte
+Sicherungssatz enthält 4.360 Artikel. Der Netflix-Abruf-Fix ist live:
+maximal 8 MiB HTML statt 2 MiB,
+ohne Lockerung des extrahierten Textumfangs oder der Qualitätsregeln.
+
+**Begleiteter Publish und Scheduler getrennt abgenommen:** Der vorhandene
+Coolify-News-Task wurde um 15:13:00 UTC über „Execute Now“ erfolgreich geprüft
+(acht Sekunden). Er bestätigte den vorhandenen Artikel, lehnte einen anderen
+Kandidaten korrekt wegen Alters ab und persistierte den Cursor `Cinemaholic`.
+Anschließend wurde nur News aktiviert; globale Pause
+`pipeline.cron.paused=false` bestätigt. **YouTube und Videos bleiben aus.**
+Den nächsten regulären Lauf gesondert prüfen; kein zusätzlicher Scheduler.
+Gespeicherter News-Zeitplan: `0 * * * *`; Coolify-Task-Limit 3600 Sekunden,
+HTTP-Client-Deadline gezielt von 600 auf 3500 Sekunden erhöht und zurückgelesen.
+
+PostgreSQL ist gesund, Neustartzähler 0 und Postmaster-Start am 2. August.
+Docker zeigt dennoch historisch `OOMKilled=true`; das ist nicht gleichbedeutend
+mit einem aktuellen Neustart. Bei der aktuellen Prüfung wurden seit 14:00 UTC
+keine neuen Kernel-OOM-Ereignisse gefunden. Keine Produktionsmigration.
 
 Auto-Deploy bleibt **manuell**. Der erfolgreiche Build nutzte einen begrenzten
 Builder (1024 MiB RAM, maximal 2048 MiB Swap, 0,75 CPU) sowie einen 4-GiB-
 Host-Swap-Puffer, der nach einem Neustart nicht automatisch aktiv ist.
-Builder und Sicherheitswächter sind wieder gestoppt. Backup-Prüfsummen und
+Builder und Sicherheitswächter wurden um 15:12 UTC gezielt gestoppt
+(Wächter-PID 27375, privates `guard-cursor.log`, Plattenuntergrenze 4 GiB;
+vorher 6,7 GiB frei, kein Abbruch). Swap bleibt aktiv. Backup-Prüfsummen und
 logischer/physischer Restore-Nachweis erneut bestätigt, Prüfsummen zuletzt
 14:30 UTC; die frische Offsite-Kopie bleibt offen.
+Zusätzlich existiert `post-publication-1512.dump` mit 4.361 Artikeln:
+Inhaltsverzeichnis per `pg_restore --list` und SHA-256 erneut geprüft, aber
+noch kein eigener Restore-Test dieses neuesten Dumps. Der bereits bestandene
+logische/physische Restore-Test bezieht sich auf den vorherigen 4.360er-Satz.
 
 Diese Datei ist der **Einstiegspunkt**. Detail-Dokumente liegen im selben
 Ordner (`serien-nextjs/docs/`):
@@ -68,9 +94,10 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
   Fakten, vollständige Quellenprüfung und echte Bild-/Anzeigeprüfung, ohne
   nachträgliche ungeprüfte Q&A- oder Kontext-Erfindungen. Automatische
   Veröffentlichung ist ein gesondertes Freigabe-Flag. Der Code ist seit
-  21. September, 14:28 UTC, live; unbeaufsichtigte Veröffentlichung ist noch
-  nicht abgenommen. Der vorhandene stündliche Coolify-News-Task bleibt bis
-  dahin deaktiviert. Er ruft die geschützte HTTP-Cron-Route auf; der optionale
+  21. September live; ein echter begleiteter Publish ist abgenommen. Der
+  stündliche Coolify-News-Task ist nach bestandenem Cursor-Rollout und
+  tatsächlichem Task-Test seit 15:13:42 UTC aktiviert. Er ruft die
+  geschützte HTTP-Cron-Route auf; der optionale
   Dauerprozess läuft dort nicht. `processAllNews()` unterstützt zusätzlich
   Google News als Default, die produktive Cron-Route wählt diese Quelle aber
   nicht aus.
@@ -91,13 +118,13 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 |---|---|
 | Framework | Next.js 15, React 19, TypeScript 5. Das Manifest deklariert `^15.1.6`/`^19.0.0`/`^5.7.0`; der lokale Lockstand löst 15.5.25/19.2.8/5.9.3 auf. Die tatsächlich laufenden Paketversionen wurden nicht separat aus dem Container ausgelesen. |
 | Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Image `postgres:17-alpine`, Zugriff über **Prisma ORM 6.19.2**. Das leere Feld für die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver Datenbankname ist daher `postgres`. Persistenz: Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`. Neon wird nicht verwendet. |
-| Backups | Coolify hat weiterhin keinen automatischen Backupplan. Am 21. September wurden nach Freigabe ein neuer Custom-Dump und ein konsistentes physisches Basebackup erstellt; SHA-256/Gzip bestanden. Beide erfolgreich in getrennten netzwerkisolierten PostgreSQL-17-Testcontainern wiederhergestellt: 4.360 Artikel, 44 Tabellen. Neue Offsite-Kopie offen; siehe Live-Audit. |
+| Backups | Coolify hat weiterhin keinen automatischen Backupplan. Satz vom 21. September logisch und physisch in getrennten netzwerkisolierten PostgreSQL-17-Testcontainern wiederhergestellt: 4.360 Artikel, 44 Tabellen; SHA-256/Gzip bestanden. Zusätzlicher `post-publication-1512.dump` mit 4.361 Artikeln: Inhaltsverzeichnis/SHA-256 geprüft, noch kein separater Restore. Neue Offsite-Kopie offen; siehe Live-Audit. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
-| LLM (Text) | Ausgerollter News-Code: `gpt-6-astra` / `low`, sonstige Texte bisher `gpt-5.4`; direkter eigener `OPENAI_API_KEY` und `openai` SDK. Sieben synthetische Modellfälle bestanden; echte automatische Veröffentlichung noch nicht abgenommen. |
+| LLM (Text) | Ausgerollter News-Code: `gpt-6-astra` / `low`, sonstige Texte bisher `gpt-5.4`; direkter eigener `OPENAI_API_KEY` und `openai` SDK. Sieben synthetische Modellfälle, ein echter Pipeline-Publish und ein tatsächlicher Coolify-News-Task bestanden; stündlicher News-Task aktiviert. |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
-| Hosting (live verifiziert am 21. September 2026) | Hetzner/Coolify; eine Next.js-App und separater PostgreSQL-Service. `http://168.119.171.20:8000/` bleibt HTTP. Repository `afdxbdefold-del/serien`, Branch **`codex/takeover`**, laufender Commit `cbd216ffb3868ca91a986a601984a46db0f71961`, Basis `/serien-nextjs`, Dockerfile `/Dockerfile`. **Auto-Deploy: Manual deployments only.** App-Anzeigename mit `main` ist veraltet. Vercel ist nicht der Apphost. |
+| Hosting (Live-Snapshot 21. September 2026) | Hetzner/Coolify; eine Next.js-App und separater PostgreSQL-Service. `http://168.119.171.20:8000/` bleibt HTTP. Repository `afdxbdefold-del/serien`, Branch **`codex/takeover`**, laufender Commit `17b62e4546582e751fd3db52b749d033f1185724`. Basis `/serien-nextjs`, Dockerfile `/Dockerfile`. **Auto-Deploy: Manual deployments only.** App-Anzeigename mit `main` ist veraltet. Vercel ist nicht der Apphost. |
 | Push Notifications | Web Push (`web-push`, VAPID-Keys) |
 | Scraping | `cheerio` (HTML-Parsing), `playwright` (schwierigere Quellen, z. B. JS-gerenderte Seiten) |
 | Video/Trailer | RapidAPI (YouTube-Download-Fallbacks) |
@@ -249,6 +276,14 @@ Bildnachweis und bestätigte öffentliche Anzeige. Generische Trailer,
 Charakter-Bioimporte und nachträgliche ungeprüfte Textergänzungen gehören
 nicht mehr zur automatischen NEWS-Strecke. Verteilungsfunktionen haben
 separate Ergebnisse; ein Indexierungsaufruf beweist keine Google-Aufnahme.
+
+Der live ausgerollte Commit `17b62e45` ersetzt die zeitabhängige Quellenauswahl durch
+persistente Rotation: `app_settings`, Schlüssel
+`pipeline.news.import.last-source`, enthält die zuletzt tatsächlich versuchte
+Quelle. Fortschreibung erst nach Lease-, Pause- und Budgetprüfung, unmittelbar
+vor dem echten Pipeline-Aufruf; nicht bei Dry-Run oder bloßer Auswahl. Ein
+Cursor-Lese-/Schreibfehler stoppt den Batch, statt unbemerkt wieder mit der
+ersten Quelle zu beginnen. Bestehende Tabelle, keine Migration erforderlich.
 
 ## 8. Ad-Stack — Kurzüberblick
 

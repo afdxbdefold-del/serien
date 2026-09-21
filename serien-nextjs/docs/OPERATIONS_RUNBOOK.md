@@ -13,33 +13,75 @@ Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
 Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar. Port 8000
 spricht ausschließlich HTTP; bei Betriebsprüfungen nicht automatisch auf HTTPS
 wechseln. Die Anwendung baut inzwischen Branch `codex/takeover`, und
-Auto-Deploy bleibt auf **„Manual deployments only“**. Laufender Commit seit
-dem erfolgreichen Deployment `bqwzdqac1fw9xfyw5ve38vr7` um 14:28 UTC:
-`cbd216ffb3868ca91a986a601984a46db0f71961`. Neuer Container
-`i8e996hq5t8moyf9fw8p0pbs-142026647632`: gesund, Neustartzähler 0,
-`OOMKilled=false`. PostgreSQL und Schema blieben unverändert; `main` ebenfalls.
+Auto-Deploy bleibt auf **„Manual deployments only“**. Laufender Commit:
+`17b62e4546582e751fd3db52b749d033f1185724`. Deployment
+`aq2vx26tqzt8nlyitv0lpcc1` um etwa 15:11 UTC erfolgreich; neuer App-Container
+`i8e996hq5t8moyf9fw8p0pbs-150527161770` gesund, Neustartzähler 0,
+`OOMKilled=false`. Kompilierung 114 Sekunden, alle 164 statischen Seiten,
+Image-Export 27,9 Sekunden und Containerwechsel bestanden. Wächter meldete
+keinen Abbruch; Origin und öffentliche Gesundheit HTTP 200.
+Keine Schema-Migration; `main` bleibt unverändert.
 Der frühere Tages-Snapshot `PIPELINE_LIVE_AUDIT_2026-09-21.md` ist für die
 Rollout-Angaben durch diesen Nachtrag und `TAKEOVER_STATUS.md` überholt.
 
-**Astra-Code live, unbeaufsichtigte News-Automatik noch nicht freigegeben.**
-News-, YouTube- und Video-Tasks sind deaktiviert. Sieben synthetische
-Modellfälle bestanden; zwei echte Quellenläufe scheiterten an der zu kleinen
-2-MiB-HTML-Grenze. Netflix lieferte vollständig rund 3,6 MB HTML in etwa einer
+**Astra-Code, echter Pipeline-Publish und tatsächlicher News-Task abgenommen.**
+News seit 15:13:42 UTC aktiviert, nach erneutem Laden in Coolify bestätigt;
+`pipeline.cron.paused=false` zurückgelesen. **YouTube/Videos bleiben aus.**
+News-Task: Zeitplan `0 * * * *`,
+Coolify-Task-Timeout 3600 Sekunden. Der darin aufgerufene HTTP-Client war
+zusätzlich auf 600 Sekunden begrenzt; dessen Deadline wurde gezielt auf
+3500 Sekunden geändert, gespeichert und erneut gelesen. Beide Zeitlimits
+sind zu prüfen; der größere Coolify-Wert hebt ein kürzeres HTTP-Limit nicht auf.
+
+Sieben synthetische Modellfälle bestanden; zunächst scheiterten zwei echte
+Quellenläufe an der zu kleinen 2-MiB-HTML-Grenze. Netflix lieferte vollständig
+rund 3,6 MB HTML in etwa einer
 Sekunde. `destroy()` löste vor der Fehlerfestschreibung ein `aborted` aus,
-das fälschlich als Timeout kategorisiert wurde. Der Folgefix begrenzt HTML
-auf 8 MiB, bewahrt die Ursache und belässt Quelltextgrenze und Qualitätsregeln.
+das fälschlich als Timeout kategorisiert wurde. Der live ausgerollte Fix
+begrenzt HTML auf 8 MiB, bewahrt die Ursache und belässt Quelltextgrenze und
+Qualitätsregeln.
 Tests für Streaming-Grenze/Redirects und eine vollständige Extraktion von
 1.351 Wörtern bestanden. Die originale Netflix-Veröffentlichung war vom
 17. September; ein erfolgreicher Abruf macht diese alte Quelle nicht zu
-einer aktuellen News. Die globale Pause wird während Einzeltests kontrolliert
-behandelt und muss vor jeder Aktion neu geprüft werden. Keine erfolgreiche
-automatische Veröffentlichung allein aus dem grünen Deployment ableiten.
+einer aktuellen News. Die globale Pause muss vor jeder Aktion neu geprüft
+werden. Keine erfolgreiche automatische Veröffentlichung allein aus einem
+grünen Deployment ableiten.
 
-Öffentliche Nachprüfung: Startseiten-Karussell mit fünf geladenen Bildern,
-`/news` mit HTTP 200/HTML und vier Sitemaps mit HTTP 200/XML. Die um 14:30 UTC
-erneut bestätigten Backup-Prüfsummen gehören zum erfolgreich logisch und
+Ein echter Pipeline-Publish ist inzwischen öffentlich bestätigt:
+[„Süße Magnolien“ endet nach fünf Staffeln: Stars nehmen Abschied](https://serien.de/sue-e-magnolien-endet-nach-fuenf-staffeln-stars-nehmen-abschied),
+21. September, 14:57:02 UTC; Artikel-ID `pipeline-v2-1790002516287`,
+Run `32a5d3e8-ab7f-471e-bd04-2e0824f4775c`. Kanonische URL, H1, Hero im
+HTML und vollständiges Decode der tatsächlich über Next ausgelieferten
+Bilddatei bestanden: HTTP 200, JPEG, 154.339 Bytes, 1280 × 720. Artikel als
+erster Karussell-Slide und in `/news` sichtbar; Quellenbezug und
+Deutschlandrelevanz geprüft. Datenbankbestand jetzt 4.361 Artikel.
+Alle sieben öffentlichen Publikationsprüfungen nach dem finalen Deployment
+erneut erfolgreich, weiterhin erster Karussell-Slide.
+
+Der vorhandene Coolify-News-Task wurde um 15:13:00 UTC über „Execute Now“
+ausgeführt: nach acht Sekunden `Success`. Wiederholungsprüfung setzte den
+Artikel-Run `32a5d3e8-ab7f-471e-bd04-2e0824f4775c` auf `SUCCESS`,
+`errorStep=null`. Der Kandidaten-Run `88180e15-7132-42be-997c-1b81a3706305`
+wurde korrekt bei `topic-age-check` abgelehnt; übergeordneter Cron-Run
+`97816a3b-b9e4-4911-acad-6ed4dee60edf` erfolgreich, Cursor `Cinemaholic`
+persistiert. Keine doppelte Veröffentlichung nötig: Wiederholungsprüfung
+bestätigt vorhandene Daten, und eine fachlich richtige Altersablehnung ist
+kein Infrastrukturfehler. Danach erfolgte die dauerhafte News-Aktivierung.
+
+Die um 14:30 UTC erneut bestätigten Backup-Prüfsummen gehören zum erfolgreich logisch und
 physisch isoliert wiederhergestellten Satz vom 21. September; dessen
 Offsite-Kopie bleibt offen.
+Zusätzlicher logischer Dump nach Veröffentlichung:
+`post-publication-1512.dump`, Snapshot mit 4.361 Artikeln, Inhaltsverzeichnis
+per `pg_restore --list` und erneute SHA-256-Prüfung erfolgreich. Dieser neueste
+Dump ist noch nicht separat wiederhergestellt; den früheren logischen und
+physischen Restore-Test nicht auf ihn umetikettieren.
+
+PostgreSQL ist gesund, Neustartzähler 0, Postmaster-Start am 2. August.
+Docker führt historisch `OOMKilled=true`. Diese Markierung nicht wegschreiben
+oder mit `false` wiedergeben; für einen aktuellen Ausfall zusätzlich Zeit,
+Kernel-Logs und tatsächliche Prozesslaufzeit prüfen. Bei der aktuellen
+Prüfung keine Kernel-OOM-Ereignisse seit 14:00 UTC gefunden.
 
 ## Vor jedem weiteren Build
 
@@ -47,7 +89,12 @@ Der erfolgreiche Build nutzte `serien-bounded` mit nachgewiesenen
 Kernel-Grenzen von 1024 MiB RAM, maximal 2048 MiB Swap und 0,75 CPU sowie
 einen 4-GiB-Host-Swap-Puffer (root/0600). Dieser Swap wird **nach einem
 Host-Neustart nicht automatisch aktiviert**. Builder und Sicherheitswächter
-sind nach Abschluss gestoppt, kein fortlaufender Schutzdienst wird behauptet.
+(PID 27375, privates Protokoll `guard-cursor.log`) wurden nach dem erfolgreichen
+Rollout um 15:12 UTC gestoppt; Swap bleibt aktiv. Die Plattenuntergrenze
+dieses Laufs betrug 4 GiB;
+vor Start waren rund 6,7 GiB frei, der vorherige Build erhöhte die Belegung um
+rund 1,6 GiB. Keine Daten gelöscht. Builder/Wächter sind kein dauerhaft
+eingerichteter Schutzdienst.
 Vor einem neuen Build Backup, aktiven Swap, RAM-/Datenträgerreserve, Grenzen
 und Überwachung erneut prüfen; Auto-Deploy nicht beiläufig freischalten.
 Vollständiger Ablauf: `BOUNDED_BUILD_RUNBOOK.md`.
@@ -60,8 +107,10 @@ aufgetreten):
 
 1. **Laufen die Coolify Scheduled Tasks?** In der Anwendung unter
    `Scheduled Tasks` den letzten Status und die Ausführungsausgabe prüfen.
-   Aktuell sind News-, YouTube- und Video-Task absichtlich deaktiviert,
-   bis die fachliche Abnahme bestanden ist. Im früheren Snapshot am
+   Aktuell ist nur News stündlich aktiviert und die globale Pause aufgehoben;
+   YouTube- und Video-Task bleiben absichtlich deaktiviert. Ein tatsächlicher
+   News-Task-Test ist bestanden, den nächsten regulären Lauf gesondert prüfen.
+   Im früheren Snapshot am
    21. September waren zehn Jobs aktiv und kein `trends`-Task sichtbar;
    News antwortete damals mit `skipped / pipeline.cron.paused` trotz grünem
    Tasklabel. Deshalb immer aktuellen Taskzustand, Pause und Antwort prüfen.
@@ -104,11 +153,22 @@ aufgetreten):
    gegen `articles.status = 'published'` mit passendem `publishedAt`
    gegenprüfen.
 
+6. **Quellenrotation statt immer desselben Anbieters prüfen.** Der live ausgerollte Commit
+   `17b62e45` persistiert in `app_settings` den Schlüssel
+   `pipeline.news.import.last-source`. Er enthält den Quellennamen des letzten
+   tatsächlichen Versuchs, keinen Zeitindex. Der nächste Lauf beginnt danach
+   im konfigurierten Quellenring, auch bei zwischenzeitlich leeren Quellen.
+   Dry-Run, Pause, fehlende Lease oder erschöpftes Budget dürfen den Cursor
+   nicht weiterschalten. Ein Lese-/Schreibfehler stoppt vor weiteren
+   Provideraufrufen. Keine Migration und kein zusätzlicher Scheduler nötig;
+   den Cursor nicht als vermeintliche Reparatur ungeprüft löschen/zurücksetzen.
+
 ## "OpenAI 429 — You have no credits remaining"
 
 Die ausgerollte NEWS-Konfiguration ist `gpt-6-astra` / `low`. Sieben
-synthetische Astra-Modellfälle wurden erfolgreich geprüft; das ist keine
-vollständige Quellen-/Veröffentlichungsabnahme. Modellberechtigung und echte
+synthetische Astra-Modellfälle und der oben genannte echte Pipeline-Publish
+wurden erfolgreich geprüft. Der News-Scheduler ist ebenfalls getestet und
+aktiviert; dauerhafte Verfügbarkeit ist damit nicht bewiesen. Modellberechtigung und echte
 Textqualität bleiben getrennte Prüfungen. Der admin-geschützte
 `/api/debug/llm-version` führt einen kleinen, kostenpflichtigen Astra-Probeaufruf
 aus (maximal 1024 Completion-Tokens, 45 Sekunden, keine Wiederholung) und gibt
@@ -216,22 +276,25 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   Code markiert vollständige Quellfehler und – nur
   bei ausdrücklich aktivierter automatischer Veröffentlichung – mehr als
   36 Stunden ohne neuen Publish mit HTTP 503 und einem fehlgeschlagenen
-  Pipeline-Run. Solange der News-Task deaktiviert ist, läuft auch diese
-  Überwachung nicht regelmäßig. Benachrichtigungen über fehlgeschlagene
-  Coolify-Task-Ausführungen müssen separat geprüft werden.
+  Pipeline-Run. Der News-Task ist seit 15:13:42 UTC stündlich aktiviert;
+  die regelmäßige Ausführung und Benachrichtigungen über fehlgeschlagene
+  Coolify-Task-Ausführungen müssen weiterhin separat geprüft werden.
 
 ## Wie man den aktuellen Pipeline-Status selbst schnell prüft
 
-### Ausgerollter Code und noch offene News-Abnahme
+### Ausgerollter Code, bestandener Publish und aktivierter News-Scheduler
 
 Der neue Ablauf ist seit 21. September, 14:28 UTC, auf `codex/takeover`
 ausgerollt. Der vollständige Build einschließlich 164 statischer Seiten und
 Image-Import bestand; sieben synthetische echte Modellfälle waren ebenfalls
-erfolgreich. Das ersetzt keinen vollständigen echten Quellen-/Publikationslauf.
+erfolgreich. Inzwischen ist auch der oben dokumentierte echte
+Quellen-/Publikationslauf bestanden. Der finale Cursor-Rollout ist seit etwa
+15:11 UTC live; der tatsächlich getestete News-Scheduler wurde um 15:13:42 UTC
+aktiviert. Die globale Pause ist aufgehoben, YouTube/Videos bleiben deaktiviert.
 Der projektweite Typecheck enthält weiterhin Altfehler. Details stehen in
 `PIPELINE_AND_LLM.md` und `PIPELINE_SCHEDULER.md`.
 
-Für Folgeänderungen und die noch offene Automatik-Abnahme gilt diese Reihenfolge;
+Für Folgeänderungen und erneute Automatik-Abnahmen gilt diese Reihenfolge;
 bereits erledigte Rolloutschritte nicht ohne Anlass wiederholen:
 
 1. Den angemeldeten serien.de-Tab unter `http://168.119.171.20:8000/`
@@ -241,7 +304,8 @@ bereits erledigte Rolloutschritte nicht ohne Anlass wiederholen:
 2. Frischen konsistenten Datenbank-Dump und das persistente Volume-Backup
    verifizieren, inklusive Wiederherstellbarkeit und externem Sicherungsziel.
    Historische Sicherungen ersetzen diese Prüfung nicht.
-3. In einer getrennten Testumgebung einen echten Quellenlauf ausführen:
+3. Bei weiteren fachlichen Änderungen in einer getrennten Testumgebung einen
+   echten Quellenlauf ausführen; die bereits bestätigte News nicht duplizieren:
    zunächst Entwurf, vollständiger Quelltext, belegte Termine/Regionen,
    redaktionelle Prüfung und gegebenenfalls eine Revision. Schlüssel ausschließlich
    in der vorgesehenen Umgebung bereitstellen, niemals in Chat/Logs.
@@ -261,8 +325,9 @@ bereits erledigte Rolloutschritte nicht ohne Anlass wiederholen:
    Cronlauf erfolgen. `partial/publication-verification` ist kein neuer
    Generierungsauftrag; Wiederholungen prüfen den vorhandenen Datensatz.
 7. Fehlerauswertung des Tasks mit HTTP-Fehlerstatus und ausreichend langem
-   Request-Timeout verifizieren. Nach 36 Stunden ohne bestätigten automatischen
-   Publish muss der aktivierte News-Import fehlschlagen; manuelle News dürfen
+   Request-Timeout verifizieren: aktuell HTTP-Deadline 3500 Sekunden innerhalb
+   des Coolify-Task-Limits von 3600 Sekunden. Nach 36 Stunden ohne bestätigten
+   automatischen Publish muss der aktivierte News-Import fehlschlagen; manuelle News dürfen
    diesen Ausfall nicht verdecken. Benachrichtigung in Coolify separat prüfen.
 
 Bei Rollback zunächst automatische Veröffentlichung pausieren und den zuvor

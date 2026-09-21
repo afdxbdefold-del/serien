@@ -1,11 +1,57 @@
 # Begrenzte Builds auf dem Produktionsserver
 
-Stand: 21. September 2026, nach 14:30 UTC. Der erneute geschützte Rollout
-ist **erfolgreich live**. Ein vorheriger Versuch wurde vom Sicherheitswächter
-abgebrochen; dieser historische Fehlschlag ist nicht der aktuelle Zustand.
+Stand: 21. September 2026, nach 15:13 UTC. Auch der abschließende geschützte
+Cursor-Rollout ist bestätigt live; nur der News-Scheduler ist freigegeben.
+Ein früherer Versuch wurde vom Sicherheitswächter abgebrochen; dieser
+historische Fehlschlag ist nicht der aktuelle Zustand.
 Siehe [Ursachenanalyse](BUILD_INCIDENT_2026-09-21.md).
 
-## Nachtrag: erfolgreicher freigegebener Rollout
+## Aktueller Nachtrag: Cursor-Rollout erfolgreich live
+
+Bestätigt live: `17b62e4546582e751fd3db52b749d033f1185724` auf
+`codex/takeover`, einschließlich des 8-MiB-Quellenabruf-Fixes und der
+persistenten Quellenrotation. Coolify-Deployment `aq2vx26tqzt8nlyitv0lpcc1`
+war um etwa 15:11 UTC erfolgreich: Kompilierung 114 Sekunden, alle 164
+statischen Seiten, Export 27,9 Sekunden und anschließender Containerwechsel.
+Neuer App-Container `i8e996hq5t8moyf9fw8p0pbs-150527161770` gesund,
+Neustartzähler 0, `OOMKilled=false`. Wächter ohne Abbruch, Origin/Public
+HTTP 200. Alle sieben öffentlichen Artikel-/Bild-/Listenprüfungen nach diesem
+Deployment erneut bestanden; News-Scheduler anschließend gezielt freigegeben.
+Die Limits bleiben unverändert: 1024 MiB RAM, zusätzlich höchstens
+2048 MiB Swap, 0,75 CPU, `max-parallelism=1`.
+
+Für diesen Lauf wurde ein neuer Sicherheitswächter gestartet: PID 27375,
+privates Protokoll `/data/coolify/serien-build.uNkYnX/guard-cursor.log`.
+Builder und Wächter wurden um 15:12 UTC gezielt gestoppt; Swap bleibt aktiv.
+PID und Status sind ein zeitgebundener Snapshot, keine dauerhafte
+Dienstkonfiguration; vor einer Aktion aktuelle Prozessidentität prüfen.
+Die Plattenuntergrenze beträgt jetzt **4 GiB** (zuvor 6 GiB). Vor Start
+waren rund 6,7 GiB frei; der vorherige Build erhöhte die Belegung um rund
+1,6 GiB. Diese Beobachtung garantiert nicht den Platzbedarf eines nächsten
+Builds. **Keine Daten, Volumes oder Images zur Platzbeschaffung gelöscht.**
+Die übrigen Speicher-/Swap-/Gesundheits-Abbruchregeln bleiben bestehen.
+
+4 GiB Host-Swap sind aktiv, weiterhin ohne fstab-Eintrag. Auto-Deploy bleibt
+**„Manual deployments only“**. Nach erfolgreichem Test des vorhandenen
+Coolify-News-Tasks um 15:13:00 UTC wurde dieser um 15:13:42 UTC aktiviert:
+stündlich `0 * * * *`, Task-Limit 3600 Sekunden, HTTP-Deadline 3500 Sekunden;
+gespeicherten Zustand erneut geprüft. Globale Pipeline-Pause ist `false`,
+YouTube- und Video-Tasks bleiben deaktiviert. Der erste echte Pipeline-Artikel ist öffentlich
+einschließlich Hero, Karussell und News-Liste geprüft (siehe `TAKEOVER_STATUS.md`),
+nach dem finalen Rollout erneut bestätigt. Kein zusätzlicher Scheduler.
+
+Nach Veröffentlichung wurde zusätzlich `post-publication-1512.dump` mit
+4.361 Artikeln erstellt. Inhaltsverzeichnis und SHA-256 geprüft; noch kein
+separater Restore dieses Dumps. Die zuvor erfolgreichen logischen und
+physischen Restore-Tests bleiben Nachweise für den älteren 4.360er-Satz.
+
+PostgreSQL ist gesund, Neustartzähler 0, Postmaster-Start am 2. August;
+Docker zeigt historisch `OOMKilled=true`. Keine neuen Kernel-OOM-Ereignisse
+seit 14:00 UTC bei der aktuellen Prüfung. Die historische Markierung ist
+nicht gleichbedeutend mit einem aktuellen Postmaster-Neustart und darf nicht
+als `false` dokumentiert werden. Keine Migration und keine Änderung an `main`.
+
+## Historischer Nachweis: erfolgreicher freigegebener Rollout um 14:28 UTC
 
 Coolify-Deployment `bqwzdqac1fw9xfyw5ve38vr7` war um **14:28 UTC** erfolgreich:
 Commit `cbd216ffb3868ca91a986a601984a46db0f71961` auf `codex/takeover`.
@@ -17,10 +63,11 @@ Schema-Migration, keine Änderung oder Deployment von `main`.
 
 Die Startseite wurde mit fünf geladenen Karussellbildern geprüft, `/news`
 antwortete mit HTTP 200/HTML und vier Sitemaps mit HTTP 200/XML.
-**Builder und Sicherheitswächter sind nach Abschluss gestoppt.** Auto-Deploy
-bleibt manuell. Der erfolgreiche Build ist keine Abnahme der News-Automatik:
-News-, YouTube- und Video-Tasks bleiben deaktiviert, bis ein begleiteter echter
-Quellen-/Veröffentlichungslauf einschließlich Bild und Live-Anzeige bestanden ist.
+**Builder und Sicherheitswächter wurden nach diesem früheren Rollout gestoppt.**
+Für den späteren Lauf gilt der aktuelle Nachtrag oben. Auto-Deploy bleibt
+manuell. Der erfolgreiche Build allein war keine Abnahme der News-Automatik;
+der inzwischen bestandene echte Publish und die spätere Scheduler-Freigabe
+sind in `TAKEOVER_STATUS.md` getrennt dokumentiert.
 
 Nach der erneuten Live-Freigabe wurden am 21. September um 14:16 UTC beide
 Backup-Prüfsummen und der logische/physische Restore-Nachweis erneut geprüft.
@@ -116,7 +163,7 @@ Vor einem Deployment:
 - Aktiven 4-GiB-Host-Swap ausdrücklich prüfen; die Datei allein beweist keine Aktivierung. Nach einem Host-Neustart keinen ungeschützten automatischen Build starten.
 - Builder-Metadaten, Containerlimits und tatsächliche cgroup-Grenzen prüfen. Keine parallel laufenden Builds starten.
 - Im Build-Protokoll muss der benannte Builder mit Driver `docker-container` erscheinen. Bei einem anderen Builder abbrechen, nicht ungeschützt fortfahren.
-- Speicherreserve und öffentliche Erreichbarkeit während Build **und Image-Import** beobachten. Mit aktivem Swap warnen unter 384 MiB verfügbar; stoppen unter 128 MiB sofort, unter 256 MiB in vier aufeinanderfolgenden 5-Sekunden-Proben, bei weniger als 512 MiB freiem Swap oder 6 GiB freier Platte. Zwei aufeinanderfolgende Origin-/Public-Fehler oder vier Proben mit Memory-Full-PSI über 20 und unter 384 MiB Reserve stoppen ebenfalls ausschließlich den Builder. Dies ist ein beobachteter Betriebsschutz, keine allgemeine Verfügbarkeitsgarantie.
+- Speicherreserve und öffentliche Erreichbarkeit während Build **und Image-Import** beobachten. Mit aktivem Swap warnen unter 384 MiB verfügbar; stoppen unter 128 MiB sofort, unter 256 MiB in vier aufeinanderfolgenden 5-Sekunden-Proben, bei weniger als 512 MiB freiem Swap oder 4 GiB freier Platte. Der aktuelle Cursor-Rollout nutzt diese 4-GiB-Plattengrenze; der frühere Lauf nutzte 6 GiB. Zwei aufeinanderfolgende Origin-/Public-Fehler oder vier Proben mit Memory-Full-PSI über 20 und unter 384 MiB Reserve stoppen ebenfalls ausschließlich den Builder. Dies ist ein beobachteter Betriebsschutz, keine allgemeine Verfügbarkeitsgarantie. Vor jedem Folgebuild Platzbedarf und Reserve neu bewerten, keine automatische Grenzabsenkung oder Bereinigung.
 
 ## Fehlerbehandlung und Rückweg
 

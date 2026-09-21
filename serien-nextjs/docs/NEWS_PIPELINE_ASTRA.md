@@ -2,15 +2,36 @@
 
 Stand: 21. September 2026, ausschließlich Branch `codex/takeover`.
 Ausgangspunkt dieser Runde: `b04d34de634120f7a4636f04b31066ce796194b4`.
-**Rollout wegen starker Host-Überlastung gestoppt; Astra noch nicht live.**
-Der Takeover-Stand ist auf GitHub verfügbar. Coolify hat am 21. September 2026
-um 09:35 UTC das manuelle Deployment von
-`fbd68a98163631251e7b1e19e306780bfbc80db1` begonnen. Ein gestarteter Build ist
-noch kein Nachweis, dass dieser Commit gesund in Produktion läuft oder ein
-erster echter Artikel erfolgreich veröffentlicht wurde. Die bisherige Produktion
-`2d75e26` ist nach dem Abbruch wieder gesund. `main` bleibt unberührt.
-Der frühere GPT-5.4-Test bleibt nur historischer Beleg; der Astra-Zugriff wurde
-für diesen Rollout separat geprüft, siehe datierten Nachtrag unten.
+**Aktuell, 21. September 15:14 UTC: Astra live, echter Artikel abgenommen,
+stündliche News-Automatik aktiviert.** Die späteren Abschnitte über den zunächst
+abgebrochenen Rollout sind historische Diagnose, nicht der aktuelle Status.
+
+Live-Commit `17b62e4546582e751fd3db52b749d033f1185724`, Coolify-Deployment
+`aq2vx26tqzt8nlyitv0lpcc1`: vollständig erfolgreich, gesunder neuer Container,
+null Neustarts. Kein Deployment von `main`, keine Migration. Begrenzter Builder
+und Sicherheitswächter sind nach Abschluss gestoppt; Host-Swap bleibt aktiv.
+Unbeaufsichtigte Push-Deployments bleiben aus (siehe `BOUNDED_BUILD_RUNBOOK.md`).
+
+Der echte Pipeline-Artikel
+[„Süße Magnolien“ endet nach fünf Staffeln](https://serien.de/sue-e-magnolien-endet-nach-fuenf-staffeln-stars-nehmen-abschied)
+ist veröffentlicht. Quelle und Deutschlandrelevanz geprüft; Canonical, H1,
+ausgeliefertes und dekodiertes Hero-Bild, erster Startseiten-Slide und News-Liste
+bestanden auch nach dem letzten Rollout. Der zunächst durch verzögerte Cache-
+Aktualisierung offene Audit wurde durch die bestehende Recovery zu `success`.
+
+Der tatsächliche Coolify-News-Task bestand am 21. September um 15:13 UTC.
+Danach wurde derselbe Task aktiviert: stündlich, 3600 Sekunden Task-Zeitfenster,
+3500 Sekunden HTTP-Zeitfenster, `NEWS_LIMIT=1`, globale Pause aufgehoben.
+Eine Prüfung pro Stunde bedeutet nicht zwingend eine Veröffentlichung:
+veraltete oder ungeeignete Nachrichten bleiben ausgeschlossen. YouTube und
+Videos bleiben deaktiviert. Kein zusätzlicher Scheduler wurde eingerichtet.
+
+Zwei im echten Betrieb gefundene Fehler sind ebenfalls behoben: Quellen-HTML
+wird sicher bis 8 MiB gelesen (statt irreführender Abbruchmeldung bei 2 MiB);
+die zuletzt versuchte Quelle wird unter der bestehenden Import-Lease gespeichert,
+statt durch eine zeitabhängige Rotation einzelne Quellen dauerhaft zu überspringen.
+Deutschland-, Quellen-, Fakten- und Bildprüfungen bleiben verpflichtend.
+Weitere Betriebsnachweise und offene Offsite-/Backupplanung: `TAKEOVER_STATUS.md`.
 
 ## Verbindlicher redaktioneller Auftrag
 

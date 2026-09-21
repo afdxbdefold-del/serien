@@ -6,29 +6,43 @@ Arbeitsbranch: `codex/takeover`
 
 Ausgangspunkt: `main` bei `625bebd85fc95a7680cc5e6c64120e3b57361dcd`
 
+Vom Betreiber verifizierter Übernahmecommit:
+`5d03d47cfae0411f4bda0cd5673274d7e98e0396`; am 21. September erneut als
+Vorfahre des aktuellen `codex/takeover` bestätigt. Die Angabe zum historischen
+Abzweig ist keine Freigabe, `main` zu ändern oder zu deployen.
+
 Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 Übernahme. Es ersetzt keine Live-Prüfung der Produktionssysteme.
 
-## Aktueller Live-Nachtrag (21. September 2026)
+## Aktueller Live-Nachtrag (21. September 2026, nach 15:13 UTC)
 
-Dieser Nachtrag dokumentiert den erfolgreichen Rollout um **14:28 UTC** und
-die danach erfolgten Prüfungen. Er hat Vorrang vor den früheren Snapshots in
+Dieser Nachtrag hat Vorrang vor den früheren Snapshots in
 `PIPELINE_LIVE_AUDIT_2026-09-21.md` und unten. Build-Ursache und Schutzmaßnahmen:
 `BUILD_INCIDENT_2026-09-21.md` und `BOUNDED_BUILD_RUNBOOK.md`.
 
-- Produktion läuft auf **`codex/takeover`**, Commit
-  `cbd216ffb3868ca91a986a601984a46db0f71961`. Coolify-Deployment
-  `bqwzdqac1fw9xfyw5ve38vr7` war um 14:28 UTC erfolgreich. Neuer Container
-  `i8e996hq5t8moyf9fw8p0pbs-142026647632`: gesund, Neustartzähler 0,
-  `OOMKilled=false`. Der App-Anzeigename mit `main` ist veraltet.
+- Bestätigt live: **`codex/takeover`**, Commit
+  `17b62e4546582e751fd3db52b749d033f1185724`, einschließlich Quellenabruf-Fix
+  und persistenter Quellenrotation. Coolify-Deployment
+  `aq2vx26tqzt8nlyitv0lpcc1` um etwa 15:11 UTC erfolgreich; neuer App-Container
+  `i8e996hq5t8moyf9fw8p0pbs-150527161770` gesund, Neustartzähler 0,
+  `OOMKilled=false`. Öffentliche Artikel-, Bild- und Listenprüfung nach diesem
+  finalen Rollout erneut vollständig bestanden.
+  Der App-Anzeigename mit `main` ist veraltet.
   **Auto-Deploy bleibt auf „Manual deployments only“; nicht wieder aktivieren,
   ohne den Build-Schutz und den aktuellen Hostzustand zu prüfen.**
 - PostgreSQL 17 auf Hetzner/Coolify und dasselbe persistente Volume erneut
-  bestätigt; effektive Datenbank `postgres`. Kein Neon.
-- Die Coolify-Tasks **News, YouTube und Videos bleiben deaktiviert**. Die
-  globale Pipeline-Pause wird nur für begleitete Einzeltests kontrolliert
-  behandelt; ihr momentaner Wert ist vor jedem Test erneut zu lesen.
-  **Unbeaufsichtigte News-Automatik ist noch nicht abgenommen oder aktiviert.**
+  bestätigt; effektive Datenbank `postgres`. Kein Neon. Datenbank gesund,
+  Neustartzähler 0, Postmaster-Start weiterhin am 2. August. Docker zeigt
+  historisch `OOMKilled=true`; dies nicht als `false` dokumentieren oder
+  ohne weitere Belege als aktuellen Datenbank-Neustart deuten. Bei der
+  aktuellen Prüfung keine Kernel-OOM-Ereignisse seit 14:00 UTC gefunden.
+- Der vorhandene **stündliche Coolify-News-Task ist seit 15:13:42 UTC aktiviert**;
+  gespeicherten Zustand nach erneutem Laden bestätigt. Globale Pause
+  `pipeline.cron.paused=false` ebenfalls bestätigt. **YouTube und Videos
+  bleiben deaktiviert**; kein zusätzlicher Scheduler.
+  News-Zeitplan unverändert `0 * * * *`, Coolify-Task-Limit 3600 Sekunden;
+  zusätzliche HTTP-Client-Deadline von 600 auf 3500 Sekunden angehoben,
+  gespeichert und zurückgelesen. Die beiden Zeitlimits sind unabhängig.
 - Weiterhin kein automatischer Backupplan in Coolify. Nach ausdrücklicher
   Betreiberfreigabe neue logische und physische Backups am 21. September
   erstellt, Kompression/Prüfsummen geprüft und **beide getrennt erfolgreich
@@ -36,23 +50,53 @@ die danach erfolgten Prüfungen. Er hat Vorrang vor den früheren Snapshots in
   10 archiviert), 44 Tabellen. Keine Produktionsdaten zurückgespielt.
   Beide Backup-Prüfsummen wurden um 14:30 UTC erneut bestätigt. Die frische
   externe Kopie ist noch offen; Details im Live-Audit.
-- Astra-Code (`gpt-6-astra` / `low`), verpflichtende Deutschlandrelevanz und
-  Quellen-/Bildprüfung sind ausgerollt. Sieben synthetische Modellfälle hatten
-  zuvor bestanden. Das ersetzt keine echte Veröffentlichungsabnahme: Ein
-  beide begleiteten Quellenläufe scheiterten vor der Generierung. Ursache:
-  Netflix-HTML von rund 3,6 MB überschritt die alte 2-MiB-Grenze. Ein
-  Abbruchereignis maskierte dies als Timeout. Der Folgefix begrenzt HTML auf
-  8 MiB und bewahrt genaue Fehlerkategorien; Text-/Quellenqualität bleibt
-  unverändert streng. Automatik-Abnahme steht weiterhin aus.
-- Sichtprüfung: Startseiten-Karussell mit fünf geladenen Bildern, `/news` mit
-  HTTP 200 und HTML sowie vier geprüfte Sitemaps mit HTTP 200 und XML.
-  PostgreSQL blieb unverändert; keine Schema-Migration und keine Änderung an
-  `main`.
+  Nach Veröffentlichung zusätzlich `post-publication-1512.dump` im privaten
+  Sicherungsverzeichnis erstellt: Snapshot mit 4.361 Artikeln,
+  `pg_restore --list` und erneute SHA-256-Prüfung bestanden. **Dieser neueste
+  Dump wurde noch nicht separat wiederhergestellt**; der vollständige
+  logische/physische Restore-Nachweis gilt für den vorherigen 4.360er-Satz.
+- Astra (`gpt-6-astra` / `low`), verpflichtende Deutschlandrelevanz und
+  Quellen-/Bildprüfung sind ausgerollt. Nach sieben synthetischen Modellfällen
+  hat auch ein echter begleiteter Pipeline-Publish bestanden:
+  [„Süße Magnolien“ endet nach fünf Staffeln: Stars nehmen Abschied](https://serien.de/sue-e-magnolien-endet-nach-fuenf-staffeln-stars-nehmen-abschied),
+  veröffentlicht am 21. September um 14:57:02 UTC. Artikel-ID
+  `pipeline-v2-1790002516287`, Run `32a5d3e8-ab7f-471e-bd04-2e0824f4775c`.
+  Kanonische URL, H1, tatsächlich ausgeliefertes und vollständig dekodiertes
+  Hero-Bild (1280 × 720), erster Startseiten-Karussell-Slide und `/news`
+  bestätigt. Inhalt gegen die aktuelle TVLine-Quelle geprüft;
+  Deutschlandrelevanz über Netflix Deutschland bestätigt. Aktueller
+  Datenbankbestand: **4.361 Artikel**; der separat wiederhergestellte
+  Sicherungssatz enthält 4.360.
+- Der vorhandene Coolify-News-Task wurde vor der dauerhaften Aktivierung um
+  15:13:00 UTC über „Execute Now“ geprüft und endete nach acht Sekunden
+  erfolgreich. Die Wiederholungsprüfung bestätigte den vorhandenen Artikel
+  und setzte dessen Run auf `SUCCESS` ohne `errorStep`; keine zweite News
+  erzeugt. Ein weiterer Kandidat wurde korrekt als zu alt abgelehnt.
+  Übergeordneter Cron-Run erfolgreich, persistierter Quellen-Cursor
+  `Cinemaholic`. Ein erfolgreicher Lauf muss nicht zwingend einen neuen Artikel
+  erzeugen, wenn kein passender aktueller Kandidat vorliegt.
+- Der zuvor irreführend als Timeout gemeldete Netflix-Abruf ist behoben:
+  rund 3,6 MB HTML überschritten die alte 2-MiB-Grenze. Der live ausgerollte
+  Fix begrenzt Header, Stream und Parser einheitlich auf 8 MiB und bewahrt
+  genaue Fehlerkategorien. 60.000 Zeichen extrahierter Text, SSRF-/DNS-Schutz,
+  Timeout und Qualitätsregeln bleiben unverändert. Ein erfolgreicher Abruf
+  verjüngt kein Quelldatum; die Netflix-Quelle vom 17. September wurde
+  weiterhin korrekt als zu alt behandelt.
+- Der live ausgerollte Cursor-Fix speichert die zuletzt tatsächlich
+  versuchte Quelle in `app_settings` unter `pipeline.news.import.last-source`.
+  Dadurch startet ein kleiner stündlicher Lauf nicht stets bei derselben
+  Quelle. Keine Schema-Migration; Pause, Dry-Run oder abgelaufenes Zeitbudget
+  dürfen den Cursor nicht weiterstellen. Kein zusätzlicher Scheduler.
 - Build-Schutz: eigener Builder mit 1024 MiB RAM, maximal 2048 MiB Swap und
   0,75 CPU; tatsächliche Kernel-Grenzen geprüft. Zusätzlich 4 GiB Host-Swap,
   root/0600, **nicht über einen Neustart persistent aktiviert**. Vollständiger
-  Build einschließlich 164 statischer Seiten und Image-Import bestanden.
-  Builder und Sicherheitswächter sind nach Abschluss gestoppt.
+  Build einschließlich 164 statischer Seiten und Image-Import zuvor bestanden.
+  Der finale Rollout bestand ohne Wächter-Abbruch: Kompilierung 114 Sekunden,
+  164 Seiten, Export 27,9 Sekunden; Origin und öffentliche Gesundheit HTTP 200.
+  Builder und Sicherheitswächter (PID 27375, privates `guard-cursor.log`)
+  wurden um 15:12 UTC gestoppt; Swap bleibt aktiv. Plattenuntergrenze des
+  Laufs 4 GiB, vor Start rund 6,7 GiB frei; vorheriger Build benötigte
+  zusätzlich rund 1,6 GiB. Keine Datenbereinigung oder Löschung durchgeführt.
 
 ## Historischer Produktionssnapshot (12. September 2026)
 
@@ -189,11 +233,12 @@ Konten oder einen vorhandenen Secret-Manager verwenden.
 
 ## Sichere nächste Reihenfolge
 
-1. Begleiteten echten Quellenlauf abschließen und Ergebnis, gespeicherten
-   Artikel, Bild sowie öffentliche Artikel-/Startseiten-/News-Anzeige prüfen.
-   Bei Fehlern Tasks deaktiviert lassen; kein ungeprüfter automatischer Retry.
-2. Erst nach bestandener fachlicher Abnahme den News-Task gezielt freigeben
-   und Fehlerbenachrichtigung/Freshness überwachen. Keine parallelen Scheduler.
+1. Den nächsten regulären stündlichen News-Lauf auf Ergebnis, Quellenrotation
+   und gegebenenfalls bestätigte Veröffentlichung prüfen. „Execute Now“ und
+   Aktivierung sind erfolgt; nicht erneut ohne Anlass auslösen.
+2. Fehlerbenachrichtigung und Freshness-Betrieb prüfen. YouTube/Videos
+   deaktiviert lassen, keine parallelen Scheduler. Bei einem neuen Fehler
+   Ursache prüfen und bei Bedarf gezielt pausieren; keine ungeprüften Retries.
 3. Frischen Sicherungssatz extern sichern und automatische Backupplanung mit
    regelmäßigem Restore-Test einrichten; vor weiteren Änderungen erneut prüfen.
 4. Build-Schutz einschließlich aktivem Swap vor jedem weiteren Deployment
