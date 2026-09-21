@@ -5,6 +5,31 @@ Stand: 21. September 2026. Ziel dieser Dokumentation: Jeder Entwickler oder eine
 Zugriff und ohne Rückfragen an den vorherigen Betreuer** verstehen, lokal
 aufsetzen, betreiben und weiterentwickeln können.
 
+## Aktueller Live-Stand: 21. September 2026, nach 14:30 UTC
+
+Commit `cbd216ffb3868ca91a986a601984a46db0f71961` auf `codex/takeover`
+wurde um 14:28 UTC erfolgreich ausgerollt, Deployment
+`bqwzdqac1fw9xfyw5ve38vr7`. Der neue App-Container
+`i8e996hq5t8moyf9fw8p0pbs-142026647632` ist gesund, ohne Neustart oder
+OOM-Markierung; PostgreSQL und Schema blieben unverändert. `main` wurde nicht
+geändert. Startseiten-Karussell mit fünf geladenen Bildern, News-Liste und vier
+XML-Sitemaps wurden nach dem Rollout geprüft.
+
+**Code live ist nicht gleich News-Automatik freigegeben:** Sieben synthetische
+Astra-Modellfälle sind bestanden. Zwei echte Quellenläufe scheiterten an der
+alten 2-MiB-HTML-Grenze, irreführend als Timeout gemeldet. Netflix liefert
+rund 3,6 MB HTML; der Folgefix erlaubt begrenzte 8 MiB, ohne den erlaubten
+Quelltextumfang zu erhöhen. News-, YouTube- und Video-Tasks bleiben deaktiviert.
+Globale Pause und Veröffentlichungsfreigabe vor jedem Einzeltest aktuell
+prüfen, nicht aus diesem Snapshot ableiten.
+
+Auto-Deploy bleibt **manuell**. Der erfolgreiche Build nutzte einen begrenzten
+Builder (1024 MiB RAM, maximal 2048 MiB Swap, 0,75 CPU) sowie einen 4-GiB-
+Host-Swap-Puffer, der nach einem Neustart nicht automatisch aktiv ist.
+Builder und Sicherheitswächter sind wieder gestoppt. Backup-Prüfsummen und
+logischer/physischer Restore-Nachweis erneut bestätigt, Prüfsummen zuletzt
+14:30 UTC; die frische Offsite-Kopie bleibt offen.
+
 Diese Datei ist der **Einstiegspunkt**. Detail-Dokumente liegen im selben
 Ordner (`serien-nextjs/docs/`):
 
@@ -14,10 +39,12 @@ Ordner (`serien-nextjs/docs/`):
 | **`API_REFERENCE.md`** | Alle ~90 API-Routen mit Methode, Zweck, Auth-Anforderung |
 | **`DATA_MODEL.md`** | Alle 43 Prisma-Modelle mit Zweck, Relationen, wichtigen Feldern |
 | **`PIPELINE_AND_LLM.md`** | News-Ablauf, Astra-Konfiguration und verbindliche Deutschlandrelevanz |
-| **`NEWS_PIPELINE_ASTRA.md`** | Lokaler Umbau, entfernte Altregeln, Tests und offene Modell-/Rolloutabnahme |
+| **`NEWS_PIPELINE_ASTRA.md`** | Astra-Umbau, entfernte Altregeln, Modelltests und getrennte Veröffentlichungsabnahme |
+| **`BOUNDED_BUILD_RUNBOOK.md`** | Erfolgreicher geschützter Build, aktuelle Limits und verpflichtende Vorprüfungen |
+| **`BUILD_INCIDENT_2026-09-21.md`** | Ursachenanalyse der vorherigen Speicherengpässe und Rollout-Historie |
 | **`AD_STACK.md`** | ads.txt, Prebid/Yieldlab, TheMoneytizer/CMP, Primis/Freestar, Diagnose-Tools |
 | **`OPERATIONS_RUNBOOK.md`** | Betriebs-Runbook: "keine News", "OpenAI 429", Supervisor-Fallen, Troubleshooting |
-| **`PIPELINE_LIVE_AUDIT_2026-09-21.md`** | Aktueller Branch/Commit, aktive Pause, Tasks, neue Backups und getrennte Restore-Nachweise |
+| **`PIPELINE_LIVE_AUDIT_2026-09-21.md`** | Inventar vor dem Rollout, damalige Pause/Tasks sowie Backup- und Restore-Nachweise; aktueller Commit steht oben |
 | **`PIPELINE_PATH_INVENTORY.md`** | Haupt-/Nebenwege, alle Cron-Routen und ruhende Alt-Publisher mit Restbefunden |
 | **`MIGRATION_GUIDE.md`** | Lokales Setup von Null, Hetzner/Coolify-Migration, Secrets-Übergabe |
 
@@ -37,13 +64,13 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 - **Automatisierte News-Pipeline**: scrapt englische Serien-News-Quellen
   (Deadline, Variety, Hollywood Reporter, TVLine, The Cinemaholic und Netflix
   Tudum), lässt ein LLM daraus einen deutschen, SEO-optimierten
-  Artikel schreiben. Die überarbeitete lokale NEWS-Strecke nutzt belegte
+  Artikel schreiben. Die ausgerollte NEWS-Strecke nutzt belegte
   Fakten, vollständige Quellenprüfung und echte Bild-/Anzeigeprüfung, ohne
   nachträgliche ungeprüfte Q&A- oder Kontext-Erfindungen. Automatische
-  Veröffentlichung ist ein gesondertes Freigabe-Flag. Am 21. September ist
-  die produktive News-Pipeline pausiert; der Reparaturstand ist noch nicht
-  ausgerollt. In Produktion stößt ein stündlicher
-  Coolify Scheduled Task die geschützte HTTP-Cron-Route an; der optionale
+  Veröffentlichung ist ein gesondertes Freigabe-Flag. Der Code ist seit
+  21. September, 14:28 UTC, live; unbeaufsichtigte Veröffentlichung ist noch
+  nicht abgenommen. Der vorhandene stündliche Coolify-News-Task bleibt bis
+  dahin deaktiviert. Er ruft die geschützte HTTP-Cron-Route auf; der optionale
   Dauerprozess läuft dort nicht. `processAllNews()` unterstützt zusätzlich
   Google News als Default, die produktive Cron-Route wählt diese Quelle aber
   nicht aus.
@@ -66,11 +93,11 @@ Serien (Netflix, Disney+, Prime Video, Apple TV+ etc.). Kernfunktionen:
 | Datenbank | **PostgreSQL 17** als eigener Coolify-Service auf dem Hetzner-Produktionsserver, Image `postgres:17-alpine`, Zugriff über **Prisma ORM 6.19.2**. Das leere Feld für die initiale Datenbank fällt auf den Benutzer `postgres` zurück; effektiver Datenbankname ist daher `postgres`. Persistenz: Volume `postgres-data-oun4xzvaum4o58fglnuqks6y` an `/var/lib/postgresql/data`. Neon wird nicht verwendet. |
 | Backups | Coolify hat weiterhin keinen automatischen Backupplan. Am 21. September wurden nach Freigabe ein neuer Custom-Dump und ein konsistentes physisches Basebackup erstellt; SHA-256/Gzip bestanden. Beide erfolgreich in getrennten netzwerkisolierten PostgreSQL-17-Testcontainern wiederhergestellt: 4.360 Artikel, 44 Tabellen. Neue Offsite-Kopie offen; siehe Live-Audit. |
 | Auth | Eigenes JWT (via `jose`), Passwort-Hashing mit `bcryptjs`. `next-auth` ist als Dependency vorhanden (Google-Callback-Flow), Kern-Login läuft aber über eigenes JWT in `lib/auth.ts`. |
-| LLM (Text) | News lokal `gpt-6-astra` / `low`, sonstige Texte bisher `gpt-5.4`; direkter eigener `OPENAI_API_KEY` und `openai` SDK. Keine Aussage über bereits ausgerolltes Modell. |
+| LLM (Text) | Ausgerollter News-Code: `gpt-6-astra` / `low`, sonstige Texte bisher `gpt-5.4`; direkter eigener `OPENAI_API_KEY` und `openai` SDK. Sieben synthetische Modellfälle bestanden; echte automatische Veröffentlichung noch nicht abgenommen. |
 | LLM (Bild) | OpenAI `gpt-image-1` (Hero-Bilder), über selben Key, in `lib/nano-banana-hero.ts` |
 | Objektspeicher | Cloudflare **R2** (S3-kompatibel, via `@aws-sdk/client-s3`) für Bilder/Trailer. Vercel Blob (`@vercel/blob`) ist Legacy, läuft parallel aus. |
 | Serien-Metadaten | TMDB API (`TMDB_API_KEY`) |
-| Hosting (live verifiziert am 21. September 2026) | Hetzner/Coolify; eine Next.js-App und separater PostgreSQL-Service. `http://168.119.171.20:8000/` bleibt HTTP. Repository `afdxbdefold-del/serien`, Branch **`codex/takeover`**, laufender Commit `2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`, Basis `/serien-nextjs`, Dockerfile `/Dockerfile`. **Deploy on push aktiv: Push auf takeover kann Produktion deployen.** App-Anzeigename mit `main` ist veraltet. Vercel ist nicht der Apphost. |
+| Hosting (live verifiziert am 21. September 2026) | Hetzner/Coolify; eine Next.js-App und separater PostgreSQL-Service. `http://168.119.171.20:8000/` bleibt HTTP. Repository `afdxbdefold-del/serien`, Branch **`codex/takeover`**, laufender Commit `cbd216ffb3868ca91a986a601984a46db0f71961`, Basis `/serien-nextjs`, Dockerfile `/Dockerfile`. **Auto-Deploy: Manual deployments only.** App-Anzeigename mit `main` ist veraltet. Vercel ist nicht der Apphost. |
 | Push Notifications | Web Push (`web-push`, VAPID-Keys) |
 | Scraping | `cheerio` (HTML-Parsing), `playwright` (schwierigere Quellen, z. B. JS-gerenderte Seiten) |
 | Video/Trailer | RapidAPI (YouTube-Download-Fallbacks) |
@@ -163,7 +190,7 @@ kanonische Liste steht in `.env.example`.
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL-Verbindungs-URL; in Produktion zeigt sie auf den privaten Coolify-Datenbankservice. | **Ja** |
 | `DIRECT_URL` | Direkte PostgreSQL-Verbindung für Prisma-CLI-Schritte. In `prisma/schema.prisma` referenziert (`directUrl = env("DIRECT_URL")`), im verifizierten Coolify-App-Environment aber nicht vorhanden. Vor jedem Schema-/Migrationsversuch müssen Backup, Schema-Baseline und diese Variable separat geprüft werden; gegen Produktion sind Migrationen bis dahin gesperrt. | Für Prisma-CLI/Build prüfen; nicht für normale Runtime-Queries |
-| `OPENAI_API_KEY` | Eigener OpenAI-Key — News lokal Astra, sonstige Texte bisher GPT-5.4; Bildpfade gesondert | Ja; kein unterstützter Produktions-Fallback |
+| `OPENAI_API_KEY` | Eigener OpenAI-Key — ausgerollter News-Code Astra, sonstige Texte bisher GPT-5.4; Bildpfade gesondert | Ja; kein unterstützter Produktions-Fallback |
 | `EMERGENT_LLM_KEY` | Legacy-Kompatibilität für einen noch vorhandenen Emergent-Proxy-Codepfad. Der Variablenname existiert in Produktion, ist auf dem aktuellen Hetzner-Host aber kein belastbarer Failover und soll nach vollständiger Inventarisierung entfallen. | Nein |
 | `TMDB_API_KEY` | The Movie Database — Serien-/Episoden-Metadaten | Ja |
 | `JWT_SECRET` | Signatur-Secret für Admin-/User-Login-Tokens (`lib/auth.ts`) | Ja |

@@ -13,10 +13,44 @@ Supervisor-, Worker- oder separaten Scheduler-Container. Automatisierung läuft
 Coolify ist lokal unter `http://168.119.171.20:8000/` erreichbar. Port 8000
 spricht ausschließlich HTTP; bei Betriebsprüfungen nicht automatisch auf HTTPS
 wechseln. Die Anwendung baut inzwischen Branch `codex/takeover`, und
-`Deploy on push (webhooks)` ist aktiv. Ein Push auf diesen Branch kann daher
-unmittelbar einen Produktivdeploy auslösen. Laufender Commit:
-`2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`. `main` bleibt unverändert.
-Vollständiger aktueller Befund: `PIPELINE_LIVE_AUDIT_2026-09-21.md`.
+Auto-Deploy bleibt auf **„Manual deployments only“**. Laufender Commit seit
+dem erfolgreichen Deployment `bqwzdqac1fw9xfyw5ve38vr7` um 14:28 UTC:
+`cbd216ffb3868ca91a986a601984a46db0f71961`. Neuer Container
+`i8e996hq5t8moyf9fw8p0pbs-142026647632`: gesund, Neustartzähler 0,
+`OOMKilled=false`. PostgreSQL und Schema blieben unverändert; `main` ebenfalls.
+Der frühere Tages-Snapshot `PIPELINE_LIVE_AUDIT_2026-09-21.md` ist für die
+Rollout-Angaben durch diesen Nachtrag und `TAKEOVER_STATUS.md` überholt.
+
+**Astra-Code live, unbeaufsichtigte News-Automatik noch nicht freigegeben.**
+News-, YouTube- und Video-Tasks sind deaktiviert. Sieben synthetische
+Modellfälle bestanden; zwei echte Quellenläufe scheiterten an der zu kleinen
+2-MiB-HTML-Grenze. Netflix lieferte vollständig rund 3,6 MB HTML in etwa einer
+Sekunde. `destroy()` löste vor der Fehlerfestschreibung ein `aborted` aus,
+das fälschlich als Timeout kategorisiert wurde. Der Folgefix begrenzt HTML
+auf 8 MiB, bewahrt die Ursache und belässt Quelltextgrenze und Qualitätsregeln.
+Tests für Streaming-Grenze/Redirects und eine vollständige Extraktion von
+1.351 Wörtern bestanden. Die originale Netflix-Veröffentlichung war vom
+17. September; ein erfolgreicher Abruf macht diese alte Quelle nicht zu
+einer aktuellen News. Die globale Pause wird während Einzeltests kontrolliert
+behandelt und muss vor jeder Aktion neu geprüft werden. Keine erfolgreiche
+automatische Veröffentlichung allein aus dem grünen Deployment ableiten.
+
+Öffentliche Nachprüfung: Startseiten-Karussell mit fünf geladenen Bildern,
+`/news` mit HTTP 200/HTML und vier Sitemaps mit HTTP 200/XML. Die um 14:30 UTC
+erneut bestätigten Backup-Prüfsummen gehören zum erfolgreich logisch und
+physisch isoliert wiederhergestellten Satz vom 21. September; dessen
+Offsite-Kopie bleibt offen.
+
+## Vor jedem weiteren Build
+
+Der erfolgreiche Build nutzte `serien-bounded` mit nachgewiesenen
+Kernel-Grenzen von 1024 MiB RAM, maximal 2048 MiB Swap und 0,75 CPU sowie
+einen 4-GiB-Host-Swap-Puffer (root/0600). Dieser Swap wird **nach einem
+Host-Neustart nicht automatisch aktiviert**. Builder und Sicherheitswächter
+sind nach Abschluss gestoppt, kein fortlaufender Schutzdienst wird behauptet.
+Vor einem neuen Build Backup, aktiven Swap, RAM-/Datenträgerreserve, Grenzen
+und Überwachung erneut prüfen; Auto-Deploy nicht beiläufig freischalten.
+Vollständiger Ablauf: `BOUNDED_BUILD_RUNBOOK.md`.
 
 ## "Keine neuen News erscheinen"
 
@@ -26,9 +60,11 @@ aufgetreten):
 
 1. **Laufen die Coolify Scheduled Tasks?** In der Anwendung unter
    `Scheduled Tasks` den letzten Status und die Ausführungsausgabe prüfen.
-   Am 21. September waren zehn Jobs aktiv, kein `trends`-Task sichtbar.
-   Der News-Aufruf antwortete mit `skipped / pipeline.cron.paused` trotz
-   grünem Tasklabel. Deshalb zuerst Pause und Antwortinhalt prüfen.
+   Aktuell sind News-, YouTube- und Video-Task absichtlich deaktiviert,
+   bis die fachliche Abnahme bestanden ist. Im früheren Snapshot am
+   21. September waren zehn Jobs aktiv und kein `trends`-Task sichtbar;
+   News antwortete damals mit `skipped / pipeline.cron.paused` trotz grünem
+   Tasklabel. Deshalb immer aktuellen Taskzustand, Pause und Antwort prüfen.
    Die am 12. September beobachteten HTTP-401-Fehler von `downgrade-stale`
    und `videos` sind historische Befunde, nicht erneut aktuell nachgewiesen.
 
@@ -53,7 +89,7 @@ aufgetreten):
    LIMIT 20;
    ```
    - `errorStep = 'us-corporate-news'` oder andere alte Schlagwortfilter →
-     zuerst laufenden Commit prüfen. Der lokale Astra-NEWS-Pfad ersetzt solche
+     zuerst laufenden Commit prüfen. Der ausgerollte Astra-NEWS-Pfad ersetzt solche
      Pauschalsperren durch vollständige Quellen- und Deutschlandprüfung.
      Eine alte Ablehnung ist kein Beweis, dass die Meldung irrelevant war.
    - `errorMessage` enthält `429`/`credits` → OpenAI-Billing-Problem, siehe
@@ -70,9 +106,10 @@ aufgetreten):
 
 ## "OpenAI 429 — You have no credits remaining"
 
-Die lokale NEWS-Konfiguration ist jetzt `gpt-6-astra` / `low`. Ein früherer
-erfolgreicher GPT-5.4-Test beweist keinen Astra-Zugriff. Vor dem Rollout die
-Modellberechtigung und echte Textqualität getrennt prüfen. Der admin-geschützte
+Die ausgerollte NEWS-Konfiguration ist `gpt-6-astra` / `low`. Sieben
+synthetische Astra-Modellfälle wurden erfolgreich geprüft; das ist keine
+vollständige Quellen-/Veröffentlichungsabnahme. Modellberechtigung und echte
+Textqualität bleiben getrennte Prüfungen. Der admin-geschützte
 `/api/debug/llm-version` führt einen kleinen, kostenpflichtigen Astra-Probeaufruf
 aus (maximal 1024 Completion-Tokens, 45 Sekunden, keine Wiederholung) und gibt
 nur Konfiguration/Status zurück. Nicht als periodischen Healthcheck verwenden.
@@ -150,7 +187,7 @@ Der öffentliche Push-Subscribe-Endpunkt besitzt zusätzlich eine lokale
 Missbrauchsbremse. Diese ist pro Prozess und ersetzt keine persistente
 Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
 
-## Backlog (Stand Erstellung dieser Doku)
+## Backlog (historische Einzelbefunde, wo nicht anders datiert)
 
 - **RapidAPI-Trailer-Download**: alle 3 Fallbacks lieferten HTTP 403 (Key
   vermutlich abgelaufen/Quota erschöpft). `RAPIDAPI_KEY_BACKUP` war zuletzt
@@ -168,43 +205,34 @@ Cloudflare-Rate-Limit-Regel für `/api/push/subscribe`.
   automatischen Titelbau-Logik für diese eine Domain-Variante.
 - **PostgreSQL-Backup-Automatisierung**: Hetzner/Coolify ist die bestätigte Produktion.
   In Coolify sind kein Datenbank-Backupplan und kein S3-Backupziel
-  konfiguriert; die Oberfläche zeigt null Backup-Ausführungen. Sechs manuelle
-  Sicherungssätze vom 1., 5. und 12. September 2026 liegen ausschließlich auf
-  dem Produktionshost. Für den aktuellen Satz `20260912T112834Z` bestanden
-  Gzip-, Inhalts- und SHA-256-Prüfung. Logischer Dump und physisches
-  Basebackup wurden am 12. September in getrennten, netzwerkisolierten
-  PostgreSQL-17-Umgebungen erfolgreich wiederhergestellt; beide lieferten
-  exakt 4.292 Artikel und 44 öffentliche Tabellen. Vier Dateien dieses Satzes
-  liegen zusätzlich im privaten R2-Pfad
-  `publisher-os-backups/serien/20260912T112834Z/`; die in R2 angezeigten
-  Größen der beiden Hauptarchive stimmen mit den binären Servergrößen überein.
-  Offen bleibt eine automatische, überwachte Backupplanung mit regelmäßigem
-  Restore-Test.
-- **Freshness-Alarm fehlt live**: Der derzeit deployte Stand warnt nicht, falls
-  die News-Pipeline tagelang keine echten Publishes produziert. Auf
-  `codex/takeover` ist lokal vorbereitet, vollständige Quellfehler und – nur
+  konfiguriert. Der aktuelle Satz vom 21. September enthält einen Custom-Dump
+  und ein konsistentes physisches Basebackup; beide getrennt erfolgreich
+  wiederhergestellt (4.360 Artikel, 44 Tabellen), Prüfsummen zuletzt 14:30 UTC
+  erneut bestätigt. Dessen externe Kopie fehlt noch. Die bereits vorhandene
+  private R2-Kopie vom 12. September ersetzt diese frische Kopie nicht.
+  Automatische, überwachte Backupplanung und regelmäßiger Restore-Test bleiben
+  offen.
+- **Freshness-Schutz deployed, Alarmbetrieb noch abzunehmen**: Der ausgerollte
+  Code markiert vollständige Quellfehler und – nur
   bei ausdrücklich aktivierter automatischer Veröffentlichung – mehr als
   36 Stunden ohne neuen Publish mit HTTP 503 und einem fehlgeschlagenen
-  Pipeline-Run zu markieren. Dieser Schutz ist noch nicht deployed; außerdem
-  muss Coolify für fehlgeschlagene Task-Ausführungen tatsächlich
-  Benachrichtigungen versenden.
+  Pipeline-Run. Solange der News-Task deaktiviert ist, läuft auch diese
+  Überwachung nicht regelmäßig. Benachrichtigungen über fehlgeschlagene
+  Coolify-Task-Ausführungen müssen separat geprüft werden.
 
 ## Wie man den aktuellen Pipeline-Status selbst schnell prüft
 
-### Lokale Pipeline-Reparatur vom 20. September 2026
+### Ausgerollter Code und noch offene News-Abnahme
 
-Der neue Ablauf liegt auf `codex/takeover`; er ist **noch nicht als live bestätigt**.
-Details stehen in `PIPELINE_AND_LLM.md` und `PIPELINE_SCHEDULER.md`.
-Die Anwendung kompiliert lokal im Next-Compile-Modus; die Offline-Tests laufen.
-Das ist kein echter OpenAI-/TMDB-/PostgreSQL-Probelauf. Der vollständige
-projektweite Typecheck enthält weiterhin Altfehler.
+Der neue Ablauf ist seit 21. September, 14:28 UTC, auf `codex/takeover`
+ausgerollt. Der vollständige Build einschließlich 164 statischer Seiten und
+Image-Import bestand; sieben synthetische echte Modellfälle waren ebenfalls
+erfolgreich. Das ersetzt keinen vollständigen echten Quellen-/Publikationslauf.
+Der projektweite Typecheck enthält weiterhin Altfehler. Details stehen in
+`PIPELINE_AND_LLM.md` und `PIPELINE_SCHEDULER.md`.
 
-Vor dem Rollout in dieser Reihenfolge:
-
-Nachtrag 21. September: Branch/Commit/Push-Trigger und Taskpause live bestätigt;
-frische logische und physische Backups erfolgreich isoliert wiederhergestellt.
-Offsite-Kopie, echte Modellabnahme und Rollout bleiben offen. Die Zustimmung
-zu Backup/Restore ist keine Freigabe für ein ungeprüftes Deployment.
+Für Folgeänderungen und die noch offene Automatik-Abnahme gilt diese Reihenfolge;
+bereits erledigte Rolloutschritte nicht ohne Anlass wiederholen:
 
 1. Den angemeldeten serien.de-Tab unter `http://168.119.171.20:8000/`
    öffnen. Andere Coolify-Instanzen sind nicht serien.de. Aktuellen
@@ -220,8 +248,10 @@ zu Backup/Restore ist keine Freigabe für ein ungeprüftes Deployment.
 4. Nur den geprüften `codex/takeover`-Stand ausrollen. Keine Migration,
    kein `prisma db push`, keine Secret-Rotation als Nebenwirkung dieser Reparatur.
 5. Den vorhandenen Coolify-News-Task, Pause-Schalter, Autorenkonto und Namen
-   der erforderlichen Variablen prüfen. `AUTOMATED_NEWS_PUBLISHING_ENABLED`
-   erst nach bestandenem Probelauf aktivieren; mit `NEWS_LIMIT=1` beginnen.
+   der erforderlichen Variablen prüfen. Ein kontrollierter Einzeltest darf
+   nicht mit dauerhaft freigegebener Automatik verwechselt werden:
+   `AUTOMATED_NEWS_PUBLISHING_ENABLED` und Pause bewusst für den Test prüfen,
+   mit `NEWS_LIMIT=1` beginnen; den Scheduled Task erst nach Abnahme aktivieren.
    Ein Scheduler genügt, kein zusätzlicher paralleler Daemon erforderlich.
 6. Einen begleiteten automatischen Publish prüfen: gespeicherter Artikel,
    kanonische Seite, korrektes Bild einschließlich tatsächlich ausgelieferter

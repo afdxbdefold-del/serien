@@ -23,6 +23,7 @@ const PERMANENT_STEPS = new Set([
 
 export function isProviderFailure(message = ''): boolean {
   return /(?:Provider\/network unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
+    || /\bsource-(?:request-unavailable|response-unavailable|response-aborted|request-timeout)\b/.test(message)
     || /(?:^\s*(?:\[[^\]]+\]\s*)?|\b(?:http|status|statusCode|response|error|code)[\s"':=]*)(?:401|402|403|429|5\d\d)\b/i.test(message);
 }
 
@@ -92,6 +93,17 @@ export function safeNewsError(error: unknown): string {
   // External error messages can include request URLs, authorization headers or
   // connection strings. Persist only an allowlisted category in scheduler logs.
   const message = error instanceof Error ? error.message : String(error);
+  // These are fixed internal codes, never an upstream message or URL. Preserve
+  // size/parser failures instead of misreporting our own stream abort as timeout.
+  const sourceCodes = new Set([
+    'source-address-not-public', 'source-url-not-public', 'source-dns-not-public',
+    'source-redirect-invalid', 'source-redirect-limit', 'source-response-invalid',
+    'source-response-too-large', 'source-response-unavailable', 'source-response-aborted',
+    'source-request-timeout', 'source-request-unavailable',
+    'source-article-body-ambiguous', 'source-article-body-missing',
+    'source-complete-evidence-unavailable',
+  ]);
+  if (sourceCodes.has(message)) return `Original source read failed: ${message}`;
   if (isProviderFailure(message)) return 'Provider/network unavailable; inspect private provider diagnostics';
   if (/lease|lock/i.test(message)) return 'News import lease unavailable';
   if (/timeout|aborted/i.test(message)) return 'News source request timed out';

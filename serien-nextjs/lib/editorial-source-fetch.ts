@@ -11,6 +11,10 @@ export interface EditorialSource {
   publishDate?: Date;
 }
 
+// Publisher pages can contain several MiB of inert application state. Bound
+// transport and parsing together without relaxing the extracted evidence limit.
+export const MAX_EDITORIAL_SOURCE_HTML_BYTES = 8 * 1024 * 1024;
+
 /** Choose a public IPv4 address once, then pin that address in the socket lookup.
  * Never validate DNS and let a later, independent resolution choose the target.
  */
@@ -49,23 +53,29 @@ async function requestSourceHtml(url: URL, remainingRedirects = 3): Promise<stri
       const status = incoming.statusCode || 0;
       if (status >= 300 && status < 400) {
         const location = incoming.headers.location;
-        incoming.destroy();
         finish(location ? undefined : new Error('source-redirect-invalid'), { location });
+        incoming.destroy();
         return;
       }
-      if (status !== 200 || !incoming.headers['content-type']?.toLowerCase().startsWith('text/html')
-        || Number(incoming.headers['content-length'] || 0) > 2 * 1024 * 1024) {
-        incoming.destroy();
+      if (status !== 200 || !incoming.headers['content-type']?.toLowerCase().startsWith('text/html')) {
         finish(new Error('source-response-invalid'));
+        incoming.destroy();
+        return;
+      }
+      if (Number(incoming.headers['content-length'] || 0) > MAX_EDITORIAL_SOURCE_HTML_BYTES) {
+        finish(new Error('source-response-too-large'));
+        incoming.destroy();
         return;
       }
       const chunks: Buffer[] = [];
       let size = 0;
       incoming.on('data', (chunk: Buffer) => {
+        if (done) return;
         size += chunk.length;
-        if (size > 2 * 1024 * 1024) {
-          incoming.destroy();
+        if (size > MAX_EDITORIAL_SOURCE_HTML_BYTES) {
+          // destroy() may synchronously emit aborted/error; preserve the cause.
           finish(new Error('source-response-too-large'));
+          incoming.destroy();
         } else chunks.push(chunk);
       });
       incoming.on('end', () => finish(undefined, { html: Buffer.concat(chunks).toString('utf8') }));
@@ -141,7 +151,7 @@ function primaryArticleDates(raw: unknown, sourceUrl: string, canonicalUrl: stri
 /** Pure parser for offline publisher-markup fixtures; never a body/main fallback. */
 export function parseEditorialSourceHtml(html: string, rawUrl: string, now = new Date()): EditorialSource {
   if (!isSafePublicHttpUrl(rawUrl)) throw new Error('source-url-not-public');
-  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > 2 * 1024 * 1024) throw new Error('source-response-too-large');
+  if (typeof html !== 'string' || Buffer.byteLength(html, 'utf8') > MAX_EDITORIAL_SOURCE_HTML_BYTES) throw new Error('source-response-too-large');
   const url = new URL(rawUrl);
   const $ = load(html);
   const jsonLd = $('script[type="application/ld+json"]').toArray().map(element => $(element).text());

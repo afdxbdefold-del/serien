@@ -11,28 +11,48 @@ Dieses Dokument beschreibt den verifizierten Ist-Stand der technischen
 
 ## Aktueller Live-Nachtrag (21. September 2026)
 
-Der neue vollständige Befund steht in `PIPELINE_LIVE_AUDIT_2026-09-21.md`.
-Er hat Vorrang vor dem historischen Snapshot unten:
+Dieser Nachtrag dokumentiert den erfolgreichen Rollout um **14:28 UTC** und
+die danach erfolgten Prüfungen. Er hat Vorrang vor den früheren Snapshots in
+`PIPELINE_LIVE_AUDIT_2026-09-21.md` und unten. Build-Ursache und Schutzmaßnahmen:
+`BUILD_INCIDENT_2026-09-21.md` und `BOUNDED_BUILD_RUNBOOK.md`.
 
-- Produktion baut mittlerweile **`codex/takeover`**, laufender Commit
-  `2d75e26214805a2eb5f02c3ac5f2d6dd39bdd476`. Der App-Anzeigename mit `main`
-  ist veraltet. **Deploy on push ist aktiv: nicht unkontrolliert pushen.**
+- Produktion läuft auf **`codex/takeover`**, Commit
+  `cbd216ffb3868ca91a986a601984a46db0f71961`. Coolify-Deployment
+  `bqwzdqac1fw9xfyw5ve38vr7` war um 14:28 UTC erfolgreich. Neuer Container
+  `i8e996hq5t8moyf9fw8p0pbs-142026647632`: gesund, Neustartzähler 0,
+  `OOMKilled=false`. Der App-Anzeigename mit `main` ist veraltet.
+  **Auto-Deploy bleibt auf „Manual deployments only“; nicht wieder aktivieren,
+  ohne den Build-Schutz und den aktuellen Hostzustand zu prüfen.**
 - PostgreSQL 17 auf Hetzner/Coolify und dasselbe persistente Volume erneut
   bestätigt; effektive Datenbank `postgres`. Kein Neon.
-- Der stündliche News-Task läuft, antwortet aber mit
-  `skipped / pipeline.cron.paused`. Die Pause ist in der Datenbank bestätigt.
+- Die Coolify-Tasks **News, YouTube und Videos bleiben deaktiviert**. Die
+  globale Pipeline-Pause wird nur für begleitete Einzeltests kontrolliert
+  behandelt; ihr momentaner Wert ist vor jedem Test erneut zu lesen.
+  **Unbeaufsichtigte News-Automatik ist noch nicht abgenommen oder aktiviert.**
 - Weiterhin kein automatischer Backupplan in Coolify. Nach ausdrücklicher
   Betreiberfreigabe neue logische und physische Backups am 21. September
   erstellt, Kompression/Prüfsummen geprüft und **beide getrennt erfolgreich
   wiederhergestellt**: 4.360 Artikel (4.275 veröffentlicht, 75 Entwürfe,
   10 archiviert), 44 Tabellen. Keine Produktionsdaten zurückgespielt.
-  Die frische externe Kopie ist noch offen; Details im Live-Audit.
-- Pipeline-Reparaturen liegen lokal und sind noch nicht ausgerollt.
-  `main`, Produktionsschema, DNS und Secrets blieben unverändert.
-- Weiterer lokaler Umbau: Astra für die aktive News-Redaktion, verpflichtende
-  Deutschlandrelevanz und Entfernung alter Doppelprüfungen/Schlagwortsperren.
-  Details und Abnahmegrenzen: `NEWS_PIPELINE_ASTRA.md`. Kein Push/Deploy und
-  keine Aussage, dass Astra bereits produktiv Nachrichten schreibt.
+  Beide Backup-Prüfsummen wurden um 14:30 UTC erneut bestätigt. Die frische
+  externe Kopie ist noch offen; Details im Live-Audit.
+- Astra-Code (`gpt-6-astra` / `low`), verpflichtende Deutschlandrelevanz und
+  Quellen-/Bildprüfung sind ausgerollt. Sieben synthetische Modellfälle hatten
+  zuvor bestanden. Das ersetzt keine echte Veröffentlichungsabnahme: Ein
+  beide begleiteten Quellenläufe scheiterten vor der Generierung. Ursache:
+  Netflix-HTML von rund 3,6 MB überschritt die alte 2-MiB-Grenze. Ein
+  Abbruchereignis maskierte dies als Timeout. Der Folgefix begrenzt HTML auf
+  8 MiB und bewahrt genaue Fehlerkategorien; Text-/Quellenqualität bleibt
+  unverändert streng. Automatik-Abnahme steht weiterhin aus.
+- Sichtprüfung: Startseiten-Karussell mit fünf geladenen Bildern, `/news` mit
+  HTTP 200 und HTML sowie vier geprüfte Sitemaps mit HTTP 200 und XML.
+  PostgreSQL blieb unverändert; keine Schema-Migration und keine Änderung an
+  `main`.
+- Build-Schutz: eigener Builder mit 1024 MiB RAM, maximal 2048 MiB Swap und
+  0,75 CPU; tatsächliche Kernel-Grenzen geprüft. Zusätzlich 4 GiB Host-Swap,
+  root/0600, **nicht über einen Neustart persistent aktiviert**. Vollständiger
+  Build einschließlich 164 statischer Seiten und Image-Import bestanden.
+  Builder und Sicherheitswächter sind nach Abschluss gestoppt.
 
 ## Historischer Produktionssnapshot (12. September 2026)
 
@@ -81,9 +101,10 @@ Er hat Vorrang vor dem historischen Snapshot unten:
 
 ## Bereits erledigt
 
-- Aktuellen logischen und physischen PostgreSQL-Sicherungsstand erstellt,
-  Prüfsummen verifiziert, beide Restore-Wege isoliert erfolgreich getestet und
-  den Satz zusätzlich in einen privaten R2-Pfad kopiert.
+- Den Sicherungssatz vom 12. September logisch und physisch isoliert
+  wiederhergestellt und zusätzlich in einen privaten R2-Pfad kopiert. Der
+  neuere Satz vom 21. September ist ebenfalls wiederherstellbar geprüft;
+  dessen Offsite-Kopie steht noch aus.
 
 - Paketauflösung mit `package-lock.json` reproduzierbar gemacht; Node- und
   npm-Anforderungen sowie Standardbefehle für Test, Lint und Typecheck ergänzt.
@@ -107,7 +128,12 @@ Er hat Vorrang vor dem historischen Snapshot unten:
   Admin-Passwort muss explizit über die Umgebung gesetzt werden und mindestens
   16 Zeichen lang sein.
 
-## Verifizierter Qualitätsstand
+## Historischer Qualitätsstand der Übernahme-Baseline
+
+Die folgenden Zählstände stammen aus der früheren Baseline, nicht aus der
+aktuellen Astra-Abnahme. Der erfolgreiche vollständige Produktionsbuild vom
+21. September ist oben dokumentiert; der projektweite Typecheck bleibt eine
+separate offene Altlast.
 
 - Die automatisierten Tests laufen: 49 von 49 Assertions bestehen, einschließlich
   neuer Fail-Closed-Tests für Admin-, Cron- und interne Authentifizierung.
@@ -120,9 +146,9 @@ Er hat Vorrang vor dem historischen Snapshot unten:
   erreichbare, zum Prisma-Schema passende Datenbank, weil Seiten und Sitemaps
   während des Prerenderings Daten abfragen.
 
-## No-Go vor einem Produktiv-Deploy
+## Offene Sicherheits- und Betriebsaufgaben
 
-1. **Alle bisher verwendeten Secrets rotieren.** Im aktuellen Stand wurden
+1. **Alte Secrets nach vollständiger Inventarisierung koordiniert rotieren.** Im aktuellen Stand wurden
    Schlüssel entfernt, sie bleiben aber in der Git-Historie auffindbar. Betroffen
    sind mindestens Datenbank, TMDB, JWT/Admin, Cron, Push/VAPID und ein
    Emergent-LLM-Schlüssel. Danach muss eine koordinierte Historienbereinigung
@@ -163,11 +189,16 @@ Konten oder einen vorhandenen Secret-Manager verwenden.
 
 ## Sichere nächste Reihenfolge
 
-1. Produktionsinventar ausschließlich lesend erfassen und Datenbank sichern.
-2. Secrets rotieren und Produktionsvariablen anhand `.env.example` neu setzen.
-3. Staging mit einem Datenbank-Clone aufbauen; Smoke-Tests für öffentliche
-   Seiten, Admin, Cron, Pipeline, Bilder und Trailer durchführen.
-4. Erst danach Migrations-Baseline, Worker-Image und verbleibende TypeScript-/
-   Lint-Schulden schrittweise bereinigen.
-5. Produktiv-Rollout mit geprüftem Rollback und anschließender Beobachtung von
-   Error-Logs, Cron-Freshness und Veröffentlichungsrate.
+1. Begleiteten echten Quellenlauf abschließen und Ergebnis, gespeicherten
+   Artikel, Bild sowie öffentliche Artikel-/Startseiten-/News-Anzeige prüfen.
+   Bei Fehlern Tasks deaktiviert lassen; kein ungeprüfter automatischer Retry.
+2. Erst nach bestandener fachlicher Abnahme den News-Task gezielt freigeben
+   und Fehlerbenachrichtigung/Freshness überwachen. Keine parallelen Scheduler.
+3. Frischen Sicherungssatz extern sichern und automatische Backupplanung mit
+   regelmäßigem Restore-Test einrichten; vor weiteren Änderungen erneut prüfen.
+4. Build-Schutz einschließlich aktivem Swap vor jedem weiteren Deployment
+   bestätigen. Auto-Deploy bleibt bis zu einer gesonderten Entscheidung manuell.
+5. Externe Konten vervollständigen, kompromittierte historische Secrets
+   koordiniert rotieren und danach Staging, Migrations-Baseline sowie
+   TypeScript-/Lint-Altlasten bearbeiten. Keine Produktionsmigration und keine
+   Rotation als ungefragte Nebenwirkung des News-Rollouts.

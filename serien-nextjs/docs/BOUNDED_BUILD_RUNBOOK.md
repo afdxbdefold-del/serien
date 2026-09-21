@@ -1,12 +1,33 @@
 # Begrenzte Builds auf dem Produktionsserver
 
-Stand: 21. September 2026. Der Build-Schutz ist eingerichtet und getestet. Der anschließende echte Build wurde vom Sicherheitswächter abgebrochen; **kein neues Anwendungsdeployment wurde erfolgreich abgeschlossen**. Siehe [Ursachenanalyse](BUILD_INCIDENT_2026-09-21.md).
+Stand: 21. September 2026, nach 14:30 UTC. Der erneute geschützte Rollout
+ist **erfolgreich live**. Ein vorheriger Versuch wurde vom Sicherheitswächter
+abgebrochen; dieser historische Fehlschlag ist nicht der aktuelle Zustand.
+Siehe [Ursachenanalyse](BUILD_INCIDENT_2026-09-21.md).
 
-## Nachtrag: erneuter freigegebener Rollout
+## Nachtrag: erfolgreicher freigegebener Rollout
+
+Coolify-Deployment `bqwzdqac1fw9xfyw5ve38vr7` war um **14:28 UTC** erfolgreich:
+Commit `cbd216ffb3868ca91a986a601984a46db0f71961` auf `codex/takeover`.
+`npm ci` dauerte 78,3 Sekunden, die Kompilierung etwa zwei Minuten;
+alle 164 statischen Seiten und der anschließende Image-Import wurden fertig.
+Neuer App-Container `i8e996hq5t8moyf9fw8p0pbs-142026647632`: gesund,
+Neustartzähler 0, `OOMKilled=false`. PostgreSQL blieb unverändert; keine
+Schema-Migration, keine Änderung oder Deployment von `main`.
+
+Die Startseite wurde mit fünf geladenen Karussellbildern geprüft, `/news`
+antwortete mit HTTP 200/HTML und vier Sitemaps mit HTTP 200/XML.
+**Builder und Sicherheitswächter sind nach Abschluss gestoppt.** Auto-Deploy
+bleibt manuell. Der erfolgreiche Build ist keine Abnahme der News-Automatik:
+News-, YouTube- und Video-Tasks bleiben deaktiviert, bis ein begleiteter echter
+Quellen-/Veröffentlichungslauf einschließlich Bild und Live-Anzeige bestanden ist.
 
 Nach der erneuten Live-Freigabe wurden am 21. September um 14:16 UTC beide
 Backup-Prüfsummen und der logische/physische Restore-Nachweis erneut geprüft.
 Anwendung und Datenbank waren gesund, jeweils ohne Neustart.
+Beide Backup-Prüfsummen wurden nach dem Rollout um 14:30 UTC erneut bestätigt.
+Die logische und physische Wiederherstellung waren isoliert erfolgreich;
+eine frische Offsite-Kopie steht noch aus.
 
 Auf dem ext4-Host wurde die vorher nicht vorhandene Datei
 `/data/coolify/serien-build.swap` mit 4 GiB, Eigentümer root und Modus 0600
@@ -26,11 +47,16 @@ Runtime-Stage erhält diese Variable nicht.
 
 Swap nicht automatisch deaktivieren oder löschen: Das Rückholen ausgelagerter
 Produktionsseiten könnte erneut Speichermangel verursachen. Keine Secrets oder
-Heapdumps protokollieren. Noch kein erfolgreicher neuer Rollout behauptet.
+Heapdumps protokollieren.
 
 ## Zweck und Grenzen
 
-serien.de, PostgreSQL und Coolify teilen einen Hetzner-Server mit 3819 MiB RAM, zwei CPU-Kernen und ohne Swap. Ein vorheriger unbegrenzter Build verursachte starken Speicherdruck und zeitweise unerreichbare Dienste. Der neue, ausschließlich für serien.de vorgesehene Builder begrenzt BuildKit einschließlich seiner RUN-Prozesse.
+serien.de, PostgreSQL und Coolify teilen einen Hetzner-Server mit 3819 MiB RAM
+und zwei CPU-Kernen. Vor der oben dokumentierten Maßnahme gab es keinen Swap;
+aktuell stehen 4 GiB bereit, jedoch ohne automatische Aktivierung nach Neustart.
+Ein vorheriger unbegrenzter Build verursachte starken Speicherdruck und zeitweise
+unerreichbare Dienste. Der ausschließlich für serien.de vorgesehene Builder
+begrenzt BuildKit einschließlich seiner RUN-Prozesse.
 
 - Ausschließlich Branch `codex/takeover` verwenden. `main` weder ändern noch mergen oder deployen.
 - Vor Änderungen aktuelle Datenbank- und Volume-Sicherungen einschließlich erfolgreicher Wiederherstellung verifizieren. Ein vorhandener Dateiname allein genügt nicht.
@@ -38,16 +64,16 @@ serien.de, PostgreSQL und Coolify teilen einen Hetzner-Server mit 3819 MiB RAM, 
 - Der Nutzer hat den privilegierten, begrenzten Builder am 21. September ausdrücklich freigegeben. Diese Freigabe ist keine allgemeine Erlaubnis für weitere privilegierte Dienste.
 - Geheimnisse und Datenbank-URLs weder anzeigen noch in Prüfprotokolle übernehmen.
 
-## Verifizierte Konfiguration
+## Aktuelle verifizierte Konfiguration
 
 | Eigenschaft | Wert |
 | --- | --- |
 | Builder | `serien-bounded`, Driver `docker-container` |
 | Container | `buildx_buildkit_serien-bounded0` |
 | BuildKit | `moby/buildkit:v0.31.1@sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a` |
-| Speicher | 640 MiB, `memory.max=671088640` |
-| Swap | gesperrt, `memory.swap.max=0` |
-| CPU | eine halbe CPU, `cpu.max=50000 100000` |
+| Speicher | 1024 MiB, `memory.max=1073741824` |
+| Swap | maximal zusätzlich 2048 MiB, `memory.swap.max=2147483648` |
+| CPU | 0,75 CPU, `cpu.max=75000 100000` |
 | Gleichzeitige Build-Schritte | `max-parallelism=1` |
 | Netzwerk | `network=host`, entsprechend dem bisherigen Coolify-Buildpfad |
 | Image-Ausgabe | `default-load=true`, fertige Images im lokalen Docker-Image-Store |
@@ -72,7 +98,7 @@ Vor der endgültigen Einstellung wurde derselbe Builder mit 256 MiB und einer ha
 1. Ein kleiner Node-Build mit begrenzter Speicherbelegung lief erfolgreich und exportierte sein Image lokal.
 2. Die Host-cgroup des tatsächlichen RUN-Prozesses lag unter dem Builder-cgroup: `/system.slice/docker-d1fecf51cab42c6f2cfb02c1a4c9dcda2d779182fa512cc5db7f1c3deb6bd94f.scope/buildkit/...`. Der äußere Speichergrenzwert war `268435456`, die CPU-Grenze `50000 100000`.
 3. Eine negative Probe mit höchstens 384 MiB angeforderter, tatsächlich beschriebener Buffer-Belegung scheiterte mit `ResourceExhausted`. Der cgroup-Zähler `oom_kill` stieg von 0 auf 1. Die öffentliche Website lieferte anschließend weiterhin HTTP 200. Node und BuildKit benötigen zusätzlich eigenen Speicher; 384 MiB war die feste Obergrenze der Testallokation, nicht des gesamten Prozesses.
-4. Danach wurden sowohl die vollständigen Builder-Metadaten als auch die bestehende Docker-Container-Konfiguration auf 640 MiB aktualisiert. Die oben genannten Kernel-Grenzen wurden erneut geprüft.
+4. Danach wurden zunächst sowohl die vollständigen Builder-Metadaten als auch die bestehende Docker-Container-Konfiguration auf 640 MiB aktualisiert. Dieser historische Zwischenstand ist durch die oben dokumentierten und im Kernel geprüften Grenzen des erfolgreichen Rollouts ersetzt.
 5. Ein separater Test mit dem tatsächlichen Coolify-Helper, gemeinsamem Host-Buildx-Verzeichnis und Docker-Socket verwendete nachweislich `serien-bounded` mit Driver `docker-container`. `docker build --network host` und lokaler Image-Import waren erfolgreich. Der Test erhielt keine Anwendungssecrets und griff nicht auf die Datenbank zu.
 
 Private Prüfprotokolle: `positive.log`, `negative.log` und `integration.log` im Verzeichnis `/data/coolify/serien-build.uNkYnX/`. Keine dieser Proben bestätigt bereits einen erfolgreichen Next.js-Produktionsbuild.
@@ -87,13 +113,18 @@ Vor einem Deployment:
 
 - Backup- und Restore-Nachweise, Branch und Zielcommit erneut prüfen; News während des kontrollierten Rollouts pausiert lassen.
 - Öffentliche Gesundheit, Anwendungs-/Datenbankstatus, verfügbaren RAM und freien Datenträgerplatz erfassen.
+- Aktiven 4-GiB-Host-Swap ausdrücklich prüfen; die Datei allein beweist keine Aktivierung. Nach einem Host-Neustart keinen ungeschützten automatischen Build starten.
 - Builder-Metadaten, Containerlimits und tatsächliche cgroup-Grenzen prüfen. Keine parallel laufenden Builds starten.
 - Im Build-Protokoll muss der benannte Builder mit Driver `docker-container` erscheinen. Bei einem anderen Builder abbrechen, nicht ungeschützt fortfahren.
-- Speicherreserve und öffentliche Erreichbarkeit während Build **und Image-Import** beobachten. Unter 384 MiB verfügbarem RAM oder bei erneutem starken Speicherdruck den Versuch stoppen; die Grenze nicht stillschweigend erhöhen.
+- Speicherreserve und öffentliche Erreichbarkeit während Build **und Image-Import** beobachten. Mit aktivem Swap warnen unter 384 MiB verfügbar; stoppen unter 128 MiB sofort, unter 256 MiB in vier aufeinanderfolgenden 5-Sekunden-Proben, bei weniger als 512 MiB freiem Swap oder 6 GiB freier Platte. Zwei aufeinanderfolgende Origin-/Public-Fehler oder vier Proben mit Memory-Full-PSI über 20 und unter 384 MiB Reserve stoppen ebenfalls ausschließlich den Builder. Dies ist ein beobachteter Betriebsschutz, keine allgemeine Verfügbarkeitsgarantie.
 
 ## Fehlerbehandlung und Rückweg
 
-640 MiB garantieren keinen erfolgreichen Next.js-Build. Ein begrenzter Build-Abbruch ist sicherer als erneute Host-Überlastung. Bei OOM oder anhaltender Ressourcenknappheit keine automatische Wiederholung und keine ungeprüfte Erhöhung des Limits.
+Der frühere 640-MiB-Versuch wurde abgebrochen; der aktuelle begrenzte Build mit
+1024 MiB RAM und Swap bestand. Das garantiert keinen beliebigen künftigen
+Build oder ausreichend Reserve unter anderer Produktionslast. Bei OOM oder
+anhaltender Ressourcenknappheit keine automatische Wiederholung und keine
+ungeprüfte Erhöhung des Limits.
 
 Wenn möglich zunächst das betroffene Deployment in Coolify abbrechen. Falls der Build weiterläuft, ausschließlich den zugehörigen Builder stoppen:
 
@@ -101,7 +132,7 @@ Wenn möglich zunächst das betroffene Deployment in Coolify abbrechen. Falls de
 docker stop --time 10 buildx_buildkit_serien-bounded0
 ```
 
-Danach Produktionscontainer, Datenbank und öffentliche Erreichbarkeit prüfen. Weder Docker-Daemon noch Produktionscontainer stoppen. Kein `compose down`, kein globales Pruning und keine Daten-/Volume-Löschung. Builder-Cache und Konfiguration zur Untersuchung erhalten. Auto-Deploy bleibt gesperrt, solange ein sicherer vollständiger Build nicht nachgewiesen ist.
+Danach Produktionscontainer, Datenbank und öffentliche Erreichbarkeit prüfen. Weder Docker-Daemon noch Produktionscontainer stoppen. Kein `compose down`, kein globales Pruning und keine Daten-/Volume-Löschung. Builder-Cache und Konfiguration zur Untersuchung erhalten. Auto-Deploy bleibt trotz dieses erfolgreichen Builds manuell, insbesondere wegen der nicht persistenten Swap-Aktivierung und der nötigen Vorprüfungen.
 
 Für eine spätere Ressourcenänderung reicht `buildx create --name ... --node ...` allein nicht: Es aktualisiert Metadaten und ersetzt die Driver-Optionen vollständig, passt aber einen vorhandenen Container nicht automatisch an. Deshalb vollständige Optionen erhalten, zusätzlich gezielt `docker update` verwenden und anschließend HostConfig **und** Kernel-Grenzen prüfen. Nur ohne laufenden Build ändern.
 

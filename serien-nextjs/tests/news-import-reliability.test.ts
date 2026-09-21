@@ -89,6 +89,17 @@ test('scheduler diagnostics never reproduce credentials or DB URLs', () => {
   }
 });
 
+test('bounded source rejection is not mistaken for network timeout', () => {
+  const size = safeNewsError(new Error('source-response-too-large'));
+  assert.equal(size, 'Original source read failed: source-response-too-large');
+  assert.equal(isProviderFailure(size), false);
+  const aborted = safeNewsError(new Error('source-response-aborted'));
+  assert.equal(isProviderFailure(aborted), true);
+  assert.doesNotMatch(aborted, /timed out|timeout/);
+  assert.equal(isProviderFailure(safeNewsError(new Error('source-request-timeout'))), true);
+  assert.doesNotMatch(safeNewsError(new Error('source-unknown-private-value')), /private-value/);
+});
+
 test('word counts and quality metrics are not HTTP failures', () => {
   assert.equal(isProviderFailure('Structure: 500 words but insufficient headings'), false);
   assert.equal(isProviderFailure('[generation] 429 Too many requests'), true);
