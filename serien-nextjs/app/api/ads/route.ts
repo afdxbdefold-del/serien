@@ -1009,7 +1009,11 @@ freewheel.tv, 536419-r-523319, DIRECT
 rubiconproject.com, 26322, DIRECT, 0bfd66d529a55807
 media.net, 8CAWPIGSU, DIRECT
 inmobi.com, 7ea47bc95de442dcb5954b1c1717e855, RESELLER, 83e75a7ae333ca9d
-trustx.org, 8702, DIRECT, 1d2c8a747a749d25`;
+trustx.org, 8702, DIRECT, 1d2c8a747a749d25
+blis.com, 1259, RESELLER, 61453ae19a4b73f4
+video.unrulymedia.com, 781508217, DIRECT
+openx.com, 603745306, DIRECT, 6a698e2ec38604c6
+pubmatic.com, 164358, DIRECT, 5d62403b186f2ace`;
 
 // Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
 // die Datei so cachen, dass jeder externe Verifier (TheMoneytizer, IAB,
