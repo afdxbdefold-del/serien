@@ -9,6 +9,7 @@ import { load } from 'cheerio';
 import { generateStructuredContent } from '../lib/structured-content-generator';
 import { linkCharactersInMarkdown, linkStreamersInMarkdown } from '../lib/character-linking-markdown';
 import { linkCastInMarkdown } from '../lib/cast-linking-markdown';
+import { sanitizePersonLinks } from '../lib/person-link-safety';
 import { markdownToHtml } from '../lib/markdown-to-html';
 import { injectSourceEmbeds } from '../lib/source-embeds';
 import { classifyContent } from '../lib/content-classifier';
@@ -2118,7 +2119,11 @@ export async function runPipelineV2(source: PipelineV2Source) {
           .attr('rel', 'noopener noreferrer').text(new URL(source.url).hostname.replace(/^www\./, '')));
         sourceDocument.root().append(sourceParagraph);
       }
-      finalContentWithVideo = sourceDocument.html();
+      // Strip ambiguous/generated person links before the exact payload review.
+      // Keep the wording; never invent a replacement destination for a place.
+      const personLinks = sanitizePersonLinks(sourceDocument.html(), castLinkResult.personLinkTargets);
+      finalContentWithVideo = personLinks.html;
+      logger.addMetadata('personLinksRemovedBeforeReview', personLinks.removed);
       const reviewed = await reviewAndRepairArticle({
         headline: finalHeadline,
         excerpt: finalIntro,
@@ -2146,6 +2151,16 @@ export async function runPipelineV2(source: PipelineV2Source) {
       structuredContent.metaDescription = reviewed.article.metaDescription;
       finalContentWithVideo = reviewed.article.contentHtml;
       sourceReview = reviewed.decision;
+      // A model revision can reintroduce a bad link. Reject, do not silently
+      // change the reviewed payload (whose hash must still match publication).
+      const finalPersonLinks = sanitizePersonLinks(finalContentWithVideo, castLinkResult.personLinkTargets);
+      editorialGateOutcomes.push({
+        gate: 'person-links', status: finalPersonLinks.removed === 0 ? 'pass' : 'fail',
+        reason: finalPersonLinks.removed === 0
+          ? 'Personenlinks stimmen mit eindeutigen vollständigen Katalognamen überein'
+          : `${finalPersonLinks.removed} unbestätigte Personenlinks nach Textüberarbeitung`,
+      });
+      logger.addMetadata('unverifiedPersonLinksAfterReview', finalPersonLinks.removed);
       // No unreviewed FAQ or new generated prose may appear after this review.
       structuredContent.qa = [];
       editorialGateOutcomes.push({ gate: 'source-grounding', status: sourceReview.passed ? 'pass' : 'fail', reason: sourceReview.reasons.join('; ') });
@@ -2335,7 +2350,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
       alreadyDraft: saveAsDraft,
       existingReason: draftReason,
       outcomes: editorialGateOutcomes,
-      requiredGates: ['source-grounding', 'html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'body-facts', 'release-mode'],
+      requiredGates: ['source-grounding', 'person-links', 'html-safety', 'quality', 'anti-ai', 'fact-safety', 'source', 'freshness', 'body-facts', 'release-mode'],
     });
     saveAsDraft = editorialDecision.status === 'draft';
     if (saveAsDraft && !draftReason) draftReason = editorialDecision.reason;

@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { linkPersonNamesInHtml } from './person-link-safety';
 
 const prisma = new PrismaClient();
 
@@ -28,107 +29,22 @@ export async function autoLinkActors(
       return contentHtml;
     }
 
-    let modifiedHtml = contentHtml;
-    let linkedCount = 0;
-
-    // Sort by name length (longest first to avoid partial matches)
-    const sortedPersons = articlePersons.sort(
-      (a, b) => b.persons.name.length - a.persons.name.length
+    // Use the same conservative identity and DOM boundaries as pipeline links.
+    // Never infer a person from a surname, or link inside an existing anchor.
+    const result = linkPersonNamesInHtml(
+      contentHtml,
+      articlePersons.map(({ persons }) => ({ name: persons.name, slug: persons.slug }))
     );
 
-    for (const { persons: person } of sortedPersons) {
-      // Create regex for exact name match (case-insensitive, word boundaries)
-      const nameRegex = new RegExp(
-        `\\b(${escapeRegex(person.name)})\\b`,
-        'i'
-      );
-
-      // Find first occurrence (not inside HTML tags)
-      const match = findFirstOccurrenceOutsideHTML(modifiedHtml, nameRegex);
-
-      if (match) {
-        const { index, matchedText } = match;
-
-        // Create link
-        const link = `<a href="/person/${person.slug}" title="${person.name} – Serien & Biografie" class="actor-link">${matchedText}</a>`;
-
-        // Replace first occurrence
-        modifiedHtml =
-          modifiedHtml.slice(0, index) +
-          link +
-          modifiedHtml.slice(index + matchedText.length);
-
-        linkedCount++;
-        console.log(`   🔗 Linked: ${person.name} → /person/${person.slug}`);
-      }
+    if (result.linked > 0) {
+      console.log(`✅ Auto-linked ${result.linked} actors in content`);
     }
 
-    if (linkedCount > 0) {
-      console.log(`✅ Auto-linked ${linkedCount} actors in content`);
-    }
-
-    return modifiedHtml;
+    return result.html;
   } catch (error) {
     console.error('❌ Auto-linking failed:', error);
     return contentHtml;
   }
-}
-
-/**
- * Find first occurrence of pattern outside HTML tags
- */
-function findFirstOccurrenceOutsideHTML(
-  html: string,
-  pattern: RegExp
-): { index: number; matchedText: string } | null {
-  let inTag = false;
-  let currentText = '';
-  let currentIndex = 0;
-
-  for (let i = 0; i < html.length; i++) {
-    const char = html[i];
-
-    if (char === '<') {
-      // Check accumulated text before entering tag
-      if (!inTag && currentText) {
-        const match = currentText.match(pattern);
-        if (match && match.index !== undefined) {
-          return {
-            index: currentIndex + match.index,
-            matchedText: match[0],
-          };
-        }
-      }
-      inTag = true;
-      currentText = '';
-    } else if (char === '>') {
-      inTag = false;
-      currentText = '';
-      currentIndex = i + 1;
-    } else if (!inTag) {
-      currentText += char;
-    }
-  }
-
-  // Check remaining text
-  if (currentText) {
-    const match = currentText.match(pattern);
-    if (match && match.index !== undefined) {
-      return {
-        index: currentIndex + match.index,
-        matchedText: match[0],
-      };
-    }
-  }
-
-  return null;
-}
-
-/**
- * Escape special regex characters
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
