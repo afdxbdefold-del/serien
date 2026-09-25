@@ -10,7 +10,6 @@ import RelatedSeries from '@/components/RelatedSeries';
 import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import Breadcrumb from '@/components/Breadcrumb';
-import SeriesAuthorBox from '@/components/series/SeriesAuthorBox';
 
 interface MobileSeriesLayoutProps {
   series: any;
@@ -24,13 +23,6 @@ interface MobileSeriesLayoutProps {
   seriesQA: any[];
   slug: string;
   characters: any[];
-  topSeriesAuthor?: {
-    name: string;
-    image: string | null;
-    fullBio: string | null;
-    expertise: string[];
-    articleCount: number;
-  } | null;
 }
 
 export default function MobileSeriesLayout({
@@ -45,7 +37,6 @@ export default function MobileSeriesLayout({
   seriesQA,
   slug,
   characters,
-  topSeriesAuthor,
 }: MobileSeriesLayoutProps) {
   return (
     <section className="lg:hidden container mx-auto px-6 py-8" aria-labelledby="series-hero">
@@ -158,8 +149,8 @@ export default function MobileSeriesLayout({
                         </p>
                       )}
                       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        {article.users?.name && <span className="font-medium">{article.users.name}</span>}
-                        {article.users?.name && article.publishedAt && <span>·</span>}
+                        <span className="font-medium">serien.de</span>
+                        {article.publishedAt && <span>·</span>}
                         {article.publishedAt && (
                           <span>
                             {new Date(article.publishedAt).toLocaleDateString('de-DE', {
@@ -311,14 +302,6 @@ export default function MobileSeriesLayout({
 
       <MiniQA qa={series.discoverQA as any || []} />
 
-      {topSeriesAuthor && (
-        <div className="mt-8">
-          <SeriesAuthorBox
-            author={topSeriesAuthor}
-            seriesName={series.name || series.title}
-          />
-        </div>
-      )}
     </section>
   );
 }

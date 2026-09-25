@@ -72,7 +72,7 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
 
   // 2. Get or create series
   const series = await getOrCreateSeries(tmdbId, details);
-  console.log(`  ✅ Series ID: ${series.id}`);
+  console.log(`  ✅ Series TMDB ID: ${series.tmdbId}`);
 
   // 3. Import characters and cast
   console.log('\n👥 Importing characters and cast...');
@@ -130,7 +130,7 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
   try {
     const castResult = await linkCastInMarkdown(contentWithLinks, series.tmdbId);
     contentWithLinks = castResult.linkedMarkdown;
-    console.log(`  ✅ ${castResult.actorsLinked} cast linked`);
+    console.log(`  ✅ ${castResult.castLinked} cast linked`);
   } catch (e) {
     console.log('  ⚠️ Cast linking skipped');
   }
@@ -177,12 +177,15 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
     console.log('  ⚠️ Trailer search failed:', (e as Error).message);
   }
 
-  // 10. Select author
-  const authors = await prisma.users.findMany({
-    where: { role: { in: ['author', 'admin'] } },
-    select: { id: true }
+  // Legacy imports remain drafts and use the accountable editorial account.
+  const editorialAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID || 'redaktion';
+  const editorialAuthor = await prisma.users.findUnique({
+    where: { id: editorialAuthorId },
+    select: { id: true, role: true },
   });
-  const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
+  if (editorialAuthor?.role !== 'author') {
+    throw new Error('Editorial draft account is missing or invalid');
+  }
 
   // 11. Create article
   console.log('\n💾 Saving article...');
@@ -218,11 +221,11 @@ async function createArticleFromTMDB(tmdbId: number): Promise<void> {
       tmdbId,
       tmdbType: 'tv',
       contentType: 'GENERATED',
-      status: 'published',
-      authorId: randomAuthor?.id || 'cmm26siwx0000nv4u4zbv0iwy', // Default admin
+      status: 'draft',
+      authorId: editorialAuthor.id,
       primarySeriesId: series.tmdbId,
       metaDescription: structuredContent.metaDescription,
-      publishedAt: new Date(),
+      publishedAt: null,
       updatedAt: new Date(),
     }
   });

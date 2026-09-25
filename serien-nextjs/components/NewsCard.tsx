@@ -30,7 +30,6 @@ interface NewsCardProps {
   publishedAt: Date;
   updatedAt?: Date;
   category?: string;
-  authorName?: string;
   networks?: string[];
   isTrending?: boolean;
   isBreaking?: boolean;
@@ -49,7 +48,6 @@ export default function NewsCard({
   publishedAt,
   updatedAt,
   category,
-  authorName,
   networks = [],
   isTrending = false,
   isBreaking = false,

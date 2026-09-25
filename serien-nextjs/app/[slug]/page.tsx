@@ -14,7 +14,6 @@ import { serializeJsonLd } from '@/lib/json-ld';
 import ArticleQA from '@/components/ArticleQA';
 import { generateArticleSchema, getImageDimensions, generateBreadcrumbSchema } from '@/lib/schema-generator';
 import { seoTitle, seoDescription } from '@/lib/seo-meta';
-import { getAuthorUrl } from '@/lib/author-utils';
 import AuthorBox from '@/components/AuthorBox';
 import NewsCard from '@/components/NewsCard';
 import ContentWithAds from '@/components/ContentWithAds';
@@ -147,33 +146,6 @@ const getSeriesArticles = (articleId: string, primarySeriesId: number) => unstab
   { revalidate: 300, tags: ['series-articles'] }
 )();
 
-// E-E-A-T: Other articles by the SAME author about the SAME series.
-// Used for the "Mehr zu dieser Serie von <Autor>"-Section under the author trust box.
-const getAuthorSeriesArticles = (articleId: string, primarySeriesId: number, authorId: string) => unstable_cache(
-  async () => {
-    return prisma.articles.findMany({
-      where: {
-        OR: [
-          { status: 'published' },
-          { status: 'PUBLISHED' },
-        ],
-        id: { not: articleId },
-        primarySeriesId,
-        authorId,
-      },
-      take: 3,
-      orderBy: { publishedAt: 'desc' },
-      select: {
-        slug: true,
-        title: true,
-        publishedAt: true,
-      },
-    });
-  },
-  [`author-series-articles-${articleId}-${primarySeriesId}-${authorId}`],
-  { revalidate: 300, tags: ['author-series-articles'] }
-)();
-
 // ISR - Revalidate every 5 minutes for near-real-time data with caching
 export const revalidate = 300;
 
@@ -303,7 +275,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       locale: 'de_DE',
       publishedTime: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
       modifiedTime: article.updatedAt ? new Date(article.updatedAt).toISOString() : undefined,
-      authors: article.users?.name ? [article.users.name] : undefined,
       section: publicSection,
       images: ogImage ? [
         {
@@ -349,11 +320,6 @@ export default async function ArticlePage({ params }: PageProps) {
   // Fetch same-series articles for "Mehr zu <Serie>" card section
   const seriesArticles = article.primarySeriesId
     ? await getSeriesArticles(article.id, article.primarySeriesId)
-    : [];
-
-  // E-E-A-T: other articles by the SAME author about the SAME series
-  const authorSeriesArticles = (article.primarySeriesId && article.users?.id)
-    ? await getAuthorSeriesArticles(article.id, article.primarySeriesId, article.users.id)
     : [];
 
   // Fetch TMDB season data if missing from DB (cached 24h)
@@ -404,15 +370,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://serien.de';
   const editorialSource = getEditorialSource(article.sourceUrl);
 
-  // Generate structured data with ImageObject
-  const authorSlug = article.users?.name ? 
-    article.users.name.toLowerCase()
-      .replace(/[äöü]/g, (c: string) => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue' }[c] || c))
-      .replace(/ß/g, 'ss')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') 
-    : undefined;
-
+  // The historical account assignment does not establish authorship.
   const articleSchema = generateArticleSchema({
     title: article.title,
     description: article.metaDescription || article.excerpt || '',
@@ -421,13 +379,8 @@ export default async function ArticlePage({ params }: PageProps) {
     datePublished: toDate(article.publishedAt || article.createdAt).toISOString(),
     dateModified: toDate(article.updatedAt).toISOString(),
     slug,
-    author: article.users?.name,
-    authorSlug,
-    // E-E-A-T author signals straight from DB. Google weights these heavily
-    // for Discover: real images, real expertise tags, real bios.
-    authorImage: article.users?.image,
-    authorBio: article.users?.bio,
-    authorExpertise: article.users?.expertise,
+    author: 'serien.de',
+    authorType: 'Organization',
     category: article.category || article.contentType || 'Serien-News',
     aboutSeriesSlug: article.series?.slug,
     aboutSeriesName: article.series?.title || article.series?.name || undefined,
@@ -564,20 +517,16 @@ export default async function ArticlePage({ params }: PageProps) {
             {article.title}
           </h1>
 
-          {/* Author Meta Line (inline, left-aligned, no avatar) */}
+          {/* Publisher attribution; historical account assignments are unverified. */}
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-left">
-            {article.users && (
-              <>
-                <Link
-                  href={getAuthorUrl(article.users.name || '')}
-                  rel="author"
-                  className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
-                >
-                  {article.users.name || 'Redaktion'}
-                </Link>
-                <span className="mx-2">·</span>
-              </>
-            )}
+            <Link
+              href="/autoren"
+              rel="author"
+              className="font-semibold text-gray-900 dark:text-white hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+            >
+              serien.de
+            </Link>
+            <span className="mx-2">·</span>
             <span>
               {publishedDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })}
               {', '}
@@ -721,51 +670,7 @@ export default async function ArticlePage({ params }: PageProps) {
             <ShareButton title={article.title} />
           </div>
 
-          {/* Trust / E-E-A-T Author Box */}
-          {article.users && (
-            <div className="mt-10">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-                Artikel geschrieben von:
-              </h3>
-              <AuthorBox
-                author={{
-                  id: article.users.id,
-                  name: article.users.name,
-                  image: article.users.image,
-                  bio: (article.users as any).bio ?? null,
-                  expertise: ((article.users as any).expertise as string[]) ?? [],
-                }}
-              />
-
-              {/* Mehr zu dieser Serie vom gleichen Autor */}
-              {authorSeriesArticles.length > 0 && article.series && article.users.name && (
-                <div className="mt-4 bg-slate-50 dark:bg-gray-800/50 rounded-xl border border-slate-200 dark:border-gray-700 p-5" data-testid="author-series-articles">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                    Mehr zu {article.series.title || article.series.name} von {article.users.name.split(' ')[0]}
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                    {article.users.name.split(' ')[0]} hat {authorSeriesArticles.length === 1 ? 'einen weiteren Artikel' : `${authorSeriesArticles.length} weitere Artikel`} zur selben Serie verfasst.
-                  </p>
-                  <ul className="space-y-2">
-                    {authorSeriesArticles.map((a) => (
-                      <li key={a.slug}>
-                        <Link
-                          href={`/${a.slug}`}
-                          className="group flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
-                          data-testid={`author-series-article-${a.slug}`}
-                        >
-                          <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400 group-hover:text-cyan-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                          <span className="font-medium leading-snug">{a.title}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          <AuthorBox />
 
           {/* Ad Unit - Above Footer */}
           <ClientAdSlot position="above_footer" className="my-8" />

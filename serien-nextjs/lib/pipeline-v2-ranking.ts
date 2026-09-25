@@ -408,32 +408,14 @@ ${generatedItems.join('\n\n')}
     console.log('STEP 10: DATABASE SAVE');
     console.log('━'.repeat(70));
     
-    // Select random author from database
-    const authors = await prisma.users.findMany({
-      where: {
-        email: {
-          contains: '@serien.de',
-        },
-        NOT: {
-          OR: [
-            { email: 'redaktion@serien.de' },
-            { email: 'admin@serien.de' },
-          ],
-        },
-      },
-      select: { id: true, email: true, name: true },
+    const editorialAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID || 'redaktion';
+    const selectedAuthor = await prisma.users.findUnique({
+      where: { id: editorialAuthorId },
+      select: { id: true, role: true },
     });
-    
-    // Filter to only real authors (author_XXX IDs)
-    const realAuthors = authors.filter(a => 
-      a.id.startsWith('author_') || a.id === 'author-julia'
-    );
-    
-    const selectedAuthor = realAuthors.length > 0
-      ? realAuthors[Math.floor(Math.random() * realAuthors.length)]
-      : authors[0]; // Fallback to first author
-    
-    console.log(`✍️  Selected author: ${selectedAuthor.name || selectedAuthor.email}`);
+    if (selectedAuthor?.role !== 'author') {
+      throw new Error('Editorial draft account is missing or invalid');
+    }
     
     // ========== STEP: TRAILER DOWNLOAD ==========
     console.log('\n' + '━'.repeat(70));
@@ -542,9 +524,9 @@ ${generatedItems.join('\n\n')}
         cardImageUrl: heroImagePath ? `/img/card/article/${articleId}` : null,
         ogImageUrl: heroImagePath ? `/img/og/article/${articleId}` : null,
         trailerLocalUrl: trailerLocalPath, // Add trailer support
-        status: 'published',
+        status: 'draft',
         publishMode: wordCount >= 900 ? 'DISCOVER' : 'SEARCH_ONLY',
-        publishedAt: new Date(),
+        publishedAt: null,
         isRankingArticle: true, // Flag for ranking articles
       },
     });

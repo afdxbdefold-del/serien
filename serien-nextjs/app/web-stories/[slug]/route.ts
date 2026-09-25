@@ -37,7 +37,6 @@ export async function GET(
       status: true,
       category: true,
       series: { select: { name: true, title: true } },
-      users: { select: { name: true } },
     },
   });
 
@@ -58,7 +57,6 @@ export async function GET(
     category: article.category,
     publishedAt: article.publishedAt,
     updatedAt: article.updatedAt,
-    authorName: article.users?.name || null,
   });
 
   return new NextResponse(html, {

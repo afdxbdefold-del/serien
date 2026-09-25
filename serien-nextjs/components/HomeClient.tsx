@@ -293,7 +293,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                     publishedAt={item.publishedAt}
                     updatedAt={item.updatedAt}
                     category={item.category}
-                    authorName={item.author?.name}
                     networks={item.primarySeries?.networks || []}
                     isTrending={item.isTrending}
                     isBreaking={item.isBreaking}
@@ -328,7 +327,6 @@ export default function HomeClient({ initialNews, initialSeries, stats, isAuthen
                       publishedAt={item.publishedAt}
                       updatedAt={item.updatedAt}
                       category={item.category}
-                      authorName={item.author?.name}
                       networks={item.primarySeries?.networks || []}
                       isTrending={item.isTrending}
                       isBreaking={item.isBreaking}

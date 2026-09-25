@@ -33,7 +33,6 @@ export interface WebStoryInput {
   category?: string | null;
   publishedAt?: Date | null;
   updatedAt?: Date | null;
-  authorName?: string | null;
 }
 
 const PUBLISHER = 'serien.de';
@@ -209,7 +208,7 @@ export function renderWebStory(input: WebStoryInput): string {
     image: [poster],
     datePublished: publishedIso,
     dateModified: updatedIso,
-    author: input.authorName ? { '@type': 'Person', name: input.authorName } : undefined,
+    author: { '@type': 'Organization', '@id': 'https://serien.de#organization', name: PUBLISHER },
     publisher: {
       '@type': 'NewsMediaOrganization',
       '@id': 'https://serien.de#organization',

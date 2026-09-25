@@ -86,6 +86,7 @@ export function generateArticleSchema(data: {
   dateModified: string;
   slug: string;
   author?: string;
+  authorType?: 'Person' | 'Organization';
   authorSlug?: string;
   /** Optional: author avatar URL (relative or absolute), surfaced as Person.image. */
   authorImage?: string | null;
@@ -162,6 +163,9 @@ export function generateArticleSchema(data: {
     // selbst wenn der Wert `true` ist. Für freie News ist Schema-Default
     // ohnehin „frei zugänglich" → kein SEO-Nachteil, sauberere Kategorisierung.
     author: (() => {
+      if (data.authorType === 'Organization') {
+        return { '@id': ORG_ID };
+      }
       const authorName = data.author || 'serien.de Redaktion';
       const authorUrl = data.authorSlug ? `${baseUrl}/autor/${data.authorSlug}` : undefined;
       const person: Record<string, any> = {

@@ -11,7 +11,6 @@ import SeriesQA from '@/components/SeriesQA';
 import RatingWithContext from '@/components/RatingWithContext';
 import R2VideoPlayer from '@/components/R2VideoPlayer';
 import Breadcrumb from '@/components/Breadcrumb';
-import SeriesAuthorBox from '@/components/series/SeriesAuthorBox';
 
 interface DesktopSeriesLayoutProps {
   series: any;
@@ -25,13 +24,6 @@ interface DesktopSeriesLayoutProps {
   seriesQA: any[];
   slug: string;
   characters: any[];
-  topSeriesAuthor?: {
-    name: string;
-    image: string | null;
-    fullBio: string | null;
-    expertise: string[];
-    articleCount: number;
-  } | null;
 }
 
 export default function DesktopSeriesLayout({
@@ -46,7 +38,6 @@ export default function DesktopSeriesLayout({
   seriesQA,
   slug,
   characters,
-  topSeriesAuthor,
 }: DesktopSeriesLayoutProps) {
   // Prioritize R2 local trailer, fallback to YouTube embed
   const trailerKey = trailers.length > 0 && trailers[0]?.key ? trailers[0].key : null;
@@ -298,10 +289,8 @@ export default function DesktopSeriesLayout({
                           </p>
                         )}
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                          {article.users?.name && (
-                            <span className="font-medium">{article.users.name}</span>
-                          )}
-                          {article.users?.name && article.publishedAt && <span>·</span>}
+                          <span className="font-medium">serien.de</span>
+                          {article.publishedAt && <span>·</span>}
                           {article.publishedAt && (
                             <span>
                               {new Date(article.publishedAt).toLocaleDateString('de-DE', {
@@ -346,14 +335,6 @@ export default function DesktopSeriesLayout({
 
           <MiniQA qa={series.discoverQA as any || []} />
 
-          {topSeriesAuthor && (
-            <div className="mt-8">
-              <SeriesAuthorBox
-                author={topSeriesAuthor}
-                seriesName={series.name || series.title}
-              />
-            </div>
-          )}
         </div>
 
         {/* Rechte Sidebar */}

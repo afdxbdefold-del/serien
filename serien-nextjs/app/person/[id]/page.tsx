@@ -1,8 +1,8 @@
 /**
  * Person/Actor Page - V2
  * Route: /person/[id] where id = {tmdb_id}-{slug}
- * Uses enriched DB data (AI bios, cached TV credits, social links)
- * Tiered indexing: only index persons with sufficient content
+ * Uses sourced TMDB biographies, cached TV credits, and social links.
+ * Person pages remain noindex until their content is editorially verified.
  */
 
 import { Metadata } from 'next';
@@ -47,7 +47,7 @@ const getPersonFromDB = (tmdbId: number) => unstable_cache(
   async () => prisma.persons.findUnique({
     where: { tmdbId },
     select: {
-      tmdbId: true, name: true, slug: true, biography: true, biographyEn: true,
+      tmdbId: true, name: true, slug: true,
       birthDate: true, deathDate: true, birthPlace: true, knownFor: true,
       popularity: true, socialLinks: true, tvCreditsJson: true,
       profilePath: false, localProfilePath: false, enrichedAt: true,
@@ -66,11 +66,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!dbPerson) return { title: 'Person nicht gefunden | serien.de', robots: { index: false, follow: true } };
 
-  const hasContent = dbPerson.biography && dbPerson.biography.length > 100;
   const title = `${dbPerson.name} – Serien, Filme & News | serien.de`;
-  const description = dbPerson.biography
-    ? `${dbPerson.biography.slice(0, 150)}...`
-    : `Alle Serien und Filme mit ${dbPerson.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
+  const description = `Alle Serien und Filme mit ${dbPerson.name}. Entdecke die Karriere, News und mehr bei serien.de.`;
   const baseUrl = 'https://serien.de';
 
   // OG-/Twitter-Bilder sind aus Bildrechts-Gründen deaktiviert (Ticket
@@ -118,10 +115,11 @@ export default async function PersonPage({ params }: PageProps) {
   // entfernt — siehe Ticket „Bereinigung der Personen- und Schauspielerseiten".
   // Die Hub-Seite bleibt als reiner Text-Hub bestehen, alle internen Links sind aktiv.
 
-  // Bio paragraphs from DB (AI-generated)
-  const bioParagraphs = dbPerson.biography
-    ? dbPerson.biography.split('\n\n').filter((p: string) => p.trim().length > 0).slice(0, 4)
-    : (tmdbPerson?.biography ? tmdbPerson.biography.split('\n\n').filter((p: string) => p.trim().length > 0).slice(0, 4) : []);
+  // Historical DB biographies may be AI-generated and unverified. Show only
+  // the currently sourced TMDB text, or omit the section if unavailable.
+  const bioParagraphs = tmdbPerson?.biography
+    ? tmdbPerson.biography.split('\n\n').filter((p: string) => p.trim().length > 0).slice(0, 4)
+    : [];
 
   // TV Credits: use DB cache + TMDB poster images
   const tmdbCreditsMap = new Map<number, string>();
@@ -236,7 +234,7 @@ export default async function PersonPage({ params }: PageProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Main Content Column */}
           <div className="md:col-span-2 space-y-10 md:space-y-12">
-            {/* BIOGRAPHY (AI-generated) */}
+            {/* Sourced biography; historical generated DB copy is suppressed. */}
             {bioParagraphs.length > 0 && (
               <section data-testid="person-biography">
                 <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 dark:text-white">
@@ -247,6 +245,9 @@ export default async function PersonPage({ params }: PageProps) {
                     <p key={idx} className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base">{para}</p>
                   ))}
                 </div>
+                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  Quelle: <a href={`https://www.themoviedb.org/person/${tmdbId}`} rel="noopener noreferrer" className="underline">The Movie Database (TMDB)</a>
+                </p>
               </section>
             )}
 
@@ -448,7 +449,7 @@ export default async function PersonPage({ params }: PageProps) {
           ...(deathday ? { deathDate: deathday } : {}),
           birthPlace: birthPlace ? { '@type': 'Place', name: birthPlace } : undefined,
           jobTitle: dbPerson.knownFor || 'Schauspieler/in',
-          description: dbPerson.biography ? dbPerson.biography.substring(0, 200) + '...' : undefined,
+          description: tmdbPerson?.biography ? tmdbPerson.biography.substring(0, 200) + '...' : undefined,
           sameAs: [
             `https://www.themoviedb.org/person/${tmdbId}`,
             social.imdb ? `https://www.imdb.com/name/${social.imdb}` : null,

@@ -226,7 +226,7 @@ Jetzt JSON generieren.`
   console.log(`📺 DB-Match: ${dbSeries ? `${dbSeries.title} (tmdbId=${dbSeries.tmdbId})` : 'nicht gefunden — Draft ohne Serie'}\n`);
 
   // Build final article with attribution footer
-  const attribution = `<hr/><p><em>Hinweis: Dieser Artikel basiert auf Informationen von <a href="${url}" rel="nofollow noopener" target="_blank">The Cinemaholic</a>. Die Textfassung ist eine eigenständige deutsche Redaktionsleistung von serien.de.</em></p>`;
+  const attribution = `<hr/><p><em>Hinweis: Dieser Entwurf wurde mit KI-Unterstützung aus Informationen von <a href="${url}" rel="nofollow noopener" target="_blank">The Cinemaholic</a> erstellt. Die Aussagen müssen vor einer Veröffentlichung geprüft werden.</em></p>`;
   const faqHtml = `<h2>Häufige Fragen</h2>` + result.faq.map(f => `<h3>${f.q}</h3><p>${f.a}</p>`).join('');
   const keyFactsHtml = `<h2>Das Wichtigste auf einen Blick</h2><ul>` + result.key_facts.map(k => `<li>${k}</li>`).join('') + `</ul>`;
   const fullHtml = keyFactsHtml + result.body_html + faqHtml + attribution;
@@ -243,7 +243,7 @@ Jetzt JSON generieren.`
       contentType: 'SINGLE_SERIES_NEWS',
       status: 'draft',              // <-- not published, just preview
       primarySeriesId: dbSeries?.tmdbId ?? null,
-      authorId: 'author-julia',
+      authorId: process.env.AUTOMATED_EDITORIAL_AUTHOR_ID || 'redaktion',
       updatedAt: new Date(),
       sourceUrl: url,
     },

@@ -76,13 +76,13 @@ Diese Aufrufer verwenden zwar den Kernwriter mit seinen Qualitäts-/Release-Rege
 | `scripts/crawler.ts:116` | **Dormanter direkter Publisher.** Hardcodierte Beispielmeldung; setzt `published` und startet beim Skriptaufruf automatisch. |
 | `scripts/crawler-tmdb-auto.ts:124` | **Dormanter direkter Publisher.** Hardcodierter Beispieltext; setzt `published`, kein aktueller News-/Quellennachweis. |
 | `scripts/crawler-real.ts:140` | **Dormanter direkter Publisher.** Verarbeitet hinterlegte Beispieldaten, setzt `published`. |
-| `scripts/create-from-tmdb.ts:204` | **Dormanter direkter Publisher.** Baut Artikel aus TMDB-Daten statt belastbarer aktueller Nachricht und setzt `published`. |
+| `scripts/create-from-tmdb.ts:204` | **Dormanter Legacy-Entwurfsweg.** Baut Artikel aus TMDB-Daten statt belastbarer aktueller Nachricht; seit der Autorenschaftssanierung nur noch Entwurf unter dem Redaktionskonto. Nicht automatisch aktivieren. |
 | `scripts/import-cinemaholic-news.ts:20` | **Dormanter direkter Publisher.** Hardcodierter historischer Einmalimport, `published`. |
 | `scripts/import-from-serien-de.ts:554` | Historischer Website-/Archivimport; übernimmt veröffentlichte Artikel direkt. Kein normaler News-Worker, nur nach gesonderter Importprüfung verwenden. |
-| `lib/pipeline-v2-ranking.ts:525` | Alter Rankingwriter, setzt `published`; keine Aufrufer gefunden. Veraltete Prisma-Feldnamen machen eine Wiederinbetriebnahme zusätzlich unsicher. |
-| `lib/pipeline/article-creator.ts:114` | Alter Export/Barrel-Pfad, direkte Veröffentlichung; kein aktueller Anwendungscaller gefunden. Umgeht den heutigen Vollquellen-/Bild-/Sichtbarkeitsnachweis. |
+| `lib/pipeline-v2-ranking.ts:525` | Alter Rankingwriter, seit der Autorenschaftssanierung nur noch Entwurf unter dem Redaktionskonto; keine Aufrufer gefunden. Veraltete Prisma-Feldnamen machen eine Wiederinbetriebnahme zusätzlich unsicher. |
+| `lib/pipeline/article-creator.ts:114` | Alter Export/Barrel-Pfad, seit der Autorenschaftssanierung nur noch Entwurf unter dem Redaktionskonto; kein aktueller Anwendungscaller gefunden. Umgeht weiter den heutigen Vollquellen-/Bildnachweis und darf nicht automatisch aktiviert werden. |
 
-Die acht Legacy-Direktpublisher (sechs Skripte und zwei Bibliothekspfade) wurden in dieser Runde nicht pauschal verändert oder ausgeführt. Vor einer späteren Reaktivierung müssen sie ausdrücklich stillgelegt oder auf denselben abgesicherten Importpfad umgestellt werden. Bestehende Reparatur-/Migrationsskripte, die Artikel nur ändern, sind ebenfalls **keine** autorisierten automatischen Scheduler.
+Fünf weitere Legacy-Skripte können weiterhin direkt `published` setzen; sie sind nicht als Scheduler nachgewiesen und dürfen nicht automatisch aktiviert werden. Die drei oben genannten Wege wurden auf Entwürfe umgestellt, ohne ihre sonstigen Qualitätsschwächen zu beheben. Bestehende Reparatur-/Migrationsskripte, die Artikel nur ändern, sind ebenfalls **keine** autorisierten automatischen Scheduler.
 
 ## Lokal behobene P3-/P4-Fehler
 
@@ -102,7 +102,7 @@ Die acht Legacy-Direktpublisher (sechs Skripte und zwei Bibliothekspfade) wurden
 - **Priorität 2 – Video-Downloadqueue:** Am Prüfstand verwendete `cron/videos` ein nichtatomisches Find→Update-Claim und keine Wiederaufnahme alter `downloading`-Jobs. Der Downloader kann länger als die alte 60-Sekunden-Laufzeit arbeiten. Ergebniszählung war unabhängig von tatsächlichen Fehlern grün. Die parallele redaktionelle Trailerkorrektur ersetzt diese Queue-Abnahme nicht.
 - **Priorität 2 – Ranglisten falsch grün:** `lib/tmdb-top10-ingest.ts:200` und `lib/flixpatrol-ingest.ts:274` fangen Plattformfehler ab und liefern Nullergebnisse; ihre Cronrouten geben `ok:true` zurück. Fehlerzustand getrennt von legitim leerer Rangliste modellieren.
 - **Priorität 2 – Releasekalender:** In `cron/releases` sind ein deutscher Anbieter und globale TMDB-Ausstrahlungsdaten noch kein belastbarer lokaler Starttermin. Außerdem brauchen die sequenziellen externen Anfragen eine vollständige Timeout-/Teilversagensstrategie.
-- **Priorität 2 – alter Emergent-Nebenworker:** `scripts/poll-claude-and-regen-bios.sh:16` enthält einen 10-Minuten-Dauerlauf, der den alten Provider prüft und bei Erfolg Autorenbios mit `--apply` regeneriert (Zeile 32). Kein News-Publisher, aber ein möglicher externer Kosten-/Mutationspfad. Kein Startnachweis im Repository; nicht ohne gesonderte Prüfung betreiben.
+- **Autorenbios:** Der alte Emergent-Polling-Worker und beide Generatoren für Autorenlebensläufe wurden am 25. September auf `codex/takeover` entfernt. Der frühere Kosten- und Mutationspfad ist damit aus dem Repository verschwunden; ein eventuell außerhalb des Repositorys gestarteter Prozess muss separat geprüft werden. Siehe `AUTHORSHIP_REMEDIATION_2026-09-25.md`.
 - **Priorität 3 – SEO-Teilstatus:** Ausgefallenes HTTP-Audit oder KI-Zusammenfassung in `cron/seo` sollte einen Teilstatus ergeben, nicht uneingeschränkten Gesamterfolg.
 
 ## Abnahme und sichere Reihenfolge

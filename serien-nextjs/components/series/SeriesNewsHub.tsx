@@ -184,8 +184,8 @@ export default function SeriesNewsHub({
                         </p>
                       )}
                       <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-                        {a.users?.name && <span>{a.users.name}</span>}
-                        {a.users?.name && a.publishedAt && <span>·</span>}
+                        <span>serien.de</span>
+                        {a.publishedAt && <span>·</span>}
                         {a.publishedAt && <time dateTime={a.publishedAt}>{formatDate(a.publishedAt)}</time>}
                       </div>
                     </div>

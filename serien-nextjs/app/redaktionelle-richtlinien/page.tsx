@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Redaktionelle Richtlinien | serien.de',
-  description: 'Unsere redaktionellen Grundsätze: Wie serien.de Inhalte erstellt, Fakten prüft und Qualität sicherstellt.',
+  description: 'Wie serien.de Inhalte erstellt, Quellen prüft, historische Artikel berichtigt und die Verantwortung offenlegt.',
   alternates: {
     canonical: 'https://serien.de/redaktionelle-richtlinien',
   },
@@ -26,21 +26,21 @@ export default function RedaktionelleRichtlinienPage() {
             </h1>
             <div className="h-1 w-20 bg-cyan-500 mb-4"></div>
             <p className="text-lg text-gray-600 dark:text-gray-400">
-              So stellen wir die Qualität unserer Inhalte sicher
+              Wie Inhalte entstehen und wie wir Fehler korrigieren
             </p>
           </div>
 
           <div className="prose prose-lg max-w-none dark:prose-invert">
             <h2>Unser Anspruch</h2>
             <p>
-              serien.de ist ein unabhängiges deutschsprachiges Online-Magazin für Serien-News,
-              Reviews und Streaming-Analysen. Wir informieren unsere Leser zeitnah, korrekt und
-              verständlich über Neuigkeiten aus der Welt der Serien und Streaming-Plattformen.
+              serien.de veröffentlicht deutschsprachige Nachrichten und Informationen zu Serien.
+              Für die Veröffentlichung ist der Betreiber verantwortlich, der im
+              <Link href="/impressum"> Impressum</Link> genannt wird.
             </p>
 
             <h2>Quellenarbeit und Faktenprüfung</h2>
             <p>
-              Unsere Artikel basieren auf verifizierten Quellen. Dazu gehören:
+              Als Quellen kommen unter anderem infrage:
             </p>
             <ul>
               <li>Offizielle Pressemitteilungen von Streaming-Diensten und Produktionsstudios</li>
@@ -50,56 +50,59 @@ export default function RedaktionelleRichtlinienPage() {
               <li>TMDB (The Movie Database) für Episoden- und Besetzungsdaten</li>
             </ul>
             <p>
-              Jede Nachricht wird auf Plausibilität geprüft, bevor sie veröffentlicht wird.
-              Unbelegte Gerüchte werden als solche gekennzeichnet.
+              Die Nennung einer Quelle allein belegt die Aussage eines Artikels nicht.
+              Besonders ältere Beiträge können sachliche Fehler, veraltete Angaben oder
+              unpassende Serienzuordnungen enthalten. Wir prüfen diese Fälle einzeln.
             </p>
 
             <h2>Redaktioneller Prozess</h2>
             <p>
-              Unsere Inhalte durchlaufen einen mehrstufigen Qualitätsprozess:
+              Für neue Beiträge kann Software Quellen sammeln, Entwürfe schreiben und
+              automatische Prüfungen ausführen. Diese Schritte ersetzen keine
+              menschliche Faktenprüfung. Für ältere Beiträge lässt sich eine solche
+              Prüfung nicht durchgehend nachweisen. Wir beschreiben deshalb keine
+              pauschale persönliche Freigabe aller veröffentlichten Artikel.
             </p>
             <ol>
               <li>
-                <strong>Recherche:</strong> Identifikation relevanter Nachrichtenquellen und
-                Verifizierung der Fakten.
+                <strong>Quelle:</strong> Zentrale Aussagen mit erreichbaren Belegen abgleichen.
               </li>
               <li>
-                <strong>Erstellung:</strong> Unsere Redaktion verfasst Artikel mit Fokus auf
-                Relevanz, Aktualität und Mehrwert für den Leser.
+                <strong>Deutschlandbezug:</strong> Verfügbarkeit und Termine für Leser in
+                Deutschland gesondert prüfen.
               </li>
               <li>
-                <strong>Qualitätssicherung:</strong> Jeder Artikel wird auf inhaltliche
-                Korrektheit, Vollständigkeit und sprachliche Qualität geprüft.
+                <strong>Zuordnung:</strong> Personen, Produktionen, Bilder und ähnliche
+                Meldungen auf Verwechslungen prüfen.
               </li>
               <li>
-                <strong>Veröffentlichung:</strong> Nach Freigabe wird der Artikel veröffentlicht
-                und bei Bedarf mit offiziellen Trailern und Bildmaterial ergänzt.
-              </li>
-              <li>
-                <strong>Aktualisierung:</strong> Bei neuen Entwicklungen werden bestehende
-                Artikel aktualisiert und mit einem Aktualisierungsdatum versehen.
+                <strong>Korrektur:</strong> Belegte Fehler im bestehenden Artikel berichtigen
+                und wesentliche Änderungen kenntlich machen.
               </li>
             </ol>
 
             <h2>Unabhängigkeit</h2>
             <p>
-              serien.de ist redaktionell unabhängig. Unsere Berichterstattung wird nicht von
-              Streaming-Diensten, Studios oder Werbekunden beeinflusst. Werbliche Inhalte werden
-              als solche gekennzeichnet und klar vom redaktionellen Inhalt getrennt.
+              Werbung und redaktionelle Inhalte sind getrennt. Werbliche Inhalte sollen
+              als solche erkennbar sein.
             </p>
 
             <h2>Korrekturen und Transparenz</h2>
             <p>
-              Sollte sich eine Information als fehlerhaft herausstellen, korrigieren wir den
-              betreffenden Artikel umgehend und kennzeichnen die Korrektur transparent. Leser
-              können uns jederzeit auf Fehler hinweisen.
+              Hinweise auf Fehler prüfen wir anhand der verfügbaren Quellen. Bestätigte
+              sachliche Korrekturen werden am bestehenden Artikel vorgenommen, ohne das
+              ursprüngliche Veröffentlichungsdatum künstlich zu erneuern. Hinweise sind
+              über die unten genannte Kontaktadresse möglich.
             </p>
 
             <h2>Autorenschaft</h2>
             <p>
-              Alle Artikel auf serien.de sind mit dem Namen des Autors oder der Autorin versehen.
-              Auf der jeweiligen Autorenseite finden Leser weitere Informationen zur
-              Expertise und zum Schwerpunkt des Verfassers.
+              Das frühere Publikationssystem hat Artikeln Personennamen zugewiesen.
+              Die tatsächliche Mitwirkung und die früher veröffentlichten Lebensläufe
+              sind nicht ausreichend belegt. Deshalb erscheinen diese Angaben nicht
+              mehr als verifizierte Autorenprofile. Die historischen Zuordnungen
+              bleiben intern für die Nachvollziehbarkeit erhalten. Mehr dazu steht
+              unter <Link href="/autoren">Verantwortung und Autorenschaft</Link>.
             </p>
 
             <h2>Kontakt</h2>
@@ -114,7 +117,7 @@ export default function RedaktionelleRichtlinienPage() {
 
           <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              Zuletzt aktualisiert: April 2026
+              Zuletzt aktualisiert: September 2026
             </p>
           </div>
         </div>

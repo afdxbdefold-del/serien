@@ -69,18 +69,14 @@ export async function createArticle(
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // Get random author
-    const authors = await tx.users.findMany({
-      where: { role: 'author' },
-      select: { id: true, name: true }
+    const editorialAuthorId = process.env.AUTOMATED_EDITORIAL_AUTHOR_ID || 'redaktion';
+    const editorialAuthor = await tx.users.findUnique({
+      where: { id: editorialAuthorId },
+      select: { id: true, role: true },
     });
-
-    if (authors.length === 0) {
-      throw new Error('No authors found in database');
+    if (editorialAuthor?.role !== 'author') {
+      throw new Error('Editorial draft account is missing or invalid');
     }
-
-    const randomAuthor = authors[Math.floor(Math.random() * authors.length)];
-    console.log(`✍️  Selected random author: ${randomAuthor.name}`);
     console.log(`🔑 Generated slug: ${data.slug}`);
 
     // Validate slug
@@ -119,9 +115,9 @@ export async function createArticle(
         excerpt: data.excerpt, // Use provided distinct lead
         contentHtml: data.content,
         contentType: data.contentType,
-        authorId: randomAuthor.id,
-        status: 'published',
-        publishedAt: data.now,
+        authorId: editorialAuthor.id,
+        status: 'draft',
+        publishedAt: null,
         sourcePublishedAt: data.sourceDate,
         sourceUrl: data.sourceUrl,
         readingTime: Math.ceil(data.content.split(' ').length / 200),
@@ -226,7 +222,7 @@ export async function createArticle(
     return article;
   });
 
-  console.log('\n✅ Article published successfully!');
+  console.log('\n✅ Article saved as draft for editorial review!');
   console.log(`   ID: ${result.id}`);
   console.log(`   Slug: ${result.slug}`);
   console.log(`   Title: ${result.title}`);
