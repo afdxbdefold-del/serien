@@ -11,8 +11,8 @@
  *   • Format 38 — Corner Video           (fixed bottom-right, via CornerVideoTMN)
  *   • Format 6  — Footer Slide-in         (fixed bottom, zentriert)
  *
- * Alle nur Desktop (≥ lg = 1024 px), Mobile-Sperre zusätzlich per matchMedia
- * innerhalb der Widget-Komponenten.
+ * Alle nur auf bestätigten Desktop-Geräten ab 1024 px. Die gemeinsame
+ * Geräteprüfung verhindert bereits das Mounten der Ladeeffekte.
  *
  * KEIN DB-Fetch mehr — alle Slots hardgecodet, damit sie nicht aus Versehen
  * im Admin deaktiviert werden können.
@@ -21,10 +21,11 @@ import CornerVideoTMN from './CornerVideoTMN';
 import TMNBillboard from './TMNBillboard';
 import TMNSlideInFooter from './TMNSlideInFooter';
 import TMNDoubleMegasky from './TMNDoubleMegasky';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 export default function GlobalDesktopAds() {
   return (
-    <>
+    <DesktopOnlyAds>
       {/* 1. Billboard (Format 31) — direkt unter dem Header, volle Breite,
           zentriert. Erster Ad-Kontakt beim Pageload. */}
       <TMNBillboard />
@@ -47,6 +48,6 @@ export default function GlobalDesktopAds() {
       {/* 4. Footer Slide-in (Format 6) — fixed am unteren Bildschirmrand,
           zentriert, ganze Breite. */}
       <TMNSlideInFooter />
-    </>
+    </DesktopOnlyAds>
   );
 }

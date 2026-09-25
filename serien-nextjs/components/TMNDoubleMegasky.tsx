@@ -6,7 +6,7 @@
  * (sas_26706 → position:fixed; right:0; top:90px).
  *
  * Nur ab Desktop (≥ lg = 1024 px) sinnvoll, weil bei kleineren Viewports
- * mit Content-Overlap. Zusätzlich matchMedia-Check im Widget.
+ * mit Content-Overlap. Zusätzlich gilt die gemeinsame Desktop-Geräteprüfung.
  *
  * Hardcoded snippet:
  *   <style>@media (min-width: 1024px) { #sas_26706 { position: fixed; right: 0px; top: 90px; z-index: 99999999;}}</style>
@@ -17,18 +17,24 @@
  */
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 const HTML = `<style>@media (min-width: 1024px) { #sas_26706 { position: fixed; right: 0px; top: 90px; z-index: 99999999;}}</style><div id="141665-20"><script src="//ads.themoneytizer.com/s/gen.js?type=20"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=20"></script></div>`;
 
-export default function TMNDoubleMegasky() {
+function TMNDoubleMegaskyInner() {
   const ref = useRef<HTMLDivElement>(null);
   const injected = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
-    if (!ref.current || injected.current) return;
-    injectHtmlWithScripts(ref.current, HTML);
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
+    injectHtmlWithScripts(container, HTML);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, []);
 
   return (
@@ -40,4 +46,8 @@ export default function TMNDoubleMegasky() {
       <div ref={ref} />
     </div>
   );
+}
+
+export default function TMNDoubleMegasky() {
+  return <DesktopOnlyAds><TMNDoubleMegaskyInner /></DesktopOnlyAds>;
 }

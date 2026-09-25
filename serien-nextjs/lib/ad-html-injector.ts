@@ -1,3 +1,5 @@
+import { canLoadDesktopAds } from './desktop-ads';
+
 /**
  * Helper to inject arbitrary HTML (potentially containing <script> tags)
  * into a container element while ensuring scripts actually execute.
@@ -12,6 +14,8 @@
  * content.
  */
 export function injectHtmlWithScripts(container: HTMLElement, html: string): void {
+  // Guard before parsing: images/iframes and scripts must all stay inert.
+  if (!canLoadDesktopAds()) return;
   // Wipe previous content
   container.innerHTML = '';
 
@@ -31,6 +35,10 @@ export function injectHtmlWithScripts(container: HTMLElement, html: string): voi
   // Re-create each script. Setting src triggers an async fetch; inline
   // scripts execute synchronously when appended.
   for (const oldScript of scripts) {
+    if (!canLoadDesktopAds()) {
+      container.innerHTML = '';
+      return;
+    }
     const newScript = document.createElement('script');
     for (const attr of Array.from(oldScript.attributes)) {
       newScript.setAttribute(attr.name, attr.value);

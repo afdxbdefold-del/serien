@@ -1,17 +1,16 @@
 /**
  * Shared client-side helper to fetch ad slot configurations once per page
- * load and pick the correct slot based on viewport (mobile <768px vs.
- * desktop ≥768px).
+ * load. Only eligible desktop devices may request or use ad configurations.
  *
  * Backend returns `/api/ads/slots` in shape:
  *   { mobile: { [position]: AdConfig }, desktop: { [position]: AdConfig } }
  *
- * Two breakpoints exist in code (LayoutWrapper uses md:hidden = 768px,
- * ClientAdSlot historically used 1024px). We standardise on Tailwind's
- * `md` breakpoint = 768px so the served slot matches what `md:hidden`
- * containers actually show. Anything below 768px = mobile.
+ * The shared desktop policy includes the 1024px breakpoint, input capability
+ * and mobile/tablet exclusion. Legacy mobile configurations are kept in the DB
+ * but are never selected.
  */
 import type { AdVariant } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from './desktop-ads';
 
 export interface AdConfig {
   provider: 'custom';
@@ -35,12 +34,17 @@ let adSlotsFetchPromise: Promise<SlotsResponse> | null = null;
 const EMPTY_RESPONSE: SlotsResponse = { mobile: {}, desktop: {} };
 
 export function fetchAdSlots(): Promise<SlotsResponse> {
+  if (!canLoadDesktopAds()) return Promise.resolve(EMPTY_RESPONSE);
   if (adSlotsCache) return Promise.resolve(adSlotsCache);
   if (adSlotsFetchPromise) return adSlotsFetchPromise;
 
   adSlotsFetchPromise = fetch('/api/ads/slots')
     .then((res) => (res.ok ? res.json() : EMPTY_RESPONSE))
     .then((data: SlotsResponse) => {
+      if (!canLoadDesktopAds()) {
+        adSlotsFetchPromise = null;
+        return EMPTY_RESPONSE;
+      }
       // Defensive: tolerate legacy flat response if Vercel-Cache spits
       // out an outdated copy briefly after deploy.
       const normalised: SlotsResponse =
@@ -59,10 +63,9 @@ export function fetchAdSlots(): Promise<SlotsResponse> {
   return adSlotsFetchPromise;
 }
 
-/** True when viewport is < 768px (Tailwind `md` breakpoint). */
+/** Legacy name: all non-desktop devices are excluded, including tablets. */
 export function isMobileViewport(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(max-width: 767px)').matches;
+  return !canLoadDesktopAds();
 }
 
 /**
@@ -75,6 +78,7 @@ export function pickSlotForViewport(
   position: string,
   mobile: boolean,
 ): AdConfig | null {
-  const bucket = mobile ? slots.mobile : slots.desktop;
-  return bucket[position] || null;
+  if (mobile || !canLoadDesktopAds()) return null;
+  const slot = slots.desktop[position];
+  return slot && slot.device === 'desktop' && !slot.mobileOnly ? slot : null;
 }

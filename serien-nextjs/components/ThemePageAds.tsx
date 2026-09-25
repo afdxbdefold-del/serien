@@ -11,6 +11,8 @@
  */
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 const TOP_HTML = `<div id="141665-1"><script src="//ads.themoneytizer.com/s/gen.js?type=1"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=1"></script></div>`;
 const BOTTOM_HTML = `<div id="141665-28"><script src="//ads.themoneytizer.com/s/gen.js?type=28"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=28"></script></div>`;
@@ -20,10 +22,14 @@ function TMNMegabanner({ html, label, formatId, containerCls }: { html: string; 
   const injected = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
-    if (!ref.current || injected.current) return;
-    injectHtmlWithScripts(ref.current, html);
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
+    injectHtmlWithScripts(container, html);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, [html]);
 
   return (
@@ -39,22 +45,26 @@ function TMNMegabanner({ html, label, formatId, containerCls }: { html: string; 
 
 export function ThemePageAdTop() {
   return (
-    <TMNMegabanner
-      html={TOP_HTML}
-      label="Werbung Megabanner Top"
-      formatId={1}
-      containerCls="hidden lg:flex w-full max-w-[1000px] mx-auto justify-center pt-4 pb-2 px-4"
-    />
+    <DesktopOnlyAds>
+      <TMNMegabanner
+        html={TOP_HTML}
+        label="Werbung Megabanner Top"
+        formatId={1}
+        containerCls="hidden lg:flex w-full max-w-[1000px] mx-auto justify-center pt-4 pb-2 px-4"
+      />
+    </DesktopOnlyAds>
   );
 }
 
 export function ThemePageAdBottom() {
   return (
-    <TMNMegabanner
-      html={BOTTOM_HTML}
-      label="Werbung Megabanner Bottom"
-      formatId={28}
-      containerCls="hidden lg:flex w-full justify-center pt-6 pb-4 px-4"
-    />
+    <DesktopOnlyAds>
+      <TMNMegabanner
+        html={BOTTOM_HTML}
+        label="Werbung Megabanner Bottom"
+        formatId={28}
+        containerCls="hidden lg:flex w-full justify-center pt-6 pb-4 px-4"
+      />
+    </DesktopOnlyAds>
   );
 }

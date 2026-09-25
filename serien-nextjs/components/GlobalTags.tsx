@@ -8,14 +8,14 @@
  *   <GlobalTags placement="body-start" />  ← oben in <body>
  *   <GlobalTags placement="body-end" />    ← unten in <body>
  *
- * Die Tags werden als RAW-HTML emittiert (`dangerouslySetInnerHTML`),
- * damit `<script>`-Tags vom Browser nativ geparst werden — `Next/Script`-
- * Wrapping würde Lifecycle-Konflikte mit externen Ad-Loadern erzeugen.
+ * Tags werden erst nach der Desktop-Prüfung aktiviert. Server-HTML darf
+ * keine vorzeitig ladenden Scripts, Bilder oder iframes aus diesen Tags enthalten.
  *
  * Bot-Filter (`isBotUserAgent`) wird in `getGlobalTagsFor` angewendet.
  */
 import { headers } from 'next/headers';
 import { getGlobalTagsFor, type Placement } from '@/lib/global-tags';
+import DesktopGlobalTags from './DesktopGlobalTags';
 
 export default async function GlobalTags({ placement }: { placement: Placement }) {
   const h = await headers();
@@ -24,16 +24,5 @@ export default async function GlobalTags({ placement }: { placement: Placement }
 
   if (tags.length === 0) return null;
 
-  return (
-    <>
-      {tags.map((t) => (
-        <div
-          key={t.id}
-          data-global-tag={t.name}
-          data-placement={placement}
-          dangerouslySetInnerHTML={{ __html: t.html }}
-        />
-      ))}
-    </>
-  );
+  return <DesktopGlobalTags tags={tags} placement={placement} />;
 }

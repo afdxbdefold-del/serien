@@ -5,6 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Serien.de – Yieldlab Ad Test</title>
+  <script src="/desktop-ads-policy.js"></script>
+  <script>
+    // Fail closed: test pages must obey the same desktop-only rule as production.
+    function updateDesktopAdTestPolicy() {
+      var allowed = typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed();
+      document.documentElement.dataset.desktopAds = allowed ? 'allowed' : 'blocked';
+      if (!allowed) {
+        var slots = document.querySelector('main.grid');
+        if (slots) slots.replaceChildren();
+      }
+    }
+    updateDesktopAdTestPolicy();
+    window.addEventListener('resize', updateDesktopAdTestPolicy);
+    if (typeof window.matchMedia === 'function') {
+      var pointerPolicy = window.matchMedia('(pointer: fine) and (hover: hover)');
+      if (pointerPolicy.addEventListener) pointerPolicy.addEventListener('change', updateDesktopAdTestPolicy);
+      else if (pointerPolicy.addListener) pointerPolicy.addListener(updateDesktopAdTestPolicy);
+    }
+  </script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -26,10 +45,11 @@
     .grid {
       max-width: 1100px;
       margin: 0 auto;
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: 32px;
     }
+    html[data-desktop-ads="allowed"] .grid { display: flex; }
     .slot {
       background: #14141b;
       border: 1px solid #26262e;
@@ -75,7 +95,7 @@
 <body>
   <header>
     <h1>Yieldlab Ad-Test – Serien.de</h1>
-    <p class="lead">Standalone-Testseite. Alle Slots werden mit aktuellem Cache-Bust-Timestamp geladen. Adblocker ausschalten zum Testen.</p>
+    <p class="lead">Standalone-Testseite nur für Desktop. Auf Mobilgeräten und Tablets werden keine Werbetests geladen. Adblocker ausschalten zum Testen.</p>
   </header>
 
   <main class="grid">
@@ -87,7 +107,9 @@
         <div id="ylid18384407"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384407/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384407/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 
@@ -98,7 +120,9 @@
         <div id="ylid18384401"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384401/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384401/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 
@@ -109,7 +133,9 @@
         <div id="ylid18384422"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384422/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384422/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 
@@ -120,7 +146,9 @@
         <div id="ylid18384404"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384404/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384404/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 
@@ -131,7 +159,9 @@
         <div id="ylid18384410"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384410/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384410/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 
@@ -142,7 +172,9 @@
         <div id="ylid18384415"></div>
       </div>
       <script type="text/javascript">
-        document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384415/35673/?ts=' + Date.now() + '"><\/script>');
+        if (typeof window.__serienDesktopAdsAllowed === 'function' && window.__serienDesktopAdsAllowed()) {
+          document.write('<script type="text/javascript" src="https://ad.yieldlab.net/d/18384415/35673/?ts=' + Date.now() + '"><\/script>');
+        }
       </script>
     </section>
 

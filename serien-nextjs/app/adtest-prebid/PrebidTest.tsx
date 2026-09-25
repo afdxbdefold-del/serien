@@ -23,6 +23,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 import {
   YIELDLAB_TEST_SLOT,
   PREBID_SCHAIN_CONFIG,
@@ -96,6 +98,10 @@ function readSlotFromUrl() {
 }
 
 export default function PrebidTest() {
+  return <DesktopOnlyAds><DesktopPrebidTest /></DesktopOnlyAds>;
+}
+
+function DesktopPrebidTest() {
   const [status, setStatus] = useState<Status>('idle');
   const [statusDetail, setStatusDetail] = useState<string>('');
   const [bids, setBids] = useState<PbjsBid[]>([]);
@@ -106,13 +112,23 @@ export default function PrebidTest() {
   const initRef = useRef(false);
 
   useEffect(() => {
-    fetch('/api/adtest/chain-check', { cache: 'no-store' })
+    if (!canLoadDesktopAds()) return;
+    const controller = new AbortController();
+    fetch('/api/adtest/chain-check', { cache: 'no-store', signal: controller.signal })
       .then((r) => r.json())
-      .then((d) => setChainChecks(d?.checks ?? []))
-      .catch(() => setChainChecks([{ label: 'Chain-Check', pass: null, detail: 'Fetch fehlgeschlagen' }]));
+      .then((d) => {
+        if (!controller.signal.aborted && canLoadDesktopAds()) setChainChecks(d?.checks ?? []);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted && canLoadDesktopAds()) {
+          setChainChecks([{ label: 'Chain-Check', pass: null, detail: 'Fetch fehlgeschlagen' }]);
+        }
+      });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
     if (initRef.current) return;
     initRef.current = true;
 
@@ -128,7 +144,7 @@ export default function PrebidTest() {
         setStatus('loading-script');
         setStatusDetail('lade /prebid.js …');
         await loadScript('/prebid.js');
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         if (!window.pbjs) throw new Error('window.pbjs nach Script-Load nicht vorhanden');
         console.log('[prebid-test] Prebid initialized', { version: (window.pbjs as unknown as { version?: string }).version });
 
@@ -137,7 +153,7 @@ export default function PrebidTest() {
         setStatus('waiting-consent');
         setStatusDetail('warte auf IAB-TCF __tcfapi …');
         const tcData = await waitForTcfConsent(8000);
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         console.log('[prebid-test] Consent config loaded', {
           gdprApplies: tcData?.gdprApplies,
           tcStringLen: tcData?.tcString?.length ?? 0,
@@ -164,6 +180,7 @@ export default function PrebidTest() {
         pbjs.que = pbjs.que || [];
 
         pbjs.que.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           pbjs.setConfig({
             debug: true,
             consentManagement: {
@@ -212,7 +229,7 @@ export default function PrebidTest() {
             timeout: PREBID_TIMEOUT_MS,
             adUnitCodes: [slotCfg.containerId],
             bidsBackHandler: () => {
-              if (cancelled) return;
+              if (cancelled || !canLoadDesktopAds()) return;
               try {
                 const responses = pbjs.getBidResponses();
                 const winners = pbjs.getHighestCpmBids(slotCfg.containerId);
@@ -441,6 +458,7 @@ export default function PrebidTest() {
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!canLoadDesktopAds()) { resolve(); return; }
     // 1. Wenn pbjs schon global existiert, ist prebid geladen — done.
     if (typeof window !== 'undefined' && window.pbjs) {
       resolve();
@@ -504,6 +522,7 @@ function buildSchainParam(schain: typeof PREBID_SCHAIN_CONFIG): string {
  */
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
+    if (!canLoadDesktopAds()) { resolve(null); return; }
     const start = Date.now();
 
     // Funding Choices installiert `__tcfapi` erst NACH Script-Load, kann
@@ -511,6 +530,7 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
     // DANN auf Consent-Data pollen. InMobi Choice hat einen synchronen
     // Stub im <head>, für den ist der Poll-Loop instant erledigt.
     const waitForApi = () => {
+      if (!canLoadDesktopAds()) { resolve(null); return; }
       const apiPresent = typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi === 'function';
       if (apiPresent) {
         startTcDataPoll();
@@ -536,6 +556,7 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
       ).__tcfapi;
 
       const poll = () => {
+        if (!canLoadDesktopAds()) { resolve(null); return; }
         tcfapi('getTCData', 2, (data, success) => {
           const ready =
             success &&
@@ -570,6 +591,7 @@ function renderWinningBid(
   pbjs: PbjsApi,
   slotCfg: typeof YIELDLAB_TEST_SLOT,
 ) {
+  if (!canLoadDesktopAds()) return;
   const container = document.getElementById(slotCfg.containerId);
   if (!container) {
     console.error('[prebid-test] container nicht gefunden:', slotCfg.containerId);

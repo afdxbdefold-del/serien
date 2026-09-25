@@ -24,6 +24,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 import {
   YIELDLAB_TEST_SLOT,
   PREBID_SCHAIN_CONFIG,
@@ -122,6 +124,10 @@ interface TcData {
 }
 
 export default function GamPrebidTest() {
+  return <DesktopOnlyAds><DesktopGamPrebidTest /></DesktopOnlyAds>;
+}
+
+function DesktopGamPrebidTest() {
   const [status, setStatus] = useState<Status>('idle');
   const [statusDetail, setStatusDetail] = useState<string>('');
   const [prebidWinner, setPrebidWinner] = useState<PbjsBid | null>(null);
@@ -129,6 +135,7 @@ export default function GamPrebidTest() {
   const initRef = useRef(false);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
     if (initRef.current) return;
     initRef.current = true;
 
@@ -150,7 +157,7 @@ export default function GamPrebidTest() {
             { crossorigin: 'anonymous' },
           ),
         ]);
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         if (!window.pbjs || !window.googletag) {
           throw new Error('pbjs oder googletag nicht verfügbar nach Script-Load');
         }
@@ -159,7 +166,7 @@ export default function GamPrebidTest() {
         setStatus('waiting-consent');
         setStatusDetail('warte auf IAB-TCF __tcfapi …');
         const tcData = await waitForTcfConsent(8000);
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         console.log('[gam-prebid] Consent config loaded', {
           gdprApplies: tcData?.gdprApplies,
           tcStringLen: tcData?.tcString?.length ?? 0,
@@ -171,6 +178,7 @@ export default function GamPrebidTest() {
         const pbjs = window.pbjs!;
         pbjs.que = pbjs.que || [];
         pbjs.que.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           pbjs.setConfig({
             debug: false,
             consentManagement: {
@@ -202,6 +210,7 @@ export default function GamPrebidTest() {
         setStatusDetail('gpt.defineSlot + disableInitialLoad …');
         const gtag = window.googletag!;
         gtag.cmd.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           const slot = gtag
             .defineSlot(GAM_AD_UNIT_PATH, GAM_SLOT_SIZE, GAM_SLOT_DIV_ID)
             ?.addService(gtag.pubads());
@@ -227,7 +236,7 @@ export default function GamPrebidTest() {
           }
 
           gtag.pubads().addEventListener('slotRenderEnded', (e: SlotRenderEndedEvent) => {
-            if (cancelled) return;
+            if (cancelled || !canLoadDesktopAds()) return;
             if (e.slot.getSlotElementId() !== GAM_SLOT_DIV_ID) return;
             console.log('[gam-prebid] slotRenderEnded', e);
             setRenderResult(e);
@@ -256,11 +265,12 @@ export default function GamPrebidTest() {
         setStatus('requesting-bids');
         setStatusDetail(`Prebid-Auction läuft (timeout ${PREBID_TIMEOUT_MS} ms) …`);
         pbjs.que.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           pbjs.requestBids({
             timeout: PREBID_TIMEOUT_MS,
             adUnitCodes: [PREBID_AD_UNIT_CODE],
             bidsBackHandler: () => {
-              if (cancelled) return;
+              if (cancelled || !canLoadDesktopAds()) return;
               try {
                 const winners = pbjs.getHighestCpmBids(PREBID_AD_UNIT_CODE);
                 const responses = pbjs.getBidResponses();
@@ -283,6 +293,7 @@ export default function GamPrebidTest() {
                 setStatus('gam-refreshing');
                 setStatusDetail('googletag.pubads().refresh() — GAM lädt jetzt Creative …');
                 window.googletag!.cmd.push(() => {
+                  if (cancelled || !canLoadDesktopAds()) return;
                   window.googletag!.pubads().refresh();
                 });
               } catch (err) {
@@ -414,6 +425,7 @@ function loadScript(
   extraAttrs: Record<string, string> = {},
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!canLoadDesktopAds()) { resolve(); return; }
     // Existing loader tag?
     const existing = document.querySelector(`script[${attrName}="${src}"]`) as HTMLScriptElement | null;
     if (existing) {
@@ -443,10 +455,12 @@ function loadScript(
 
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
+    if (!canLoadDesktopAds()) { resolve(null); return; }
     const start = Date.now();
 
     // Funding Choices installiert `__tcfapi` async — erst pollen bis's da ist.
     const waitForApi = () => {
+      if (!canLoadDesktopAds()) { resolve(null); return; }
       if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi === 'function') {
         startTcDataPoll();
         return;
@@ -465,6 +479,7 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
       }).__tcfapi;
 
       const poll = () => {
+        if (!canLoadDesktopAds()) { resolve(null); return; }
         tcfapi('getTCData', 2, (data, success) => {
           const ready =
             success &&

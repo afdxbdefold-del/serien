@@ -7,9 +7,8 @@
  * ausgeführt werden. Injection läuft EINMAL pro Mount — TheMoneytizer's
  * SDK managed URL-Changes intern.
  *
- * Nur Desktop (≥ md = 768 px), analog aller anderen TMN/Yieldlab-Slots.
- * Mobile-Sperre per matchMedia zusätzlich zur CSS-Regel, damit auf Mobile
- * gar kein Script geladen wird.
+ * Nur bestätigte Desktop-Geräte ab 1024 px. Der innere Slot mountet erst
+ * nach der gemeinsamen Geräteprüfung; CSS allein sperrt keine Requests.
  *
  * Verwendung:
  *   <TMNSidebarSlot formatId={2} label="MPU Top" />
@@ -18,6 +17,8 @@
 
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 interface Props {
   /** TheMoneytizer Format-ID — z.B. 2 (MPU 300×250) oder 4 (Skyscraper 300×600) */
@@ -30,25 +31,33 @@ interface Props {
 
 const SITE_ID = 141665;
 
-export default function TMNSidebarSlot({ formatId, label, className }: Props) {
+function TMNSidebarSlotInner({ formatId, label, className }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const injected = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
-    if (!ref.current || injected.current) return;
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
     const html = `<div id="${SITE_ID}-${formatId}"><script src="//ads.themoneytizer.com/s/gen.js?type=${formatId}"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=${SITE_ID}&formatId=${formatId}"></script></div>`;
-    injectHtmlWithScripts(ref.current, html);
+    injectHtmlWithScripts(container, html);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, [formatId]);
 
   return (
     <div
       aria-label={label}
       data-tmn-slot={`sidebar-${formatId}`}
-      className={className ?? 'hidden md:block'}
+      className={className ?? 'hidden lg:block'}
     >
       <div ref={ref} />
     </div>
   );
+}
+
+export default function TMNSidebarSlot(props: Props) {
+  return <DesktopOnlyAds><TMNSidebarSlotInner {...props} /></DesktopOnlyAds>;
 }

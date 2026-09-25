@@ -21,26 +21,30 @@
 
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 const TMN_RECOMMENDED_HTML = `<div class="outbrain-tm" id="141665-16"><script src="//ads.themoneytizer.com/s/gen.js?type=16"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=16"></script></div>`;
 
-export default function RecommendedContentTMN() {
+function RecommendedContentTMNInner() {
   const ref = useRef<HTMLDivElement>(null);
   const injected = useRef(false);
 
   useEffect(() => {
-    // Mobile-Sperre: KEINE Ads/Recommendations auf Mobile
-    // (User-Vorgabe Feb 2026). Widget ist Desktop-only.
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
-    if (!ref.current || injected.current) return;
-    injectHtmlWithScripts(ref.current, TMN_RECOMMENDED_HTML);
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
+    injectHtmlWithScripts(container, TMN_RECOMMENDED_HTML);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, []);
 
   return (
     <section
       aria-label="Empfohlene Inhalte"
-      className="hidden md:block w-full py-8 md:py-10"
+      className="hidden lg:block w-full py-8 lg:py-10"
       data-tmn-slot="recommended-content-16"
     >
       <div className="max-w-[1000px] mx-auto px-4">
@@ -48,4 +52,9 @@ export default function RecommendedContentTMN() {
       </div>
     </section>
   );
+}
+
+// Still deliberately unmounted by the application; do not re-enable this ad.
+export default function RecommendedContentTMN() {
+  return <DesktopOnlyAds><RecommendedContentTMNInner /></DesktopOnlyAds>;
 }

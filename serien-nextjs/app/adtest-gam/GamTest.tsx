@@ -22,6 +22,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 
 const GAM_AD_UNIT_PATH = '/22479145478/yieldlab-test';
 const GAM_SLOT_DIV_ID = 'div-gpt-ad-1782989965569-0';
@@ -88,12 +90,17 @@ interface TcData {
 }
 
 export default function GamTest() {
+  return <DesktopOnlyAds><DesktopGamTest /></DesktopOnlyAds>;
+}
+
+function DesktopGamTest() {
   const [status, setStatus] = useState<Status>('idle');
   const [statusDetail, setStatusDetail] = useState<string>('');
   const [renderResult, setRenderResult] = useState<SlotRenderEndedEvent | null>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
     if (initRef.current) return;
     initRef.current = true;
 
@@ -109,7 +116,7 @@ export default function GamTest() {
           'crossorigin',
           'anonymous',
         );
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         // gpt.js legt window.googletag mit `.cmd`-Queue auch VOR dem eigenen
         // load an — wir setzen fallback-Stub bevor gpt.js läuft, damit
         // spätere .cmd.push()-Calls in jedem Fall queuen.
@@ -121,7 +128,7 @@ export default function GamTest() {
         setStatus('waiting-consent');
         setStatusDetail('warte auf IAB-TCF __tcfapi …');
         const tcData = await waitForTcfConsent(8000);
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         console.log('[gam-test] Consent config loaded', {
           gdprApplies: tcData?.gdprApplies,
           tcStringLen: tcData?.tcString?.length ?? 0,
@@ -139,6 +146,7 @@ export default function GamTest() {
 
         const gtag = window.googletag!;
         gtag.cmd.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           const slot = gtag
             .defineSlot(GAM_AD_UNIT_PATH, GAM_SLOT_SIZE, GAM_SLOT_DIV_ID)
             ?.addService(gtag.pubads());
@@ -161,7 +169,7 @@ export default function GamTest() {
           // Render-Event abfangen — wir wollen wissen ob eine Line-Item
           // ausgeliefert wurde oder ob GAM `isEmpty: true` zurückgibt.
           gtag.pubads().addEventListener('slotRenderEnded', (e: SlotRenderEndedEvent) => {
-            if (cancelled) return;
+            if (cancelled || !canLoadDesktopAds()) return;
             if (e.slot.getSlotElementId() !== GAM_SLOT_DIV_ID) return;
             console.log('[gam-test] slotRenderEnded', e);
             setRenderResult(e);
@@ -316,6 +324,7 @@ export default function GamTest() {
 
 function loadScript(src: string, extraAttrName?: string, extraAttrVal?: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!canLoadDesktopAds()) { resolve(); return; }
     // gpt.js hat kein einheitliches globales Ready-Flag vor dem load-Event,
     // deshalb dedupen wir nur über data-attribute + src.
     const existing = document.querySelector(`script[data-loader-src="${src}"]`) as HTMLScriptElement | null;
@@ -343,11 +352,13 @@ function loadScript(src: string, extraAttrName?: string, extraAttrVal?: string):
 
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
+    if (!canLoadDesktopAds()) { resolve(null); return; }
     const start = Date.now();
 
     // Funding Choices installiert `__tcfapi` async nach Script-Load —
     // erst pollen bis's da ist, DANN Consent-Daten holen.
     const waitForApi = () => {
+      if (!canLoadDesktopAds()) { resolve(null); return; }
       if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi === 'function') {
         startTcDataPoll();
         return;
@@ -366,6 +377,7 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
       }).__tcfapi;
 
       const poll = () => {
+        if (!canLoadDesktopAds()) { resolve(null); return; }
         tcfapi('getTCData', 2, (data, success) => {
           const ready =
             success &&

@@ -15,6 +15,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 
 type FetchInfo = {
   status?: number;
@@ -48,9 +50,10 @@ const SUPPLY_ID = '35673';
  * per CORS Client-Fetches aus dem Browser blockt (kein
  * Access-Control-Allow-Origin-Header).
  */
-async function verifyChain(): Promise<ChainCheck[]> {
+async function verifyChain(signal: AbortSignal): Promise<ChainCheck[]> {
+  if (!canLoadDesktopAds()) return [];
   try {
-    const res = await fetch('/api/adtest/chain-check', { cache: 'no-store' });
+    const res = await fetch('/api/adtest/chain-check', { cache: 'no-store', signal });
     const data = await res.json();
     return data?.checks ?? [];
   } catch (e) {
@@ -59,6 +62,10 @@ async function verifyChain(): Promise<ChainCheck[]> {
 }
 
 export default function DirectTagTest() {
+  return <DesktopOnlyAds><DesktopDirectTagTest /></DesktopOnlyAds>;
+}
+
+function DesktopDirectTagTest() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ts, setTs] = useState<number | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'injected' | 'error'>('idle');
@@ -67,10 +74,17 @@ export default function DirectTagTest() {
   const [chainChecks, setChainChecks] = useState<ChainCheck[] | null>(null);
 
   useEffect(() => {
-    verifyChain().then(setChainChecks);
+    if (!canLoadDesktopAds()) return;
+    const controller = new AbortController();
+    verifyChain(controller.signal).then((checks) => {
+      if (!controller.signal.aborted && canLoadDesktopAds()) setChainChecks(checks);
+    });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
+    const controller = new AbortController();
     const stamp = Math.floor(Date.now() / 1000);
     setTs(stamp);
 
@@ -90,6 +104,7 @@ export default function DirectTagTest() {
       };
       if (typeof w.__tcfapi === 'function') {
         w.__tcfapi('getTCData', 2, (d, ok) => {
+          if (controller.signal.aborted || !canLoadDesktopAds()) return;
           if (!ok || !d) {
             setTcfSummary('getTCData failed');
             return;
@@ -109,9 +124,10 @@ export default function DirectTagTest() {
     // 2) Raw HTTP-Probe des Yieldlab-Endpoints (unabhängig vom iframe),
     //    zeigt sofort ob wir überhaupt eine Response bekommen.
     const url = `https://ad.yieldlab.net/d/${ADSLOT_ID}/${SUPPLY_ID}/?ts=${stamp}`;
-    fetch(url, { mode: 'cors', credentials: 'include' })
+    fetch(url, { mode: 'cors', credentials: 'include', signal: controller.signal })
       .then(async (r) => {
         const text = await r.text().catch(() => '');
+        if (controller.signal.aborted || !canLoadDesktopAds()) return;
         setFetchInfo({
           status: r.status,
           responseSize: text.length,
@@ -121,13 +137,14 @@ export default function DirectTagTest() {
         });
       })
       .catch((err) => {
+        if (controller.signal.aborted || !canLoadDesktopAds()) return;
         // CORS ist zu erwarten; wir loggen es trotzdem
         setFetchInfo({ error: String(err) });
       });
 
     // 3) Tag im sandboxed iframe injizieren
     const iframe = iframeRef.current;
-    if (!iframe) return;
+    if (!iframe) return () => controller.abort();
 
     setStatus('loading');
     const html = `<!doctype html>
@@ -162,10 +179,16 @@ export default function DirectTagTest() {
 
     iframe.srcdoc = html;
     setStatus('injected');
+    return () => {
+      controller.abort();
+      iframe.removeAttribute('srcdoc');
+    };
   }, []);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
     const onMsg = (e: MessageEvent) => {
+      if (!canLoadDesktopAds()) return;
       const d = e.data;
       if (d && typeof d === 'object' && d.__direct_tag_debug) {
         console.log('[direct-tag] iframe body report:', d);

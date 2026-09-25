@@ -12,18 +12,24 @@
  */
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 const HTML = `<div id="141665-6"><script src="//ads.themoneytizer.com/s/gen.js?type=6"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=6"></script></div>`;
 
-export default function TMNSlideInFooter() {
+function TMNSlideInFooterInner() {
   const ref = useRef<HTMLDivElement>(null);
   const injected = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) return;
-    if (!ref.current || injected.current) return;
-    injectHtmlWithScripts(ref.current, HTML);
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
+    injectHtmlWithScripts(container, HTML);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, []);
 
   return (
@@ -35,4 +41,8 @@ export default function TMNSlideInFooter() {
       <div ref={ref} />
     </div>
   );
+}
+
+export default function TMNSlideInFooter() {
+  return <DesktopOnlyAds><TMNSlideInFooterInner /></DesktopOnlyAds>;
 }

@@ -24,18 +24,29 @@
 
 import { useEffect, useRef } from 'react';
 import { injectHtmlWithScripts } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 
 const TMN_CORNER_VIDEO_HTML = `<div id="141665-38"><script src="//ads.themoneytizer.com/s/gen.js?type=38"></script><script src="//ads.themoneytizer.com/s/requestform.js?siteId=141665&formatId=38"></script></div>`;
 
-export default function CornerVideoTMN() {
+function CornerVideoTMNInner() {
   const ref = useRef<HTMLDivElement>(null);
   const injected = useRef(false);
 
   useEffect(() => {
-    if (!ref.current || injected.current) return;
-    injectHtmlWithScripts(ref.current, TMN_CORNER_VIDEO_HTML);
+    const container = ref.current;
+    if (!container || injected.current || !canLoadDesktopAds()) return;
+    injectHtmlWithScripts(container, TMN_CORNER_VIDEO_HTML);
     injected.current = true;
+    return () => {
+      container.innerHTML = '';
+      injected.current = false;
+    };
   }, []);
 
   return <div ref={ref} data-tmn-slot="corner-video-38" />;
+}
+
+export default function CornerVideoTMN() {
+  return <DesktopOnlyAds><CornerVideoTMNInner /></DesktopOnlyAds>;
 }

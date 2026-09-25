@@ -1,6 +1,7 @@
 import './globals.css';
 import Script from 'next/script';
 import LayoutWrapper from '@/components/LayoutWrapper';
+import DesktopAdProviders from '@/components/DesktopAdProviders';
 import { generateWebSiteSchema, generateOrganizationSchema } from '@/lib/schema-generator';
 import { Inter } from 'next/font/google';
 
@@ -63,34 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de" className="dark" suppressHydrationWarning>
       <head>
-        {/* Pre-connect: nur noch InMobi Choice (Desktop-CMP) + GA-Tag-Manager.
-            Funding-Choices-Preconnect wurde Feb 2026 entfernt — Mobile bekommt
-            gar keinen CMP mehr (keine Ads auf Mobile → kein Consent nötig). */}
-        <link rel="preconnect" href="https://cmp.inmobi.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
-
-        {/* Primis Outstream (Freestar/pub.network) — Preconnects laut Primis-Snippet */}
-        <link rel="preconnect" href="https://a.pub.network/" crossOrigin="" />
-        <link rel="preconnect" href="https://b.pub.network/" crossOrigin="" />
-        <link rel="preconnect" href="https://c.pub.network/" crossOrigin="" />
-        <link rel="preconnect" href="https://d.pub.network/" crossOrigin="" />
-        <link rel="preconnect" href="https://btloader.com/" crossOrigin="" />
-        <link rel="preconnect" href="https://api.btloader.com/" crossOrigin="" />
-        {/* CLS-Fix für Freestar-Ad-Slots (verhindert Layout-Shifts beim Ad-Laden) */}
-        <link rel="stylesheet" href="https://a.pub.network/serien-de/cls.css" />
-
-          {/* CMP-Loader: NUR Desktop (≥1024 px) UND /adtest-* Test-Routen
-              bekommen InMobi Choice (TheMoneytizer's CMP für TCF 2.3).
-              Mobile bekommt KEINEN CMP mehr — auf Mobile gibt es keine Ads,
-              also auch kein Consent-Bedarf. Analytics-Tools (GA4, Mouseflow,
-              Ezoic Analytics) laufen ohne CMP-String im "no-consent"-Modus. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var isDesktop=window.matchMedia&&window.matchMedia('(min-width: 1024px)').matches;var isAdTest=window.location.pathname.indexOf('/adtest-')===0;if(!(isDesktop||isAdTest))return;/* InMobi Choice. Consent Manager Tag v3.0 (for TCF 2.3) */
-(function(){var host="www.themoneytizer.de";var element=document.createElement('script');var firstScript=document.getElementsByTagName('script')[0];var url='https://cmp.inmobi.com'.concat('/choice/','6Fv0cGNfc_bw8','/',host,'/choice.js?tag_version=V3');var uspTries=0;var uspTriesLimit=3;element.async=true;element.type='text/javascript';element.src=url;firstScript.parentNode.insertBefore(element,firstScript);function makeStub(){var TCF_LOCATOR_NAME='__tcfapiLocator';var queue=[];var win=window;var cmpFrame;function addFrame(){var doc=win.document;var otherCMP=!!(win.frames[TCF_LOCATOR_NAME]);if(!otherCMP){if(doc.body){var iframe=doc.createElement('iframe');iframe.style.cssText='display:none';iframe.name=TCF_LOCATOR_NAME;doc.body.appendChild(iframe);}else{setTimeout(addFrame,5);}}return !otherCMP;}function tcfAPIHandler(){var gdprApplies;var args=arguments;if(!args.length){return queue;}else if(args[0]==='setGdprApplies'){if(args.length>3&&args[2]===2&&typeof args[3]==='boolean'){gdprApplies=args[3];if(typeof args[2]==='function'){args[2]('set',true);}}}else if(args[0]==='ping'){var retr={gdprApplies:gdprApplies,cmpLoaded:false,cmpStatus:'stub'};if(typeof args[2]==='function'){args[2](retr);}}else{if(args[0]==='init'&&typeof args[3]==='object'){args[3]=Object.assign(args[3],{tag_version:'V3'});}queue.push(args);}}function postMessageEventHandler(event){var msgIsString=typeof event.data==='string';var json={};try{if(msgIsString){json=JSON.parse(event.data);}else{json=event.data;}}catch(ignore){}var payload=json.__tcfapiCall;if(payload){window.__tcfapi(payload.command,payload.version,function(retValue,success){var returnMsg={__tcfapiReturn:{returnValue:retValue,success:success,callId:payload.callId}};if(msgIsString){returnMsg=JSON.stringify(returnMsg);}if(event&&event.source&&event.source.postMessage){event.source.postMessage(returnMsg,'*');}},payload.parameter);}}while(win){try{if(win.frames[TCF_LOCATOR_NAME]){cmpFrame=win;break;}}catch(ignore){}if(win===window.top){break;}win=win.parent;}if(!cmpFrame){addFrame();win.__tcfapi=tcfAPIHandler;win.addEventListener('message',postMessageEventHandler,false);}}makeStub();var uspStubFunction=function(){var arg=arguments;if(typeof window.__uspapi!==uspStubFunction){setTimeout(function(){if(typeof window.__uspapi!=='undefined'){window.__uspapi.apply(window.__uspapi,arg);}},500);}};var checkIfUspIsReady=function(){uspTries++;if(window.__uspapi===uspStubFunction&&uspTries<uspTriesLimit){console.warn('USP is not accessible');}else{clearInterval(uspInterval);}};if(typeof window.__uspapi==='undefined'){window.__uspapi=uspStubFunction;var uspInterval=setInterval(checkIfUspIsReady,6000);}})();})();`,
-          }}
-        />
-
         {/* Prevent flash of wrong theme — dark is the site default; light is
             opt-in via the theme switcher (stored as 'light' in localStorage). */}
         <script
@@ -133,33 +107,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
 
-        {/* Mouseflow deaktiviert (Feb 2026, Cost-Optimierung) — Session-
-            Recordings + Heatmaps werden über GA4 / Ezoic Analytics abgedeckt. */}
-
-        {/* Ezoic Standalone SDK + Analytics.
-            Gatekeeper-CMP-Zeilen bewusst NICHT eingebaut — Site nutzt bereits
-            InMobi Choice (Desktop) + Google Funding Choices (Mobile). Ein
-            dritter CMP würde __tcfapi-Race-Conditions, doppelte Consent-
-            Overlays und Yieldlab-Prebid-noBids verursachen.
-            Ezoic fällt hier auf die bestehende TCF-Consent-Kette zurück.
-            Alle drei Scripts als afterInteractive → blockieren weder LCP
-            noch INP. */}
-        <Script
-          id="ezoic-sa"
-          src="https://www.ezojs.com/ezoic/sa.min.js"
-          strategy="afterInteractive"
-        />
-        <Script id="ezstandalone-init" strategy="afterInteractive">
-          {`
-            window.ezstandalone = window.ezstandalone || {};
-            ezstandalone.cmd = ezstandalone.cmd || [];
-          `}
-        </Script>
-        <Script
-          id="ezoic-analytics"
-          src="https://ezoicanalytics.com/analytics.js"
-          strategy="afterInteractive"
-        />
+        {/* Mouseflow bleibt deaktiviert. Werbeprovider werden separat erst
+            nach bestätigter Desktop-Prüfung aktiviert. */}
 
         {/* Global Schema.org markup */}
         <script
@@ -175,29 +124,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
 
-        {/* Primis Outstream — Freestar-Wrapper (pubfig.min.js). Slots werden
-            per Freestar-Dashboard/Tag konfiguriert, hier nur der Loader +
-            leere enabled_slots-Konfiguration (Default laut Primis-Snippet). */}
-        <script
-          data-cfasync="false"
-          dangerouslySetInnerHTML={{
-            __html: `
-              var freestar = freestar || {};
-              freestar.queue = freestar.queue || [];
-              freestar.config = freestar.config || {};
-              freestar.config.enabled_slots = [];
-              freestar.initCallback = function () { (freestar.config.enabled_slots.length === 0) ? freestar.initCallbackCalled = false : freestar.newAdSlots(freestar.config.enabled_slots) }
-            `,
-          }}
-        />
-        <Script
-          id="freestar-pubfig"
-          src="https://a.pub.network/serien-de/pubfig.min.js"
-          data-cfasync="false"
-          strategy="afterInteractive"
-        />
       </head>
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen text-gray-900 dark:text-gray-100 transition-colors`}>
+        <DesktopAdProviders />
         <LayoutWrapper>{children}</LayoutWrapper>
         {/* Server-rendered footer nav for Google crawler (visible in first HTML pass) */}
         <nav aria-label="Rechtliche Informationen" className="sr-only">
@@ -208,12 +137,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/redaktionelle-richtlinien">Redaktionelle Richtlinien</a>
           <a href="/autoren">Autoren</a>
         </nav>
-        {/* Primis Slider (Outstream-Video) — läuft laut Primis-Vorgabe im BODY. */}
-        <Script
-          id="primis-slider"
-          src="https://live.primis.tech/live/liveView.php?s=122209"
-          strategy="afterInteractive"
-        />
         {/* Matomo Analytics (self-hosted via speedcache.io, Site-ID 37).
             lazyOnload → lädt erst nach vollständigem Page-Load, blockiert
             weder LCP noch die Ad-Auction. */}

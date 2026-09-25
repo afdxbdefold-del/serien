@@ -5,9 +5,8 @@
  *
  * Ist eine schlanke Variante von `app/adtest-prebid/PrebidTest.tsx` ohne
  * Debug-UI. Mountet auf jeder Public-Page direkt über dem Footer, NUR auf
- * Desktop (`hidden lg:block`-Wrapper im LayoutWrapper). Mobile bleibt
- * unangetastet — auf Mobile läuft AdSense/AdMob mit Funding Choices, dort
- * würde der Yieldlab-Slot mit FC-Vendor-Liste vermutlich keinen Bid bekommen.
+ * Desktop nach zentraler Geräteprüfung; auf Mobilgeräten und Tablets
+ * werden weder Slot noch Werbeskripte geladen.
  *
  * Was passiert beim Mount:
  *  1. `/prebid.js` (custom gulp-Bundle mit consentManagementTcf + yieldlab-
@@ -25,6 +24,8 @@
 
 import { useEffect, useRef } from 'react';
 import { YIELDLAB_TEST_SLOT, PREBID_SCHAIN_CONFIG, PREBID_TIMEOUT_MS } from '@/lib/prebid-config';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 
 interface PbjsBid {
   bidder: string;
@@ -59,10 +60,15 @@ interface TcData {
 const FOOTER_CONTAINER_ID = 'ad-yieldlab-footer-300x250';
 
 export default function YieldlabFooterSlot() {
+  return <DesktopOnlyAds><DesktopYieldlabFooterSlot /></DesktopOnlyAds>;
+}
+
+function DesktopYieldlabFooterSlot() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
+    if (!canLoadDesktopAds()) return;
     // Strict-Mode in Dev mounts effects 2× — Guard verhindert doppelten
     // Auction-Cycle (Prebid würde sonst „adUnitCode already used" werfen).
     if (initRef.current) return;
@@ -87,12 +93,12 @@ export default function YieldlabFooterSlot() {
     const init = async () => {
       try {
         await loadScript('/prebid.js');
-        if (cancelled || !window.pbjs) return;
+        if (cancelled || !canLoadDesktopAds() || !window.pbjs) return;
 
         const tcData = await waitForTcfConsent(5000);
         // Ohne CMP keinen Bid-Request senden — Yieldlab würde requests
         // ohne TC-String ohnehin droppen.
-        if (cancelled) return;
+        if (cancelled || !canLoadDesktopAds()) return;
         if (!tcData) {
           hideSlot();
           return;
@@ -101,6 +107,7 @@ export default function YieldlabFooterSlot() {
         const pbjs = window.pbjs;
         pbjs.que = pbjs.que || [];
         pbjs.que.push(() => {
+          if (cancelled || !canLoadDesktopAds()) return;
           pbjs.setConfig({
             debug: false,
             consentManagement: {
@@ -134,7 +141,7 @@ export default function YieldlabFooterSlot() {
             timeout: PREBID_TIMEOUT_MS,
             adUnitCodes: [FOOTER_CONTAINER_ID],
             bidsBackHandler: () => {
-              if (cancelled) return;
+              if (cancelled || !canLoadDesktopAds()) return;
               const winners = pbjs.getHighestCpmBids(FOOTER_CONTAINER_ID);
               if (!winners || winners.length === 0) {
                 hideSlot();
@@ -175,6 +182,7 @@ export default function YieldlabFooterSlot() {
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!canLoadDesktopAds()) { resolve(); return; }
     // 1. Wenn pbjs schon global existiert, ist prebid geladen — done.
     if (typeof window !== 'undefined' && window.pbjs) {
       resolve();
@@ -207,12 +215,14 @@ function loadScript(src: string): Promise<void> {
 
 function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
   return new Promise((resolve) => {
+    if (!canLoadDesktopAds()) { resolve(null); return; }
     const start = Date.now();
     if (typeof (window as unknown as { __tcfapi?: unknown }).__tcfapi !== 'function') {
       resolve(null);
       return;
     }
     const tick = () => {
+      if (!canLoadDesktopAds()) { resolve(null); return; }
       try {
         (window as unknown as {
           __tcfapi: (
@@ -240,6 +250,7 @@ function waitForTcfConsent(timeoutMs: number): Promise<TcData | null> {
 }
 
 function renderWinningBid(winner: PbjsBid, pbjs: PbjsApi) {
+  if (!canLoadDesktopAds()) return;
   const container = document.getElementById(FOOTER_CONTAINER_ID);
   if (!container) return;
   const iframe = document.createElement('iframe');

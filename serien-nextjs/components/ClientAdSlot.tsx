@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from './DesktopOnlyAds';
 import {
   fetchAdSlots,
   pickSlotForViewport,
-  isMobileViewport,
   type AdConfig,
 } from '@/lib/ad-slots-client';
 
@@ -29,7 +30,7 @@ function AdSlotInner({ config }: { config: AdConfig }) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || config.provider !== 'custom') return;
+    if (!container || config.provider !== 'custom' || !canLoadDesktopAds()) return;
 
     const variants = config.customHtmlVariants || [];
     const picked = pickAdVariant(variants, config.rotationMode || 'random');
@@ -47,22 +48,25 @@ function AdSlotInner({ config }: { config: AdConfig }) {
 
 /**
  * ClientAdSlot: Route-aware Ad-Container. Fetcht die Slot-Config aus dem
- * Admin (DB-backed via /api/ads/slots), pickt die Device-Variante (Mobile
- * vs. Desktop) und rendert den Slot. Bei inaktivem Slot oder fehlender
+ * Admin (DB-backed via /api/ads/slots), ausschließlich nach bestätigter
+ * Desktop-Geräteprüfung. Bei inaktivem Slot oder fehlender
  * Config wird `null` gerendert — das umgebende `empty:hidden` sorgt dafür
  * dass keine Ghost-Container im Layout stehen.
  */
-export default function ClientAdSlot({ position, className = '' }: ClientAdSlotProps) {
+function DesktopClientAdSlot({ position, className = '' }: ClientAdSlotProps) {
   const pathname = usePathname();
   const [config, setConfig] = useState<AdConfig | null>(null);
 
   useEffect(() => {
-    // Mobile-Sperre: auf Mobile (< 768 px) werden GAR KEINE Ads
-    // ausgeliefert (User-Vorgabe Feb 2026). Slot bleibt hier stumm.
-    if (isMobileViewport()) return;
+    if (!canLoadDesktopAds()) return;
+    let cancelled = false;
     fetchAdSlots().then((slots) => {
+      if (cancelled || !canLoadDesktopAds()) return;
       setConfig(pickSlotForViewport(slots, position, false));
+    }).catch(() => {
+      if (!cancelled) setConfig(null);
     });
+    return () => { cancelled = true; };
   }, [position]);
 
   if (!config || config.provider !== 'custom') return null;
@@ -76,5 +80,13 @@ export default function ClientAdSlot({ position, className = '' }: ClientAdSlotP
     >
       <AdSlotInner key={`${pathname}-${position}`} config={config} />
     </div>
+  );
+}
+
+export default function ClientAdSlot(props: ClientAdSlotProps) {
+  return (
+    <DesktopOnlyAds>
+      <DesktopClientAdSlot key={props.position} {...props} />
+    </DesktopOnlyAds>
   );
 }

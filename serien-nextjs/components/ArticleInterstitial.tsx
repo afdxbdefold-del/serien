@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { injectHtmlWithScripts, pickAdVariant } from '@/lib/ad-html-injector';
-import { fetchAdSlots, isMobileViewport, type AdConfig } from '@/lib/ad-slots-client';
+import { fetchAdSlots, type AdConfig } from '@/lib/ad-slots-client';
+import { canLoadDesktopAds } from '@/lib/desktop-ads';
+import DesktopOnlyAds from '@/components/DesktopOnlyAds';
 
 type InterstitialConfig = AdConfig;
 
@@ -34,6 +36,10 @@ function isBotUserAgent(ua: string | undefined): boolean {
  *  - If the slot is missing, inactive, or has no creative, renders nothing.
  */
 export default function ArticleInterstitial() {
+  return <DesktopOnlyAds><DesktopArticleInterstitial /></DesktopOnlyAds>;
+}
+
+function DesktopArticleInterstitial() {
   const [visible, setVisible] = useState(false);
   const [config, setConfig] = useState<InterstitialConfig | null>(null);
   const slotRef = useRef<HTMLDivElement | null>(null);
@@ -45,7 +51,7 @@ export default function ArticleInterstitial() {
   useEffect(() => {
     // Mobile-Sperre: auf Mobile werden GAR KEINE Ads ausgeliefert
     // (User-Vorgabe Feb 2026). Interstitial ergo Desktop-only.
-    if (isMobileViewport()) return;
+    if (!canLoadDesktopAds()) return;
 
     // Hide for bots / crawlers / preview tools — never let paid creatives
     // appear in Google's render snapshot (CWV penalty) and stay AdSense-safe.
@@ -70,16 +76,13 @@ export default function ArticleInterstitial() {
     // historische Niveau zu bringen.
 
     let cancelled = false;
-    const mobile = isMobileViewport();
+    let showTimer: ReturnType<typeof setTimeout> | undefined;
     fetchAdSlots()
       .then((slots) => {
-        if (cancelled) return;
-        // Device-Bucket entsprechend Viewport: Mobile-User bekommen den
-        // Mobile-Interstitial, Desktop-User den Desktop-Interstitial.
-        // Kein cross-device-Fallback — wenn für das aktuelle Device kein
-        // Slot konfiguriert ist, wird kein Interstitial gezeigt.
-        const cfg = (mobile ? slots.mobile : slots.desktop)[POSITION];
-        if (!cfg) return;
+        if (cancelled || !canLoadDesktopAds()) return;
+        // Global desktop-only policy: never fall back to mobile inventory.
+        const cfg = slots.desktop[POSITION];
+        if (!cfg || cfg.device !== 'desktop' || cfg.mobileOnly) return;
 
         // For custom: require at least one active variant with HTML
         if (cfg.provider !== 'custom') return;
@@ -90,20 +93,22 @@ export default function ArticleInterstitial() {
         if (DELAY_MS <= 0) {
           setVisible(true);
         } else {
-          const t = setTimeout(() => {
-            if (!cancelled) setVisible(true);
+          showTimer = setTimeout(() => {
+            if (!cancelled && canLoadDesktopAds()) setVisible(true);
           }, DELAY_MS);
-          return () => clearTimeout(t);
         }
       })
       .catch(() => { /* silent — ads must never break the page */ });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (showTimer !== undefined) clearTimeout(showTimer);
+    };
   }, []);
 
   // Inject ad creative once visible
   useEffect(() => {
-    if (!visible || !config || !slotRef.current) return;
+    if (!canLoadDesktopAds() || !visible || !config || !slotRef.current) return;
 
     const slot = slotRef.current;
 
