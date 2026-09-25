@@ -1,7 +1,8 @@
 # Personenlinks: Absicherung vom 25. September 2026
 
-Status: lokal auf `codex/takeover` implementiert und getestet; nicht gepusht
-oder deployt. Bestehende Artikel und Entwürfe in Produktion wurden nicht geändert.
+Status: am 25. September 2026 nach Nutzerfreigabe von `codex/takeover` deployt.
+Laufzeitcommit: `2823e7678394a7428c22bd5c0704f3205237ef68`.
+Bestehende Artikel und Entwürfe in Produktion wurden nicht geändert.
 
 ## Anlass und Fehlerklasse
 
@@ -53,8 +54,31 @@ Garantie für die Semantik sämtlicher interner Links: Figuren- und Streamerlink
 sowie manuell aufrufbare ältere Wartungsskripte benötigen eine separate Prüfung.
 Die redaktionelle Quellenprüfung bleibt erhalten.
 
-Vor einem freigegebenen Rollout: Datenbank- und Volume-Sicherungen verifizieren,
-ausschließlich `codex/takeover` deployen und danach den nächsten regulären Lauf
-samt gespeicherten Links und tatsächlicher öffentlicher Anzeige kontrollieren.
-Keine zusätzliche Veröffentlichung oder Produktionsbereinigung ist Teil dieser
-lokalen Korrektur.
+## Verifizierter Rollout
+
+- Frischer logischer Datenbank-Dump und konsistente physische PostgreSQL-Sicherung
+  einschließlich WAL unabhängig wiederhergestellt. Beide Tests ergaben 4.371
+  Artikel und 44 öffentliche Basistabellen, passend zu Produktion. Testcontainer
+  ohne Netzwerk/Ports und mit Ressourcenlimits, anschließend gestoppt.
+- Coolify-Deployment `h3nul6yo8odngtkd2xns0bwk` erfolgreich abgeschlossen am
+  25. September 2026 um 15:57:50 UTC. Image und Laufzeit-`SOURCE_COMMIT` stimmen
+  mit dem Zielcommit überein; der neue Schutz ist im gebauten Servercode vorhanden.
+- Öffentliche Prüfung um 15:58:20 UTC: Health, Startseite, Newsübersicht, letzter
+  Star-Trek-Artikel und beide dortigen Personenlink-Ziele HTTP 200; Namen und
+  Canonicals passend. Tatsächliches Artikelbild vollständig als 1280 × 720 JPEG
+  decodiert. Die vier zuletzt ergänzten `ads.txt`-Zeilen unverändert je einmal.
+- Vorübergehende News-Pause mit Eigentümerprüfung auf den vorherigen Wert
+  `false` zurückgestellt; ursprünglicher Update-Eigentümer erhalten.
+- Keine zusätzlichen Modellläufe, Veröffentlichungen, Artikelkorrekturen,
+  Migrationen oder Änderungen an `main`.
+
+Offen bleibt die inhaltliche Prüfung des nächsten regulär erzeugten Artikels
+einschließlich seiner gespeicherten Links und öffentlichen Anzeige. Dieser
+Rollout erzwingt dafür keinen zusätzlichen Lauf.
+
+Die frischen Sicherungen liegen bislang nur auf demselben Server; externe Kopie
+bleibt offen. Der begrenzte Build-Hilfscontainer wurde nach fertigem Image vom
+Sicherheitswächter wegen Unterschreitung der 4-GiB-Plattenreserve gestoppt.
+Der anschließende Containerwechsel war erfolgreich. Vor einem weiteren Build
+zuerst Speicherbelegung gezielt prüfen; keine pauschale Löschung von Sicherungen
+oder Docker-Daten.
