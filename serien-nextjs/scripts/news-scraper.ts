@@ -1137,6 +1137,13 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
         console.log('   Provider unavailable; remaining candidates deferred until next run');
         break;
       }
+      // Search several candidates for one suitable story, but do not turn a
+      // recovered hourly import into a high-volume automatic publishing burst.
+      if (stats.published > 0) {
+        stats.deferred += articlesToProcess.length - index - 1;
+        console.log('   Publication target reached; remaining candidates deferred until next run');
+        break;
+      }
       
       // Delay between articles
       await new Promise(r => setTimeout(r, 2000));

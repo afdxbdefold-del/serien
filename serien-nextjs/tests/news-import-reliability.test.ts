@@ -125,6 +125,8 @@ test('actual scraper advances its persistent cursor only after attempt guards an
   assert.match(entry.getText(file), /processNewsBatch\(options, lease\.assertHeld\)/);
   assert.match(source, /sources\.map\(source => NEWS_SOURCES\[source\]\.name\)/);
   assert.doesNotMatch(source, /selectNewsCandidates\([^;]*Date\.now/);
+  assert.match(source, /if \(stats\.published > 0\) \{\s*stats\.deferred \+= articlesToProcess\.length - index - 1;[\s\S]*?break;/,
+    'one verified automatic publication stops the batch without losing deferred candidates');
   assert.deepEqual(ts.transpileModule(source, { fileName: 'news-scraper.ts', reportDiagnostics: true }).diagnostics, []);
 });
 
