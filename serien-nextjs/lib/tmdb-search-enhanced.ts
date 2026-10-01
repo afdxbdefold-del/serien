@@ -28,6 +28,9 @@ interface EnhancedSearchResult {
   matchMethod: string;
 }
 
+const TMDB_SEARCH_TIMEOUT_MS = 8_000;
+const MAX_CONTEXT_SEARCH_CANDIDATES = 4;
+
 /**
  * Clean article title to extract series name
  * Removes common noise words from recap/review titles
@@ -464,8 +467,13 @@ export async function searchTvEnhanced(
   
   try {
     const exactResponse = await fetch(
-      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=de-DE`,
+      { signal: AbortSignal.timeout(TMDB_SEARCH_TIMEOUT_MS) },
     );
+
+    // An unavailable TMDB endpoint must not fan out into more requests. The
+    // caller can still use its exact database-title fallback safely.
+    if (!exactResponse.ok) return null;
     
     if (exactResponse.ok) {
       const exactData = await exactResponse.json();
@@ -488,8 +496,9 @@ export async function searchTvEnhanced(
         }
       }
     }
-  } catch (error) {
-    console.log(`   ⚠️ Exact title search failed: ${error}`);
+  } catch {
+    console.log('   ⚠️ Exact title search unavailable; using exact DB fallback');
+    return null;
   }
   
   // ══════════════════════════════════════════════════════════════════════════
@@ -521,12 +530,13 @@ export async function searchTvEnhanced(
   let bestResult: EnhancedSearchResult | null = null;
   let bestConfidence = 0;
   
-  for (const candidate of filteredCandidates) {
+  for (const candidate of filteredCandidates.slice(0, MAX_CONTEXT_SEARCH_CANDIDATES)) {
     console.log(`   🔎 Searching for: "${candidate}"`);
     
     try {
       const response = await fetch(
-        `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(candidate)}&language=de-DE`
+        `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(candidate)}&language=de-DE`,
+        { signal: AbortSignal.timeout(TMDB_SEARCH_TIMEOUT_MS) },
       );
       
       if (!response.ok) continue;
@@ -558,8 +568,9 @@ export async function searchTvEnhanced(
           matchMethod: `Query: "${candidate}"`,
         };
       }
-    } catch (error) {
-      console.log(`      ❌ Search failed: ${error}`);
+    } catch {
+      console.log('      ❌ TMDB candidate search unavailable');
+      break;
     }
   }
   
