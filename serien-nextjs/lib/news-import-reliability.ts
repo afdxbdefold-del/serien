@@ -23,7 +23,8 @@ const PERMANENT_STEPS = new Set([
 ]);
 
 export function isProviderFailure(message = ''): boolean {
-  return /(?:Provider\/network unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
+  return /^News (?:classification|deduplication) dependency(?: \(HTTP [1-5]\d\d\))?$/.test(message)
+    || /(?:Provider\/network unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
     || /\bsource-(?:request-unavailable|response-unavailable|response-aborted|request-timeout)\b/.test(message)
     || /(?:^\s*(?:\[[^\]]+\]\s*)?|\b(?:http|status|statusCode|response|error|code)[\s"':=]*)(?:401|402|403|429|5\d\d)\b/i.test(message);
 }
@@ -100,6 +101,17 @@ export function safeNewsError(error: unknown): string {
   // External error messages can include request URLs, authorization headers or
   // connection strings. Persist only an allowlisted category in scheduler logs.
   const message = error instanceof Error ? error.message : String(error);
+  // Preserve only our own typed triage category and numeric HTTP status. The
+  // upstream SDK message/body is never copied into logs or the database.
+  if (error instanceof Error && error.name === 'NewsTriageError') {
+    const triage = error as Error & { role?: unknown; code?: unknown; status?: unknown };
+    if ((triage.role === 'classification' || triage.role === 'deduplication')
+      && ['input', 'refused', 'incomplete', 'invalid-response', 'dependency'].includes(String(triage.code))) {
+      const status = typeof triage.status === 'number' && Number.isInteger(triage.status)
+        && triage.status >= 100 && triage.status < 600 ? ` (HTTP ${triage.status})` : '';
+      return `News ${triage.role} ${triage.code}${status}`;
+    }
+  }
   // These are fixed internal codes, never an upstream message or URL. Preserve
   // size/parser failures instead of misreporting our own stream abort as timeout.
   const sourceCodes = new Set([

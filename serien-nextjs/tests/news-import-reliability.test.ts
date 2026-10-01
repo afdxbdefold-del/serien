@@ -182,6 +182,18 @@ test('scheduler diagnostics never reproduce credentials or DB URLs', () => {
   }
 });
 
+test('triage diagnostics preserve only allowlisted category and HTTP status', () => {
+  const providerError = Object.assign(new Error('EXAMPLE_SECRET_NOT_REAL https://example.test/private'), {
+    name: 'NewsTriageError', role: 'classification', code: 'dependency', status: 400,
+  });
+  assert.equal(safeNewsError(providerError), 'News classification dependency (HTTP 400)');
+  assert.equal(isProviderFailure(safeNewsError(providerError)), true);
+  providerError.status = 999;
+  assert.equal(safeNewsError(providerError), 'News classification dependency');
+  providerError.code = 'EXAMPLE_SECRET_NOT_REAL';
+  assert.doesNotMatch(safeNewsError(providerError), /EXAMPLE_SECRET_NOT_REAL|example\.test/);
+});
+
 test('bounded source rejection is not mistaken for network timeout', () => {
   const size = safeNewsError(new Error('source-response-too-large'));
   assert.equal(size, 'Original source read failed: source-response-too-large');

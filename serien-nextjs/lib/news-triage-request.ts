@@ -12,7 +12,7 @@ export interface TriageDependencies {
 
 /** All messages are allowlisted. Never carry provider bodies, tokens or URLs. */
 export class NewsTriageError extends Error {
-  constructor(readonly role: NewsTriageRole, readonly code: 'input' | 'refused' | 'incomplete' | 'invalid-response' | 'dependency', status?: number) {
+  constructor(readonly role: NewsTriageRole, readonly code: 'input' | 'refused' | 'incomplete' | 'invalid-response' | 'dependency', readonly status?: number) {
     const messages = {
       input: 'input is empty or exceeds the complete-source budget',
       refused: 'response refused; no editorial decision available',
