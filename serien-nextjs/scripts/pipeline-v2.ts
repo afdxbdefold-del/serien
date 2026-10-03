@@ -47,7 +47,7 @@ import { inspectArticleStructure } from '../lib/article-structure';
 import { verifyPublicationImage, revalidatePublicationCaches, verifyPublishedArticle } from '../lib/publication-verification';
 import { safeNewsError } from '../lib/news-import-reliability';
 import { NEWS_LLM_CONFIG } from '../lib/llm-config';
-import { newsSourceIsFresh, sourceMentionsSeries, isNewsClassification, matchesResolvedSeries } from '../lib/news-pipeline-policy';
+import { newsSourceIsFresh, sourceMentionsSeries, isNewsClassification, matchesResolvedSeries, shouldRejectNewsBeforeWriting } from '../lib/news-pipeline-policy';
 import { fetchEditorialSource } from '../lib/editorial-source-fetch';
 
 const prisma = new PrismaClient();
@@ -1233,6 +1233,45 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logger.addMetadata('coreEventNormalized', coreEventNormalizedValue);
     console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
 
+    // Check the two possible German evidence channels before paying for fact
+    // extraction, writing or final review. A failed catalogue lookup is not
+    // treated as evidence that the series lacks German distribution.
+    logStep('3.6_germany_evidence_preflight');
+    let dachContext: { dachStreamers: string[]; dachExpectation: string | null; originalNetworks: string[] } = {
+      dachStreamers: [],
+      dachExpectation: null,
+      originalNetworks: Array.isArray((dbSeries as any).networks) ? (dbSeries as any).networks : [],
+    };
+    let germanCatalogConfirmed = false;
+    try {
+      if (dbSeries.tmdbId) {
+        const { getTVWatchProvidersEvidence, getProviderDisplayName } = await import('../lib/tmdb-watch-providers');
+        const evidence = await getTVWatchProvidersEvidence(dbSeries.tmdbId);
+        germanCatalogConfirmed = evidence.confirmed;
+        const providers = evidence.providers;
+        const flatrate = (providers?.flatrate || []).map(p => getProviderDisplayName(p.provider_name));
+        const free = (providers?.free || []).map(p => getProviderDisplayName(p.provider_name));
+        const ads = (providers?.ads || []).map(p => getProviderDisplayName(p.provider_name));
+        dachContext.dachStreamers = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
+      }
+      if (contentType !== 'NEWS' && dachContext.dachStreamers.length === 0) {
+        const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
+        const expectation = mapNetworksToDach(dachContext.originalNetworks);
+        if (expectation) dachContext.dachExpectation = expectation.hedge;
+      }
+      logger.addMetadata('dachContext', dachContext);
+    } catch {
+      germanCatalogConfirmed = false;
+      console.log('   ⚠️ DE-Katalogprüfung nicht verfügbar');
+    }
+    if (trigger !== 'manual' && contentType === 'NEWS' && shouldRejectNewsBeforeWriting({
+      title: source.title, sourceText: fullSourceText,
+      germanCatalogConfirmed, germanProviders: dachContext.dachStreamers,
+    })) {
+      await logger.fail('Kein möglicher Deutschlandbeleg in Originalquelle oder bestätigtem DE-Katalog', 'germany-evidence-preflight');
+      return null;
+    }
+
     logStep('4_fact_extraction');
     // ========== STEP 4: FACT EXTRACTION ==========
     console.log('\n' + '━'.repeat(70));
@@ -1288,45 +1327,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
       logger.addMetadata('storyFingerprint', fingerprintBundle.fingerprint);
     }
     console.timeEnd('⏱️  STEP 4.5: Fingerprint Gate');
-
-    // ========== STEP 4.6: DACH LOCALIZATION CONTEXT ==========
-    // Observed catalog providers are context, not proof of a new season's date.
-    // NEWS never infers German availability from a US production network.
-    console.log('\n' + '━'.repeat(70));
-    console.log('STEP 4.6: DACH LOCALIZATION CONTEXT 🇩🇪');
-    console.log('━'.repeat(70));
-    console.time('⏱️  STEP 4.6: DACH Localization');
-    let dachContext: { dachStreamers: string[]; dachExpectation: string | null; originalNetworks: string[] } = {
-      dachStreamers: [],
-      dachExpectation: null,
-      originalNetworks: Array.isArray((dbSeries as any).networks) ? (dbSeries as any).networks : [],
-    };
-    try {
-      if (dbSeries.tmdbId) {
-        const { getTVWatchProviders, getProviderDisplayName } = await import('../lib/tmdb-watch-providers');
-        const providers = await getTVWatchProviders(dbSeries.tmdbId);
-        const flatrate = (providers?.flatrate || []).map(p => getProviderDisplayName(p.provider_name));
-        const free = (providers?.free || []).map(p => getProviderDisplayName(p.provider_name));
-        const ads = (providers?.ads || []).map(p => getProviderDisplayName(p.provider_name));
-        // Priorität: flatrate vor free vor ads. Dedupe + max 4.
-        const uniq = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
-        dachContext.dachStreamers = uniq;
-      }
-      if (contentType !== 'NEWS' && dachContext.dachStreamers.length === 0) {
-        const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
-        const expectation = mapNetworksToDach(dachContext.originalNetworks);
-        if (expectation) {
-          dachContext.dachExpectation = expectation.hedge;
-        }
-      }
-      console.log(`   🇩🇪 DACH-Streamer: ${dachContext.dachStreamers.length > 0 ? dachContext.dachStreamers.join(', ') : '(keine in TMDB)'}`);
-      if (dachContext.dachExpectation) console.log(`   🔮 DACH-Erwartung: ${dachContext.dachExpectation}`);
-      if (dachContext.originalNetworks.length > 0) console.log(`   📺 Original-Networks: ${dachContext.originalNetworks.join(', ')}`);
-      logger.addMetadata('dachContext', dachContext);
-    } catch (e: any) {
-      console.log(`   ⚠️ DACH-Localization fehlgeschlagen: ${e.message} — Generator bekommt nur Original-Networks`);
-    }
-    console.timeEnd('⏱️  STEP 4.6: DACH Localization');
 
     logStep('5_content_generation');
     // ========== STEP 5: STRUCTURED CONTENT GENERATION (ONE CALL!) ==========

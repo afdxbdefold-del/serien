@@ -147,6 +147,8 @@ test('cooldown begins at completion, not before an expensive attempt', () => {
 
 test('deterministic content rejection remains blocked but provider errors override that classification', () => {
   assert.equal(candidateRetryReason([attempt(500, 'blocklist-tmdb', 'Explicitly blocked series')], now), 'editorial-rejection');
+  assert.equal(candidateRetryReason([attempt(30, 'germany-evidence-preflight', 'No DE evidence')], now), 'germany-evidence-cooldown');
+  assert.equal(candidateRetryReason([attempt(361, 'germany-evidence-preflight', 'No DE evidence')], now), null);
   assert.equal(candidateRetryReason([attempt(30, 'topic-out-of-scope', 'API timeout')], now), null);
   assert.equal(candidateRetryReason([attempt(100, 'classification', 'Movie'), attempt(200, 'classification', 'Movie')], now), 'repeated-classification-rejection');
   assert.equal(candidateRetryReason([attempt(8 * 24 * 60, 'topic-out-of-scope', 'Not a series')], now), null);
@@ -190,6 +192,11 @@ test('triage diagnostics preserve only allowlisted category and HTTP status', ()
   });
   assert.equal(safeNewsError(providerError), 'News classification dependency (HTTP 400)');
   assert.equal(isProviderFailure(safeNewsError(providerError)), true);
+  const codedError = Object.assign(providerError, { status: 429, providerCode: 'credit_balance_exhausted' });
+  assert.equal(safeNewsError(codedError), 'News classification dependency (HTTP 429; credit_balance_exhausted)');
+  assert.equal(isProviderFailure(safeNewsError(codedError)), true);
+  codedError.providerCode = 'EXAMPLE_SECRET_NOT_REAL';
+  assert.equal(safeNewsError(codedError), 'News classification dependency (HTTP 429)');
   providerError.status = 999;
   assert.equal(safeNewsError(providerError), 'News classification dependency');
   providerError.code = 'EXAMPLE_SECRET_NOT_REAL';

@@ -26,15 +26,21 @@ export interface TMDBWatchProvidersResponse {
   };
 }
 
+export interface WatchProvidersEvidence {
+  /** True only when TMDB returned a valid country-result object. */
+  confirmed: boolean;
+  providers: WatchProvidersResult | null;
+}
+
 /**
  * Fetch watch providers for a TV series in Germany
  */
-export async function getTVWatchProviders(seriesId: number): Promise<WatchProvidersResult | null> {
+export async function getTVWatchProvidersEvidence(seriesId: number): Promise<WatchProvidersEvidence> {
   const apiKey = process.env.TMDB_API_KEY;
   
   if (!apiKey) {
     console.error('TMDB_API_KEY not configured');
-    return null;
+    return { confirmed: false, providers: null };
   }
 
   try {
@@ -46,19 +52,29 @@ export async function getTVWatchProviders(seriesId: number): Promise<WatchProvid
 
     if (!response.ok) {
       console.error(`TMDB API error: ${response.status}`);
-      return null;
+      return { confirmed: false, providers: null };
     }
 
     const data: TMDBWatchProvidersResponse = await response.json();
-    
-    // Return German (DE) providers
-    return data.results?.DE || null;
+    if (!data.results || typeof data.results !== 'object' || Array.isArray(data.results)) {
+      return { confirmed: false, providers: null };
+    }
+    if (data.results.DE && (typeof data.results.DE !== 'object' || Array.isArray(data.results.DE))) {
+      return { confirmed: false, providers: null };
+    }
+    // A valid response without DE differs from a failed request. The news
+    // preflight may reject only the former when the source has no DE evidence.
+    return { confirmed: true, providers: data.results.DE || null };
     
   } catch {
     // Fetch errors can include the credential-bearing request URL.
     console.error('TMDB DE watch providers unavailable');
-    return null;
+    return { confirmed: false, providers: null };
   }
+}
+
+export async function getTVWatchProviders(seriesId: number): Promise<WatchProvidersResult | null> {
+  return (await getTVWatchProvidersEvidence(seriesId)).providers;
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 import { createLLMClient, getNewsRequestConfig } from './llm-config';
+import { safeProviderErrorCode } from './news-provider-error';
 
 export type NewsTriageRole = 'classification' | 'deduplication';
 export interface TriageCompletion {
@@ -12,7 +13,7 @@ export interface TriageDependencies {
 
 /** All messages are allowlisted. Never carry provider bodies, tokens or URLs. */
 export class NewsTriageError extends Error {
-  constructor(readonly role: NewsTriageRole, readonly code: 'input' | 'refused' | 'incomplete' | 'invalid-response' | 'dependency', readonly status?: number) {
+  constructor(readonly role: NewsTriageRole, readonly code: 'input' | 'refused' | 'incomplete' | 'invalid-response' | 'dependency', readonly status?: number, readonly providerCode?: string) {
     const messages = {
       input: 'input is empty or exceeds the complete-source budget',
       refused: 'response refused; no editorial decision available',
@@ -20,7 +21,7 @@ export class NewsTriageError extends Error {
       'invalid-response': 'response violates the required schema',
       dependency: 'provider/network unavailable',
     };
-    super(`News ${role} ${messages[code]}${status ? ` (HTTP ${status})` : ''}`);
+    super(`News ${role} ${messages[code]}${status ? ` (HTTP ${status}${providerCode ? `; ${providerCode}` : ''})` : ''}`);
     this.name = 'NewsTriageError';
   }
 }
@@ -67,7 +68,8 @@ export async function requestTriageJson<T>(
     } catch (error) {
       const rawStatus = (error as { status?: unknown })?.status;
       const status = typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 100 && rawStatus < 600 ? rawStatus : undefined;
-      const safe = error instanceof NewsTriageError ? error : new NewsTriageError(role, 'dependency', status);
+      const providerCode = safeProviderErrorCode((error as { code?: unknown })?.code);
+      const safe = error instanceof NewsTriageError ? error : new NewsTriageError(role, 'dependency', status, providerCode);
       if (attempt === 1 || (status && status >= 400 && status < 500) || safe.code === 'refused' || safe.code === 'input') throw safe;
       await wait(750);
     }

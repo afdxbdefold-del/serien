@@ -111,6 +111,27 @@ test('refusal and 4xx abort without heuristic rescue or secret-bearing logs', as
   assert.equal(calls, 1);
 });
 
+test('429 retains only an allowlisted cause, not a provider body or unknown code', async () => {
+  for (const [rawCode, expected] of [
+    ['credit_balance_exhausted', 'credit_balance_exhausted'],
+    ['slow_down', 'slow_down'],
+    ['PRIVATE_TEST_SECRET', ''],
+  ]) {
+    let calls = 0;
+    await assert.rejects(classifyContent('Example Show', 'https://example.com', 'Example Show has a new season.', {
+      wait, complete: async () => {
+        calls++;
+        throw Object.assign(new Error('Bearer PRIVATE_TEST_SECRET'), { status: 429, code: rawCode });
+      },
+    }), (error: Error) => {
+      assert.equal(error.message, `News classification provider/network unavailable (HTTP 429${expected ? `; ${expected}` : ''})`);
+      assert.doesNotMatch(error.message, /PRIVATE_TEST_SECRET/);
+      return true;
+    });
+    assert.equal(calls, 1);
+  }
+});
+
 test('incomplete or malformed output gets one bounded retry; 5xx retries once', async () => {
   let calls = 0;
   const source = 'Example Show has a new season.';

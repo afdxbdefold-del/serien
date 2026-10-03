@@ -1,4 +1,5 @@
 /** Shared, side-effect-free policy for the HTTP cron and optional news worker. */
+import { safeProviderErrorCode } from './news-provider-error';
 export const DEFAULT_NEWS_LIMIT = 5;
 export const DEFAULT_NEWS_BUDGET_MS = 210_000;
 export const SOURCE_TIMEOUT_MS = 20_000;
@@ -23,7 +24,7 @@ const PERMANENT_STEPS = new Set([
 ]);
 
 export function isProviderFailure(message = ''): boolean {
-  return /^News (?:classification|deduplication) dependency(?: \(HTTP [1-5]\d\d\))?$/.test(message)
+  return /^News (?:classification|deduplication) dependency(?: \(HTTP [1-5]\d\d(?:; [a-z_]+)?\))?$/.test(message)
     || /(?:Provider\/network unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
     || /\bsource-(?:request-unavailable|response-unavailable|response-aborted|request-timeout)\b/.test(message)
     || /(?:^\s*(?:\[[^\]]+\]\s*)?|\b(?:http|status|statusCode|response|error|code)[\s"':=]*)(?:401|402|403|429|5\d\d)\b/i.test(message);
@@ -48,6 +49,12 @@ export function candidateRetryReason(attempts: PreviousNewsAttempt[], now = Date
     && !(attempt.errorStep === 'blocklist-source' && /^URL-Pattern blockt \(/.test(attempt.errorMessage || ''))
     && !isProviderFailure(attempt.errorMessage || ''))) {
     return 'editorial-rejection';
+  }
+  // A catalogue listing can appear after the source was discovered. Recheck
+  // within the 72h news window, but not on every hourly paid classification.
+  const lastGermanyPreflight = failures.find((attempt) => attempt.errorStep === 'germany-evidence-preflight');
+  if (lastGermanyPreflight && now - (lastGermanyPreflight.completedAt || lastGermanyPreflight.startedAt).getTime() < 6 * hour) {
+    return 'germany-evidence-cooldown';
   }
   if (failures.filter((attempt) => attempt.errorStep === 'classification'
     && !isProviderFailure(attempt.errorMessage || '')
@@ -104,12 +111,14 @@ export function safeNewsError(error: unknown): string {
   // Preserve only our own typed triage category and numeric HTTP status. The
   // upstream SDK message/body is never copied into logs or the database.
   if (error instanceof Error && error.name === 'NewsTriageError') {
-    const triage = error as Error & { role?: unknown; code?: unknown; status?: unknown };
+    const triage = error as Error & { role?: unknown; code?: unknown; status?: unknown; providerCode?: unknown };
     if ((triage.role === 'classification' || triage.role === 'deduplication')
       && ['input', 'refused', 'incomplete', 'invalid-response', 'dependency'].includes(String(triage.code))) {
       const status = typeof triage.status === 'number' && Number.isInteger(triage.status)
         && triage.status >= 100 && triage.status < 600 ? ` (HTTP ${triage.status})` : '';
-      return `News ${triage.role} ${triage.code}${status}`;
+      const providerCode = safeProviderErrorCode(triage.providerCode);
+      const safeStatus = status && providerCode ? status.replace(')', `; ${providerCode})`) : status;
+      return `News ${triage.role} ${triage.code}${safeStatus}`;
     }
   }
   // These are fixed internal codes, never an upstream message or URL. Preserve
