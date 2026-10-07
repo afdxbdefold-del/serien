@@ -1013,7 +1013,104 @@ trustx.org, 8702, DIRECT, 1d2c8a747a749d25
 blis.com, 1259, RESELLER, 61453ae19a4b73f4
 video.unrulymedia.com, 781508217, DIRECT
 openx.com, 603745306, DIRECT, 6a698e2ec38604c6
-pubmatic.com, 164358, DIRECT, 5d62403b186f2ace`;
+pubmatic.com, 164358, DIRECT, 5d62403b186f2ace
+triplelift.com, 14881, DIRECT, 6c33edb13117fd86
+smartadserver.com, 6043, DIRECT, 060d053dcf45cbf3
+sharethrough.com, 6043, DIRECT, 060d053dcf45cbf3
+INVENTORYPARTNERDOMAIN=pubx.ai
+sharethrough.com,4005,RESELLER,d53b998a7bd4ecd2
+loopme.com,21043,RESELLER,6c8d5f95897a5a3b
+onetag.com,97025f6439c3104,RESELLER
+33across.com,0010b00002MptHCAAZ,RESELLER,bbea06d9c4d2853c
+beachfront.com,15250,RESELLER,e2541279e8e2ca4d
+sharethrough.com,3050,RESELLER,d53b998a7bd4ecd2
+sharethrough.com,4284,RESELLER,d53b998a7bd4ecd2
+themediagrid.com,HW1PGR,RESELLER,9fac4a4a87c2a44f
+seedtag.com,69849fd5adf28a0008bc0458,RESELLER
+spotim.market,e9a771d72c076dbe3cafc2c6477f9238,RESELLER,077e5f709d15bdbb
+conversantmedia.com,101273,RESELLER,03113cd04947736d
+inmobi.com,0a9d875916034437b220eba9df2adfa3,RESELLER,83e75a7ae333ca9d
+Media.net,8CUB46Z7R,RESELLER
+triplelift.com,14829,RESELLER,6c33edb13117fd86
+admanmedia.com,2396,RESELLER
+admanmedia.com,2216,RESELLER
+insticator.com,4ec3ed85-2830-4174-9f7f-f545620598b9,RESELLER,b3511ffcafb23a32
+rtbhouse.com,XPSLDtnX92XNGGFB6ith,RESELLER,4f3b94578e85950c
+sharethrough.com,Q9IzHdvp,RESELLER,d53b998a7bd4ecd2
+oko.uk,e2d3e33c-9911-477a-8ae2-f059870c67c0,RESELLER,b3511ffcafb23a32
+seedtag.com,674f42e4de70100007eeab9d,RESELLER
+richaudience.com,x1vKpaGD9I,RESELLER
+aniview.com,69d24331b4476e4a300e1584,RESELLER,78b21b97965ec3f8
+blueroostermedia.com,1022,DIRECT
+inmobi.com,d9c30b3ad0d243878944f5f704fb381f,RESELLER,83e75a7ae333ca9d
+blis.com,33,RESELLER,61453ae19a4b73f4
+triplelift.com,14680,RESELLER,6c33edb13117fd86
+Driftpixel.ai,4072621692,DIRECT
+sharethrough.com,SwPcyx9V,RESELLER,d53b998a7bd4ecd2
+conversantmedia.com,100141,RESELLER
+freewheel.tv,536359-r-523319,RESELLER
+freewheel.tv,536359-r-524565,RESELLER
+triplelift.com,14830,RESELLER,6c33edb13117fd86
+flashb.id,03c8e749-23dd-54bc-956c-1103538f4adf,RESELLER
+pubmatic.com,167254,DIRECT,5d62403b186f2ace
+rubiconproject.com,25692,RESELLER,0bfd66d529a55807
+krushmedia.com,AJxF6R192a9M6CaTvK,RESELLER
+33across.com,0010b00002ZoRYhAAN,RESELLER,bbea06d9c4d2853c
+adagio.io,1280,RESELLER
+insticator.com,42f5d0d3-5cd9-4738-ba62-b3ac27c07770,DIRECT,b3511ffcafb23a32
+conversantmedia.com,41784,RESELLER,03113cd04947736d
+152media.info,152M244,RESELLER
+Pubmatic.com,161026,RESELLER,5d62403b186f2ace
+pubmatic.com,158355,RESELLER
+adagio.io,1544,RESELLER
+triplelift.com,14800,RESELLER,6c33edb13117fd86
+risecodes.com,6a952bfdeb73a000010a2f63,RESELLER
+spotim.market,02bbfc5dd0707834f452ab1bbe855a83,RESELLER,077e5f709d15bdbb
+smaato.com,1100059990,RESELLER,07bcf65f187117b4
+smartyads.com,21620,DIRECT,fd2bde0ff2e62c5d
+rubiconproject.com,27554,RESELLER,0bfd66d529a55807
+contxtful.com,260331,RESELLER
+pubmatic.com,166638,RESELLER,5d62403b186f2ace
+improvedigital.com,2345,DIRECT
+pubmatic.com,161970,RESELLER,5d62403b186f2ace
+adsinteractive.com,384279453,RESELLER
+adform.com,2795,RESELLER
+appnexus.com,16244,RESELLER
+pubmatic.com,166835,DIRECT,5d62403b186f2ace
+mobupps.com,c74d97b01eae257e44aa9d5bade97baf655,RESELLER
+pokkt.com,5793,DIRECT,c45702d9311e25fd
+bematterfull.com,833800387,DIRECT
+justbaat.com,202605250059,RESELLER
+risecodes.com,6a673c980901b3000157abc4,DIRECT
+insticator.com,33982127-4b91-4d23-9273-e18b7738b70f,RESELLER,b3511ffcafb23a32
+taurusx.com,80648,RESELLER
+bidmatic.io,b-bf9f0,DIRECT
+lijit.com,585632,RESELLER,fafdf38b16bf6b2b
+onetag.com,934da80290aef3a,RESELLER
+video.unrulymedia.com,336401860,RESELLER
+risecodes.com,67e16f676989420001405820,RESELLER
+nexbids.com,pub-8908386379402654,RESELLER
+x.adprime.com,AJxF6R7a9M6CaTvK,RESELLER
+sharethrough.com,3820,RESELLER,d53b998a7bd4ecd2
+Media.net,8CU33YS38,RESELLER
+tremorhub.com,3hi07-wev8q,RESELLER,1a4e959a1b50034a
+pubmatic.com,156946,RESELLER,5d62403b186f2ace
+missena.com,SID-495063,DIRECT
+themediagrid.com,IPB3NX,RESELLER,35d5010d7789b49d
+smartadserver.com,3927,RESELLER,060d053dcf45cbf3
+themediagrid.com,8USKI6,RESELLER,9fac4a4a87c2a44f
+adingo.jp,34490,RESELLER
+33across.com,0015a00003DKg9ZAAT,RESELLER,bbea06d9c4d2853c
+media.net,8CU25UNKK,RESELLER
+trustedstack.com,TS3MF8KJ3,RESELLER
+flashb.id,4e1f8e2b-ca8a-5a69-aa25-dab91d3c8ae0,RESELLER
+voisetech.com,1402,RESELLER,9009ef0379162448
+outbrain.com,00092743fa380569f00f929c5c50dfccf8,RESELLER
+bidease.com,bidease_seller_40,RESELLER
+yieldmo.com,4159765376676077684,RESELLER
+omni-dex.io,100108,RESELLER
+insticator.com,4022291c-df72-416d-98ba-ab42fb0696d3,RESELLER,b3511ffcafb23a32
+smartadserver.com,4343,RESELLER`;
 
 // Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
 // die Datei so cachen, dass jeder externe Verifier (TheMoneytizer, IAB,
