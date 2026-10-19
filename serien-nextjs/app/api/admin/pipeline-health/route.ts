@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - windowMin * 60 * 1000);
 
   const runs = await prisma.pipeline_runs.findMany({
-    where: { createdAt: { gte: since } },
+    where: { createdAt: { gte: since }, pipeline: { not: 'news-llm-usage' } },
     select: {
       id: true,
       status: true,

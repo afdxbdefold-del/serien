@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { createHash } from 'node:crypto';
 import { createLLMClient, getNewsRequestConfig } from './llm-config';
+import { recordNewsCompletionUsage } from './news-cost-control';
 import { isSafePublicHttpUrl, validateAndNormalizeArticleHtml } from './article-html-safety';
 import { inspectArticleStructure } from './article-structure';
 
@@ -288,11 +289,13 @@ function checkEvidence(evidence: EditorialEvidence, article: EditorialArticle): 
 type JsonCaller = (name: string, schema: Record<string, unknown>, instructions: string, data: unknown) => Promise<unknown>;
 
 async function callEditorialJson(name: string, schema: Record<string, unknown>, instructions: string, data: unknown): Promise<unknown> {
+  const role = name === 'editorial_revision' ? 'revision' : 'review';
   const response = await createLLMClient().chat.completions.create({
-    ...getNewsRequestConfig(name === 'editorial_revision' ? 'revision' : 'review'),
+    ...getNewsRequestConfig(role),
     messages: [{ role: 'system', content: instructions }, { role: 'user', content: JSON.stringify(data) }],
     response_format: { type: 'json_schema', json_schema: { name, strict: true, schema } },
   }, { timeout: 120_000, maxRetries: 1 });
+  await recordNewsCompletionUsage(role, getNewsRequestConfig(role).model, response.usage);
   const choice = response.choices[0];
   if (choice?.finish_reason !== 'stop' || choice.message.refusal || !choice.message.content) {
     throw new Error('Redaktionelle Modellantwort fehlt, wurde abgelehnt oder abgebrochen');

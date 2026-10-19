@@ -25,7 +25,7 @@ const PERMANENT_STEPS = new Set([
 
 export function isProviderFailure(message = ''): boolean {
   return /^News (?:classification|deduplication) dependency(?: \(HTTP [1-5]\d\d(?:; [a-z_]+)?\))?$/.test(message)
-    || /(?:Provider\/network unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
+    || /(?:Provider\/network unavailable|News usage accounting unavailable|rate.?limit|quota|credits?|billing|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|overloaded|service unavailable|fetch failed|authentication|api.?key)/i.test(message)
     || /\bsource-(?:request-unavailable|response-unavailable|response-aborted|request-timeout)\b/.test(message)
     || /(?:^\s*(?:\[[^\]]+\]\s*)?|\b(?:http|status|statusCode|response|error|code)[\s"':=]*)(?:401|402|403|429|5\d\d)\b/i.test(message);
 }
@@ -53,7 +53,7 @@ export function candidateRetryReason(attempts: PreviousNewsAttempt[], now = Date
   // A catalogue listing can appear after the source was discovered. Recheck
   // within the 72h news window, but not on every hourly paid classification.
   const lastGermanyPreflight = failures.find((attempt) => attempt.errorStep === 'germany-evidence-preflight');
-  if (lastGermanyPreflight && now - (lastGermanyPreflight.completedAt || lastGermanyPreflight.startedAt).getTime() < 6 * hour) {
+  if (lastGermanyPreflight && now - (lastGermanyPreflight.completedAt || lastGermanyPreflight.startedAt).getTime() < 24 * hour) {
     return 'germany-evidence-cooldown';
   }
   if (failures.filter((attempt) => attempt.errorStep === 'classification'
@@ -132,6 +132,7 @@ export function safeNewsError(error: unknown): string {
     'source-complete-evidence-unavailable',
   ]);
   if (sourceCodes.has(message)) return `Original source read failed: ${message}`;
+  if (error instanceof Error && error.name === 'NewsCostAccountingError') return 'News usage accounting unavailable';
   if (isProviderFailure(message)) return 'Provider/network unavailable; inspect private provider diagnostics';
   if (/lease|lock/i.test(message)) return 'News import lease unavailable';
   if (/timeout|aborted/i.test(message)) return 'News source request timed out';

@@ -1,6 +1,7 @@
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 import { createLLMClient, getNewsRequestConfig } from './llm-config';
 import { safeProviderErrorCode } from './news-provider-error';
+import { NewsCostAccountingError, recordNewsCompletionUsage } from './news-cost-control';
 
 export type NewsTriageRole = 'classification' | 'deduplication';
 export interface TriageCompletion {
@@ -55,7 +56,11 @@ export async function requestTriageJson<T>(
     messages: [{ role: 'system', content: instructions }, { role: 'user', content: JSON.stringify(data) }],
     response_format: { type: 'json_schema', json_schema: { name: `news_${role}`, strict: true, schema } },
   };
-  const complete = dependencies.complete || ((input) => createLLMClient().chat.completions.create(input, { timeout: 90_000, maxRetries: 0 }));
+  const complete = dependencies.complete || (async (input) => {
+    const response = await createLLMClient().chat.completions.create(input, { timeout: 90_000, maxRetries: 0 });
+    await recordNewsCompletionUsage(role, input.model, response.usage);
+    return response;
+  });
   const wait = dependencies.wait || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -66,6 +71,7 @@ export async function requestTriageJson<T>(
         throw new NewsTriageError(role, 'invalid-response');
       }
     } catch (error) {
+      if (error instanceof NewsCostAccountingError) throw error;
       const rawStatus = (error as { status?: unknown })?.status;
       const status = typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 100 && rawStatus < 600 ? rawStatus : undefined;
       const providerCode = safeProviderErrorCode((error as { code?: unknown })?.code);

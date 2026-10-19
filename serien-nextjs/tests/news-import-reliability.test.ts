@@ -110,8 +110,10 @@ test('actual scraper advances its persistent cursor only after attempt guards an
   assert.match(before, /if \(!dryRun\)[\s\S]*?key: 'pipeline\.cron\.paused'[\s\S]*?break;/);
   assert.match(before, /if \(dryRun\)[\s\S]*?continue;/);
   const attemptTry = statements.slice(advance + 1).find(ts.isTryStatement);
-  assert(attemptTry && /await runPipelineV2\(/.test(attemptTry.tryBlock.getText(file)),
+  assert(attemptTry && /await withAutomaticNewsAccounting\(\(\) => runPipelineV2\(/.test(attemptTry.tryBlock.getText(file)),
     'cursor write is outside the per-article catch and before any provider attempt');
+  assert.match(before, /automaticNewsSpendUsd\(prisma\)/);
+  assert.match(before, /mayStartNewsCandidate\(spentUsd \+ costLimits\.openingSpendUsd, attemptsToday, costLimits\.monthlyUsd, costLimits\.dailyAttempts\)/);
   const cursor = nodes.find((node): node is ts.VariableDeclaration =>
     ts.isVariableDeclaration(node) && node.name.getText(file) === 'cursor');
   assert(cursor?.initializer && ts.isConditionalExpression(cursor.initializer));
@@ -148,7 +150,8 @@ test('cooldown begins at completion, not before an expensive attempt', () => {
 test('deterministic content rejection remains blocked but provider errors override that classification', () => {
   assert.equal(candidateRetryReason([attempt(500, 'blocklist-tmdb', 'Explicitly blocked series')], now), 'editorial-rejection');
   assert.equal(candidateRetryReason([attempt(30, 'germany-evidence-preflight', 'No DE evidence')], now), 'germany-evidence-cooldown');
-  assert.equal(candidateRetryReason([attempt(361, 'germany-evidence-preflight', 'No DE evidence')], now), null);
+  assert.equal(candidateRetryReason([attempt(361, 'germany-evidence-preflight', 'No DE evidence')], now), 'germany-evidence-cooldown');
+  assert.equal(candidateRetryReason([attempt(24 * 60 + 1, 'germany-evidence-preflight', 'No DE evidence')], now), null);
   assert.equal(candidateRetryReason([attempt(30, 'topic-out-of-scope', 'API timeout')], now), null);
   assert.equal(candidateRetryReason([attempt(100, 'classification', 'Movie'), attempt(200, 'classification', 'Movie')], now), 'repeated-classification-rejection');
   assert.equal(candidateRetryReason([attempt(8 * 24 * 60, 'topic-out-of-scope', 'Not a series')], now), null);

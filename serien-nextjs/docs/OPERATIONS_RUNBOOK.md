@@ -165,6 +165,45 @@ aufgetreten):
 
 ## "OpenAI 429 — You have no credits remaining"
 
+### Kostenkontrolle auf `codex/takeover` (noch nicht automatisch live)
+
+Die automatische News-Strecke verwendet Sol/low nur für Klassifizierung und
+semantische Duplikatprüfung. Fakten, Schreiben, Schlussredaktion und eine
+begründete Überarbeitung bleiben bei Astra/low. Die vollständige Quelle und
+die Deutschland-/Faktenprüfung bleiben erhalten. Der bestätigte DE-Vorcheck
+steht vor dem Duplikat-Modellaufruf; eine bestätigte Ablehnung wird frühestens
+nach 24 Stunden erneut geprüft.
+
+`NEWS_DAILY_ATTEMPT_LIMIT=3` zählt **Versuche**, nicht Publikationen. `NEWS_LIMIT`
+bleibt die Obergrenze pro Lauf. `NEWS_MONTHLY_BUDGET_USD=25` stoppt neue
+automatische Kandidaten, wenn die seit diesem Rollout in `pipeline_runs`
+erfassten Modellantworten plus 4 USD Reserve den Monatswert überschreiten.
+Im Einführungsmonat Oktober 2026 ist zusätzlich
+`NEWS_COST_BASELINE_USD` mit dem bereits vor dem Rollout angefallenen
+**Projekt**verbrauch zu setzen; ohne Baseline startet kein automatischer
+Kandidat. Am 19. Oktober zeigte die OpenAI-Oberfläche für `serien.de`
+bereits 52,23 USD im laufenden Monat, also mehr als die hier angesetzte
+25-USD-Grenze. Ab November 2026 wird die Baseline automatisch ignoriert.
+Die anonymisierten `news-llm-usage`-Zeilen enthalten Rolle, Modell,
+Tokenzahlen und geschätzte USD-Kosten, aber keine Prompts, Quellen oder
+Zugangsdaten. Fehlende Nutzungsmeldungen oder Schreibfehler stoppen die
+automatische Strecke. Ungültige Grenzwerte fallen auf die konservativen
+Defaults zurück. UTC-Monats-/Tageswechsel gelten.
+
+**Wichtig:** Das ist eine lokale Schätzung, keine harte Abrechnungsgrenze.
+Sie erfasst vor dem Rollout verbrauchte Tokens nur über die manuell gesetzte
+Einführungs-Baseline, nicht über API-Einzelbuchungen. Nicht enthalten sind
+manuelle News-Aufrufe, andere Projektfunktionen, unbekannte fehlgeschlagene
+Requests, Preisänderungen, Steuern oder Wechselkursänderungen. Vor einem Rollout den
+laufenden Monatsverbrauch im OpenAI-Projekt ablesen und mit dem 30-EUR-Ziel
+abgleichen; wenn das Ziel bereits erreicht ist, die automatische News-Aufgabe
+bis zum Monatswechsel nicht freigeben. Danach täglich OpenAI-Projektkosten
+gegen die internen Schätzwerte vergleichen. Sol-Eignung mit repräsentativen
+Deutschlandfällen kostenbewusst live evaluieren, bevor die automatische
+Publikation wieder freigegeben wird.
+
+Die nachfolgende Astra-Angabe beschreibt die zuvor ausgerollte Konfiguration.
+
 Die ausgerollte NEWS-Konfiguration ist `gpt-6-astra` / `low`. Sieben
 synthetische Astra-Modellfälle und der oben genannte echte Pipeline-Publish
 wurden erfolgreich geprüft. Der News-Scheduler ist ebenfalls getestet und

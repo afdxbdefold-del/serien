@@ -604,6 +604,7 @@ Zielgruppe sind DEUTSCHE Leser. Nenne KEINE klassischen US-Fernsehsender (ABC, N
  */
 async function callLLMStructured(prompt: string, contentType: StructuredContentInput['contentType'], retries = 2, temperature?: number): Promise<any> {
   const { createLLMClient, LLM_CONFIG, getNewsRequestConfig } = await import('./llm-config');
+  const { NewsCostAccountingError, recordNewsCompletionUsage } = await import('./news-cost-control');
   const openai = createLLMClient();
   // Astra does not accept sampling knobs. Do not spread legacy parameters
   // into NEWS requests or silently switch back after an upstream rejection.
@@ -639,8 +640,10 @@ Keine zusätzlichen Erklärungen, keine Markdown-Codeblöcke.`,
           },
         ],
       }, { timeout: 120000, maxRetries: 0 });
+      if (contentType === 'NEWS') await recordNewsCompletionUsage('writing', requestConfig.model, response.usage);
       return parseCompletedWriterResponse(response.choices[0]);
     } catch (error: any) {
+      if (error instanceof NewsCostAccountingError) throw error;
       const status = typeof error?.status === 'number' ? error.status : undefined;
       // Refusals, credentials and rate limits require a scheduler/backoff decision.
       if ([401, 403, 429].includes(status) || /refused/i.test(error?.message || '')) {

@@ -46,7 +46,7 @@ import { reviewAndRepairArticle, type EditorialReviewDecision } from '../lib/edi
 import { inspectArticleStructure } from '../lib/article-structure';
 import { verifyPublicationImage, revalidatePublicationCaches, verifyPublishedArticle } from '../lib/publication-verification';
 import { safeNewsError } from '../lib/news-import-reliability';
-import { NEWS_LLM_CONFIG } from '../lib/llm-config';
+import { NEWS_LLM_CONFIG, NEWS_TRIAGE_LLM_CONFIG } from '../lib/llm-config';
 import { newsSourceIsFresh, sourceMentionsSeries, isNewsClassification, matchesResolvedSeries, shouldRejectNewsBeforeWriting } from '../lib/news-pipeline-policy';
 import { fetchEditorialSource } from '../lib/editorial-source-fetch';
 
@@ -295,7 +295,7 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logStep('0_author_resolution');
     const resolvedAuthorId = await resolveEditorialAuthorId(source);
     logger.addMetadata('authorResolution', source.authorId?.trim() ? 'explicit' : 'editorial-default');
-    logger.addMetadata('newsModel', NEWS_LLM_CONFIG);
+    logger.addMetadata('newsModels', { triage: NEWS_TRIAGE_LLM_CONFIG, editorial: NEWS_LLM_CONFIG });
     
     if (trigger !== 'manual') {
       // Nur SUCCESSFUL Runs der letzten 24h blockieren — gescheiterte Runs
@@ -1153,7 +1153,45 @@ export async function runPipelineV2(source: PipelineV2Source) {
       }
     }
 
-    // ========== STEP 3.5: DUPLICATE CHECK ==========
+    // Reject confirmed non-DE catalogue stories before the semantic LLM
+    // duplicate check. Keep the same fail-open behavior on TMDB outages.
+    logStep('3.5_germany_evidence_preflight');
+    let dachContext: { dachStreamers: string[]; dachExpectation: string | null; originalNetworks: string[] } = {
+      dachStreamers: [],
+      dachExpectation: null,
+      originalNetworks: Array.isArray((dbSeries as any).networks) ? (dbSeries as any).networks : [],
+    };
+    let germanCatalogConfirmed = false;
+    try {
+      if (dbSeries.tmdbId) {
+        const { getTVWatchProvidersEvidence, getProviderDisplayName } = await import('../lib/tmdb-watch-providers');
+        const evidence = await getTVWatchProvidersEvidence(dbSeries.tmdbId);
+        germanCatalogConfirmed = evidence.confirmed;
+        const providers = evidence.providers;
+        const flatrate = (providers?.flatrate || []).map(p => getProviderDisplayName(p.provider_name));
+        const free = (providers?.free || []).map(p => getProviderDisplayName(p.provider_name));
+        const ads = (providers?.ads || []).map(p => getProviderDisplayName(p.provider_name));
+        dachContext.dachStreamers = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
+      }
+      if (contentType !== 'NEWS' && dachContext.dachStreamers.length === 0) {
+        const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
+        const expectation = mapNetworksToDach(dachContext.originalNetworks);
+        if (expectation) dachContext.dachExpectation = expectation.hedge;
+      }
+      logger.addMetadata('dachContext', dachContext);
+    } catch {
+      germanCatalogConfirmed = false;
+      console.log('   ⚠️ DE-Katalogprüfung nicht verfügbar');
+    }
+    if (trigger !== 'manual' && contentType === 'NEWS' && shouldRejectNewsBeforeWriting({
+      title: source.title, sourceText: fullSourceText,
+      germanCatalogConfirmed, germanProviders: dachContext.dachStreamers,
+    })) {
+      await logger.fail('Kein möglicher Deutschlandbeleg in Originalquelle oder bestätigtem DE-Katalog', 'germany-evidence-preflight');
+      return null;
+    }
+
+    // ========== STEP 3.6: DUPLICATE CHECK ==========
     console.log('\n' + '━'.repeat(70));
     console.log('STEP 3.5: DUPLICATE CHECK 🔍');
     console.log('━'.repeat(70));
@@ -1232,45 +1270,6 @@ export async function runPipelineV2(source: PipelineV2Source) {
     logger.addMetadata('topicCategory', duplicateResult.topicCategory);
     logger.addMetadata('coreEventNormalized', coreEventNormalizedValue);
     console.timeEnd('⏱️  STEP 3.5: Duplicate Check');
-
-    // Check the two possible German evidence channels before paying for fact
-    // extraction, writing or final review. A failed catalogue lookup is not
-    // treated as evidence that the series lacks German distribution.
-    logStep('3.6_germany_evidence_preflight');
-    let dachContext: { dachStreamers: string[]; dachExpectation: string | null; originalNetworks: string[] } = {
-      dachStreamers: [],
-      dachExpectation: null,
-      originalNetworks: Array.isArray((dbSeries as any).networks) ? (dbSeries as any).networks : [],
-    };
-    let germanCatalogConfirmed = false;
-    try {
-      if (dbSeries.tmdbId) {
-        const { getTVWatchProvidersEvidence, getProviderDisplayName } = await import('../lib/tmdb-watch-providers');
-        const evidence = await getTVWatchProvidersEvidence(dbSeries.tmdbId);
-        germanCatalogConfirmed = evidence.confirmed;
-        const providers = evidence.providers;
-        const flatrate = (providers?.flatrate || []).map(p => getProviderDisplayName(p.provider_name));
-        const free = (providers?.free || []).map(p => getProviderDisplayName(p.provider_name));
-        const ads = (providers?.ads || []).map(p => getProviderDisplayName(p.provider_name));
-        dachContext.dachStreamers = Array.from(new Set([...flatrate, ...free, ...ads])).slice(0, 4);
-      }
-      if (contentType !== 'NEWS' && dachContext.dachStreamers.length === 0) {
-        const { mapNetworksToDach } = await import('../lib/dach-network-mapping');
-        const expectation = mapNetworksToDach(dachContext.originalNetworks);
-        if (expectation) dachContext.dachExpectation = expectation.hedge;
-      }
-      logger.addMetadata('dachContext', dachContext);
-    } catch {
-      germanCatalogConfirmed = false;
-      console.log('   ⚠️ DE-Katalogprüfung nicht verfügbar');
-    }
-    if (trigger !== 'manual' && contentType === 'NEWS' && shouldRejectNewsBeforeWriting({
-      title: source.title, sourceText: fullSourceText,
-      germanCatalogConfirmed, germanProviders: dachContext.dachStreamers,
-    })) {
-      await logger.fail('Kein möglicher Deutschlandbeleg in Originalquelle oder bestätigtem DE-Katalog', 'germany-evidence-preflight');
-      return null;
-    }
 
     logStep('4_fact_extraction');
     // ========== STEP 4: FACT EXTRACTION ==========

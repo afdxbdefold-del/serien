@@ -17,7 +17,7 @@ const existing: ExistingArticle[] = [{ slug: 'renewed', title: 'Example Show ren
 function completion(value: unknown): TriageCompletion { return { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(value) } }] }; }
 const wait = async () => {};
 function requestGuard(request: Parameters<NonNullable<TriageDependencies['complete']>>[0], role: 'classification' | 'deduplication') {
-  assert.equal(request.model, 'gpt-6-astra');
+  assert.equal(request.model, 'gpt-6.1-sol');
   assert.equal(request.reasoning_effort, 'low');
   assert.equal(request.max_completion_tokens, 4096);
   for (const field of ['temperature', 'top_p', 'logprobs', 'top_logprobs', 'tools', 'tool_choice']) assert.equal(field in request, false);
@@ -28,7 +28,7 @@ function requestGuard(request: Parameters<NonNullable<TriageDependencies['comple
   }
 }
 
-test('classification passes complete source through Astra without sampling or request tools', async () => {
+test('classification passes complete source through Sol without sampling or request tools', async () => {
   const source = 'Context. '.repeat(600) + 'Example Show announces a new season.';
   const result = await classifyContent('Example Show renewed', 'https://example.com/news', source, {
     wait,

@@ -18,7 +18,7 @@ test('automatic Germany preflight precedes all expensive creation and review cal
   const source = readFileSync(new URL('../scripts/pipeline-v2.ts', import.meta.url), 'utf8');
   const preflight = source.indexOf("shouldRejectNewsBeforeWriting({");
   assert.ok(preflight > 0);
-  for (const call of ['await extractFacts(', 'await generateStructuredContent(', 'await reviewAndRepairArticle(']) {
+  for (const call of ['await checkForDuplicate(', 'await extractFacts(', 'await generateStructuredContent(', 'await reviewAndRepairArticle(']) {
     assert.ok(source.indexOf(call) > preflight, `${call} must follow the preflight`);
   }
   assert.match(source.slice(preflight - 100, preflight), /trigger !== 'manual'/);

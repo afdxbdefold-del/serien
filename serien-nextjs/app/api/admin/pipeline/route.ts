@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     
     try {
       pipelineRuns = await prisma.pipeline_runs.findMany({
-        where: { startedAt: { gte: since } },
+        where: { startedAt: { gte: since }, pipeline: { not: 'news-llm-usage' } },
         orderBy: { startedAt: 'desc' },
         take: 100
       });
@@ -543,7 +543,7 @@ export async function POST(request: NextRequest) {
     if (action === 'export-csv') {
       const sevenDaysAgo = new Date(Date.now() - 168 * 60 * 60 * 1000);
       const runs = await prisma.pipeline_runs.findMany({
-        where: { startedAt: { gte: sevenDaysAgo } },
+        where: { startedAt: { gte: sevenDaysAgo }, pipeline: { not: 'news-llm-usage' } },
         orderBy: { startedAt: 'desc' },
         take: 500
       });

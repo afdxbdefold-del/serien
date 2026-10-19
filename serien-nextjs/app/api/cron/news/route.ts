@@ -64,13 +64,15 @@ export async function GET(request: NextRequest) {
       || (result.failed > 0 && result.published === 0 && result.drafted === 0)
       ? 'failed'
       : result.failed > 0 || result.sourceErrors > 0 || result.drafted > 0
-        || result.budgetExhausted || result.skipReason || result.publicationPending > 0
+        || result.budgetExhausted || result.costLimitReached || result.dailyAttemptLimitReached || result.skipReason || result.publicationPending > 0
         ? 'partial'
         : 'success';
     const message = stalePublication
       ? 'Seit mehr als 36 Stunden kein automatisch publizierter Artikel'
       : result.providerUnavailable
         ? 'Anbieter nicht erreichbar; weitere Kandidaten werden später versucht'
+        : result.costLimitReached ? 'Monatliches News-Kostenlimit erreicht; keine neuen Modellaufrufe'
+          : result.dailyAttemptLimitReached ? 'Tägliches News-Versuchslimit erreicht'
         : result.publicationPending > 0 ? 'Artikel gespeichert; öffentliche Anzeige noch nicht vollständig bestätigt'
           : result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined;
 

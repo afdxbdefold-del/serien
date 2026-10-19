@@ -1,4 +1,5 @@
 import { createLLMClient, getNewsRequestConfig } from './llm-config';
+import { NewsCostAccountingError, recordNewsCompletionUsage } from './news-cost-control';
 
 export interface ExtractedFacts {
   series_names: string[];
@@ -84,10 +85,12 @@ Extract series names, season and episode numbers, people, factual statements, re
       ],
       response_format: { type: 'json_schema', json_schema: { name: 'series_news_facts', strict: true, schema: FACT_EXTRACTION_SCHEMA } },
     }, { timeout: 90_000, maxRetries: 1 });
+    await recordNewsCompletionUsage('facts', getNewsRequestConfig('facts').model, response.usage);
     const facts = parseFactExtractionResponse(response.choices[0]);
     console.log(`Facts extracted: ${facts.key_statements.length} statements, ${facts.series_names.length} series, ${facts.people_names.length} people`);
     return facts;
   } catch (error) {
+    if (error instanceof NewsCostAccountingError) throw error;
     throw safeFactExtractionError(error);
   }
 }

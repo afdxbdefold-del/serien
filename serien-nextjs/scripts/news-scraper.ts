@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client';
 import { decodeGoogleNewsUrl } from '../lib/google-news-decoder';
 import { acquireNewsImportLease } from '../lib/news-import-lease';
 import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
+import { automaticNewsSpendUsd, configuredNewsCostLimits, dayStartUtc, mayStartNewsCandidate, withAutomaticNewsAccounting } from '../lib/news-cost-control';
 import {
   candidateRetryReason, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT, NEWS_SOURCE_CURSOR_KEY,
   isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates, SOURCE_TIMEOUT_MS,
@@ -883,6 +884,8 @@ export interface ProcessStats {
   providerUnavailable?: boolean;
   publicationPending: number;
   publicationRecovered: number;
+  costLimitReached?: boolean;
+  dailyAttemptLimitReached?: boolean;
 }
 
 function emptyStats(): ProcessStats {
@@ -925,6 +928,7 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
   const limit = positiveInteger(requestedLimit, DEFAULT_NEWS_LIMIT, 20);
   const maxRunMs = positiveInteger(options.maxRunMs, DEFAULT_NEWS_BUDGET_MS, 15 * 60_000);
   const deadline = Date.now() + maxRunMs;
+  const costLimits = configuredNewsCostLimits();
 
   console.log('\n' + '='.repeat(70));
   console.log('📰 NEWS SCRAPER (P2 Pipeline)');
@@ -943,6 +947,17 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
       const recovery = await recoverPendingNewsPublications(prisma, { invalidate: options.invalidatePublicationCaches });
       stats.publicationPending = recovery.pending;
       stats.publicationRecovered = recovery.recovered;
+      const [spentUsd, attemptsToday] = await Promise.all([
+        automaticNewsSpendUsd(prisma),
+        prisma.pipeline_runs.count({ where: { pipeline: 'pipeline-v2', trigger: 'cron', startedAt: { gte: dayStartUtc() } } }),
+      ]);
+      const limitReason = mayStartNewsCandidate(spentUsd + costLimits.openingSpendUsd, attemptsToday, costLimits.monthlyUsd, costLimits.dailyAttempts);
+      if (limitReason) {
+        stats.costLimitReached = limitReason === 'monthly-cost-limit';
+        stats.dailyAttemptLimitReached = limitReason === 'daily-attempt-limit';
+        console.log(`News import deferred: ${limitReason}`);
+        return stats;
+      }
     }
     // Scrape all sources
     let allArticles: NewsArticle[] = [];
@@ -1067,6 +1082,18 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
           stats.deferred += articlesToProcess.length - index;
           break;
         }
+        const [spentUsd, attemptsToday] = await Promise.all([
+          automaticNewsSpendUsd(prisma),
+          prisma.pipeline_runs.count({ where: { pipeline: 'pipeline-v2', trigger: 'cron', startedAt: { gte: dayStartUtc() } } }),
+        ]);
+        const limitReason = mayStartNewsCandidate(spentUsd + costLimits.openingSpendUsd, attemptsToday, costLimits.monthlyUsd, costLimits.dailyAttempts);
+        if (limitReason) {
+          stats.costLimitReached = limitReason === 'monthly-cost-limit';
+          stats.dailyAttemptLimitReached = limitReason === 'daily-attempt-limit';
+          stats.deferred += articlesToProcess.length - index;
+          console.log(`News import deferred: ${limitReason}`);
+          break;
+        }
       }
       console.log(`\n🔄 [${article.source}] ${article.title}`);
       console.log(`   ${article.url}`);
@@ -1091,7 +1118,7 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
       const attemptStartedAt = new Date();
       stats.processed++;
       try {
-        const pipelineResult = await runPipelineV2({
+        const pipelineResult = await withAutomaticNewsAccounting(() => runPipelineV2({
           title: article.title,
           url: article.url,
           text: '',
@@ -1099,7 +1126,7 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
           useFullTextMode: true,
           trigger: 'cron',
           discoveryChannel: article.discoveryChannel || 'rss-direct',
-        });
+        }));
         if (pipelineResult?.status === 'published' && pipelineResult.publicationVerified) {
           stats.published++;
           console.log('   ✅ PUBLISHED');

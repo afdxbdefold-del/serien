@@ -68,7 +68,7 @@ const goodReview = (payload = article): EditorialReview => ({
 });
 
 function assertNewsRequest(body: RequestBody, budget: number) {
-  assert.equal(body.model, 'gpt-6-astra');
+  assert.equal(body.model, budget === 4096 ? 'gpt-6.1-sol' : 'gpt-6-astra');
   assert.equal(body.reasoning_effort, 'low');
   assert.equal(body.max_completion_tokens, budget);
   for (const field of ['temperature', 'top_p', 'top_logprobs', 'logprobs']) {

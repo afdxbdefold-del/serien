@@ -16,6 +16,9 @@ export const NEWS_LLM_CONFIG = {
   reasoning_effort: 'low',
 } as const;
 
+/** Cheap gatekeeping; Astra remains responsible for facts, prose and approval. */
+export const NEWS_TRIAGE_LLM_CONFIG = { model: 'gpt-6.1-sol', reasoning_effort: 'low' } as const;
+
 const NEWS_COMPLETION_BUDGETS = {
   classification: 4096,
   deduplication: 4096,
@@ -29,7 +32,9 @@ export type NewsLLMRole = keyof typeof NEWS_COMPLETION_BUDGETS;
 
 /** Text-only Chat Completions; no tools or unsupported sampling parameters. */
 export function getNewsRequestConfig(role: NewsLLMRole) {
-  return { ...NEWS_LLM_CONFIG, max_completion_tokens: NEWS_COMPLETION_BUDGETS[role] };
+  const config = role === 'classification' || role === 'deduplication'
+    ? NEWS_TRIAGE_LLM_CONFIG : NEWS_LLM_CONFIG;
+  return { ...config, max_completion_tokens: NEWS_COMPLETION_BUDGETS[role] };
 }
 
 export function getLLMConfig() {
