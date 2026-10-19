@@ -29,7 +29,7 @@ const AD_FREE_CONTENT_ROUTES = new Set([
 
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith('/admin');
+  const isAdminRoute = pathname?.startsWith('/admin') || pathname === '/ads-txt-editor';
   // Ad-Test-Seiten (Yieldlab/Prebid Auction-Tests) sollen isoliert
   // rendern — KEIN Header, KEIN Footer, KEIN below_breadcrumb-Slot,
   // damit Vermarkter saubere Auction-Logs sehen.

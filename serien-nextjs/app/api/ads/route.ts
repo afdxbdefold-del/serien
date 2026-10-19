@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { composeAdsTxt, getAdsDocument } from '@/lib/ads-editor-store';
 
 // ads.txt — IAB-spec authorized digital sellers list.
 //   - OWNERDOMAIN/MANAGERDOMAIN declarations (case-insensitive per spec)
@@ -1113,20 +1114,15 @@ insticator.com,4022291c-df72-416d-98ba-ab42fb0696d3,RESELLER,b3511ffcafb23a32
 pubmatic.com, 168525, DIRECT, 5d62403b186f2ace
 smartadserver.com,4343,RESELLER`;
 
-// Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
-// die Datei so cachen, dass jeder externe Verifier (TheMoneytizer, IAB,
-// AdSense, Prebid, Advertising Alliance) sie in einem einzigen HTTP-Call
-// bekommt — ohne SSR-Overhead, ohne Auth-Umleitung, ohne Bot-Firewall.
-export const dynamic = 'force-static';
-export const revalidate = false;
+// Managed additions are persisted in PostgreSQL and must be visible without
+// a rebuild. The committed base remains available if the database is down.
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const HEADERS: Record<string, string> = {
   'Content-Type': 'text/plain; charset=utf-8',
-  // 24 h Public-Cache; Verifier folgen den Standard-Header und cachen intern
-  // meist eh mind. 12 h. `stale-while-revalidate` erlaubt Cloudflare, die
-  // alte Version auszuliefern während dahinter neu geholt wird.
-  'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+  // Changes from the dashboard must not be hidden behind the old 24h cache.
+  'Cache-Control': 'public, max-age=0, s-maxage=60, must-revalidate',
   // Cross-Origin-Verifier (browser-basierte Ad-Fraud-Checker, IAB-Tools)
   // brauchen ausdrücklich CORS, sonst schlägt der Fetch aus fremdem Origin
   // ohne sichtbaren Fehler fehl.
@@ -1143,17 +1139,28 @@ const HEADERS: Record<string, string> = {
   // Fetch verhindern).
 };
 
+async function currentAdsTxt(): Promise<string> {
+  try {
+    return composeAdsTxt(ADS_TXT, (await getAdsDocument()).lines);
+  } catch {
+    // Never take down the committed ads.txt when the settings table is unavailable.
+    console.warn('[ads.txt] managed entries unavailable; serving committed base');
+    return ADS_TXT;
+  }
+}
+
 export async function GET() {
-  return new NextResponse(ADS_TXT, { status: 200, headers: HEADERS });
+  return new NextResponse(await currentAdsTxt(), { status: 200, headers: HEADERS });
 }
 
 // HEAD wird von Next.js aus GET abgeleitet, aber wir setzen es explizit
 // damit Verifier, die zuerst per HEAD probieren (z.B. Google's ads.txt-
 // Crawler), Content-Length und Content-Type sofort sehen.
 export async function HEAD() {
+  const content = await currentAdsTxt();
   const headers: Record<string, string> = {
     ...HEADERS,
-    'Content-Length': String(Buffer.byteLength(ADS_TXT, 'utf-8')),
+    'Content-Length': String(Buffer.byteLength(content, 'utf-8')),
   };
   return new NextResponse(null, { status: 200, headers });
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useDesktopAds } from './DesktopOnlyAds';
 import { canLoadDesktopAds } from '@/lib/desktop-ads';
 
@@ -33,8 +34,9 @@ function script(id: string, options: { src?: string; text?: string; body?: boole
 /** No provider requests, stylesheets or preconnects on mobile/tablet/SSR. */
 export default function DesktopAdProviders() {
   const allowed = useDesktopAds();
+  const pathname = usePathname();
   useEffect(() => {
-    if (!allowed || !canLoadDesktopAds()) return;
+    if (!allowed || pathname === '/ads-txt-editor' || !canLoadDesktopAds()) return;
     const links: HTMLLinkElement[] = [];
     const preconnects = [
       'https://cmp.inmobi.com', 'https://a.pub.network/', 'https://b.pub.network/',
@@ -62,6 +64,6 @@ export default function DesktopAdProviders() {
     script('primis-slider', { src: 'https://live.primis.tech/live/liveView.php?s=122209', body: true });
 
     return () => { links.forEach((link) => link.remove()); };
-  }, [allowed]);
+  }, [allowed, pathname]);
   return null;
 }
