@@ -1110,6 +1110,7 @@ bidease.com,bidease_seller_40,RESELLER
 yieldmo.com,4159765376676077684,RESELLER
 omni-dex.io,100108,RESELLER
 insticator.com,4022291c-df72-416d-98ba-ab42fb0696d3,RESELLER,b3511ffcafb23a32
+pubmatic.com, 168525, DIRECT, 5d62403b186f2ace
 smartadserver.com,4343,RESELLER`;
 
 // Route-Config: statische Auslieferung, damit Next.js + CDN + Cloudflare
