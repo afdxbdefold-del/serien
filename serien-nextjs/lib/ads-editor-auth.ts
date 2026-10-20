@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import type { NextRequest } from 'next/server';
 
@@ -12,7 +14,19 @@ function signingKey(): Uint8Array | null {
 }
 
 export function adsEditorConfigured(): boolean {
-  return Boolean(/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(process.env.ADS_EDITOR_PASSWORD_HASH || '') && signingKey());
+  const hashConfigured = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(process.env.ADS_EDITOR_PASSWORD_HASH || '');
+  const passwordConfigured = (process.env.ADS_EDITOR_PASSWORD?.length ?? 0) >= 8;
+  return Boolean((hashConfigured || passwordConfigured) && signingKey());
+}
+
+export async function matchesAdsEditorPassword(candidate: string): Promise<boolean> {
+  const hash = process.env.ADS_EDITOR_PASSWORD_HASH;
+  if (hash && /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(hash)) return bcrypt.compare(candidate, hash);
+  const configured = process.env.ADS_EDITOR_PASSWORD;
+  if (!configured || configured.length < 8) return false;
+  const expected = createHash('sha256').update(configured).digest();
+  const received = createHash('sha256').update(candidate).digest();
+  return timingSafeEqual(expected, received);
 }
 
 export async function createAdsEditorSession(): Promise<string> {

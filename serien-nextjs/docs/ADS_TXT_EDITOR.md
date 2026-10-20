@@ -8,14 +8,14 @@ erhalten. Ein Rollback erzeugt seinerseits eine neue Version.
 
 ## Einrichtung
 
-1. In einem lokalen interaktiven Terminal im Projektverzeichnis
-   `npm run ads-editor:hash-password` ausführen. Das Passwort wird nicht
-   angezeigt oder in einer Shell-Befehlszeile übergeben. Der ausgegebene
-   bcrypt-Hash ist nur für die geschützte Coolify-Umgebungsvariable
-   `ADS_EDITOR_PASSWORD_HASH` bestimmt; nie in Git oder Chat kopieren.
-2. In Coolify ausschließlich diese Variable setzen. `JWT_SECRET` muss bereits
-   vorhanden und mindestens 32 Zeichen lang sein. Ohne beides verweigert
-   die Anmeldung den Betrieb.
+1. Einfacher Weg: In Coolify **eine** geschützte, nur zur Laufzeit verfügbare
+   Umgebungsvariable `ADS_EDITOR_PASSWORD` setzen. Das Passwort direkt dort
+   eingeben, niemals in Git oder Logs. Es wird nicht an den Browser ausgeliefert.
+   Alternativ kann mit `npm run ads-editor:hash-password` ein bcrypt-Hash
+   erzeugt und als `ADS_EDITOR_PASSWORD_HASH` hinterlegt werden; dieser hat
+   Vorrang, wenn beide Variablen gesetzt sind.
+2. `JWT_SECRET` muss bereits vorhanden und mindestens 32 Zeichen lang sein.
+   Ohne Passwortvariable und Signaturschlüssel verweigert die Anmeldung den Betrieb.
 3. Vor dem Rollout Datenbank- und Volume-Backup samt Restore-Test prüfen.
    Danach nur `codex/takeover` deployen und `/ads.txt` sowie den Editor
    unabhängig von außen prüfen. Niemals Produktionsmigrationen ausführen.
@@ -35,7 +35,8 @@ erhalten. Ein Rollback erzeugt seinerseits eine neue Version.
 
 ## Sicherheit und Grenzen
 
-Die Anmeldung verwendet einen bcrypt-Hash, eine vierstündige, HttpOnly- und
+Die Anmeldung verwendet entweder einen bcrypt-Hash oder ein ausschließlich in
+Coolify hinterlegtes Passwort, eine vierstündige, HttpOnly- und
 SameSite-Strict-Sitzung, Same-Origin-Prüfung und ein Limit von fünf
 Anmeldeversuchen je IP und 15 Minuten pro laufender Instanz. Für ein öffentlich
 erreichbares Schreibwerkzeug sollte zusätzlich ein starkes, einzigartiges

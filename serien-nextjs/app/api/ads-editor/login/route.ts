@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
-import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   ADS_EDITOR_COOKIE, ADS_EDITOR_COOKIE_OPTIONS, ADS_EDITOR_RESPONSE_HEADERS,
-  adsEditorConfigured, createAdsEditorSession, sameOrigin,
+  adsEditorConfigured, createAdsEditorSession, matchesAdsEditorPassword, sameOrigin,
 } from '@/lib/ads-editor-auth';
 
 export const runtime = 'nodejs';
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (typeof password !== 'string' || password.length > 200 || !password) {
       return NextResponse.json({ error: 'Ungültige Anmeldung.' }, { status: 401, headers: ADS_EDITOR_RESPONSE_HEADERS });
     }
-    if (!(await bcrypt.compare(password, process.env.ADS_EDITOR_PASSWORD_HASH!))) {
+    if (!(await matchesAdsEditorPassword(password))) {
       return NextResponse.json({ error: 'Ungültige Anmeldung.' }, { status: 401, headers: ADS_EDITOR_RESPONSE_HEADERS });
     }
     const response = NextResponse.json({ ok: true }, { headers: ADS_EDITOR_RESPONSE_HEADERS });
