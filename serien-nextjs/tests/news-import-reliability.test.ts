@@ -7,11 +7,23 @@ import { acquireNewsImportLease } from '../lib/news-import-lease';
 import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
 import type { PublishedArticleInput } from '../lib/publication-verification';
 import {
-  candidateRetryReason, isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates,
+  candidateRetryReason, creditBalanceCooldownActive, NEWS_CREDIT_RETRY_MS,
+  isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates,
   type PreviousNewsAttempt,
 } from '../lib/news-import-reliability';
 
 const now = Date.parse('2026-09-20T12:00:00Z');
+
+test('exhausted API credit cools down across hourly runs but resumes after a successful call', () => {
+  const failure = new Date(now - 60_000);
+  assert.equal(creditBalanceCooldownActive(failure, null, now), true);
+  assert.equal(creditBalanceCooldownActive(failure, new Date(now - 30_000), now), false);
+  assert.equal(creditBalanceCooldownActive(failure, new Date(now - 90_000), now), true);
+  assert.equal(creditBalanceCooldownActive(new Date(now - NEWS_CREDIT_RETRY_MS), null, now), false);
+  assert.equal(creditBalanceCooldownActive(new Date(now + 60_000), null, now), false);
+  assert.equal(creditBalanceCooldownActive(null, null, now), false);
+});
+
 function attempt(minutesAgo: number, errorStep = 'generation', errorMessage = 'Network timeout'): PreviousNewsAttempt {
   return { status: 'failed', errorStep, errorMessage, startedAt: new Date(now - minutesAgo * 60_000) };
 }

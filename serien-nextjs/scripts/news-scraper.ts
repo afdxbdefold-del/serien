@@ -10,7 +10,8 @@ import { acquireNewsImportLease } from '../lib/news-import-lease';
 import { recoverPendingNewsPublications } from '../lib/news-publication-recovery';
 import { automaticNewsSpendUsd, configuredNewsCostLimits, dayStartUtc, mayStartNewsCandidate, withAutomaticNewsAccounting } from '../lib/news-cost-control';
 import {
-  candidateRetryReason, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT, NEWS_SOURCE_CURSOR_KEY,
+  candidateRetryReason, creditBalanceCooldownActive, DEFAULT_NEWS_BUDGET_MS, DEFAULT_NEWS_LIMIT,
+  NEWS_CREDIT_RETRY_MS, NEWS_SOURCE_CURSOR_KEY,
   isProviderFailure, positiveInteger, safeNewsError, selectNewsCandidates, SOURCE_TIMEOUT_MS,
 } from '../lib/news-import-reliability';
 
@@ -882,6 +883,7 @@ export interface ProcessStats {
   skipReason?: 'pipeline.cron.paused' | 'already-running';
   budgetExhausted?: boolean;
   providerUnavailable?: boolean;
+  providerCreditCooldown?: boolean;
   publicationPending: number;
   publicationRecovered: number;
   costLimitReached?: boolean;
@@ -957,6 +959,25 @@ async function processNewsBatch(options: ProcessOptions, assertLease: () => Prom
         stats.dailyAttemptLimitReached = limitReason === 'daily-attempt-limit';
         console.log(`News import deferred: ${limitReason}`);
         return stats;
+      }
+      const creditFailure = await prisma.pipeline_runs.findFirst({
+        where: { pipeline: 'pipeline-v2', trigger: 'cron', status: 'failed',
+          errorMessage: { contains: 'credit_balance_exhausted' },
+          completedAt: { gte: new Date(Date.now() - NEWS_CREDIT_RETRY_MS) } },
+        orderBy: { completedAt: 'desc' }, select: { completedAt: true },
+      });
+      if (creditFailure?.completedAt) {
+        const successfulUsage = await prisma.pipeline_runs.findFirst({
+          where: { pipeline: 'news-llm-usage', trigger: 'cron', status: 'success',
+            startedAt: { gt: creditFailure.completedAt } },
+          orderBy: { startedAt: 'desc' }, select: { startedAt: true },
+        });
+        if (creditBalanceCooldownActive(creditFailure.completedAt, successfulUsage?.startedAt)) {
+          stats.providerUnavailable = true;
+          stats.providerCreditCooldown = true;
+          console.log('News import deferred: provider-credit-cooldown');
+          return stats;
+        }
       }
     }
     // Scrape all sources

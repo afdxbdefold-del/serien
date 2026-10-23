@@ -67,14 +67,19 @@ export async function GET(request: NextRequest) {
         || result.budgetExhausted || result.costLimitReached || result.dailyAttemptLimitReached || result.skipReason || result.publicationPending > 0
         ? 'partial'
         : 'success';
-    const message = stalePublication
-      ? 'Seit mehr als 36 Stunden kein automatisch publizierter Artikel'
-      : result.providerUnavailable
-        ? 'Anbieter nicht erreichbar; weitere Kandidaten werden später versucht'
-        : result.costLimitReached ? 'Monatliches News-Kostenlimit erreicht; keine neuen Modellaufrufe'
-          : result.dailyAttemptLimitReached ? 'Tägliches News-Versuchslimit erreicht'
-        : result.publicationPending > 0 ? 'Artikel gespeichert; öffentliche Anzeige noch nicht vollständig bestätigt'
-          : result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined;
+    const message = result.costLimitReached
+      ? 'Monatliches News-Kostenlimit erreicht; keine neuen Modellaufrufe'
+      : result.providerCreditCooldown
+        ? 'API-Guthaben zuletzt erschöpft; erneuter Versuch nach Wartezeit'
+        : stalePublication
+          ? 'Seit mehr als 36 Stunden kein automatisch publizierter Artikel'
+          : result.providerUnavailable
+            ? 'Anbieter nicht erreichbar; weitere Kandidaten werden später versucht'
+            : result.dailyAttemptLimitReached
+              ? 'Tägliches News-Versuchslimit erreicht'
+              : result.publicationPending > 0
+                ? 'Artikel gespeichert; öffentliche Anzeige noch nicht vollständig bestätigt'
+                : result.published === 0 ? 'Keine neuen Artikel publiziert' : undefined;
 
     await prisma.pipeline_runs.create({
       data: {
@@ -86,7 +91,9 @@ export async function GET(request: NextRequest) {
           stalePublication, automatedPublishingEnabled, durationMs, message }),
       },
     });
-    console.log(`[CRON] News: ${result.published} published, ${result.drafted} drafts, ${result.processed} attempted, ${result.failed} failed, ${result.deferred} deferred (${runStatus})`);
+    console.log(`[CRON] News: ${result.published} published, ${result.drafted} drafts, `
+      + `${result.processed} attempted, ${result.failed} failed, ${result.deferred} deferred `
+      + `(${runStatus}${message ? `; ${message}` : ''})`);
     return NextResponse.json({ success: runStatus !== 'failed', status: runStatus,
       timestamp: new Date().toISOString(), durationMs,
       result: { ...result, attempted: result.processed, message },

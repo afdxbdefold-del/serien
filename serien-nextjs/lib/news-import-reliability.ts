@@ -4,6 +4,20 @@ export const DEFAULT_NEWS_LIMIT = 5;
 export const DEFAULT_NEWS_BUDGET_MS = 210_000;
 export const SOURCE_TIMEOUT_MS = 20_000;
 export const NEWS_SOURCE_CURSOR_KEY = 'pipeline.news.import.last-source';
+export const NEWS_CREDIT_RETRY_MS = 6 * 60 * 60_000;
+
+/** A depleted provider balance is not a transient 429. Probe at most once per
+ * retry window, while allowing a later successful model call to clear it. */
+export function creditBalanceCooldownActive(
+  failureAt: Date | null | undefined,
+  successfulUsageAt: Date | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!failureAt || !Number.isFinite(failureAt.getTime())) return false;
+  const age = now - failureAt.getTime();
+  if (age < 0 || age >= NEWS_CREDIT_RETRY_MS) return false;
+  return !successfulUsageAt || successfulUsageAt.getTime() <= failureAt.getTime();
+}
 
 export function positiveInteger(value: unknown, fallback: number, maximum: number): number {
   const parsed = typeof value === 'number' ? value : Number(value);
