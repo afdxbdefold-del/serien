@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // HTTP cron, CLI imports and the optional daemon. Settings failures stop it.
     const { processAllNews } = await import('@/scripts/news-scraper');
     const result = await processAllNews({
-      sources: ['cinemaholic', 'deadline', 'variety', 'hollywoodreporter', 'netflixTudum', 'tvline'],
+      sources: ['deadline', 'hollywoodreporter', 'netflixTudum', 'tvline'],
       limit: positiveInteger(process.env.NEWS_LIMIT, DEFAULT_NEWS_LIMIT, 20),
       maxRunMs: positiveInteger(process.env.NEWS_RUN_BUDGET_MS, DEFAULT_NEWS_BUDGET_MS, 600_000),
       dryRun: false,

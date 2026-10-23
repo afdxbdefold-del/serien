@@ -24,6 +24,17 @@ test('exhausted API credit cools down across hourly runs but resumes after a suc
   assert.equal(creditBalanceCooldownActive(null, null, now), false);
 });
 
+test('automatic news sources exclude broad feeds with no October publications', () => {
+  const route = readFileSync(new URL('../app/api/cron/news/route.ts', import.meta.url), 'utf8');
+  const scraper = readFileSync(new URL('../scripts/news-scraper.ts', import.meta.url), 'utf8');
+  const automaticSources = "['deadline', 'hollywoodreporter', 'netflixTudum', 'tvline']";
+  assert.ok(route.includes(`sources: ${automaticSources}`));
+  assert.ok(scraper.includes(`sources = ${automaticSources}`));
+  assert.ok(scraper.includes(`let sources: SourceKey[] = ${automaticSources}`));
+  assert.ok(scraper.includes("if (cinemaholicOnly) sources = ['cinemaholic']"),
+    'excluded feeds remain available for focused manual runs');
+});
+
 function attempt(minutesAgo: number, errorStep = 'generation', errorMessage = 'Network timeout'): PreviousNewsAttempt {
   return { status: 'failed', errorStep, errorMessage, startedAt: new Date(now - minutesAgo * 60_000) };
 }
